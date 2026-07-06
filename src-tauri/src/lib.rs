@@ -2,6 +2,7 @@
 use tauri::Manager;
 
 mod db;
+mod domain;
 mod error;
 
 #[tauri::command]
