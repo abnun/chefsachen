@@ -22,7 +22,22 @@ pub fn run() {
             app.manage(pool);
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![greet, commands::einheiten::einheit_list, commands::einheiten::einheit_create, commands::einheiten::einheit_update, commands::einheiten::einheit_delete])
+        .invoke_handler(tauri::generate_handler![
+            greet,
+            commands::einheiten::einheit_list,
+            commands::einheiten::einheit_create,
+            commands::einheiten::einheit_update,
+            commands::einheiten::einheit_delete,
+            commands::kunden::kunde_list,
+            commands::kunden::kunde_get,
+            commands::kunden::kunde_create,
+            commands::kunden::kunde_update,
+            commands::kunden::kunde_delete,
+            commands::kunden::adresse_save,
+            commands::kunden::adresse_delete,
+            commands::kunden::ansprechpartner_save,
+            commands::kunden::ansprechpartner_delete
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
