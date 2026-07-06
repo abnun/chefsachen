@@ -44,7 +44,16 @@ pub fn run() {
             commands::artikel::kundenpreis_list,
             commands::artikel::kundenpreis_save,
             commands::artikel::kundenpreis_delete,
-            commands::artikel::preis_ermitteln
+            commands::artikel::preis_ermitteln,
+            commands::firma::firma_get,
+            commands::firma::firma_save,
+            commands::firma::firma_logo_set,
+            commands::firma::firma_logo_get,
+            commands::einstellungen::einstellung_get,
+            commands::einstellungen::einstellung_set,
+            commands::einstellungen::einstellung_list,
+            commands::einstellungen::nummernkreis_list,
+            commands::einstellungen::nummernkreis_update
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
