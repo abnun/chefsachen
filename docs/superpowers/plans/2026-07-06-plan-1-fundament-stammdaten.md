@@ -164,9 +164,11 @@ CREATE TABLE kundenpreis (
   artikel_id TEXT NOT NULL REFERENCES artikel(id),
   kunde_id TEXT NOT NULL REFERENCES kunde(id),
   preis_cent INTEGER NOT NULL, gueltig_ab TEXT,
-  created_at TEXT NOT NULL, updated_at TEXT NOT NULL, deleted_at TEXT,
-  UNIQUE (artikel_id, kunde_id, gueltig_ab)
+  created_at TEXT NOT NULL, updated_at TEXT NOT NULL, deleted_at TEXT
 );
+-- Kein UNIQUE auf (artikel_id, kunde_id, gueltig_ab): SQLite behandelt NULLs als
+-- verschieden, und Soft-Delete würde mit einem DB-Constraint kollidieren.
+-- Eindeutigkeit wird stattdessen in kundenpreis_save geprüft (Task 6).
 CREATE TABLE einstellung (
   key TEXT PRIMARY KEY, value TEXT NOT NULL,
   created_at TEXT NOT NULL, updated_at TEXT NOT NULL
@@ -262,6 +264,10 @@ pub async fn init_db(path: &Path) -> Result<SqlitePool, sqlx::Error> {
         .filename(path)
         .create_if_missing(true)
         .foreign_keys(true);
+    // WICHTIG: max_connections(1) ist tragend! Die Nummernkreis-Vergabe (Task 3)
+    // macht Read-then-Update in einer Transaktion; die Einzelverbindung
+    // serialisiert alle Schreibzugriffe. Nicht erhöhen ohne die Vergabe auf
+    // "UPDATE ... RETURNING" umzustellen.
     let pool = SqlitePoolOptions::new().max_connections(1).connect_with(opts).await?;
     sqlx::migrate!("./migrations").run(&pool).await?;
     Ok(pool)
@@ -416,16 +422,17 @@ Dieser Task etabliert das CRUD-Muster, das Task 5–7 wiederverwenden.
 mod tests {
     use super::*;
 
-    async fn pool() -> sqlx::SqlitePool {
+    /// Gibt (Guard, Pool) zurück — der Guard hält das Temp-Verzeichnis am Leben
+    /// und räumt es am Testende auf. Dieses Muster in allen Command-Tests verwenden.
+    async fn test_pool() -> (tempfile::TempDir, sqlx::SqlitePool) {
         let dir = tempfile::tempdir().unwrap();
         let p = crate::db::init_db(&dir.path().join("t.db")).await.unwrap();
-        std::mem::forget(dir); // DB-Datei bis Testende behalten
-        p
+        (dir, p)
     }
 
     #[tokio::test]
     async fn create_list_update_delete() {
-        let pool = pool().await;
+        let (_dir, pool) = test_pool().await;
         let e = create(&pool, "Minute".into(), "Min.".into()).await.unwrap();
         assert!(list(&pool).await.unwrap().iter().any(|x| x.id == e.id));
         let e2 = update(&pool, e.id.clone(), "Minuten".into(), "Min.".into()).await.unwrap();
@@ -436,7 +443,7 @@ mod tests {
 
     #[tokio::test]
     async fn leerer_name_gibt_validierungsfehler() {
-        let pool = pool().await;
+        let (_dir, pool) = test_pool().await;
         let err = create(&pool, "  ".into(), "x".into()).await.unwrap_err();
         matches!(err, crate::error::AppError::Validation { .. })
             .then_some(()).expect("Validation erwartet");
@@ -547,11 +554,10 @@ In `lib.rs` beim Builder: `.invoke_handler(tauri::generate_handler![commands::ei
 mod tests {
     use super::*;
 
-    async fn pool() -> sqlx::SqlitePool {
+    async fn test_pool() -> (tempfile::TempDir, sqlx::SqlitePool) {
         let dir = tempfile::tempdir().unwrap();
         let p = crate::db::init_db(&dir.path().join("t.db")).await.unwrap();
-        std::mem::forget(dir);
-        p
+        (dir, p)
     }
 
     fn neu(name: &str) -> KundeNeu {
@@ -562,7 +568,7 @@ mod tests {
 
     #[tokio::test]
     async fn create_vergibt_kundennummer() {
-        let pool = pool().await;
+        let (_dir, pool) = test_pool().await;
         let k1 = create(&pool, neu("ACME GmbH")).await.unwrap();
         let k2 = create(&pool, neu("Beta AG")).await.unwrap();
         assert_eq!(k1.kundennummer, "KD-0001");
@@ -571,7 +577,7 @@ mod tests {
 
     #[tokio::test]
     async fn suche_filtert_nach_name() {
-        let pool = pool().await;
+        let (_dir, pool) = test_pool().await;
         create(&pool, neu("ACME GmbH")).await.unwrap();
         create(&pool, neu("Beta AG")).await.unwrap();
         let treffer = list(&pool, Some("acme".into())).await.unwrap();
@@ -581,7 +587,7 @@ mod tests {
 
     #[tokio::test]
     async fn standard_adresse_ist_exklusiv_je_typ() {
-        let pool = pool().await;
+        let (_dir, pool) = test_pool().await;
         let k = create(&pool, neu("ACME GmbH")).await.unwrap();
         let a1 = adresse_speichern(&pool, Adresse { id: "".into(), kunde_id: k.id.clone(),
             typ: "rechnung".into(), strasse: "Weg 1".into(), plz: "10115".into(),
@@ -722,7 +728,7 @@ pub async fn adresse_speichern(pool: &SqlitePool, mut a: Adresse) -> AppResult<A
 
 **Interfaces:**
 - Consumes: `naechste_nummer(pool, "artikel")`, CRUD-Muster
-- Produces: `Artikel { id, artikelnummer, bezeichnung, beschreibung, einheit_id, standardpreis_cent: i64 }`, `Kundenpreis { id, artikel_id, kunde_id, preis_cent: i64, gueltig_ab: Option<String> }`.
+- Produces: `Artikel { id, artikelnummer, bezeichnung, beschreibung, einheit_id, standardpreis_cent: i64 }`, `ArtikelNeu` (= Artikel ohne id/artikelnummer), `Kundenpreis { id, artikel_id, kunde_id, preis_cent: i64, gueltig_ab: Option<String> }`.
   Commands: `artikel_list(suche) -> Vec<Artikel>`, `artikel_create/update/delete`, `kundenpreis_list(artikel_id) -> Vec<Kundenpreis>`, `kundenpreis_save(kp) -> Kundenpreis`, `kundenpreis_delete(id)`.
   Domain: `preisfindung::effektiver_preis(pool, artikel_id: &str, kunde_id: &str, belegdatum: &str) -> AppResult<i64>` (Belegdatum `YYYY-MM-DD`)
 
@@ -732,29 +738,77 @@ pub async fn adresse_speichern(pool: &SqlitePool, mut a: Adresse) -> AppResult<A
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::commands::artikel::{create as artikel_create, kundenpreis_speichern, ArtikelNeu, Kundenpreis};
+    use crate::commands::kunden::{create as kunde_create, KundeNeu};
 
-    // Hilfsfunktionen pool(), Kunde+Artikel anlegen wie in Task 5
+    async fn test_pool() -> (tempfile::TempDir, sqlx::SqlitePool) {
+        let dir = tempfile::tempdir().unwrap();
+        let p = crate::db::init_db(&dir.path().join("t.db")).await.unwrap();
+        (dir, p)
+    }
+
+    /// Legt Kunde + Artikel (Standardpreis 9500 Cent, Einheit "Stunde" aus Seed) an.
+    async fn setup(pool: &sqlx::SqlitePool) -> (String, String) {
+        let kunde = kunde_create(pool, KundeNeu {
+            typ: "firma".into(), name: "ACME GmbH".into(), zahlungsziel_tage: 14,
+            notizen: "".into(), ust_idnr: "".into(), email: "".into(),
+            leitweg_id: "".into(), kaeuferreferenz: "".into(),
+        }).await.unwrap();
+        let artikel = artikel_create(pool, ArtikelNeu {
+            bezeichnung: "Beratung".into(), beschreibung: "".into(),
+            einheit_id: "e0000000-0000-0000-0000-000000000001".into(),
+            standardpreis_cent: 9500,
+        }).await.unwrap();
+        (artikel.id, kunde.id)
+    }
+
+    async fn preis_anlegen(pool: &sqlx::SqlitePool, artikel_id: &str, kunde_id: &str, cent: i64, ab: Option<&str>) {
+        kundenpreis_speichern(pool, Kundenpreis {
+            id: "".into(), artikel_id: artikel_id.into(), kunde_id: kunde_id.into(),
+            preis_cent: cent, gueltig_ab: ab.map(String::from),
+        }).await.unwrap();
+    }
 
     #[tokio::test]
     async fn ohne_kundenpreis_gilt_standardpreis() {
-        // Artikel mit standardpreis_cent = 9500 anlegen
-        // assert_eq!(effektiver_preis(&pool, &artikel.id, &kunde.id, "2026-07-06").await.unwrap(), 9500);
+        let (_dir, pool) = test_pool().await;
+        let (artikel_id, kunde_id) = setup(&pool).await;
+        assert_eq!(effektiver_preis(&pool, &artikel_id, &kunde_id, "2026-07-06").await.unwrap(), 9500);
     }
 
     #[tokio::test]
     async fn kundenpreis_ohne_datum_gilt_immer() {
-        // Kundenpreis 8000 ohne gueltig_ab → effektiver_preis == 8000
+        let (_dir, pool) = test_pool().await;
+        let (artikel_id, kunde_id) = setup(&pool).await;
+        preis_anlegen(&pool, &artikel_id, &kunde_id, 8000, None).await;
+        assert_eq!(effektiver_preis(&pool, &artikel_id, &kunde_id, "2026-07-06").await.unwrap(), 8000);
     }
 
     #[tokio::test]
     async fn gueltig_ab_wird_am_belegdatum_gemessen() {
-        // Kundenpreis 8000 gueltig_ab 2026-01-01, Kundenpreis 7000 gueltig_ab 2026-08-01
-        // Belegdatum 2026-07-06 → 8000; Belegdatum 2026-09-01 → 7000
+        let (_dir, pool) = test_pool().await;
+        let (artikel_id, kunde_id) = setup(&pool).await;
+        preis_anlegen(&pool, &artikel_id, &kunde_id, 8000, Some("2026-01-01")).await;
+        preis_anlegen(&pool, &artikel_id, &kunde_id, 7000, Some("2026-08-01")).await;
+        assert_eq!(effektiver_preis(&pool, &artikel_id, &kunde_id, "2026-07-06").await.unwrap(), 8000);
+        assert_eq!(effektiver_preis(&pool, &artikel_id, &kunde_id, "2026-09-01").await.unwrap(), 7000);
+    }
+
+    #[tokio::test]
+    async fn doppelter_kundenpreis_gleiches_gueltig_ab_wird_abgelehnt() {
+        let (_dir, pool) = test_pool().await;
+        let (artikel_id, kunde_id) = setup(&pool).await;
+        preis_anlegen(&pool, &artikel_id, &kunde_id, 8000, None).await;
+        let err = kundenpreis_speichern(&pool, Kundenpreis {
+            id: "".into(), artikel_id: artikel_id.clone(), kunde_id: kunde_id.clone(),
+            preis_cent: 7500, gueltig_ab: None,
+        }).await.unwrap_err();
+        assert!(matches!(err, crate::error::AppError::Validation { .. }));
     }
 }
 ```
 
-Die Kommentare sind beim Schreiben des Tests durch echten Setup-Code zu ersetzen (Kunde via `kunden::create`, Artikel via `create` dieses Moduls, Kundenpreis via `kundenpreis_speichern`) — analog zu den ausgeschriebenen Tests in Task 5.
+`ArtikelNeu` = `Artikel` ohne `id`/`artikelnummer` (analog `KundeNeu`). `kundenpreis_speichern` prüft vor dem Insert per `SELECT COUNT(*)`, ob für (`artikel_id`, `kunde_id`, `gueltig_ab`) bereits ein nicht gelöschter Eintrag existiert (NULL-Vergleich mit `IS`), und gibt dann `AppError::Validation { feld: "gueltig_ab", … }` zurück — die DB hat bewusst keinen Unique-Constraint (siehe Migration, Task 2).
 
 - [ ] **Step 2: Tests schlagen fehl** — Run: `cargo test preisfindung` → FAIL.
 
@@ -795,14 +849,14 @@ pub async fn effektiver_preis(pool: &SqlitePool, artikel_id: &str, kunde_id: &st
 
 **Interfaces:**
 - Produces: `Firma { id, name, strasse, plz, ort, land, steuernummer, ust_idnr, iban, bic, kleinunternehmer: bool, eingerichtet: bool }` (Logo separat: `firma_logo_set(bytes: Vec<u8>)`, `firma_logo_get() -> Option<Vec<u8>>`).
-  Commands: `firma_get() -> Firma`, `firma_save(firma: Firma) -> Firma` (setzt `eingerichtet = true`, Validierung: `name` nicht leer; `steuernummer` ODER `ust_idnr` muss gefüllt sein — § 14 UStG), `einstellung_get(key: String) -> Option<String>`, `einstellung_set(key: String, value: String)`, `einstellung_list() -> Vec<(String, String)>`, `nummernkreis_list() -> Vec<Nummernkreis>`, `nummernkreis_update(art: String, format: String, jahres_reset: bool)` (Zähler ist nicht editierbar)
+  Commands: `firma_get() -> Firma`, `firma_save(firma: Firma) -> Firma` (setzt `eingerichtet = true`, Validierung: `name` nicht leer; `steuernummer` ODER `ust_idnr` muss gefüllt sein — § 14 UStG), `einstellung_get(key: String) -> Option<String>`, `einstellung_set(key: String, value: String)`, `einstellung_list() -> Vec<(String, String)>`, `nummernkreis_list() -> Vec<Nummernkreis>` mit `Nummernkreis { art: String, format: String, zaehler: i64, jahres_reset: bool }`, `nummernkreis_update(art: String, format: String, jahres_reset: bool)` (Zähler ist nicht editierbar)
 
 - [ ] **Step 1: Failing Tests**
 
 ```rust
 #[tokio::test]
 async fn firma_save_erfordert_steuernummer_oder_ustid() {
-    let pool = pool().await;
+    let (_dir, pool) = test_pool().await; // Helfer wie in Task 4
     let mut f = get(&pool).await.unwrap();
     f.name = "Test GmbH".into();
     // beides leer → Validierungsfehler
@@ -815,7 +869,7 @@ async fn firma_save_erfordert_steuernummer_oder_ustid() {
 
 - [ ] **Step 2: FAIL verifizieren** — `cargo test firma` → FAIL.
 
-- [ ] **Step 3: Implementierung** nach dem etablierten Muster: `firma`-Tabelle hat genau eine Zeile (Seed-ID `f0000000-…-0001`), `get` liest sie, `save` updated sie. Einstellungen: einfaches Key-Value-Upsert (`INSERT … ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`).
+- [ ] **Step 3: Implementierung** nach dem etablierten Muster: `firma`-Tabelle hat genau eine Zeile (Seed-ID `f0000000-…-0001`), `get` liest sie, `save` updated sie. `firma_logo_set(bytes)` schreibt die `logo`-BLOB-Spalte, `firma_logo_get()` liest sie (`SELECT logo FROM firma`); beide als eigene Commands, da das Logo nicht in jedem `firma_get` mitgeladen werden soll. Einstellungen: einfaches Key-Value-Upsert (`INSERT … ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`).
 
 - [ ] **Step 4: PASS verifizieren** — `cargo test firma && cargo test einstellungen` → PASS.
 
@@ -1047,18 +1101,27 @@ describe("Einrichtung", () => {
 
 - [ ] **Step 2: FAIL** — `npm test` → FAIL.
 
-- [ ] **Step 3: Implementierung** — vier Schritte als Wizard (Zustand `schritt: 1..4`, Zurück/Weiter):
+- [ ] **Step 3: Dialog-Plugin installieren** (für die Logo-Dateiauswahl):
+
+```bash
+npm install @tauri-apps/plugin-dialog @tauri-apps/plugin-fs
+cd src-tauri && cargo add tauri-plugin-dialog tauri-plugin-fs
+```
+
+Im Builder (`lib.rs`): `.plugin(tauri_plugin_dialog::init()).plugin(tauri_plugin_fs::init())`; in `src-tauri/capabilities/default.json` die Permissions `dialog:default` und `fs:allow-read-file` ergänzen.
+
+- [ ] **Step 4: Implementierung** — vier Schritte als Wizard (Zustand `schritt: 1..4`, Zurück/Weiter):
   1. **Firmendaten**: Name, Adresse, Steuernummer/USt-IdNr., IBAN/BIC
-  2. **Logo** (optional): Datei wählen (`@tauri-apps/plugin-dialog`), Vorschau, überspringbar
+  2. **Logo** (optional): Datei wählen (`open()` aus plugin-dialog, Bytes via plugin-fs lesen, `api.firma` um `logoSet(bytes)` erweitern → `firma_logo_set`), Vorschau, überspringbar
   3. **Kleinunternehmer-Bestätigung**: Checkbox mit Erklärtext (§ 19 UStG, Grenzen 25.000/100.000 €)
   4. **Nummernkreise**: vorbelegte Formate anzeigen, editierbar
   Abschluss ruft `api.firma.save` (setzt `eingerichtet`) und `onFertig()`. `App.tsx`: beim Start `api.firma.get()`; solange `!eingerichtet`, wird statt `Layout` der Assistent gerendert.
 
-- [ ] **Step 4: PASS** — `npm test` → grün.
+- [ ] **Step 5: PASS** — `npm test` → grün.
 
-- [ ] **Step 5: Manueller Durchlauf** — DB-Datei im App-Datenordner löschen, `npm run tauri dev`: Assistent erscheint, durchklicken, danach normale App; Neustart → Assistent kommt nicht mehr.
+- [ ] **Step 6: Manueller Durchlauf** — DB-Datei im App-Datenordner löschen, `npm run tauri dev`: Assistent erscheint, durchklicken, danach normale App; Neustart → Assistent kommt nicht mehr.
 
-- [ ] **Step 6: Commit** — `git add -A && git commit -m "feat: Ersteinrichtungs-Assistent"`
+- [ ] **Step 7: Commit** — `git add -A && git commit -m "feat: Ersteinrichtungs-Assistent"`
 
 ---
 
