@@ -1,6 +1,7 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 use tauri::Manager;
 
+mod commands;
 mod db;
 mod domain;
 mod error;
@@ -21,7 +22,7 @@ pub fn run() {
             app.manage(pool);
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![greet])
+        .invoke_handler(tauri::generate_handler![greet, commands::einheiten::einheit_list, commands::einheiten::einheit_create, commands::einheiten::einheit_update, commands::einheiten::einheit_delete])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
