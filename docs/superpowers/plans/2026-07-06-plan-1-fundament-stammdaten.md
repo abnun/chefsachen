@@ -176,29 +176,29 @@ CREATE TABLE einstellung (
 
 -- Seed: Einheiten
 INSERT INTO einheit (id, name, kuerzel, created_at, updated_at) VALUES
- ('e0000000-0000-0000-0000-000000000001','Stunde','Std.',datetime('now'),datetime('now')),
- ('e0000000-0000-0000-0000-000000000002','Stück','Stk.',datetime('now'),datetime('now')),
- ('e0000000-0000-0000-0000-000000000003','Tag','Tag',datetime('now'),datetime('now')),
- ('e0000000-0000-0000-0000-000000000004','Pauschale','pausch.',datetime('now'),datetime('now')),
- ('e0000000-0000-0000-0000-000000000005','Kilometer','km',datetime('now'),datetime('now'));
+ ('e0000000-0000-0000-0000-000000000001','Stunde','Std.',strftime('%Y-%m-%dT%H:%M:%SZ','now'),strftime('%Y-%m-%dT%H:%M:%SZ','now')),
+ ('e0000000-0000-0000-0000-000000000002','Stück','Stk.',strftime('%Y-%m-%dT%H:%M:%SZ','now'),strftime('%Y-%m-%dT%H:%M:%SZ','now')),
+ ('e0000000-0000-0000-0000-000000000003','Tag','Tag',strftime('%Y-%m-%dT%H:%M:%SZ','now'),strftime('%Y-%m-%dT%H:%M:%SZ','now')),
+ ('e0000000-0000-0000-0000-000000000004','Pauschale','pausch.',strftime('%Y-%m-%dT%H:%M:%SZ','now'),strftime('%Y-%m-%dT%H:%M:%SZ','now')),
+ ('e0000000-0000-0000-0000-000000000005','Kilometer','km',strftime('%Y-%m-%dT%H:%M:%SZ','now'),strftime('%Y-%m-%dT%H:%M:%SZ','now'));
 
 -- Seed: Nummernkreise
 INSERT INTO nummernkreis (id, art, format, zaehler, jahres_reset, jahr, created_at, updated_at) VALUES
- ('a0000000-0000-0000-0000-000000000001','kunde','KD-{lfd:4}',0,0,CAST(strftime('%Y','now') AS INTEGER),datetime('now'),datetime('now')),
- ('a0000000-0000-0000-0000-000000000002','artikel','ART-{lfd:4}',0,0,CAST(strftime('%Y','now') AS INTEGER),datetime('now'),datetime('now')),
- ('a0000000-0000-0000-0000-000000000003','angebot','AN-{JJJJ}-{lfd:4}',0,1,CAST(strftime('%Y','now') AS INTEGER),datetime('now'),datetime('now')),
- ('a0000000-0000-0000-0000-000000000004','rechnung','RE-{JJJJ}-{lfd:4}',0,1,CAST(strftime('%Y','now') AS INTEGER),datetime('now'),datetime('now'));
+ ('a0000000-0000-0000-0000-000000000001','kunde','KD-{lfd:4}',0,0,CAST(strftime('%Y','now') AS INTEGER),strftime('%Y-%m-%dT%H:%M:%SZ','now'),strftime('%Y-%m-%dT%H:%M:%SZ','now')),
+ ('a0000000-0000-0000-0000-000000000002','artikel','ART-{lfd:4}',0,0,CAST(strftime('%Y','now') AS INTEGER),strftime('%Y-%m-%dT%H:%M:%SZ','now'),strftime('%Y-%m-%dT%H:%M:%SZ','now')),
+ ('a0000000-0000-0000-0000-000000000003','angebot','AN-{JJJJ}-{lfd:4}',0,1,CAST(strftime('%Y','now') AS INTEGER),strftime('%Y-%m-%dT%H:%M:%SZ','now'),strftime('%Y-%m-%dT%H:%M:%SZ','now')),
+ ('a0000000-0000-0000-0000-000000000004','rechnung','RE-{JJJJ}-{lfd:4}',0,1,CAST(strftime('%Y','now') AS INTEGER),strftime('%Y-%m-%dT%H:%M:%SZ','now'),strftime('%Y-%m-%dT%H:%M:%SZ','now'));
 
 -- Seed: Firma (leerer Einzeldatensatz, wird im Assistenten befüllt)
 INSERT INTO firma (id, created_at, updated_at) VALUES
- ('f0000000-0000-0000-0000-000000000001',datetime('now'),datetime('now'));
+ ('f0000000-0000-0000-0000-000000000001',strftime('%Y-%m-%dT%H:%M:%SZ','now'),strftime('%Y-%m-%dT%H:%M:%SZ','now'));
 
 -- Seed: Textbausteine & Defaults
 INSERT INTO einstellung (key, value, created_at, updated_at) VALUES
- ('text.kleinunternehmer','Gemäß § 19 UStG wird keine Umsatzsteuer berechnet.',datetime('now'),datetime('now')),
- ('text.rechnung.fuss','Vielen Dank für Ihren Auftrag. Bitte überweisen Sie den Betrag innerhalb der Zahlungsfrist auf das unten genannte Konto.',datetime('now'),datetime('now')),
- ('text.angebot.fuss','Wir freuen uns auf Ihre Rückmeldung. Dieses Angebot ist 30 Tage gültig.',datetime('now'),datetime('now')),
- ('default.zahlungsziel_tage','14',datetime('now'),datetime('now'));
+ ('text.kleinunternehmer','Gemäß § 19 UStG wird keine Umsatzsteuer berechnet.',strftime('%Y-%m-%dT%H:%M:%SZ','now'),strftime('%Y-%m-%dT%H:%M:%SZ','now')),
+ ('text.rechnung.fuss','Vielen Dank für Ihren Auftrag. Bitte überweisen Sie den Betrag innerhalb der Zahlungsfrist auf das unten genannte Konto.',strftime('%Y-%m-%dT%H:%M:%SZ','now'),strftime('%Y-%m-%dT%H:%M:%SZ','now')),
+ ('text.angebot.fuss','Wir freuen uns auf Ihre Rückmeldung. Dieses Angebot ist 30 Tage gültig.',strftime('%Y-%m-%dT%H:%M:%SZ','now'),strftime('%Y-%m-%dT%H:%M:%SZ','now')),
+ ('default.zahlungsziel_tage','14',strftime('%Y-%m-%dT%H:%M:%SZ','now'),strftime('%Y-%m-%dT%H:%M:%SZ','now'));
 ```
 
 - [ ] **Step 5: `error.rs` und `db.rs` implementieren**
@@ -274,8 +274,10 @@ pub async fn init_db(path: &Path) -> Result<SqlitePool, sqlx::Error> {
 }
 
 /// ISO-8601-UTC-Zeitstempel für created_at/updated_at.
+/// Format identisch zu den Seeds in der Migration (strftime('%Y-%m-%dT%H:%M:%SZ')),
+/// damit alle Zeitstempel einheitlich und lexikographisch sortierbar sind.
 pub fn jetzt() -> String {
-    chrono::Utc::now().to_rfc3339()
+    chrono::Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string()
 }
 ```
 
@@ -445,8 +447,17 @@ mod tests {
     async fn leerer_name_gibt_validierungsfehler() {
         let (_dir, pool) = test_pool().await;
         let err = create(&pool, "  ".into(), "x".into()).await.unwrap_err();
-        matches!(err, crate::error::AppError::Validation { .. })
-            .then_some(()).expect("Validation erwartet");
+        assert!(matches!(err, crate::error::AppError::Validation { .. }));
+    }
+
+    #[tokio::test]
+    async fn verwendete_einheit_kann_nicht_geloescht_werden() {
+        let (_dir, pool) = test_pool().await;
+        let stunde = "e0000000-0000-0000-0000-000000000001"; // Seed-Einheit
+        sqlx::query("INSERT INTO artikel (id, artikelnummer, bezeichnung, einheit_id, standardpreis_cent, created_at, updated_at) VALUES ('a1','ART-0001','Beratung',?,9500,'2026-01-01T00:00:00Z','2026-01-01T00:00:00Z')")
+            .bind(stunde).execute(&pool).await.unwrap();
+        let err = delete(&pool, stunde.into()).await.unwrap_err();
+        assert!(matches!(err, crate::error::AppError::Validation { .. }));
     }
 }
 ```
@@ -503,6 +514,15 @@ pub async fn update(pool: &SqlitePool, id: String, name: String, kuerzel: String
 }
 
 pub async fn delete(pool: &SqlitePool, id: String) -> AppResult<()> {
+    let in_verwendung: (i64,) = sqlx::query_as(
+        "SELECT COUNT(*) FROM artikel WHERE einheit_id = ? AND deleted_at IS NULL")
+        .bind(&id).fetch_one(pool).await?;
+    if in_verwendung.0 > 0 {
+        return Err(AppError::Validation {
+            feld: "id".into(),
+            meldung: "Einheit wird von Artikeln verwendet und kann nicht gelöscht werden".into(),
+        });
+    }
     let r = sqlx::query("UPDATE einheit SET deleted_at = ? WHERE id = ? AND deleted_at IS NULL")
         .bind(jetzt()).bind(&id).execute(pool).await?;
     if r.rows_affected() == 0 { return Err(AppError::NichtGefunden); }
@@ -712,7 +732,7 @@ pub async fn adresse_speichern(pool: &SqlitePool, mut a: Adresse) -> AppResult<A
 }
 ```
 
-`update`/`delete` für Kunde sowie `ansprechpartner_speichern`/`_delete` folgen exakt dem Muster von `adresse_speichern` bzw. Task 4 (`delete` = Soft-Delete). Tauri-Wrapper (`#[tauri::command]`) für alle Funktionen wie in Task 4, Namen: `kunde_list`, `kunde_get`, `kunde_create`, `kunde_update`, `kunde_delete`, `adresse_save`, `adresse_delete`, `ansprechpartner_save`, `ansprechpartner_delete`; alle im `invoke_handler` registrieren.
+`update`/`delete` für Kunde sowie `ansprechpartner_speichern`/`_delete` folgen exakt dem Muster von `adresse_speichern` bzw. Task 4 (`delete` = Soft-Delete). **Wichtig bei `update`:** Das UPDATE-Statement setzt `kundennummer` NICHT — die vergebene Nummer ist unveränderlich, auch wenn das `Kunde`-Objekt aus dem Frontend sie enthält. **Regel für alle Creates mit Nummernvergabe (auch Task 6):** Erst vollständig validieren, dann `naechste_nummer` aufrufen — sonst entstehen Nummernlücken durch abgelehnte Eingaben. Tauri-Wrapper (`#[tauri::command]`) für alle Funktionen wie in Task 4, Namen: `kunde_list`, `kunde_get`, `kunde_create`, `kunde_update`, `kunde_delete`, `adresse_save`, `adresse_delete`, `ansprechpartner_save`, `ansprechpartner_delete`; alle im `invoke_handler` registrieren.
 
 - [ ] **Step 4: Tests grün** — Run: `cargo test kunden` → PASS (3 Tests).
 
@@ -849,7 +869,7 @@ pub async fn effektiver_preis(pool: &SqlitePool, artikel_id: &str, kunde_id: &st
 
 **Interfaces:**
 - Produces: `Firma { id, name, strasse, plz, ort, land, steuernummer, ust_idnr, iban, bic, kleinunternehmer: bool, eingerichtet: bool }` (Logo separat: `firma_logo_set(bytes: Vec<u8>)`, `firma_logo_get() -> Option<Vec<u8>>`).
-  Commands: `firma_get() -> Firma`, `firma_save(firma: Firma) -> Firma` (setzt `eingerichtet = true`, Validierung: `name` nicht leer; `steuernummer` ODER `ust_idnr` muss gefüllt sein — § 14 UStG), `einstellung_get(key: String) -> Option<String>`, `einstellung_set(key: String, value: String)`, `einstellung_list() -> Vec<(String, String)>`, `nummernkreis_list() -> Vec<Nummernkreis>` mit `Nummernkreis { art: String, format: String, zaehler: i64, jahres_reset: bool }`, `nummernkreis_update(art: String, format: String, jahres_reset: bool)` (Zähler ist nicht editierbar)
+  Commands: `firma_get() -> Firma`, `firma_save(firma: Firma) -> Firma` (setzt `eingerichtet = true`, Validierung: `name` nicht leer; `steuernummer` ODER `ust_idnr` muss gefüllt sein — § 14 UStG), `einstellung_get(key: String) -> Option<String>`, `einstellung_set(key: String, value: String)`, `einstellung_list() -> Vec<(String, String)>`, `nummernkreis_list() -> Vec<Nummernkreis>` mit `Nummernkreis { art: String, format: String, zaehler: i64, jahres_reset: bool }`, `nummernkreis_update(art: String, format: String, jahres_reset: bool)` (Zähler ist nicht editierbar; Validierung: `format` muss einen `{lfd:n}`-Platzhalter enthalten, sonst entstehen identische Nummern und Unique-Verletzungen)
 
 - [ ] **Step 1: Failing Tests**
 
@@ -894,7 +914,7 @@ async fn firma_save_erfordert_steuernummer_oder_ustid() {
 npm install -D vitest @testing-library/react @testing-library/jest-dom jsdom
 ```
 
-`package.json` scripts: `"test": "vitest run"`. In `vite.config.ts` `test: { environment: "jsdom" }` ergänzen.
+`package.json` scripts: `"test": "vitest run"`. In `vite.config.ts` `test: { environment: "jsdom" }` ergänzen und dafür `defineConfig` aus `vitest/config` statt aus `vite` importieren (sonst kennt TypeScript das `test`-Feld nicht).
 
 - [ ] **Step 2: Failing Test** — `src/api.test.ts`:
 
