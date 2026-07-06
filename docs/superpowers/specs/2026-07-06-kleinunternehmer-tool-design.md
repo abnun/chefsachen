@@ -34,7 +34,7 @@ Drei Schichten:
 
 Alle Entitäten: UUID, `created_at`/`updated_at`, Soft-Delete. Eindeutigkeits-Constraints (z. B. Belegnummern) schließen soft-gelöschte Datensätze ein, damit Nummern nie doppelt vergeben werden.
 
-**Geldbeträge werden durchgängig als Integer in Cent gespeichert und berechnet** (keine Fließkommazahlen); Rundung nach kaufmännischer Regel nur bei der Positionssummen-Bildung (Menge × Einzelpreis). Währung in V1: ausschließlich EUR.
+**Geldbeträge werden durchgängig als Integer in Cent gespeichert und berechnet** (keine Fließkommazahlen); Mengen werden als Dezimalzahl mit bis zu 3 Nachkommastellen gespeichert (Integer, Faktor 1000). Rundungskette: Positionssumme = Menge × Einzelpreis, kaufmännisch auf ganze Cent gerundet; Belegsumme = Summe der gerundeten Positionssummen. Währung in V1: ausschließlich EUR.
 
 - **Firma** (Einzeldatensatz): Name, Anschrift, Steuernummer/USt-IdNr., Bankverbindung (IBAN/BIC), Logo, Kleinunternehmer-Flag
 - **Kunde:** Firmenname/Privatperson, Kundennummer (aus Nummernkreis), Standard-Zahlungsziel, Notizen; für E-Rechnungen: USt-IdNr., E-Mail-Adresse, Leitweg-ID (optional, Pflicht nur bei XRechnung an öffentliche Auftraggeber), Käuferreferenz
@@ -42,11 +42,11 @@ Alle Entitäten: UUID, `created_at`/`updated_at`, Soft-Delete. Eindeutigkeits-Co
   - **Ansprechpartner** (1:n): Name, Rolle, E-Mail, Telefon, Standard-Flag
 - **Einheit:** Name, Kürzel; aus Seed-Daten, pflegbar
 - **Artikel/Leistung:** Bezeichnung, Beschreibung, Einheit, Standardpreis, Artikelnummer
-  - **Kundenpreis** (n:m Artikel↔Kunde): abweichender Preis, optional Gültig-ab-Datum
-- **Beleg** (gemeinsames Muster für Angebot und Rechnung): Nummer, Kundenreferenz plus eingefrorener Snapshot der Adress- und Firmendaten (JSON) — spätere Stammdatenänderungen verändern alte Belege nicht. Datum, Zahlungsziel, Status, Kopf-/Fußtexte.
+  - **Kundenpreis** (n:m Artikel↔Kunde): abweichender Preis, optional Gültig-ab-Datum; maßgeblich für die Preisfindung ist das **Belegdatum**
+- **Beleg** (gemeinsames Muster für Angebot und Rechnung): Nummer, Kundenreferenz plus eingefrorener Snapshot der Adress- und Firmendaten (JSON) — spätere Stammdatenänderungen verändern alte Belege nicht. Datum, **Leistungsdatum oder -zeitraum (Pflichtangabe nach § 14 UStG; Standardvorbelegung: Rechnungsdatum)**, Zahlungsziel, Status, Kopf-/Fußtexte.
   - **Belegposition:** Artikelreferenz plus eingefrorene Bezeichnung/Preis/Einheit, Menge, Positionssumme; Freitextpositionen ohne Artikelreferenz möglich
   - Angebot → Rechnung: Positionen werden kopiert, Verknüpfung zum Ursprungsangebot bleibt
-- **Zahlung** (1:n zur Rechnung): Datum, Betrag, Notiz; Rechnung gilt als bezahlt, wenn die Summe der Zahlungen den Rechnungsbetrag erreicht oder übersteigt (Überzahlung wird angezeigt, aber nicht verhindert)
+- **Zahlung** (1:n zur Rechnung): Datum, Betrag, Notiz; Rechnung gilt als bezahlt, wenn die Summe der Zahlungen den Rechnungsbetrag erreicht oder übersteigt (Überzahlung wird angezeigt, aber nicht verhindert). Negative Beträge sind als Erstattungen erlaubt (z. B. Rückzahlung nach Storno) und mindern den vereinnahmten Umsatz
 - **Nummernkreis:** je Nummernart (Angebot, Rechnung, Kunde, Artikel) Format-Template (z. B. `RE-{JJJJ}-{lfd:4}`), Zähler, optionaler Jahresreset. Stornobelege erhalten eine eigene Nummer aus dem Rechnungs-Nummernkreis
 - **Einstellungen:** Key-Value für App-Optionen und Textbausteine
 
@@ -91,7 +91,15 @@ Eigenes Rust-Modul, vom Rest entkoppelt.
 ## Tests
 
 - **Rust:** Unit-Tests für Domänenlogik (Preisfindung, Nummernkreise, Statusübergänge, Summen/Rundung); Snapshot-Tests für XRechnung-XML; CI-Validierung der XML-Ausgabe gegen die offiziellen KoSIT-Schematron-Regeln
-- **Frontend:** Komponententests für die Editor-Logik; ein End-to-End-Durchstich (Kunde anlegen → Rechnung stellen → PDF erzeugt) mit Playwright/WebDriver
+- **Frontend:** Komponententests für die Editor-Logik; ein End-to-End-Durchstich (Kunde anlegen → Rechnung stellen → PDF erzeugt) via `tauri-driver` (WebDriver; Playwright unterstützt Tauri nicht)
+
+## Distribution
+
+Da die App als Produkt für Dritte gedacht ist, gehört zur V1-Auslieferung:
+
+- Signierte Installer: macOS (Universal Binary, signiert + notarisiert, `.dmg`) und Windows (signiertes `.msi`/NSIS) über den Tauri-Bundler; benötigt Apple-Developer- und Windows-Code-Signing-Zertifikate
+- Auto-Update über den Tauri-Updater (signierte Update-Manifeste, statisches Hosting genügt)
+- CI-Pipeline (GitHub Actions) baut und signiert beide Plattformen
 
 ## Ausblick (nicht V1)
 
