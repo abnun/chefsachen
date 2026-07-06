@@ -10,10 +10,10 @@ import {
 import { Fehler } from "../components/Fehler";
 
 /**
- * Einstellungsseite mit drei unabhängigen Abschnitten: Firmendaten,
- * Einheiten-Verwaltung und Nummernkreise. Jeder Abschnitt lädt und speichert
- * unabhängig von den anderen — ein Fehler in einem Abschnitt blockiert die
- * anderen nicht.
+ * Einstellungsseite mit vier unabhängigen Abschnitten: Firmendaten,
+ * Einheiten-Verwaltung, Nummernkreise und Textbausteine. Jeder Abschnitt lädt
+ * und speichert unabhängig von den anderen — ein Fehler in einem Abschnitt
+ * blockiert die anderen nicht.
  */
 export function Einstellungen() {
   return (
@@ -22,6 +22,7 @@ export function Einstellungen() {
       <FirmendatenAbschnitt />
       <EinheitenAbschnitt />
       <NummernkreiseAbschnitt />
+      <TextbausteineAbschnitt />
     </div>
   );
 }
@@ -322,6 +323,67 @@ function NummernkreiseAbschnitt() {
             Jährlicher Reset
           </label>
           <span>Aktueller Zähler: {nk.zaehler}</span>
+          <button type="submit">Speichern</button>
+        </form>
+      ))}
+    </section>
+  );
+}
+
+const TEXTBAUSTEIN_LABEL: Record<string, string> = {
+  "text.kleinunternehmer": "Kleinunternehmer-Hinweis",
+  "text.rechnung.fuss": "Rechnungs-Fußtext",
+  "text.angebot.fuss": "Angebots-Fußtext",
+};
+
+const TEXTBAUSTEIN_KEYS = Object.keys(TEXTBAUSTEIN_LABEL);
+
+function TextbausteineAbschnitt() {
+  const [werte, setWerte] = useState<Record<string, string>>({});
+  const [fehler, setFehler] = useState<AppFehler | null>(null);
+
+  useEffect(() => {
+    Promise.all(TEXTBAUSTEIN_KEYS.map((key) => api.einstellungen.get(key)))
+      .then((liste) => {
+        const neueWerte: Record<string, string> = {};
+        TEXTBAUSTEIN_KEYS.forEach((key, i) => {
+          neueWerte[key] = liste[i] ?? "";
+        });
+        setWerte(neueWerte);
+        setFehler(null);
+      })
+      .catch((e) => setFehler(e as AppFehler));
+  }, []);
+
+  function aendere(key: string, wert: string) {
+    setWerte((bisherige) => ({ ...bisherige, [key]: wert }));
+  }
+
+  async function speichern(key: string) {
+    setFehler(null);
+    try {
+      await api.einstellungen.set(key, werte[key] ?? "");
+    } catch (e) {
+      setFehler(e as AppFehler);
+    }
+  }
+
+  return (
+    <section>
+      <h2>Textbausteine</h2>
+      {fehler && !istValidierungsfehler(fehler) && <Fehler fehler={fehler} />}
+      {TEXTBAUSTEIN_KEYS.map((key) => (
+        <form
+          key={key}
+          onSubmit={(e) => {
+            e.preventDefault();
+            speichern(key);
+          }}
+        >
+          <label>
+            {TEXTBAUSTEIN_LABEL[key]}
+            <textarea value={werte[key] ?? ""} onChange={(e) => aendere(key, e.currentTarget.value)} />
+          </label>
           <button type="submit">Speichern</button>
         </form>
       ))}

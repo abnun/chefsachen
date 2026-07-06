@@ -1,5 +1,7 @@
-import { render, screen, waitFor } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+afterEach(cleanup);
 
 vi.mock("../api", () => ({
   api: {
@@ -31,6 +33,15 @@ vi.mock("../api", () => ({
         { art: "rechnung", format: "R-{jahr}-{nr}", zaehler: 5, jahres_reset: true },
       ]),
       nummernkreisUpdate: vi.fn(),
+      get: vi.fn((key: string) => {
+        const werte: Record<string, string> = {
+          "text.kleinunternehmer": "Gemäß § 19 UStG wird keine Umsatzsteuer berechnet.",
+          "text.rechnung.fuss": "Vielen Dank für Ihren Auftrag.",
+          "text.angebot.fuss": "Dieses Angebot ist 30 Tage gültig.",
+        };
+        return Promise.resolve(werte[key] ?? null);
+      }),
+      set: vi.fn(),
     },
   },
   istValidierungsfehler: () => false,
@@ -44,5 +55,15 @@ describe("Einstellungen", () => {
     expect(screen.getByText("Std")).toBeTruthy();
     expect(screen.getByDisplayValue("R-{jahr}-{nr}")).toBeTruthy();
     expect(screen.getByText(/Aktueller Zähler: 5/)).toBeTruthy();
+  });
+
+  it("laedt und zeigt Textbausteine", async () => {
+    render(<Einstellungen />);
+    await waitFor(() =>
+      expect(screen.getByDisplayValue("Gemäß § 19 UStG wird keine Umsatzsteuer berechnet.")).toBeTruthy(),
+    );
+    expect(screen.getAllByText("Kleinunternehmer-Hinweis").length).toBeGreaterThan(0);
+    expect(screen.getByDisplayValue("Vielen Dank für Ihren Auftrag.")).toBeTruthy();
+    expect(screen.getByDisplayValue("Dieses Angebot ist 30 Tage gültig.")).toBeTruthy();
   });
 });
