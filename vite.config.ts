@@ -10,6 +10,9 @@ export default defineConfig(async () => ({
 
   test: {
     environment: "jsdom",
+    // .worktrees liegt innerhalb des Projektverzeichnisses (siehe .gitignore) und
+    // hat eigene node_modules — ohne Exclude lädt Vitest doppelte React-Kopien.
+    exclude: ["**/node_modules/**", "**/dist/**", "**/.worktrees/**"],
   },
 
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
