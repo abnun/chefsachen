@@ -1,0 +1,335 @@
+import { Fragment, useEffect, useState } from "react";
+import {
+  api,
+  istValidierungsfehler,
+  type AppFehler,
+  type Artikel as ArtikelTyp,
+  type Einheit,
+  type Kunde,
+  type Kundenpreis,
+} from "../api";
+import { Fehler } from "../components/Fehler";
+import { formatCent, parseEuro } from "../geld";
+
+const ARTIKEL_NEU_LEER = {
+  bezeichnung: "",
+  beschreibung: "",
+  einheit_id: "",
+  standardpreis_cent: 0,
+};
+
+/**
+ * Artikelliste mit Formular zum Anlegen/Bearbeiten sowie einem aufklappbaren
+ * Kundenpreise-Bereich je Artikel. Preise werden im Formular als deutsch
+ * formatierter Text erfasst (Komma statt Punkt) und über geld.ts in Cent
+ * konvertiert.
+ */
+export function Artikel() {
+  const [artikel, setArtikel] = useState<ArtikelTyp[]>([]);
+  const [einheiten, setEinheiten] = useState<Einheit[]>([]);
+  const [kunden, setKunden] = useState<Kunde[]>([]);
+  const [fehler, setFehler] = useState<AppFehler | null>(null);
+  const [zeigeFormular, setZeigeFormular] = useState(false);
+  const [bearbeiteId, setBearbeiteId] = useState<string | null>(null);
+  const [form, setForm] = useState(ARTIKEL_NEU_LEER);
+  const [preisText, setPreisText] = useState("");
+  const [preisFehlerText, setPreisFehlerText] = useState<string | null>(null);
+  const [formFehler, setFormFehler] = useState<AppFehler | null>(null);
+  const [aufgeklappt, setAufgeklappt] = useState<string | null>(null);
+
+  function ladeArtikel() {
+    api.artikel
+      .list()
+      .then((liste) => {
+        setArtikel(liste);
+        setFehler(null);
+      })
+      .catch((e) => setFehler(e as AppFehler));
+  }
+
+  useEffect(() => {
+    ladeArtikel();
+    api.einheiten.list().then(setEinheiten).catch((e) => setFehler(e as AppFehler));
+    api.kunden.list().then(setKunden).catch((e) => setFehler(e as AppFehler));
+  }, []);
+
+  function einheitKuerzel(einheitId: string): string {
+    return einheiten.find((e) => e.id === einheitId)?.kuerzel ?? "";
+  }
+
+  function neuFormular() {
+    setBearbeiteId(null);
+    setForm(ARTIKEL_NEU_LEER);
+    setPreisText("");
+    setPreisFehlerText(null);
+    setFormFehler(null);
+    setZeigeFormular(true);
+  }
+
+  function bearbeiten(a: ArtikelTyp) {
+    setBearbeiteId(a.id);
+    setForm({
+      bezeichnung: a.bezeichnung,
+      beschreibung: a.beschreibung,
+      einheit_id: a.einheit_id,
+      standardpreis_cent: a.standardpreis_cent,
+    });
+    setPreisText(formatCent(a.standardpreis_cent).replace(" €", ""));
+    setPreisFehlerText(null);
+    setFormFehler(null);
+    setZeigeFormular(true);
+  }
+
+  async function speichern() {
+    const cent = parseEuro(preisText);
+    if (cent === null) {
+      setPreisFehlerText("Bitte einen gültigen Preis eingeben, z. B. 95,50");
+      return;
+    }
+    setPreisFehlerText(null);
+    setFormFehler(null);
+    try {
+      if (bearbeiteId) {
+        await api.artikel.update({
+          id: bearbeiteId,
+          artikelnummer: artikel.find((a) => a.id === bearbeiteId)?.artikelnummer ?? "",
+          bezeichnung: form.bezeichnung,
+          beschreibung: form.beschreibung,
+          einheit_id: form.einheit_id,
+          standardpreis_cent: cent,
+        });
+      } else {
+        await api.artikel.create({
+          bezeichnung: form.bezeichnung,
+          beschreibung: form.beschreibung,
+          einheit_id: form.einheit_id,
+          standardpreis_cent: cent,
+        });
+      }
+      setZeigeFormular(false);
+      ladeArtikel();
+    } catch (e) {
+      setFormFehler(e as AppFehler);
+    }
+  }
+
+  const feldFehler = (feld: string) =>
+    formFehler && istValidierungsfehler(formFehler) && formFehler.feld === feld
+      ? formFehler.meldung
+      : null;
+
+  return (
+    <div>
+      <h1>Artikel & Leistungen</h1>
+      <Fehler fehler={fehler} />
+
+      <button type="button" onClick={neuFormular}>
+        Neuer Artikel
+      </button>
+
+      {zeigeFormular && (
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            speichern();
+          }}
+        >
+          {formFehler && !istValidierungsfehler(formFehler) && <Fehler fehler={formFehler} />}
+          <div>
+            <label>
+              Bezeichnung
+              <input
+                value={form.bezeichnung}
+                onChange={(e) => setForm({ ...form, bezeichnung: e.currentTarget.value })}
+              />
+            </label>
+            {feldFehler("bezeichnung") && <div role="alert">{feldFehler("bezeichnung")}</div>}
+          </div>
+          <div>
+            <label>
+              Beschreibung
+              <textarea
+                value={form.beschreibung}
+                onChange={(e) => setForm({ ...form, beschreibung: e.currentTarget.value })}
+              />
+            </label>
+          </div>
+          <div>
+            <label>
+              Einheit
+              <select
+                value={form.einheit_id}
+                onChange={(e) => setForm({ ...form, einheit_id: e.currentTarget.value })}
+              >
+                <option value="">–</option>
+                {einheiten.map((e) => (
+                  <option key={e.id} value={e.id}>
+                    {e.name} ({e.kuerzel})
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+          <div>
+            <label>
+              Standardpreis (€)
+              <input value={preisText} onChange={(e) => setPreisText(e.currentTarget.value)} />
+            </label>
+            {preisFehlerText && <div role="alert">{preisFehlerText}</div>}
+          </div>
+          <button type="submit">Speichern</button>
+        </form>
+      )}
+
+      <table>
+        <thead>
+          <tr>
+            <th>Nummer</th>
+            <th>Bezeichnung</th>
+            <th>Einheit</th>
+            <th>Preis</th>
+            <th />
+          </tr>
+        </thead>
+        <tbody>
+          {artikel.map((a) => (
+            <Fragment key={a.id}>
+              <tr>
+                <td>{a.artikelnummer}</td>
+                <td>{a.bezeichnung}</td>
+                <td>{einheitKuerzel(a.einheit_id)}</td>
+                <td>{formatCent(a.standardpreis_cent)}</td>
+                <td>
+                  <button type="button" onClick={() => bearbeiten(a)}>
+                    Bearbeiten
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAufgeklappt(aufgeklappt === a.id ? null : a.id)}
+                  >
+                    Kundenpreise
+                  </button>
+                </td>
+              </tr>
+              {aufgeklappt === a.id && (
+                <tr>
+                  <td colSpan={5}>
+                    <KundenpreiseBereich artikelId={a.id} kunden={kunden} />
+                  </td>
+                </tr>
+              )}
+            </Fragment>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+interface KundenpreiseBereichProps {
+  artikelId: string;
+  kunden: Kunde[];
+}
+
+function KundenpreiseBereich({ artikelId, kunden }: KundenpreiseBereichProps) {
+  const [kundenpreise, setKundenpreise] = useState<Kundenpreis[]>([]);
+  const [fehler, setFehler] = useState<AppFehler | null>(null);
+  const [kundeId, setKundeId] = useState("");
+  const [preisText, setPreisText] = useState("");
+  const [preisFehlerText, setPreisFehlerText] = useState<string | null>(null);
+  const [gueltigAb, setGueltigAb] = useState("");
+
+  function laden() {
+    api.artikel
+      .kundenpreise(artikelId)
+      .then((liste) => {
+        setKundenpreise(liste);
+        setFehler(null);
+      })
+      .catch((e) => setFehler(e as AppFehler));
+  }
+
+  useEffect(laden, [artikelId]);
+
+  async function speichern() {
+    const cent = parseEuro(preisText);
+    if (cent === null) {
+      setPreisFehlerText("Bitte einen gültigen Preis eingeben, z. B. 95,50");
+      return;
+    }
+    setPreisFehlerText(null);
+    setFehler(null);
+    try {
+      await api.artikel.kundenpreisSave({
+        id: crypto.randomUUID(),
+        artikel_id: artikelId,
+        kunde_id: kundeId,
+        preis_cent: cent,
+        gueltig_ab: gueltigAb || null,
+      });
+      setKundeId("");
+      setPreisText("");
+      setGueltigAb("");
+      laden();
+    } catch (e) {
+      setFehler(e as AppFehler);
+    }
+  }
+
+  function kundeName(id: string): string {
+    return kunden.find((k) => k.id === id)?.name ?? id;
+  }
+
+  return (
+    <div>
+      <h3>Kundenpreise</h3>
+      <Fehler fehler={fehler} />
+      <table>
+        <thead>
+          <tr>
+            <th>Kunde</th>
+            <th>Preis</th>
+            <th>Gültig ab</th>
+          </tr>
+        </thead>
+        <tbody>
+          {kundenpreise.map((kp) => (
+            <tr key={kp.id}>
+              <td>{kundeName(kp.kunde_id)}</td>
+              <td>{formatCent(kp.preis_cent)}</td>
+              <td>{kp.gueltig_ab ?? "–"}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          speichern();
+        }}
+      >
+        <label>
+          Kunde
+          <select value={kundeId} onChange={(e) => setKundeId(e.currentTarget.value)}>
+            <option value="">–</option>
+            {kunden.map((k) => (
+              <option key={k.id} value={k.id}>
+                {k.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Preis (€)
+          <input value={preisText} onChange={(e) => setPreisText(e.currentTarget.value)} />
+        </label>
+        {preisFehlerText && <div role="alert">{preisFehlerText}</div>}
+        <label>
+          Gültig ab
+          <input type="date" value={gueltigAb} onChange={(e) => setGueltigAb(e.currentTarget.value)} />
+        </label>
+        <button type="submit">Speichern</button>
+      </form>
+    </div>
+  );
+}
