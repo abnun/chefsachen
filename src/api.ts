@@ -120,6 +120,8 @@ export const api = {
   firma: {
     get: () => invoke<Firma>("firma_get"),
     save: (firma: Firma) => invoke<Firma>("firma_save", { firma }),
+    logoSet: (bytes: number[]) => invoke<void>("firma_logo_set", { bytes }),
+    logoGet: () => invoke<number[] | null>("firma_logo_get"),
   },
   einstellungen: {
     get: (key: string) => invoke<string | null>("einstellung_get", { key }),
