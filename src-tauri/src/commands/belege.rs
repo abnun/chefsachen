@@ -344,6 +344,54 @@ pub async fn setze_angebot_status(pool: &SqlitePool, id: String, status: String)
     lade_beleg(pool, &id).await
 }
 
+pub async fn angebot_ueberfuehren(pool: &SqlitePool, angebot_id: String) -> AppResult<Beleg> {
+    let angebot = lade_beleg(pool, &angebot_id).await?;
+    if angebot.typ != "angebot" {
+        return Err(AppError::Validation { feld: "typ".into(), meldung: "Nur Angebote können in Rechnungen überführt werden".into() });
+    }
+    if !["versendet", "angenommen"].contains(&angebot.status.as_str()) {
+        return Err(AppError::Validation { feld: "status".into(), meldung: "Nur versendete oder angenommene Angebote können überführt werden".into() });
+    }
+
+    let heute = jetzt()[..10].to_string();
+    let rechnung = Beleg {
+        id: Uuid::new_v4().to_string(), typ: "rechnung".into(), nummer: None, status: "entwurf".into(),
+        kunde_id: angebot.kunde_id.clone(), datum: heute, leistungsdatum: angebot.leistungsdatum.clone(),
+        zahlungsziel_tage: angebot.zahlungsziel_tage, kopftext: angebot.kopftext.clone(), fusstext: angebot.fusstext.clone(),
+        summe_cent: angebot.summe_cent, ursprungsangebot_id: Some(angebot.id.clone()), storno_von_id: None,
+    };
+
+    // Transaktion: das Beleg-INSERT und die Positions-INSERTs müssen atomar sein,
+    // sonst könnte bei einem Abbruch mittendrin eine Rechnung mit nur einem Teil
+    // der Positionen des Angebots entstehen, deren summe_cent nicht mehr zu ihren
+    // tatsächlichen Positionen passt (gleiche Risikoklasse wie bei position_speichern/
+    // position_loeschen in Task 3). Hier keine verschachtelten &SqlitePool-Aufrufe
+    // nötig, daher keine Deadlock-Gefahr unter max_connections(1).
+    let mut tx = pool.begin().await?;
+
+    sqlx::query("INSERT INTO beleg (id, typ, nummer, status, kunde_id, datum, leistungsdatum, zahlungsziel_tage, kopftext, fusstext, summe_cent, ursprungsangebot_id, storno_von_id, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
+        .bind(&rechnung.id).bind(&rechnung.typ).bind(&rechnung.nummer).bind(&rechnung.status).bind(&rechnung.kunde_id)
+        .bind(&rechnung.datum).bind(&rechnung.leistungsdatum).bind(rechnung.zahlungsziel_tage)
+        .bind(&rechnung.kopftext).bind(&rechnung.fusstext).bind(rechnung.summe_cent)
+        .bind(&rechnung.ursprungsangebot_id).bind(&rechnung.storno_von_id).bind(jetzt()).bind(jetzt())
+        .execute(&mut *tx).await?;
+
+    let positionen: Vec<Belegposition> = sqlx::query_as(
+        "SELECT id, beleg_id, artikel_id, bezeichnung, einheit_kuerzel, einzelpreis_cent, menge, positionssumme_cent, reihenfolge \
+         FROM belegposition WHERE beleg_id = ? AND deleted_at IS NULL ORDER BY reihenfolge")
+        .bind(&angebot_id).fetch_all(&mut *tx).await?;
+    for pos in positionen {
+        sqlx::query("INSERT INTO belegposition (id, beleg_id, artikel_id, bezeichnung, einheit_kuerzel, einzelpreis_cent, menge, positionssumme_cent, reihenfolge, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)")
+            .bind(Uuid::new_v4().to_string()).bind(&rechnung.id).bind(&pos.artikel_id).bind(&pos.bezeichnung)
+            .bind(&pos.einheit_kuerzel).bind(pos.einzelpreis_cent).bind(pos.menge)
+            .bind(pos.positionssumme_cent).bind(pos.reihenfolge).bind(jetzt()).bind(jetzt())
+            .execute(&mut *tx).await?;
+    }
+
+    tx.commit().await?;
+    Ok(rechnung)
+}
+
 // Dünne Tauri-Wrapper
 #[tauri::command]
 pub async fn beleg_list(pool: tauri::State<'_, SqlitePool>, typ: Option<String>, status: Option<String>) -> AppResult<Vec<Beleg>> {
@@ -380,6 +428,10 @@ pub async fn beleg_stellen(pool: tauri::State<'_, SqlitePool>, id: String) -> Ap
 #[tauri::command]
 pub async fn angebot_status_setzen(pool: tauri::State<'_, SqlitePool>, id: String, status: String) -> AppResult<Beleg> {
     setze_angebot_status(&pool, id, status).await
+}
+#[tauri::command]
+pub async fn angebot_in_rechnung_ueberfuehren(pool: tauri::State<'_, SqlitePool>, angebot_id: String) -> AppResult<Beleg> {
+    angebot_ueberfuehren(&pool, angebot_id).await
 }
 
 #[cfg(test)]
@@ -712,6 +764,47 @@ mod tests {
         }).await.unwrap();
         let gestellt = stellen(&pool, beleg.id).await.unwrap();
         let err = setze_angebot_status(&pool, gestellt.id, "storniert".into()).await.unwrap_err();
+        assert!(matches!(err, AppError::Validation { .. }));
+    }
+
+    #[tokio::test]
+    async fn angebot_ueberfuehrung_kopiert_positionen_und_summe() {
+        let (_dir, pool) = test_pool().await;
+        let kunde_id = kunde_anlegen(&pool).await;
+        let artikel_id = artikel_anlegen(&pool, 5000).await;
+        let angebot = create(&pool, beleg_neu("angebot", &kunde_id)).await.unwrap();
+        position_speichern(&pool, BelegpositionNeu {
+            id: "".into(), beleg_id: angebot.id.clone(), artikel_id: Some(artikel_id),
+            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 2000,
+        }).await.unwrap();
+        let gestellt = stellen(&pool, angebot.id).await.unwrap();
+
+        let rechnung = angebot_ueberfuehren(&pool, gestellt.id.clone()).await.unwrap();
+        assert_eq!(rechnung.typ, "rechnung");
+        assert_eq!(rechnung.status, "entwurf");
+        assert_eq!(rechnung.summe_cent, 10000);
+        assert_eq!(rechnung.ursprungsangebot_id, Some(gestellt.id));
+
+        let detail = get(&pool, rechnung.id).await.unwrap();
+        assert_eq!(detail.positionen.len(), 1);
+        assert_eq!(detail.positionen[0].positionssumme_cent, 10000);
+    }
+
+    #[tokio::test]
+    async fn ueberfuehrung_lehnt_entwurfs_angebot_ab() {
+        let (_dir, pool) = test_pool().await;
+        let kunde_id = kunde_anlegen(&pool).await;
+        let angebot = create(&pool, beleg_neu("angebot", &kunde_id)).await.unwrap();
+        let err = angebot_ueberfuehren(&pool, angebot.id).await.unwrap_err();
+        assert!(matches!(err, AppError::Validation { .. }));
+    }
+
+    #[tokio::test]
+    async fn ueberfuehrung_lehnt_rechnung_als_quelle_ab() {
+        let (_dir, pool) = test_pool().await;
+        let kunde_id = kunde_anlegen(&pool).await;
+        let rechnung = create(&pool, beleg_neu("rechnung", &kunde_id)).await.unwrap();
+        let err = angebot_ueberfuehren(&pool, rechnung.id).await.unwrap_err();
         assert!(matches!(err, AppError::Validation { .. }));
     }
 }
