@@ -5,10 +5,12 @@ import {
   type Adresse,
   type Ansprechpartner,
   type AppFehler,
+  type Beleg,
   type Kunde,
   type KundeDetail as KundeDetailTyp,
 } from "../api";
 import { Fehler } from "../components/Fehler";
+import { formatCent } from "../geld";
 
 interface KundeDetailProps {
   id: string;
@@ -21,13 +23,13 @@ const REITER: { id: Reiter; label: string; aktiv: boolean }[] = [
   { id: "adressen", label: "Adressen", aktiv: true },
   { id: "ansprechpartner", label: "Ansprechpartner", aktiv: true },
   { id: "sonderpreise", label: "Sonderpreise", aktiv: false },
-  { id: "belege", label: "Belege", aktiv: false },
+  { id: "belege", label: "Belege", aktiv: true },
 ];
 
 /**
- * Kundendetailseite mit Reiter-Navigation. "Sonderpreise" und "Belege"
- * kommen erst in einem späteren Ausbauschritt (Plan 2) und werden hier nur
- * als deaktivierte Platzhalter-Reiter angelegt.
+ * Kundendetailseite mit Reiter-Navigation. "Sonderpreise" wird über die
+ * Artikel-Seite gepflegt (Kundenpreise je Artikel, s. Plan 1) und bleibt
+ * hier bewusst ein deaktivierter Platzhalter-Reiter.
  */
 export function KundeDetail({ id }: KundeDetailProps) {
   const [detail, setDetail] = useState<KundeDetailTyp | null>(null);
@@ -90,13 +92,57 @@ export function KundeDetail({ id }: KundeDetailProps) {
         />
       )}
       {reiter === "sonderpreise" && <PlatzhalterReiter />}
-      {reiter === "belege" && <PlatzhalterReiter />}
+      {reiter === "belege" && <BelegeReiter kundeId={id} />}
     </div>
   );
 }
 
 function PlatzhalterReiter() {
   return <p>Folgt in einem späteren Ausbauschritt</p>;
+}
+
+function BelegeReiter({ kundeId }: { kundeId: string }) {
+  const [belege, setBelege] = useState<Beleg[]>([]);
+  const [fehler, setFehler] = useState<AppFehler | null>(null);
+
+  useEffect(() => {
+    api.belege
+      .list()
+      .then((liste) => {
+        setBelege(liste.filter((b) => b.kunde_id === kundeId));
+        setFehler(null);
+      })
+      .catch((e) => setFehler(e as AppFehler));
+  }, [kundeId]);
+
+  return (
+    <section>
+      <h2>Belege</h2>
+      {fehler && <Fehler fehler={fehler} />}
+      <table>
+        <thead>
+          <tr>
+            <th>Typ</th>
+            <th>Nummer</th>
+            <th>Datum</th>
+            <th>Status</th>
+            <th>Summe</th>
+          </tr>
+        </thead>
+        <tbody>
+          {belege.map((b) => (
+            <tr key={b.id}>
+              <td>{b.typ === "angebot" ? "Angebot" : "Rechnung"}</td>
+              <td>{b.nummer ?? "Entwurf"}</td>
+              <td>{b.datum}</td>
+              <td>{b.status}</td>
+              <td>{formatCent(b.summe_cent)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </section>
+  );
 }
 
 interface StammdatenReiterProps {
