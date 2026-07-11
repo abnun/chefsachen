@@ -214,6 +214,14 @@ function StammdatenAbschnitt({ beleg, kunden, bearbeitbar, onSpeichern }: Stammd
   const [kopftext, setKopftext] = useState(beleg.kopftext);
   const [fusstext, setFusstext] = useState(beleg.fusstext);
 
+  useEffect(() => {
+    setDatum(beleg.datum);
+    setLeistungsdatum(beleg.leistungsdatum);
+    setZahlungszielTage(beleg.zahlungsziel_tage);
+    setKopftext(beleg.kopftext);
+    setFusstext(beleg.fusstext);
+  }, [beleg]);
+
   const kunde = kunden.find((k) => k.id === beleg.kunde_id);
 
   if (!bearbeitbar) {
