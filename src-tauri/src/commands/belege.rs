@@ -903,11 +903,28 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn storno_lehnt_entwurf_und_doppelstorno_ab() {
+    async fn storno_lehnt_entwurf_ab() {
         let (_dir, pool) = test_pool().await;
         let kunde_id = kunde_anlegen(&pool).await;
         let rechnung = create(&pool, beleg_neu("rechnung", &kunde_id)).await.unwrap();
         let err = storniere_rechnung(&pool, rechnung.id.clone()).await.unwrap_err();
+        assert!(matches!(err, AppError::Validation { .. }));
+    }
+
+    #[tokio::test]
+    async fn storno_lehnt_doppelstorno_ab() {
+        let (_dir, pool) = test_pool().await;
+        let kunde_id = kunde_anlegen(&pool).await;
+        let artikel_id = artikel_anlegen(&pool, 5000).await;
+        let rechnung = create(&pool, beleg_neu("rechnung", &kunde_id)).await.unwrap();
+        position_speichern(&pool, BelegpositionNeu {
+            id: "".into(), beleg_id: rechnung.id.clone(), artikel_id: Some(artikel_id),
+            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000,
+        }).await.unwrap();
+        let gestellt = stellen(&pool, rechnung.id).await.unwrap();
+
+        storniere_rechnung(&pool, gestellt.id.clone()).await.unwrap();
+        let err = storniere_rechnung(&pool, gestellt.id.clone()).await.unwrap_err();
         assert!(matches!(err, AppError::Validation { .. }));
     }
 
