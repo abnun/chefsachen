@@ -287,12 +287,18 @@ fn kunde_snapshot_json(
     firma: &crate::commands::firma::Firma,
 ) -> String {
     serde_json::json!({
-        "kunde": { "name": kunde.name, "kundennummer": kunde.kundennummer, "ust_idnr": kunde.ust_idnr },
+        "kunde": {
+            "name": kunde.name, "kundennummer": kunde.kundennummer, "ust_idnr": kunde.ust_idnr,
+            "email": kunde.email, "leitweg_id": kunde.leitweg_id, "kaeuferreferenz": kunde.kaeuferreferenz,
+        },
         "adresse": adresse.map(|a| serde_json::json!({
             "strasse": a.strasse, "plz": a.plz, "ort": a.ort, "land": a.land,
         })),
-        "firma": { "name": firma.name, "strasse": firma.strasse, "plz": firma.plz, "ort": firma.ort,
-            "steuernummer": firma.steuernummer, "ust_idnr": firma.ust_idnr, "iban": firma.iban, "bic": firma.bic },
+        "firma": {
+            "name": firma.name, "strasse": firma.strasse, "plz": firma.plz, "ort": firma.ort, "land": firma.land,
+            "steuernummer": firma.steuernummer, "ust_idnr": firma.ust_idnr, "iban": firma.iban, "bic": firma.bic,
+            "kleinunternehmer": firma.kleinunternehmer,
+        },
     }).to_string()
 }
 
@@ -838,6 +844,31 @@ mod tests {
             kopftext: "".into(), fusstext: "".into(),
         }).await.unwrap_err();
         assert!(matches!(err, AppError::Validation { .. }), "gestellter Beleg darf nicht mehr editierbar sein");
+    }
+
+    #[tokio::test]
+    async fn stellen_friert_erweiterten_kundensnapshot_ein() {
+        let (_dir, pool) = test_pool().await;
+        let kunde_id = crate::commands::kunden::create(&pool, crate::commands::kunden::KundeNeu {
+            typ: "firma".into(), name: "ACME GmbH".into(), zahlungsziel_tage: 14,
+            notizen: "".into(), ust_idnr: "".into(), email: "acme@example.com".into(),
+            leitweg_id: "991-12345-67".into(), kaeuferreferenz: "PO-42".into(),
+        }).await.unwrap().id;
+        let artikel_id = artikel_anlegen(&pool, 5000).await;
+        let beleg = create(&pool, beleg_neu("rechnung", &kunde_id)).await.unwrap();
+        position_speichern(&pool, BelegpositionNeu {
+            id: "".into(), beleg_id: beleg.id.clone(), artikel_id: Some(artikel_id),
+            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000,
+        }).await.unwrap();
+        let gestellt = stellen(&pool, beleg.id).await.unwrap();
+
+        let snapshot_roh: (String,) = sqlx::query_as("SELECT kunde_snapshot FROM beleg WHERE id = ?")
+            .bind(&gestellt.id).fetch_one(&pool).await.unwrap();
+        let snapshot: serde_json::Value = serde_json::from_str(&snapshot_roh.0).unwrap();
+        assert_eq!(snapshot["kunde"]["email"], "acme@example.com");
+        assert_eq!(snapshot["kunde"]["leitweg_id"], "991-12345-67");
+        assert_eq!(snapshot["kunde"]["kaeuferreferenz"], "PO-42");
+        assert_eq!(snapshot["firma"]["kleinunternehmer"], true);
     }
 
     #[tokio::test]
