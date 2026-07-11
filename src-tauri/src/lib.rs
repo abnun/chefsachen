@@ -49,6 +49,7 @@ pub fn run() {
             commands::belege::beleg_stellen,
             commands::belege::angebot_status_setzen,
             commands::belege::angebot_in_rechnung_ueberfuehren,
+            commands::belege::rechnung_stornieren,
             commands::artikel::artikel_list,
             commands::artikel::artikel_create,
             commands::artikel::artikel_update,

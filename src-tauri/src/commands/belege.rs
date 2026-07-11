@@ -392,6 +392,76 @@ pub async fn angebot_ueberfuehren(pool: &SqlitePool, angebot_id: String) -> AppR
     Ok(rechnung)
 }
 
+pub async fn storniere_rechnung(pool: &SqlitePool, id: String) -> AppResult<Beleg> {
+    let rechnung = lade_beleg(pool, &id).await?;
+    if rechnung.typ != "rechnung" {
+        return Err(AppError::Validation { feld: "typ".into(), meldung: "Nur Rechnungen können storniert werden".into() });
+    }
+    if rechnung.status != "gestellt" {
+        return Err(AppError::Validation { feld: "status".into(), meldung: "Nur gestellte Rechnungen können storniert werden".into() });
+    }
+
+    let heute = jetzt()[..10].to_string();
+    // naechste_nummer nimmt &SqlitePool entgegen und öffnet intern eine eigene
+    // Transaktion. Unter max_connections(1) würde ein Aufruf von innerhalb einer
+    // bereits offenen Transaktion auf dieser Connection deadlocken (siehe Task 3).
+    // Deshalb wird die Nummer hier VOR dem Öffnen der eigenen Transaktion vergeben,
+    // genau wie lade_beleg() in angebot_ueberfuehren() vor deren Transaktion steht.
+    let nummer = naechste_nummer(pool, "rechnung").await?;
+    let snapshot: (String,) = sqlx::query_as("SELECT kunde_snapshot FROM beleg WHERE id = ?")
+        .bind(&rechnung.id).fetch_one(pool).await?;
+    let storno = Beleg {
+        id: Uuid::new_v4().to_string(), typ: "rechnung".into(), nummer: Some(nummer), status: "gestellt".into(),
+        kunde_id: rechnung.kunde_id.clone(), datum: heute, leistungsdatum: rechnung.leistungsdatum.clone(),
+        zahlungsziel_tage: rechnung.zahlungsziel_tage, kopftext: rechnung.kopftext.clone(),
+        fusstext: format!("Stornierung zu Rechnung {}", rechnung.nummer.clone().unwrap_or_default()),
+        summe_cent: -rechnung.summe_cent, ursprungsangebot_id: None, storno_von_id: Some(rechnung.id.clone()),
+    };
+
+    // Transaktion: das Storno-Beleg-INSERT, die negierten Positions-INSERTs und das
+    // abschließende UPDATE, das den Ursprungsbeleg als "storniert" markiert, müssen
+    // atomar sein. Ein Abbruch mittendrin (z.B. nach dem Anlegen des Storno-Belegs,
+    // aber vor dem UPDATE des Ursprungs) würde zwei "lebendig" aussehende Rechnungen
+    // für denselben Vorgang hinterlassen — gleiche Risikoklasse wie bei
+    // position_speichern/position_loeschen (Task 3) und angebot_ueberfuehren (Task 5).
+    // Alle Aufrufe innerhalb dieser Transaktion nehmen &mut SqliteConnection statt
+    // &SqlitePool entgegen, es gibt also keine verschachtelten Pool-Aufrufe und damit
+    // keine Deadlock-Gefahr unter max_connections(1).
+    let mut tx = pool.begin().await?;
+
+    sqlx::query("INSERT INTO beleg (id, typ, nummer, status, kunde_id, datum, leistungsdatum, zahlungsziel_tage, kopftext, fusstext, summe_cent, ursprungsangebot_id, storno_von_id, kunde_snapshot, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
+        .bind(&storno.id).bind(&storno.typ).bind(&storno.nummer).bind(&storno.status).bind(&storno.kunde_id)
+        .bind(&storno.datum).bind(&storno.leistungsdatum).bind(storno.zahlungsziel_tage)
+        .bind(&storno.kopftext).bind(&storno.fusstext).bind(storno.summe_cent)
+        .bind(&storno.ursprungsangebot_id).bind(&storno.storno_von_id).bind(&snapshot.0).bind(jetzt()).bind(jetzt())
+        .execute(&mut *tx).await?;
+
+    let positionen: Vec<Belegposition> = sqlx::query_as(
+        "SELECT id, beleg_id, artikel_id, bezeichnung, einheit_kuerzel, einzelpreis_cent, menge, positionssumme_cent, reihenfolge \
+         FROM belegposition WHERE beleg_id = ? AND deleted_at IS NULL ORDER BY reihenfolge")
+        .bind(&id).fetch_all(&mut *tx).await?;
+    for pos in positionen {
+        sqlx::query("INSERT INTO belegposition (id, beleg_id, artikel_id, bezeichnung, einheit_kuerzel, einzelpreis_cent, menge, positionssumme_cent, reihenfolge, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)")
+            .bind(Uuid::new_v4().to_string()).bind(&storno.id).bind(&pos.artikel_id).bind(&pos.bezeichnung)
+            .bind(&pos.einheit_kuerzel).bind(-pos.einzelpreis_cent).bind(pos.menge)
+            .bind(-pos.positionssumme_cent).bind(pos.reihenfolge).bind(jetzt()).bind(jetzt())
+            .execute(&mut *tx).await?;
+    }
+
+    sqlx::query("UPDATE beleg SET status = 'storniert', updated_at = ? WHERE id = ?")
+        .bind(jetzt()).bind(&id).execute(&mut *tx).await?;
+
+    tx.commit().await?;
+
+    Ok(storno)
+}
+
+// Dünner Tauri-Wrapper (ergänzt die aus Task 2/3/4/5)
+#[tauri::command]
+pub async fn rechnung_stornieren(pool: tauri::State<'_, SqlitePool>, id: String) -> AppResult<Beleg> {
+    storniere_rechnung(&pool, id).await
+}
+
 // Dünne Tauri-Wrapper
 #[tauri::command]
 pub async fn beleg_list(pool: tauri::State<'_, SqlitePool>, typ: Option<String>, status: Option<String>) -> AppResult<Vec<Beleg>> {
@@ -805,6 +875,48 @@ mod tests {
         let kunde_id = kunde_anlegen(&pool).await;
         let rechnung = create(&pool, beleg_neu("rechnung", &kunde_id)).await.unwrap();
         let err = angebot_ueberfuehren(&pool, rechnung.id).await.unwrap_err();
+        assert!(matches!(err, AppError::Validation { .. }));
+    }
+
+    #[tokio::test]
+    async fn storno_erzeugt_gegenbeleg_und_markiert_ursprung() {
+        let (_dir, pool) = test_pool().await;
+        let kunde_id = kunde_anlegen(&pool).await;
+        let artikel_id = artikel_anlegen(&pool, 5000).await;
+        let rechnung = create(&pool, beleg_neu("rechnung", &kunde_id)).await.unwrap();
+        position_speichern(&pool, BelegpositionNeu {
+            id: "".into(), beleg_id: rechnung.id.clone(), artikel_id: Some(artikel_id),
+            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000,
+        }).await.unwrap();
+        let gestellt = stellen(&pool, rechnung.id).await.unwrap();
+
+        let storno = storniere_rechnung(&pool, gestellt.id.clone()).await.unwrap();
+        assert_eq!(storno.summe_cent, -5000);
+        assert_eq!(storno.storno_von_id, Some(gestellt.id.clone()));
+        assert_ne!(storno.nummer, gestellt.nummer);
+
+        let ursprung = get(&pool, gestellt.id).await.unwrap().beleg;
+        assert_eq!(ursprung.status, "storniert");
+
+        let storno_detail = get(&pool, storno.id).await.unwrap();
+        assert_eq!(storno_detail.positionen[0].positionssumme_cent, -5000);
+    }
+
+    #[tokio::test]
+    async fn storno_lehnt_entwurf_und_doppelstorno_ab() {
+        let (_dir, pool) = test_pool().await;
+        let kunde_id = kunde_anlegen(&pool).await;
+        let rechnung = create(&pool, beleg_neu("rechnung", &kunde_id)).await.unwrap();
+        let err = storniere_rechnung(&pool, rechnung.id.clone()).await.unwrap_err();
+        assert!(matches!(err, AppError::Validation { .. }));
+    }
+
+    #[tokio::test]
+    async fn storno_lehnt_angebot_ab() {
+        let (_dir, pool) = test_pool().await;
+        let kunde_id = kunde_anlegen(&pool).await;
+        let angebot = create(&pool, beleg_neu("angebot", &kunde_id)).await.unwrap();
+        let err = storniere_rechnung(&pool, angebot.id).await.unwrap_err();
         assert!(matches!(err, AppError::Validation { .. }));
     }
 }
