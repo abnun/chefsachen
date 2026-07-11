@@ -46,6 +46,8 @@ pub fn run() {
             commands::belege::beleg_delete,
             commands::belege::belegposition_save,
             commands::belege::belegposition_delete,
+            commands::belege::beleg_stellen,
+            commands::belege::angebot_status_setzen,
             commands::artikel::artikel_list,
             commands::artikel::artikel_create,
             commands::artikel::artikel_update,

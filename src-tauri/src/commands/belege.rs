@@ -1,5 +1,6 @@
 use crate::db::jetzt;
 use crate::domain::beleg::{belegsumme_cent, positionssumme_cent};
+use crate::domain::nummernkreis::naechste_nummer;
 use crate::domain::preisfindung::effektiver_preis;
 use crate::error::{AppError, AppResult};
 use serde::{Deserialize, Serialize};
@@ -280,6 +281,62 @@ pub async fn position_loeschen(pool: &SqlitePool, id: String) -> AppResult<()> {
     Ok(())
 }
 
+fn kunde_snapshot_json(
+    kunde: &crate::commands::kunden::Kunde,
+    adresse: Option<&crate::commands::kunden::Adresse>,
+    firma: &crate::commands::firma::Firma,
+) -> String {
+    serde_json::json!({
+        "kunde": { "name": kunde.name, "kundennummer": kunde.kundennummer, "ust_idnr": kunde.ust_idnr },
+        "adresse": adresse.map(|a| serde_json::json!({
+            "strasse": a.strasse, "plz": a.plz, "ort": a.ort, "land": a.land,
+        })),
+        "firma": { "name": firma.name, "strasse": firma.strasse, "plz": firma.plz, "ort": firma.ort,
+            "steuernummer": firma.steuernummer, "ust_idnr": firma.ust_idnr, "iban": firma.iban, "bic": firma.bic },
+    }).to_string()
+}
+
+pub async fn stellen(pool: &SqlitePool, id: String) -> AppResult<Beleg> {
+    let beleg = lade_beleg(pool, &id).await?;
+    pruefe_ist_entwurf(&beleg)?;
+    let anzahl_positionen: (i64,) = sqlx::query_as(
+        "SELECT COUNT(*) FROM belegposition WHERE beleg_id = ? AND deleted_at IS NULL")
+        .bind(&id).fetch_one(pool).await?;
+    if anzahl_positionen.0 == 0 {
+        return Err(AppError::Validation { feld: "positionen".into(), meldung: "Beleg benötigt mindestens eine Position".into() });
+    }
+
+    let kunde = crate::commands::kunden::get(pool, beleg.kunde_id.clone()).await?;
+    let standardadresse = kunde.adressen.iter().find(|a| a.typ == "rechnung" && a.ist_standard);
+    let firma = crate::commands::firma::get(pool).await?;
+    let snapshot = kunde_snapshot_json(&kunde.kunde, standardadresse, &firma);
+
+    let nummer = naechste_nummer(pool, &beleg.typ).await?;
+    let neuer_status = if beleg.typ == "angebot" { "versendet" } else { "gestellt" };
+    sqlx::query("UPDATE beleg SET nummer=?, status=?, kunde_snapshot=?, updated_at=? WHERE id=?")
+        .bind(&nummer).bind(neuer_status).bind(&snapshot).bind(jetzt()).bind(&id)
+        .execute(pool).await?;
+    lade_beleg(pool, &id).await
+}
+
+const ANGEBOT_ABSCHLUSS_STATUS: [&str; 3] = ["angenommen", "abgelehnt", "abgelaufen"];
+
+pub async fn setze_angebot_status(pool: &SqlitePool, id: String, status: String) -> AppResult<Beleg> {
+    let beleg = lade_beleg(pool, &id).await?;
+    if beleg.typ != "angebot" {
+        return Err(AppError::Validation { feld: "typ".into(), meldung: "Nur Angebote haben diesen Status".into() });
+    }
+    if beleg.status != "versendet" {
+        return Err(AppError::Validation { feld: "status".into(), meldung: "Nur versendete Angebote können einen Abschlussstatus erhalten".into() });
+    }
+    if !ANGEBOT_ABSCHLUSS_STATUS.contains(&status.as_str()) {
+        return Err(AppError::Validation { feld: "status".into(), meldung: "Ungültiger Angebotsstatus".into() });
+    }
+    sqlx::query("UPDATE beleg SET status=?, updated_at=? WHERE id=?")
+        .bind(&status).bind(jetzt()).bind(&id).execute(pool).await?;
+    lade_beleg(pool, &id).await
+}
+
 // Dünne Tauri-Wrapper
 #[tauri::command]
 pub async fn beleg_list(pool: tauri::State<'_, SqlitePool>, typ: Option<String>, status: Option<String>) -> AppResult<Vec<Beleg>> {
@@ -308,6 +365,14 @@ pub async fn belegposition_save(pool: tauri::State<'_, SqlitePool>, position: Be
 #[tauri::command]
 pub async fn belegposition_delete(pool: tauri::State<'_, SqlitePool>, id: String) -> AppResult<()> {
     position_loeschen(&pool, id).await
+}
+#[tauri::command]
+pub async fn beleg_stellen(pool: tauri::State<'_, SqlitePool>, id: String) -> AppResult<Beleg> {
+    stellen(&pool, id).await
+}
+#[tauri::command]
+pub async fn angebot_status_setzen(pool: tauri::State<'_, SqlitePool>, id: String, status: String) -> AppResult<Beleg> {
+    setze_angebot_status(&pool, id, status).await
 }
 
 #[cfg(test)]
@@ -518,6 +583,90 @@ mod tests {
         sqlx::query("UPDATE beleg SET status = 'versendet' WHERE id = ?")
             .bind(&beleg.id).execute(&pool).await.unwrap();
         let err = position_loeschen(&pool, pos.id).await.unwrap_err();
+        assert!(matches!(err, AppError::Validation { .. }));
+    }
+
+    #[tokio::test]
+    async fn stellen_vergibt_nummer_und_friert_beleg_ein() {
+        let (_dir, pool) = test_pool().await;
+        let kunde_id = kunde_anlegen(&pool).await;
+        let artikel_id = artikel_anlegen(&pool, 5000).await;
+        let beleg = create(&pool, beleg_neu("angebot", &kunde_id)).await.unwrap();
+        position_speichern(&pool, BelegpositionNeu {
+            id: "".into(), beleg_id: beleg.id.clone(), artikel_id: Some(artikel_id),
+            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000,
+        }).await.unwrap();
+        let gestellt = stellen(&pool, beleg.id).await.unwrap();
+        assert_eq!(gestellt.status, "versendet");
+        let jahr = chrono::Utc::now().format("%Y").to_string();
+        assert_eq!(gestellt.nummer, Some(format!("AN-{jahr}-0001")));
+        let err = update(&pool, BelegUpdate {
+            id: gestellt.id.clone(), kunde_id, datum: gestellt.datum.clone(),
+            leistungsdatum: gestellt.leistungsdatum.clone(), zahlungsziel_tage: 14,
+            kopftext: "".into(), fusstext: "".into(),
+        }).await.unwrap_err();
+        assert!(matches!(err, AppError::Validation { .. }), "gestellter Beleg darf nicht mehr editierbar sein");
+    }
+
+    #[tokio::test]
+    async fn stellen_ohne_position_wird_abgelehnt() {
+        let (_dir, pool) = test_pool().await;
+        let kunde_id = kunde_anlegen(&pool).await;
+        let beleg = create(&pool, beleg_neu("rechnung", &kunde_id)).await.unwrap();
+        let err = stellen(&pool, beleg.id).await.unwrap_err();
+        assert!(matches!(err, AppError::Validation { .. }));
+    }
+
+    #[tokio::test]
+    async fn rechnung_stellen_setzt_status_gestellt() {
+        let (_dir, pool) = test_pool().await;
+        let kunde_id = kunde_anlegen(&pool).await;
+        let artikel_id = artikel_anlegen(&pool, 5000).await;
+        let beleg = create(&pool, beleg_neu("rechnung", &kunde_id)).await.unwrap();
+        position_speichern(&pool, BelegpositionNeu {
+            id: "".into(), beleg_id: beleg.id.clone(), artikel_id: Some(artikel_id),
+            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000,
+        }).await.unwrap();
+        let gestellt = stellen(&pool, beleg.id).await.unwrap();
+        assert_eq!(gestellt.status, "gestellt");
+    }
+
+    #[tokio::test]
+    async fn angebot_status_setzen_erlaubt_nur_nach_versendet() {
+        let (_dir, pool) = test_pool().await;
+        let kunde_id = kunde_anlegen(&pool).await;
+        let beleg = create(&pool, beleg_neu("angebot", &kunde_id)).await.unwrap();
+        let err = setze_angebot_status(&pool, beleg.id, "angenommen".into()).await.unwrap_err();
+        assert!(matches!(err, AppError::Validation { .. }));
+    }
+
+    #[tokio::test]
+    async fn angebot_status_setzen_akzeptiert_gueltigen_status() {
+        let (_dir, pool) = test_pool().await;
+        let kunde_id = kunde_anlegen(&pool).await;
+        let artikel_id = artikel_anlegen(&pool, 5000).await;
+        let beleg = create(&pool, beleg_neu("angebot", &kunde_id)).await.unwrap();
+        position_speichern(&pool, BelegpositionNeu {
+            id: "".into(), beleg_id: beleg.id.clone(), artikel_id: Some(artikel_id),
+            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000,
+        }).await.unwrap();
+        let gestellt = stellen(&pool, beleg.id).await.unwrap();
+        let aktualisiert = setze_angebot_status(&pool, gestellt.id, "angenommen".into()).await.unwrap();
+        assert_eq!(aktualisiert.status, "angenommen");
+    }
+
+    #[tokio::test]
+    async fn angebot_status_setzen_lehnt_unbekannten_status_ab() {
+        let (_dir, pool) = test_pool().await;
+        let kunde_id = kunde_anlegen(&pool).await;
+        let artikel_id = artikel_anlegen(&pool, 5000).await;
+        let beleg = create(&pool, beleg_neu("angebot", &kunde_id)).await.unwrap();
+        position_speichern(&pool, BelegpositionNeu {
+            id: "".into(), beleg_id: beleg.id.clone(), artikel_id: Some(artikel_id),
+            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000,
+        }).await.unwrap();
+        let gestellt = stellen(&pool, beleg.id).await.unwrap();
+        let err = setze_angebot_status(&pool, gestellt.id, "storniert".into()).await.unwrap_err();
         assert!(matches!(err, AppError::Validation { .. }));
     }
 }
