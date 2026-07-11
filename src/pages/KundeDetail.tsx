@@ -106,6 +106,9 @@ function BelegeReiter({ kundeId }: { kundeId: string }) {
   const [fehler, setFehler] = useState<AppFehler | null>(null);
 
   useEffect(() => {
+    // Bewusst ungefiltert geladen und clientseitig gefiltert: beleg_list kennt
+    // keinen kunde_id-Filter. Kleinunternehmer-Datenmengen sind klein genug,
+    // dass sich eine Backend-Signaturänderung dafür nicht lohnt.
     api.belege
       .list()
       .then((liste) => {
