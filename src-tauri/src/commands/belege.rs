@@ -313,9 +313,16 @@ pub async fn stellen(pool: &SqlitePool, id: String) -> AppResult<Beleg> {
 
     let nummer = naechste_nummer(pool, &beleg.typ).await?;
     let neuer_status = if beleg.typ == "angebot" { "versendet" } else { "gestellt" };
-    sqlx::query("UPDATE beleg SET nummer=?, status=?, kunde_snapshot=?, updated_at=? WHERE id=?")
+    let ergebnis = sqlx::query(
+        "UPDATE beleg SET nummer=?, status=?, kunde_snapshot=?, updated_at=? WHERE id=? AND status = 'entwurf'")
         .bind(&nummer).bind(neuer_status).bind(&snapshot).bind(jetzt()).bind(&id)
         .execute(pool).await?;
+    if ergebnis.rows_affected() == 0 {
+        return Err(AppError::Validation {
+            feld: "status".into(),
+            meldung: "Beleg wurde zwischenzeitlich bereits gestellt".into(),
+        });
+    }
     lade_beleg(pool, &id).await
 }
 
@@ -606,6 +613,44 @@ mod tests {
             kopftext: "".into(), fusstext: "".into(),
         }).await.unwrap_err();
         assert!(matches!(err, AppError::Validation { .. }), "gestellter Beleg darf nicht mehr editierbar sein");
+    }
+
+    #[tokio::test]
+    async fn stellen_lehnt_konkurrierende_doppel_vergabe_ab() {
+        // Regression: zwei parallele stellen()-Aufrufe für denselben Entwurf dürfen
+        // sich nicht gegenseitig stillschweigend überschreiben. Dank max_connections(1)
+        // interleaven die beiden Tasks real an den .await-Punkten (jeder DB-Zugriff
+        // gibt die einzige Connection wieder frei), sodass hier ein echtes Rennen
+        // zwischen den beiden lade_beleg/naechste_nummer/UPDATE-Sequenzen entsteht.
+        let (_dir, pool) = test_pool().await;
+        let kunde_id = kunde_anlegen(&pool).await;
+        let artikel_id = artikel_anlegen(&pool, 5000).await;
+        let beleg = create(&pool, beleg_neu("rechnung", &kunde_id)).await.unwrap();
+        position_speichern(&pool, BelegpositionNeu {
+            id: "".into(), beleg_id: beleg.id.clone(), artikel_id: Some(artikel_id),
+            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000,
+        }).await.unwrap();
+
+        let pool_a = pool.clone();
+        let pool_b = pool.clone();
+        let id_a = beleg.id.clone();
+        let id_b = beleg.id.clone();
+        let task_a = tokio::spawn(async move { stellen(&pool_a, id_a).await });
+        let task_b = tokio::spawn(async move { stellen(&pool_b, id_b).await });
+        let (ergebnis_a, ergebnis_b) = tokio::join!(task_a, task_b);
+        let ergebnis_a = ergebnis_a.unwrap();
+        let ergebnis_b = ergebnis_b.unwrap();
+
+        let erfolge = [&ergebnis_a, &ergebnis_b].iter().filter(|r| r.is_ok()).count();
+        let fehler = [&ergebnis_a, &ergebnis_b].iter().filter(|r| r.is_err()).count();
+        assert_eq!(erfolge, 1, "genau einer der beiden konkurrierenden Aufrufe darf gewinnen");
+        assert_eq!(fehler, 1, "der Verlierer muss einen Fehler statt eines stillen Überschreibens erhalten");
+        let verlierer = if ergebnis_a.is_err() { ergebnis_a } else { ergebnis_b };
+        assert!(matches!(verlierer, Err(AppError::Validation { .. })));
+
+        let final_beleg = get(&pool, beleg.id.clone()).await.unwrap();
+        assert_eq!(final_beleg.beleg.status, "gestellt");
+        assert!(final_beleg.beleg.nummer.is_some());
     }
 
     #[tokio::test]
