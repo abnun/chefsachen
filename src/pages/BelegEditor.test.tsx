@@ -28,6 +28,11 @@ vi.mock("../api", () => ({
       zahlungErfassen: vi.fn().mockResolvedValue({
         id: "z1", rechnung_id: "b1", datum: "2026-07-10", betrag_cent: -5000, notiz: "",
       }),
+      angebotInRechnungUeberfuehren: vi.fn().mockResolvedValue({
+        id: "r1", typ: "rechnung", nummer: "R-2026-0001", status: "gestellt", kunde_id: "k1",
+        datum: "2026-07-10", leistungsdatum: "2026-07-10", zahlungsziel_tage: 14,
+        kopftext: "", fusstext: "", summe_cent: 9550, ursprungsangebot_id: "b1", storno_von_id: null,
+      }),
     },
     kunden: { list: vi.fn().mockResolvedValue([]) },
     artikel: { list: vi.fn().mockResolvedValue([]) },
@@ -132,6 +137,32 @@ describe("BelegEditor – Stellen", () => {
 
     await waitFor(() => expect(api.belege.stellen).toHaveBeenCalledWith("b1"));
     await waitFor(() => expect(vi.mocked(api.belege.get).mock.calls.length).toBeGreaterThanOrEqual(2));
+  });
+});
+
+describe("BelegEditor – In Rechnung überführen", () => {
+  it("überführt ein Angebot in eine Rechnung und meldet die neue Rechnungs-Id", async () => {
+    vi.mocked(api.artikel.list).mockResolvedValue([]);
+    vi.mocked(api.belege.get).mockResolvedValue({
+      beleg: {
+        id: "b1", typ: "angebot", nummer: "A-2026-0001", status: "angenommen", kunde_id: "k1",
+        datum: "2026-07-10", leistungsdatum: "2026-07-10", zahlungsziel_tage: 14,
+        kopftext: "", fusstext: "", summe_cent: 9550, ursprungsangebot_id: null, storno_von_id: null,
+      },
+      positionen: [],
+      zahlungen: [],
+      bezahlt_cent: 0,
+      offener_betrag_cent: 0,
+    });
+
+    const onRechnungErstellt = vi.fn();
+    render(<BelegEditor id="b1" onRechnungErstellt={onRechnungErstellt} />);
+    await waitFor(() => expect(screen.getByText("Status: angenommen")).toBeTruthy());
+
+    fireEvent.click(screen.getByRole("button", { name: "In Rechnung überführen" }));
+
+    await waitFor(() => expect(api.belege.angebotInRechnungUeberfuehren).toHaveBeenCalledWith("b1"));
+    await waitFor(() => expect(onRechnungErstellt).toHaveBeenCalledWith("r1"));
   });
 });
 

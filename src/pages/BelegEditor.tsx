@@ -15,6 +15,7 @@ import { formatCent, formatMenge, parseEuro, parseMenge } from "../geld";
 interface BelegEditorProps {
   id: string;
   onGeaendert?: () => void;
+  onRechnungErstellt?: (rechnungId: string) => void;
 }
 
 const ANGEBOT_ABSCHLUSS_STATUS = [
@@ -28,7 +29,7 @@ const ANGEBOT_ABSCHLUSS_STATUS = [
  * Status-Workflow (Entwurf → gestellt) und Positions-Verwaltung, daher eine
  * gemeinsame Komponente statt zweier Kopien.
  */
-export function BelegEditor({ id, onGeaendert }: BelegEditorProps) {
+export function BelegEditor({ id, onGeaendert, onRechnungErstellt }: BelegEditorProps) {
   const [detail, setDetail] = useState<BelegDetail | null>(null);
   const [kunden, setKunden] = useState<Kunde[]>([]);
   const [artikelListe, setArtikelListe] = useState<Artikel[]>([]);
@@ -97,9 +98,10 @@ export function BelegEditor({ id, onGeaendert }: BelegEditorProps) {
   async function inRechnungUeberfuehren() {
     setFehler(null);
     try {
-      await api.belege.angebotInRechnungUeberfuehren(beleg.id);
+      const rechnung = await api.belege.angebotInRechnungUeberfuehren(beleg.id);
       laden();
       onGeaendert?.();
+      onRechnungErstellt?.(rechnung.id);
     } catch (e) {
       setFehler(e as AppFehler);
     }
