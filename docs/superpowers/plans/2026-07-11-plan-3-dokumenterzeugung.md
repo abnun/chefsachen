@@ -112,9 +112,9 @@ mod tests {
 }
 ```
 
-- [ ] **Step 2: Test schlägt fehl** — Run: `cd src-tauri && cargo test kontext::` → FAIL (Modul existiert nicht).
+- [ ] **Step 3: Test schlägt fehl** — Run: `cd src-tauri && cargo test kontext::` → FAIL (Modul existiert nicht).
 
-- [ ] **Step 3: Implementierung** — `src-tauri/src/dokument/kontext.rs` (oberhalb des Testmoduls):
+- [ ] **Step 4: Implementierung** — `src-tauri/src/dokument/kontext.rs` (oberhalb des Testmoduls):
 
 ```rust
 use crate::error::{AppError, AppResult};
@@ -198,11 +198,11 @@ pub mod kontext;
 
 `src-tauri/src/lib.rs`: `mod dokument;` zur Modulliste am Dateianfang hinzufügen (neben `mod commands; mod db; mod domain; mod error;`).
 
-- [ ] **Step 4: Test grün** — Run: `cd src-tauri && cargo test kontext::` → PASS (2 Tests).
+- [ ] **Step 5: Test grün** — Run: `cd src-tauri && cargo test kontext::` → PASS (2 Tests).
 
-- [ ] **Step 5: Voller Testlauf** — Run: `cd src-tauri && cargo test` → PASS (69 bestehende + 2 neue = 71).
+- [ ] **Step 6: Voller Testlauf** — Run: `cd src-tauri && cargo test` → PASS (69 bestehende + 2 neue = 71).
 
-- [ ] **Step 6: Commit** — `git add -A && git commit -m "feat: Dependencies für Dokumenterzeugung, BelegKontext"`
+- [ ] **Step 7: Commit** — `git add -A && git commit -m "feat: Dependencies für Dokumenterzeugung, BelegKontext"`
 
 ---
 
@@ -423,8 +423,8 @@ mod tests {
 #set text(font: "Inter", size: 10pt)
 #set page(margin: 2.5cm)
 
-#if sys.inputs.logo_base64 != "" [
-  #image(bytes(sys.inputs.logo_base64.split(",").last()), width: 3cm)
+#if sys.inputs.hat_logo == "ja" [
+  #image("logo.png", width: 3cm)
 ]
 
 #align(right)[
@@ -475,9 +475,11 @@ fn menge_format(menge_x1000: i64) -> String {
 }
 
 fn cent_format(cent: i64) -> String {
-    let euro = cent / 100;
-    let rest = (cent % 100).abs();
-    format!("{euro},{rest:02} €")
+    // Vorzeichen explizit behandeln: bei -50 Cent liefert Integer-Division 0,
+    // das Minus ginge sonst verloren ("0,50 €" statt "-0,50 €").
+    let vorzeichen = if cent < 0 { "-" } else { "" };
+    let betrag = cent.abs();
+    format!("{}{},{:02} €", vorzeichen, betrag / 100, betrag % 100)
 }
 
 pub fn rendern(kontext: &BelegKontext, logo: Option<&[u8]>) -> AppResult<Vec<u8>> {
@@ -498,9 +500,16 @@ pub fn rendern(kontext: &BelegKontext, logo: Option<&[u8]>) -> AppResult<Vec<u8>
         })).collect::<Vec<_>>()
     ).map_err(|e| AppError::Technisch(e.to_string()))?;
 
-    let logo_base64 = logo.map(|bytes| format!("data:image/png;base64,{}", base64_encode(bytes))).unwrap_or_default();
-
-    let engine = TypstEngine::builder().main_file(VORLAGE).fonts([SCHRIFT]).build();
+    // Logo als virtuelle Datei "logo.png" registrieren — NICHT als Base64-String durch
+    // sys.inputs schleusen: Typsts bytes() dekodiert kein Base64, sondern liefert die
+    // UTF-8-Bytes des Strings. typst-as-lib bietet dafür einen Static-File-Resolver;
+    // exakten Methodennamen der installierten Version gegen docs.rs verifizieren
+    // (gleicher Durchstich-Vorbehalt wie in Task 3).
+    let mut builder = TypstEngine::builder().main_file(VORLAGE).fonts([SCHRIFT]);
+    if let Some(bytes) = logo {
+        builder = builder.with_static_file_resolver([("logo.png", bytes.to_vec())]);
+    }
+    let engine = builder.build();
     let eingabe = std::collections::HashMap::from([
         ("titel".to_string(), titel.to_string()),
         ("nummer".to_string(), kontext.beleg.nummer.clone().unwrap_or_default()),
@@ -518,7 +527,7 @@ pub fn rendern(kontext: &BelegKontext, logo: Option<&[u8]>) -> AppResult<Vec<u8>
         ("positionen_json".to_string(), positionen_json),
         ("summe".to_string(), cent_format(kontext.beleg.summe_cent)),
         ("fusstext".to_string(), kontext.beleg.fusstext.clone()),
-        ("logo_base64".to_string(), logo_base64),
+        ("hat_logo".to_string(), if logo.is_some() { "ja" } else { "" }.to_string()),
     ]);
 
     let dokument = engine.compile_with_input(eingabe).output
@@ -526,16 +535,20 @@ pub fn rendern(kontext: &BelegKontext, logo: Option<&[u8]>) -> AppResult<Vec<u8>
     typst_pdf::pdf(&dokument, &typst_pdf::PdfOptions::default())
         .map_err(|e| AppError::Technisch(format!("PDF-Export fehlgeschlagen: {e:?}")))
 }
-
-fn base64_encode(bytes: &[u8]) -> String {
-    use base64::Engine;
-    base64::engine::general_purpose::STANDARD.encode(bytes)
-}
 ```
 
-`base64`-Crate zu `Cargo.toml` hinzufügen: `base64 = "0.22"`.
+**Hinweis Bildformat:** `Firma.logo` kann PNG oder JPEG sein (Plan 1 erlaubt beide beim Hochladen). `#image("logo.png")` leitet das Format aus der Dateiendung ab — beim Umsetzen prüfen, ob die installierte Typst-Version das Format stattdessen aus den Bytes erkennt; falls die Endung maßgeblich ist, per Magic-Bytes unterscheiden (JPEG beginnt mit `0xFF 0xD8`) und die virtuelle Datei entsprechend als `logo.png` oder `logo.jpg` registrieren (Vorlage dann mit beiden Fällen, z. B. über einen weiteren `sys.inputs`-Schlüssel `logo_datei`).
 
-- [ ] **Step 3: Test erweitern** — im Testmodul von `pdf.rs`: `test_kontext()` (bisher `pub(crate)`? nein, bleibt privat) so ändern, dass `positionen` nicht mehr leer ist, und die Sichtbarkeit auf `pub(crate)` anheben (wird in Task 7 von `zugferd.rs` wiederverwendet). Ersetze die bestehende Funktion `test_kontext()` vollständig durch:
+- [ ] **Step 3: Test erweitern** — im Testmodul von `pdf.rs`: `test_kontext()` so ändern, dass `positionen` nicht mehr leer ist, und die Sichtbarkeit auf `pub(crate)` anheben. **Wichtig:** Damit Task 7 (`zugferd.rs`) diese Hilfsfunktion wiederverwenden kann, muss auch das Testmodul selbst sichtbar sein — die Moduldeklaration in `pdf.rs` von `mod tests` auf `#[cfg(test)] pub(crate) mod tests` ändern (ein privates `mod tests` wäre von außerhalb des Moduls NICHT erreichbar, auch nicht innerhalb der Crate). Zuerst eine Mini-Test-PNG als Ressource anlegen:
+
+```bash
+mkdir -p src-tauri/resources/test
+base64 -d > src-tauri/resources/test/logo_1x1.png <<'EOF'
+iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==
+EOF
+```
+
+Dann die bestehende Funktion `test_kontext()` vollständig ersetzen durch:
 
 ```rust
     pub(crate) fn test_kontext() -> BelegKontext {
@@ -576,6 +589,13 @@ fn base64_encode(bytes: &[u8]) -> String {
         kontext.beleg.storno_von_id = Some("r1".into());
         kontext.beleg.summe_cent = -9500;
         let bytes = rendern(&kontext, None).unwrap();
+        assert!(bytes.starts_with(b"%PDF-"));
+    }
+
+    #[test]
+    fn rendern_mit_logo_erzeugt_gueltige_pdf_bytes() {
+        const LOGO: &[u8] = include_bytes!("../../resources/test/logo_1x1.png");
+        let bytes = rendern(&test_kontext(), Some(LOGO)).unwrap();
         assert!(bytes.starts_with(b"%PDF-"));
     }
 ```
@@ -659,8 +679,17 @@ mod tests {
     #[test]
     fn xml_erzeugen_enthaelt_kaeuferreferenz_und_leitweg_id() {
         let xml = xml_erzeugen(&test_kontext(None, 9500)).unwrap();
+        // Leitweg-ID belegt BT-10 (BuyerReference), Käuferreferenz wandert in die Bestellreferenz.
+        assert!(xml.contains("<ram:BuyerReference>991-12345-67</ram:BuyerReference>"));
         assert!(xml.contains("PO-42"));
-        assert!(xml.contains("991-12345-67"));
+    }
+
+    #[test]
+    fn xml_erzeugen_enthaelt_postadressen_beider_parteien() {
+        let xml = xml_erzeugen(&test_kontext(None, 9500)).unwrap();
+        assert!(xml.contains("10115"), "Verkäufer-PLZ fehlt");
+        assert!(xml.contains("10117"), "Käufer-PLZ fehlt");
+        assert!(xml.contains("<ram:CountryID>DE</ram:CountryID>"));
     }
 }
 ```
@@ -672,12 +701,16 @@ mod tests {
 ```rust
 use crate::dokument::kontext::BelegKontext;
 use crate::error::AppResult;
-use quick_xml::events::{BytesEnd, BytesStart, BytesText, Event};
+use quick_xml::events::{BytesDecl, BytesEnd, BytesStart, BytesText, Event};
 use quick_xml::Writer;
 use std::io::Cursor;
 
 fn cent_zu_dezimal(cent: i64) -> String {
-    format!("{}.{:02}", cent / 100, (cent % 100).abs())
+    // Vorzeichen explizit behandeln: bei -50 Cent liefert Integer-Division 0,
+    // das Minus ginge sonst verloren ("0.50" statt "-0.50").
+    let vorzeichen = if cent < 0 { "-" } else { "" };
+    let betrag = cent.abs();
+    format!("{}{}.{:02}", vorzeichen, betrag / 100, betrag % 100)
 }
 
 fn menge_zu_dezimal(menge_x1000: i64) -> String {
@@ -690,6 +723,7 @@ pub fn xml_erzeugen(kontext: &BelegKontext) -> AppResult<String> {
     // Kein separates Fälligkeitsdatum im Datenmodell (Plan 2) — Zahlungsziel wird stattdessen
     // als Frist in den Zahlungsbedingungen (SpecifiedTradePaymentTerms) unten ausgewiesen.
 
+    writer.write_event(Event::Decl(BytesDecl::new("1.0", Some("UTF-8"), None))).unwrap();
     writer.write_event(Event::Start(BytesStart::new("rsm:CrossIndustryInvoice")
         .with_attributes([
             ("xmlns:rsm", "urn:un:unece:uncefact:data:standard:CrossIndustryInvoice:100"),
@@ -741,19 +775,39 @@ pub fn xml_erzeugen(kontext: &BelegKontext) -> AppResult<String> {
     }
 
     writer.write_event(Event::Start(BytesStart::new("ram:ApplicableHeaderTradeAgreement"))).unwrap();
-    schreibe_text(&mut writer, "ram:BuyerReference", &kontext.kunde_kaeuferreferenz);
+    // BT-10 (BuyerReference): Bei XRechnung an öffentliche Auftraggeber gehört die
+    // Leitweg-ID in BT-10 — sie hat Vorrang; ohne Leitweg-ID wird die Käuferreferenz gesendet.
+    let buyer_reference = if kontext.kunde_leitweg_id.is_empty() {
+        &kontext.kunde_kaeuferreferenz
+    } else {
+        &kontext.kunde_leitweg_id
+    };
+    schreibe_text(&mut writer, "ram:BuyerReference", buyer_reference);
     writer.write_event(Event::Start(BytesStart::new("ram:SellerTradeParty"))).unwrap();
     schreibe_text(&mut writer, "ram:Name", &kontext.firma.name);
+    writer.write_event(Event::Start(BytesStart::new("ram:PostalTradeAddress"))).unwrap();
+    schreibe_text(&mut writer, "ram:PostcodeCode", &kontext.firma.plz);
+    schreibe_text(&mut writer, "ram:LineOne", &kontext.firma.strasse);
+    schreibe_text(&mut writer, "ram:CityName", &kontext.firma.ort);
+    schreibe_text(&mut writer, "ram:CountryID", &kontext.firma.land);
+    writer.write_event(Event::End(BytesEnd::new("ram:PostalTradeAddress"))).unwrap();
     writer.write_event(Event::Start(BytesStart::new("ram:SpecifiedTaxRegistration"))).unwrap();
     schreibe_text(&mut writer, "ram:ID", &kontext.firma.ust_idnr);
     writer.write_event(Event::End(BytesEnd::new("ram:SpecifiedTaxRegistration"))).unwrap();
     writer.write_event(Event::End(BytesEnd::new("ram:SellerTradeParty"))).unwrap();
     writer.write_event(Event::Start(BytesStart::new("ram:BuyerTradeParty"))).unwrap();
     schreibe_text(&mut writer, "ram:Name", &kontext.kunde_name);
+    writer.write_event(Event::Start(BytesStart::new("ram:PostalTradeAddress"))).unwrap();
+    schreibe_text(&mut writer, "ram:PostcodeCode", &kontext.adresse_plz);
+    schreibe_text(&mut writer, "ram:LineOne", &kontext.adresse_strasse);
+    schreibe_text(&mut writer, "ram:CityName", &kontext.adresse_ort);
+    schreibe_text(&mut writer, "ram:CountryID", &kontext.adresse_land);
+    writer.write_event(Event::End(BytesEnd::new("ram:PostalTradeAddress"))).unwrap();
     writer.write_event(Event::End(BytesEnd::new("ram:BuyerTradeParty"))).unwrap();
-    if !kontext.kunde_leitweg_id.is_empty() {
+    if !kontext.kunde_leitweg_id.is_empty() && !kontext.kunde_kaeuferreferenz.is_empty() {
+        // Wenn die Leitweg-ID BT-10 belegt, bleibt die Käuferreferenz als Bestellreferenz erhalten.
         writer.write_event(Event::Start(BytesStart::new("ram:BuyerOrderReferencedDocument"))).unwrap();
-        schreibe_text(&mut writer, "ram:IssuerAssignedID", &kontext.kunde_leitweg_id);
+        schreibe_text(&mut writer, "ram:IssuerAssignedID", &kontext.kunde_kaeuferreferenz);
         writer.write_event(Event::End(BytesEnd::new("ram:BuyerOrderReferencedDocument"))).unwrap();
     }
     writer.write_event(Event::End(BytesEnd::new("ram:ApplicableHeaderTradeAgreement"))).unwrap();
@@ -771,8 +825,6 @@ pub fn xml_erzeugen(kontext: &BelegKontext) -> AppResult<String> {
     schreibe_text(&mut writer, "ram:DuePayableAmount", &cent_zu_dezimal(kontext.beleg.summe_cent));
     writer.write_event(Event::End(BytesEnd::new("ram:SpecifiedTradeSettlementHeaderMonetarySummation"))).unwrap();
     writer.write_event(Event::End(BytesEnd::new("ram:ApplicableHeaderTradeSettlement"))).unwrap();
-
-    let _ = faellig; // Platzhalter für spätere Fälligkeitsberechnung außerhalb dieses Plans
 
     writer.write_event(Event::End(BytesEnd::new("rsm:SupplyChainTradeTransaction"))).unwrap();
     writer.write_event(Event::End(BytesEnd::new("rsm:CrossIndustryInvoice"))).unwrap();
@@ -795,7 +847,7 @@ fn schreibe_text(writer: &mut Writer<Cursor<Vec<u8>>>, tag: &str, text: &str) {
 
 Hinweis: Dies ist eine pragmatische Teilmenge der vollständigen CII-Struktur (deckt die in der Spec genannten Pflichtfelder ab: Rechnungsnummer, TypeCode, Datum, Verkäufer/Käufer, Käuferreferenz, Leitweg-ID, Positionen mit Steuerkategorie E, Zahlungsbedingungen, Summen). Eine vollständige EN-16931-Konformitätsprüfung ist laut Spec bewusst nicht Teil dieses Plans (siehe „Global Constraints" und den manuellen Prüfschritt am Ende).
 
-- [ ] **Step 4: Tests grün** — Run: `cd src-tauri && cargo test xrechnung::` → PASS (4 Tests).
+- [ ] **Step 4: Tests grün** — Run: `cd src-tauri && cargo test xrechnung::` → PASS (5 Tests).
 
 - [ ] **Step 5: Voller Testlauf** — Run: `cd src-tauri && cargo test` → PASS.
 
@@ -863,7 +915,7 @@ pub fn pruefe_exportierbarkeit(kontext: &BelegKontext) -> AppResult<()> {
 
 (`use crate::error::AppError;` ggf. mit dem bereits vorhandenen `use crate::error::AppResult;` zu einer Zeile zusammenführen, falls die Datei bereits einen `use`-Block für `crate::error` hat.)
 
-- [ ] **Step 4: Tests grün** — Run: `cd src-tauri && cargo test xrechnung::` → PASS (7 Tests insgesamt in diesem Modul).
+- [ ] **Step 4: Tests grün** — Run: `cd src-tauri && cargo test xrechnung::` → PASS (8 Tests insgesamt in diesem Modul).
 
 - [ ] **Step 5: Voller Testlauf** — Run: `cd src-tauri && cargo test` → PASS.
 
@@ -912,7 +964,7 @@ mod tests {
 }
 ```
 
-Nutzt die in Task 4 auf `pub(crate)` angehobene `test_kontext()`-Hilfsfunktion aus `pdf.rs`s Testmodul wieder, statt den Testaufbau zu duplizieren. Das Testmodul in `pdf.rs` muss dafür selbst `pub(crate)` sein (Testmodule sind es standardmäßig innerhalb der Crate, keine weitere Änderung nötig).
+Nutzt die in Task 4 auf `pub(crate)` angehobene `test_kontext()`-Hilfsfunktion aus `pdf.rs`s Testmodul wieder, statt den Testaufbau zu duplizieren. Voraussetzung dafür ist die in Task 4 vorgenommene Änderung der Moduldeklaration auf `#[cfg(test)] pub(crate) mod tests` — ein privates `mod tests` wäre von `zugferd.rs` aus nicht erreichbar.
 
 - [ ] **Step 3: Tests schlagen fehl** — Run: `cd src-tauri && cargo test zugferd::` → FAIL (Modul/Funktion existiert nicht).
 
@@ -921,7 +973,7 @@ Nutzt die in Task 4 auf `pub(crate)` angehobene `test_kontext()`-Hilfsfunktion a
 ```rust
 use crate::error::{AppError, AppResult};
 use lopdf::{Dictionary, Document, Object, Stream};
-use xmp_writer::{DateTime, XmpWriter};
+use xmp_writer::XmpWriter;
 
 const ICC_PROFIL: &[u8] = include_bytes!("../../resources/srgb.icc");
 
@@ -932,10 +984,10 @@ pub fn einbetten(pdf_bytes: Vec<u8>, xml: &str) -> AppResult<Vec<u8>> {
     // XMP-Metadaten
     let mut xmp = XmpWriter::new();
     xmp.pdfa_extension_schema_container_for_zugferd(); // Platzhalter-Aufruf: exakten Methodennamen der installierten xmp-writer-Version
-                                                         // gegen docs.rs verifizieren (PDF/A- und Fatura-X/ZUGFeRD-Namespace-Registrierung).
-    xmp.namespace("fx", "urn:factur-x:pdfa:CrossIndustryDocument:invoice:1p0#");
+                                                         // gegen docs.rs verifizieren (PDF/A- und ZUGFeRD-Namespace-Registrierung).
+    xmp.namespace("zf", "urn:zugferd:pdfa:CrossIndustryDocument:invoice:2p0#");
     xmp.creator(["Kleinunternehmer-Verwaltung"]);
-    let xmp_bytes = xmp.finish(None);
+    let xmp_bytes = xmp.finish(None).into_bytes();
     let xmp_stream = Stream::new(Dictionary::from_iter([
         ("Type".into(), Object::Name(b"Metadata".to_vec())),
         ("Subtype".into(), Object::Name(b"XML".to_vec())),
@@ -996,7 +1048,9 @@ pub fn einbetten(pdf_bytes: Vec<u8>, xml: &str) -> AppResult<Vec<u8>> {
 
 `src-tauri/src/dokument/mod.rs` erweitern: `pub mod zugferd;`. `Cargo.toml`: `lopdf`/`xmp-writer` sind bereits aus Task 1 vorhanden.
 
-**Wichtiger Hinweis für die Umsetzung:** Der Aufruf `xmp.pdfa_extension_schema_container_for_zugferd()` ist ein Platzhalter für „hier fehlt noch die konkrete API-Recherche" — anders als der Rest dieses Plans, wo Platzhalter unzulässig sind, ist das hier bewusst der Kern des Durchstichs: Vor der Implementierung `cargo doc -p xmp-writer --open` (bzw. docs.rs) konsultieren, die tatsächlichen Methodennamen für (a) PDF/A-Konformitätsangaben und (b) benutzerdefinierte Namensräume ermitteln, und diese Zeile durch echte Aufrufe ersetzen. Falls `xmp-writer` keine fertige PDF/A-3-Unterstützung bietet, die Pflichtangaben (Konformitätslevel, Teil, Namespace) manuell über die generische `namespace`/`property`-API des Writers setzen — die exakten XMP-Feldnamen sind in der ZUGFeRD-2.x-Spezifikation (`urn:zugferd:pdfa:CrossIndustryDocument:invoice:2p0#`) dokumentiert.
+**Wichtiger Hinweis für die Umsetzung:** Der Aufruf `xmp.pdfa_extension_schema_container_for_zugferd()` ist ein Platzhalter für „hier fehlt noch die konkrete API-Recherche" — anders als der Rest dieses Plans, wo Platzhalter unzulässig sind, ist das hier bewusst der Kern des Durchstichs: Vor der Implementierung `cargo doc -p xmp-writer --open` (bzw. docs.rs) konsultieren, die tatsächlichen Methodennamen für (a) PDF/A-Konformitätsangaben und (b) benutzerdefinierte Namensräume ermitteln, und diese Zeile durch echte Aufrufe ersetzen. Falls `xmp-writer` keine fertige PDF/A-3-Unterstützung bietet, die Pflichtangaben (Konformitätslevel, Teil, Namespace) manuell über die generische `namespace`/`property`-API des Writers setzen.
+
+**Namensraum-Frage (im Durchstich klären):** Die Spec nennt `urn:zugferd:pdfa:CrossIndustryDocument:invoice:2p0#` (ZUGFeRD-2.0-Namensraum); neuere ZUGFeRD-2.x-Versionen sind mit Factur-X harmonisiert und verwenden faktisch `urn:factur-x:pdfa:CrossIndustryDocument:invoice:1p0#` mit Präfix `fx`. Im Durchstich gegen die aktuelle ZUGFeRD-2.x-Spezifikation prüfen, welcher Namensraum korrekt ist, und dann Code UND Test konsistent auf diesen festlegen (der Plan verwendet vorerst durchgängig die zugferd-Variante — Test prüft auf `zugferd:pdfa:CrossIndustryDocument`, Code registriert denselben Namensraum; bei einem Wechsel auf factur-x beide zusammen ändern).
 
 **Zusätzlich prüfen:** ob `typst-pdf` (aus Task 3/4) über `PdfOptions` bereits einen PDF/A-Konformitätsmodus anbietet (siehe Spec-Hinweis „neuere Typst-Versionen bieten einen nativen PDF/A-Exportmodus"). Falls ja, diesen in `pdf::rendern` aktivieren — das reduziert den hier nötigen Nachbearbeitungsumfang (OutputIntent ggf. schon vorhanden) und sollte in `zugferd::einbetten` entsprechend schlanker ausfallen (nur noch Attachment-Einbettung statt vollem OutputIntent-Aufbau).
 
@@ -1044,6 +1098,16 @@ async fn firma_logo(pool: &SqlitePool) -> AppResult<Option<Vec<u8>>> {
     crate::commands::firma::logo_get(pool).await
 }
 
+fn pruefe_ist_rechnung(kontext: &crate::dokument::kontext::BelegKontext) -> AppResult<()> {
+    if kontext.beleg.typ != "rechnung" {
+        return Err(crate::error::AppError::Validation {
+            feld: "typ".into(),
+            meldung: "Nur Rechnungen können als XRechnung/ZUGFeRD exportiert werden".into(),
+        });
+    }
+    Ok(())
+}
+
 #[tauri::command]
 pub async fn beleg_pdf_exportieren(
     app: tauri::AppHandle,
@@ -1065,6 +1129,7 @@ pub async fn rechnung_xrechnung_exportieren(
     id: String,
 ) -> AppResult<Vec<u8>> {
     let kontext = kontext_aus_beleg(&pool, id).await?;
+    pruefe_ist_rechnung(&kontext)?;
     xrechnung::pruefe_exportierbarkeit(&kontext)?;
     let xml = xrechnung::xml_erzeugen(&kontext)?;
     let nummer = kontext.beleg.nummer.clone().unwrap_or_else(|| kontext.beleg.id.clone());
@@ -1080,6 +1145,7 @@ pub async fn rechnung_zugferd_exportieren(
     id: String,
 ) -> AppResult<Vec<u8>> {
     let kontext = kontext_aus_beleg(&pool, id).await?;
+    pruefe_ist_rechnung(&kontext)?;
     xrechnung::pruefe_exportierbarkeit(&kontext)?;
     let logo = firma_logo(&pool).await?;
     let pdf_bytes = pdf::rendern(&kontext, logo.as_deref())?;
@@ -1177,6 +1243,16 @@ vi.mock("@tauri-apps/plugin-fs", () => ({ writeFile: vi.fn().mockResolvedValue(u
 
 // ... innerhalb describe("BelegEditor", ...):
   it("exportiert ein PDF über den Speichern-Dialog", async () => {
+    // WICHTIG: Die Standard-Fixture des Testfiles hat Status "entwurf" — in dem Zustand
+    // wird der Export-Button gar nicht gerendert. Deshalb hier api.belege.get auf eine
+    // GESTELLTE Rechnung um-mocken (gleiches Re-Mock-Idiom wie bei den bestehenden
+    // Stellen-/Zahlungen-Tests in diesem File verwenden):
+    vi.mocked(api.belege.get).mockResolvedValue({
+      beleg: { id: "b1", typ: "rechnung", nummer: "RE-2026-0001", status: "gestellt", kunde_id: "k1",
+        datum: "2026-07-11", leistungsdatum: "2026-07-11", zahlungsziel_tage: 14,
+        kopftext: "", fusstext: "", summe_cent: 9500, ursprungsangebot_id: null, storno_von_id: null },
+      positionen: [], zahlungen: [], bezahlt_cent: 0, offener_betrag_cent: 9500,
+    });
     render(<BelegEditor id="b1" />);
     await waitFor(() => expect(screen.getByRole("button", { name: "Als PDF exportieren" })).toBeTruthy());
     fireEvent.click(screen.getByRole("button", { name: "Als PDF exportieren" }));
@@ -1184,7 +1260,7 @@ vi.mock("@tauri-apps/plugin-fs", () => ({ writeFile: vi.fn().mockResolvedValue(u
   });
 ```
 
-(`api` muss dafür aus `../api` importiert sein — falls noch nicht vorhanden, `import { api } from "../api";` ergänzen; da `../api` gemockt ist, greift man über den gemockten Export darauf zu.)
+(`api` muss dafür aus `../api` importiert sein — falls noch nicht vorhanden, `import { api } from "../api";` ergänzen; da `../api` gemockt ist, greift man über den gemockten Export darauf zu. Falls das Testfile für seine Statuswechsel-Tests ein anderes Re-Mock-Idiom als `vi.mocked(...)` etabliert hat, dieses Idiom übernehmen.)
 
 - [ ] **Step 2: FAIL verifizieren** — `npm test` → FAIL (Button existiert nicht).
 
