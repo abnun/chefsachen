@@ -462,6 +462,82 @@ pub async fn rechnung_stornieren(pool: tauri::State<'_, SqlitePool>, id: String)
     storniere_rechnung(&pool, id).await
 }
 
+#[derive(Debug, Deserialize)]
+pub struct ZahlungNeu {
+    pub rechnung_id: String,
+    pub datum: String,
+    pub betrag_cent: i64,
+    pub notiz: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct OffenerPosten {
+    pub beleg: Beleg,
+    pub offener_betrag_cent: i64,
+}
+
+pub async fn erfasse_zahlung(pool: &SqlitePool, d: ZahlungNeu) -> AppResult<Zahlung> {
+    let rechnung = lade_beleg(pool, &d.rechnung_id).await?;
+    if rechnung.typ != "rechnung" {
+        return Err(AppError::Validation { feld: "rechnung_id".into(), meldung: "Zahlungen sind nur zu Rechnungen möglich".into() });
+    }
+    if !["gestellt", "storniert"].contains(&rechnung.status.as_str()) {
+        return Err(AppError::Validation { feld: "rechnung_id".into(), meldung: "Zahlungen sind nur zu gestellten oder stornierten Rechnungen möglich".into() });
+    }
+    if d.datum.trim().is_empty() {
+        return Err(AppError::Validation { feld: "datum".into(), meldung: "Datum darf nicht leer sein".into() });
+    }
+    if d.betrag_cent == 0 {
+        return Err(AppError::Validation { feld: "betrag_cent".into(), meldung: "Betrag darf nicht 0 sein".into() });
+    }
+    let zahlung = Zahlung {
+        id: Uuid::new_v4().to_string(), rechnung_id: d.rechnung_id, datum: d.datum,
+        betrag_cent: d.betrag_cent, notiz: d.notiz,
+    };
+    sqlx::query("INSERT INTO zahlung (id, rechnung_id, datum, betrag_cent, notiz, created_at, updated_at) VALUES (?,?,?,?,?,?,?)")
+        .bind(&zahlung.id).bind(&zahlung.rechnung_id).bind(&zahlung.datum).bind(zahlung.betrag_cent)
+        .bind(&zahlung.notiz).bind(jetzt()).bind(jetzt())
+        .execute(pool).await?;
+    Ok(zahlung)
+}
+
+pub async fn zahlung_loeschen(pool: &SqlitePool, id: String) -> AppResult<()> {
+    let r = sqlx::query("UPDATE zahlung SET deleted_at = ? WHERE id = ? AND deleted_at IS NULL")
+        .bind(jetzt()).bind(&id).execute(pool).await?;
+    if r.rows_affected() == 0 { return Err(AppError::NichtGefunden); }
+    Ok(())
+}
+
+pub async fn offene_posten(pool: &SqlitePool) -> AppResult<Vec<OffenerPosten>> {
+    let sql = format!("SELECT {BELEG_SPALTEN} FROM beleg WHERE deleted_at IS NULL AND typ = 'rechnung' AND status = 'gestellt' ORDER BY datum");
+    let rechnungen: Vec<Beleg> = sqlx::query_as(&sql).fetch_all(pool).await?;
+    let mut ergebnis = Vec::new();
+    for rechnung in rechnungen {
+        let bezahlt: (Option<i64>,) = sqlx::query_as(
+            "SELECT SUM(betrag_cent) FROM zahlung WHERE rechnung_id = ? AND deleted_at IS NULL")
+            .bind(&rechnung.id).fetch_one(pool).await?;
+        let offener_betrag_cent = rechnung.summe_cent - bezahlt.0.unwrap_or(0);
+        if offener_betrag_cent != 0 {
+            ergebnis.push(OffenerPosten { beleg: rechnung, offener_betrag_cent });
+        }
+    }
+    Ok(ergebnis)
+}
+
+// Dünne Tauri-Wrapper (ergänzen die aus Task 2/3/4/5/6)
+#[tauri::command]
+pub async fn zahlung_erfassen(pool: tauri::State<'_, SqlitePool>, daten: ZahlungNeu) -> AppResult<Zahlung> {
+    erfasse_zahlung(&pool, daten).await
+}
+#[tauri::command]
+pub async fn zahlung_delete(pool: tauri::State<'_, SqlitePool>, id: String) -> AppResult<()> {
+    zahlung_loeschen(&pool, id).await
+}
+#[tauri::command]
+pub async fn offene_posten_list(pool: tauri::State<'_, SqlitePool>) -> AppResult<Vec<OffenerPosten>> {
+    offene_posten(&pool).await
+}
+
 // Dünne Tauri-Wrapper
 #[tauri::command]
 pub async fn beleg_list(pool: tauri::State<'_, SqlitePool>, typ: Option<String>, status: Option<String>) -> AppResult<Vec<Beleg>> {
@@ -935,5 +1011,93 @@ mod tests {
         let angebot = create(&pool, beleg_neu("angebot", &kunde_id)).await.unwrap();
         let err = storniere_rechnung(&pool, angebot.id).await.unwrap_err();
         assert!(matches!(err, AppError::Validation { .. }));
+    }
+
+    #[tokio::test]
+    async fn zahlung_erfassen_und_offener_betrag_sinkt() {
+        let (_dir, pool) = test_pool().await;
+        let kunde_id = kunde_anlegen(&pool).await;
+        let artikel_id = artikel_anlegen(&pool, 10000).await;
+        let rechnung = create(&pool, beleg_neu("rechnung", &kunde_id)).await.unwrap();
+        position_speichern(&pool, BelegpositionNeu {
+            id: "".into(), beleg_id: rechnung.id.clone(), artikel_id: Some(artikel_id),
+            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000,
+        }).await.unwrap();
+        let gestellt = stellen(&pool, rechnung.id).await.unwrap();
+
+        erfasse_zahlung(&pool, ZahlungNeu {
+            rechnung_id: gestellt.id.clone(), datum: "2026-07-10".into(), betrag_cent: 6000, notiz: "Anzahlung".into(),
+        }).await.unwrap();
+        let detail = get(&pool, gestellt.id.clone()).await.unwrap();
+        assert_eq!(detail.bezahlt_cent, 6000);
+        assert_eq!(detail.offener_betrag_cent, 4000);
+
+        erfasse_zahlung(&pool, ZahlungNeu {
+            rechnung_id: gestellt.id.clone(), datum: "2026-07-15".into(), betrag_cent: 4000, notiz: "".into(),
+        }).await.unwrap();
+        let detail2 = get(&pool, gestellt.id).await.unwrap();
+        assert_eq!(detail2.offener_betrag_cent, 0);
+    }
+
+    #[tokio::test]
+    async fn zahlung_lehnt_entwurfsrechnung_ab() {
+        let (_dir, pool) = test_pool().await;
+        let kunde_id = kunde_anlegen(&pool).await;
+        let rechnung = create(&pool, beleg_neu("rechnung", &kunde_id)).await.unwrap();
+        let err = erfasse_zahlung(&pool, ZahlungNeu {
+            rechnung_id: rechnung.id, datum: "2026-07-10".into(), betrag_cent: 100, notiz: "".into(),
+        }).await.unwrap_err();
+        assert!(matches!(err, AppError::Validation { .. }));
+    }
+
+    #[tokio::test]
+    async fn erstattung_als_negative_zahlung_erhoeht_offenen_betrag() {
+        let (_dir, pool) = test_pool().await;
+        let kunde_id = kunde_anlegen(&pool).await;
+        let artikel_id = artikel_anlegen(&pool, 10000).await;
+        let rechnung = create(&pool, beleg_neu("rechnung", &kunde_id)).await.unwrap();
+        position_speichern(&pool, BelegpositionNeu {
+            id: "".into(), beleg_id: rechnung.id.clone(), artikel_id: Some(artikel_id),
+            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000,
+        }).await.unwrap();
+        let gestellt = stellen(&pool, rechnung.id).await.unwrap();
+        erfasse_zahlung(&pool, ZahlungNeu {
+            rechnung_id: gestellt.id.clone(), datum: "2026-07-10".into(), betrag_cent: 10000, notiz: "".into(),
+        }).await.unwrap();
+        storniere_rechnung(&pool, gestellt.id.clone()).await.unwrap();
+        erfasse_zahlung(&pool, ZahlungNeu {
+            rechnung_id: gestellt.id.clone(), datum: "2026-07-20".into(), betrag_cent: -10000, notiz: "Rückzahlung nach Storno".into(),
+        }).await.unwrap();
+        let detail = get(&pool, gestellt.id).await.unwrap();
+        assert_eq!(detail.bezahlt_cent, 0);
+    }
+
+    #[tokio::test]
+    async fn offene_posten_listet_nur_unvollstaendig_bezahlte_rechnungen() {
+        let (_dir, pool) = test_pool().await;
+        let kunde_id = kunde_anlegen(&pool).await;
+        let artikel_id = artikel_anlegen(&pool, 10000).await;
+
+        let bezahlt_beleg = create(&pool, beleg_neu("rechnung", &kunde_id)).await.unwrap();
+        position_speichern(&pool, BelegpositionNeu {
+            id: "".into(), beleg_id: bezahlt_beleg.id.clone(), artikel_id: Some(artikel_id.clone()),
+            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000,
+        }).await.unwrap();
+        let bezahlt_gestellt = stellen(&pool, bezahlt_beleg.id).await.unwrap();
+        erfasse_zahlung(&pool, ZahlungNeu {
+            rechnung_id: bezahlt_gestellt.id.clone(), datum: "2026-07-10".into(), betrag_cent: 10000, notiz: "".into(),
+        }).await.unwrap();
+
+        let offen_beleg = create(&pool, beleg_neu("rechnung", &kunde_id)).await.unwrap();
+        position_speichern(&pool, BelegpositionNeu {
+            id: "".into(), beleg_id: offen_beleg.id.clone(), artikel_id: Some(artikel_id),
+            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000,
+        }).await.unwrap();
+        let offen_gestellt = stellen(&pool, offen_beleg.id).await.unwrap();
+
+        let posten = offene_posten(&pool).await.unwrap();
+        assert_eq!(posten.len(), 1);
+        assert_eq!(posten[0].beleg.id, offen_gestellt.id);
+        assert_eq!(posten[0].offener_betrag_cent, 10000);
     }
 }
