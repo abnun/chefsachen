@@ -1,4 +1,6 @@
 use crate::db::jetzt;
+use crate::domain::beleg::{belegsumme_cent, positionssumme_cent};
+use crate::domain::preisfindung::effektiver_preis;
 use crate::error::{AppError, AppResult};
 use serde::{Deserialize, Serialize};
 use sqlx::SqlitePool;
@@ -50,6 +52,39 @@ pub struct BelegDetail {
     pub zahlungen: Vec<Zahlung>,
     pub bezahlt_cent: i64,
     pub offener_betrag_cent: i64,
+}
+
+#[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
+pub struct Belegposition {
+    pub id: String,
+    pub beleg_id: String,
+    pub artikel_id: Option<String>,
+    pub bezeichnung: String,
+    pub einheit_kuerzel: String,
+    pub einzelpreis_cent: i64,
+    pub menge: i64,
+    pub positionssumme_cent: i64,
+    pub reihenfolge: i64,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct BelegpositionNeu {
+    pub id: String,
+    pub beleg_id: String,
+    pub artikel_id: Option<String>,
+    pub bezeichnung: String,
+    pub einheit_kuerzel: String,
+    pub einzelpreis_cent: Option<i64>,
+    pub menge: i64,
+}
+
+#[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
+pub struct Zahlung {
+    pub id: String,
+    pub rechnung_id: String,
+    pub datum: String,
+    pub betrag_cent: i64,
+    pub notiz: String,
 }
 
 const BELEG_SPALTEN: &str = "id, typ, nummer, status, kunde_id, datum, leistungsdatum, zahlungsziel_tage, kopftext, fusstext, summe_cent, ursprungsangebot_id, storno_von_id";
@@ -151,6 +186,95 @@ pub async fn delete(pool: &SqlitePool, id: String) -> AppResult<()> {
     Ok(())
 }
 
+async fn naechste_reihenfolge(pool: &SqlitePool, beleg_id: &str) -> AppResult<i64> {
+    let max: (Option<i64>,) = sqlx::query_as(
+        "SELECT MAX(reihenfolge) FROM belegposition WHERE beleg_id = ? AND deleted_at IS NULL")
+        .bind(beleg_id).fetch_one(pool).await?;
+    Ok(max.0.unwrap_or(-1) + 1)
+}
+
+async fn beleg_summe_neu_berechnen(pool: &SqlitePool, beleg_id: &str) -> AppResult<()> {
+    let summen: Vec<(i64,)> = sqlx::query_as(
+        "SELECT positionssumme_cent FROM belegposition WHERE beleg_id = ? AND deleted_at IS NULL")
+        .bind(beleg_id).fetch_all(pool).await?;
+    let summe = belegsumme_cent(&summen.iter().map(|s| s.0).collect::<Vec<_>>());
+    sqlx::query("UPDATE beleg SET summe_cent = ?, updated_at = ? WHERE id = ?")
+        .bind(summe).bind(jetzt()).bind(beleg_id).execute(pool).await?;
+    Ok(())
+}
+
+pub async fn position_speichern(pool: &SqlitePool, d: BelegpositionNeu) -> AppResult<Belegposition> {
+    let beleg = lade_beleg(pool, &d.beleg_id).await?;
+    pruefe_ist_entwurf(&beleg)?;
+    if d.menge <= 0 {
+        return Err(AppError::Validation { feld: "menge".into(), meldung: "Menge muss größer als 0 sein".into() });
+    }
+
+    let (bezeichnung, einheit_kuerzel, einzelpreis_cent) = if let Some(artikel_id) = &d.artikel_id {
+        let artikel: (String, String) = sqlx::query_as(
+            "SELECT a.bezeichnung, e.kuerzel FROM artikel a JOIN einheit e ON e.id = a.einheit_id \
+             WHERE a.id = ? AND a.deleted_at IS NULL")
+            .bind(artikel_id).fetch_optional(pool).await?
+            .ok_or_else(|| AppError::Validation { feld: "artikel_id".into(), meldung: "Artikel existiert nicht".into() })?;
+        let preis = match d.einzelpreis_cent {
+            Some(p) => p,
+            None => effektiver_preis(pool, artikel_id, &beleg.kunde_id, &beleg.datum).await?,
+        };
+        (artikel.0, artikel.1, preis)
+    } else {
+        let preis = d.einzelpreis_cent.ok_or_else(|| AppError::Validation {
+            feld: "einzelpreis_cent".into(),
+            meldung: "Einzelpreis ist bei Freitextpositionen erforderlich".into(),
+        })?;
+        if d.bezeichnung.trim().is_empty() {
+            return Err(AppError::Validation { feld: "bezeichnung".into(), meldung: "Bezeichnung darf nicht leer sein".into() });
+        }
+        (d.bezeichnung.trim().to_string(), d.einheit_kuerzel.clone(), preis)
+    };
+
+    let summe = positionssumme_cent(d.menge, einzelpreis_cent)?;
+
+    let position = if d.id.is_empty() {
+        let reihenfolge = naechste_reihenfolge(pool, &d.beleg_id).await?;
+        let pos = Belegposition {
+            id: Uuid::new_v4().to_string(), beleg_id: d.beleg_id.clone(), artikel_id: d.artikel_id.clone(),
+            bezeichnung, einheit_kuerzel, einzelpreis_cent, menge: d.menge,
+            positionssumme_cent: summe, reihenfolge,
+        };
+        sqlx::query("INSERT INTO belegposition (id, beleg_id, artikel_id, bezeichnung, einheit_kuerzel, einzelpreis_cent, menge, positionssumme_cent, reihenfolge, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)")
+            .bind(&pos.id).bind(&pos.beleg_id).bind(&pos.artikel_id).bind(&pos.bezeichnung)
+            .bind(&pos.einheit_kuerzel).bind(pos.einzelpreis_cent).bind(pos.menge)
+            .bind(pos.positionssumme_cent).bind(pos.reihenfolge).bind(jetzt()).bind(jetzt())
+            .execute(pool).await?;
+        pos
+    } else {
+        let bestehende: (i64,) = sqlx::query_as("SELECT reihenfolge FROM belegposition WHERE id = ? AND deleted_at IS NULL")
+            .bind(&d.id).fetch_optional(pool).await?.ok_or(AppError::NichtGefunden)?;
+        sqlx::query("UPDATE belegposition SET artikel_id=?, bezeichnung=?, einheit_kuerzel=?, einzelpreis_cent=?, menge=?, positionssumme_cent=?, updated_at=? WHERE id=?")
+            .bind(&d.artikel_id).bind(&bezeichnung).bind(&einheit_kuerzel).bind(einzelpreis_cent)
+            .bind(d.menge).bind(summe).bind(jetzt()).bind(&d.id)
+            .execute(pool).await?;
+        Belegposition {
+            id: d.id.clone(), beleg_id: d.beleg_id.clone(), artikel_id: d.artikel_id.clone(),
+            bezeichnung, einheit_kuerzel, einzelpreis_cent, menge: d.menge,
+            positionssumme_cent: summe, reihenfolge: bestehende.0,
+        }
+    };
+
+    beleg_summe_neu_berechnen(pool, &d.beleg_id).await?;
+    Ok(position)
+}
+
+pub async fn position_loeschen(pool: &SqlitePool, id: String) -> AppResult<()> {
+    let row: (String,) = sqlx::query_as("SELECT beleg_id FROM belegposition WHERE id = ? AND deleted_at IS NULL")
+        .bind(&id).fetch_optional(pool).await?.ok_or(AppError::NichtGefunden)?;
+    let beleg = lade_beleg(pool, &row.0).await?;
+    pruefe_ist_entwurf(&beleg)?;
+    sqlx::query("UPDATE belegposition SET deleted_at = ? WHERE id = ?").bind(jetzt()).bind(&id).execute(pool).await?;
+    beleg_summe_neu_berechnen(pool, &row.0).await?;
+    Ok(())
+}
+
 // Dünne Tauri-Wrapper
 #[tauri::command]
 pub async fn beleg_list(pool: tauri::State<'_, SqlitePool>, typ: Option<String>, status: Option<String>) -> AppResult<Vec<Beleg>> {
@@ -171,6 +295,14 @@ pub async fn beleg_update(pool: tauri::State<'_, SqlitePool>, daten: BelegUpdate
 #[tauri::command]
 pub async fn beleg_delete(pool: tauri::State<'_, SqlitePool>, id: String) -> AppResult<()> {
     delete(&pool, id).await
+}
+#[tauri::command]
+pub async fn belegposition_save(pool: tauri::State<'_, SqlitePool>, position: BelegpositionNeu) -> AppResult<Belegposition> {
+    position_speichern(&pool, position).await
+}
+#[tauri::command]
+pub async fn belegposition_delete(pool: tauri::State<'_, SqlitePool>, id: String) -> AppResult<()> {
+    position_loeschen(&pool, id).await
 }
 
 #[cfg(test)]
@@ -280,5 +412,91 @@ mod tests {
         assert!(detail.positionen.is_empty());
         assert!(detail.zahlungen.is_empty());
         assert_eq!(detail.offener_betrag_cent, 0);
+    }
+
+    async fn artikel_anlegen(pool: &sqlx::SqlitePool, standardpreis_cent: i64) -> String {
+        crate::commands::artikel::create(pool, crate::commands::artikel::ArtikelNeu {
+            bezeichnung: "Beratung".into(), beschreibung: "".into(),
+            einheit_id: "e0000000-0000-0000-0000-000000000001".into(),
+            standardpreis_cent,
+        }).await.unwrap().id
+    }
+
+    #[tokio::test]
+    async fn position_mit_artikel_ermittelt_preis_automatisch() {
+        let (_dir, pool) = test_pool().await;
+        let kunde_id = kunde_anlegen(&pool).await;
+        let artikel_id = artikel_anlegen(&pool, 9500).await;
+        let beleg = create(&pool, beleg_neu("angebot", &kunde_id)).await.unwrap();
+        let pos = position_speichern(&pool, BelegpositionNeu {
+            id: "".into(), beleg_id: beleg.id.clone(), artikel_id: Some(artikel_id),
+            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 2000,
+        }).await.unwrap();
+        assert_eq!(pos.einzelpreis_cent, 9500);
+        assert_eq!(pos.bezeichnung, "Beratung");
+        assert_eq!(pos.positionssumme_cent, 19000);
+        let beleg_neu = get(&pool, beleg.id).await.unwrap().beleg;
+        assert_eq!(beleg_neu.summe_cent, 19000);
+    }
+
+    #[tokio::test]
+    async fn freitextposition_ohne_preis_wird_abgelehnt() {
+        let (_dir, pool) = test_pool().await;
+        let kunde_id = kunde_anlegen(&pool).await;
+        let beleg = create(&pool, beleg_neu("angebot", &kunde_id)).await.unwrap();
+        let err = position_speichern(&pool, BelegpositionNeu {
+            id: "".into(), beleg_id: beleg.id, artikel_id: None,
+            bezeichnung: "Sonderleistung".into(), einheit_kuerzel: "Std.".into(),
+            einzelpreis_cent: None, menge: 1000,
+        }).await.unwrap_err();
+        assert!(matches!(err, AppError::Validation { .. }));
+    }
+
+    #[tokio::test]
+    async fn freitextposition_mit_preis_wird_uebernommen() {
+        let (_dir, pool) = test_pool().await;
+        let kunde_id = kunde_anlegen(&pool).await;
+        let beleg = create(&pool, beleg_neu("angebot", &kunde_id)).await.unwrap();
+        let pos = position_speichern(&pool, BelegpositionNeu {
+            id: "".into(), beleg_id: beleg.id, artikel_id: None,
+            bezeichnung: "Sonderleistung".into(), einheit_kuerzel: "Std.".into(),
+            einzelpreis_cent: Some(12000), menge: 1000,
+        }).await.unwrap();
+        assert_eq!(pos.bezeichnung, "Sonderleistung");
+        assert_eq!(pos.positionssumme_cent, 12000);
+    }
+
+    #[tokio::test]
+    async fn loeschen_berechnet_belegsumme_neu() {
+        let (_dir, pool) = test_pool().await;
+        let kunde_id = kunde_anlegen(&pool).await;
+        let artikel_id = artikel_anlegen(&pool, 5000).await;
+        let beleg = create(&pool, beleg_neu("angebot", &kunde_id)).await.unwrap();
+        let pos1 = position_speichern(&pool, BelegpositionNeu {
+            id: "".into(), beleg_id: beleg.id.clone(), artikel_id: Some(artikel_id.clone()),
+            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000,
+        }).await.unwrap();
+        position_speichern(&pool, BelegpositionNeu {
+            id: "".into(), beleg_id: beleg.id.clone(), artikel_id: Some(artikel_id),
+            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000,
+        }).await.unwrap();
+        position_loeschen(&pool, pos1.id).await.unwrap();
+        let beleg_neu = get(&pool, beleg.id).await.unwrap().beleg;
+        assert_eq!(beleg_neu.summe_cent, 5000);
+    }
+
+    #[tokio::test]
+    async fn position_an_gestelltem_beleg_wird_abgelehnt() {
+        let (_dir, pool) = test_pool().await;
+        let kunde_id = kunde_anlegen(&pool).await;
+        let artikel_id = artikel_anlegen(&pool, 5000).await;
+        let beleg = create(&pool, beleg_neu("angebot", &kunde_id)).await.unwrap();
+        sqlx::query("UPDATE beleg SET status = 'versendet' WHERE id = ?")
+            .bind(&beleg.id).execute(&pool).await.unwrap();
+        let err = position_speichern(&pool, BelegpositionNeu {
+            id: "".into(), beleg_id: beleg.id, artikel_id: Some(artikel_id),
+            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000,
+        }).await.unwrap_err();
+        assert!(matches!(err, AppError::Validation { .. }));
     }
 }
