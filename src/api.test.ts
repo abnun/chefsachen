@@ -13,4 +13,8 @@ describe("api", () => {
     expect(istValidierungsfehler({ typ: "validation", feld: "name", meldung: "x" })).toBe(true);
     expect(istValidierungsfehler({ typ: "technisch", meldung: "x" })).toBe(false);
   });
+  it("ruft beleg_list per invoke auf", async () => {
+    await api.belege.list();
+    expect(invoke).toHaveBeenCalledWith("beleg_list", { typ: null, status: null });
+  });
 });
