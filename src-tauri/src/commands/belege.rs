@@ -186,20 +186,20 @@ pub async fn delete(pool: &SqlitePool, id: String) -> AppResult<()> {
     Ok(())
 }
 
-async fn naechste_reihenfolge(pool: &SqlitePool, beleg_id: &str) -> AppResult<i64> {
+async fn naechste_reihenfolge(conn: &mut sqlx::SqliteConnection, beleg_id: &str) -> AppResult<i64> {
     let max: (Option<i64>,) = sqlx::query_as(
         "SELECT MAX(reihenfolge) FROM belegposition WHERE beleg_id = ? AND deleted_at IS NULL")
-        .bind(beleg_id).fetch_one(pool).await?;
+        .bind(beleg_id).fetch_one(&mut *conn).await?;
     Ok(max.0.unwrap_or(-1) + 1)
 }
 
-async fn beleg_summe_neu_berechnen(pool: &SqlitePool, beleg_id: &str) -> AppResult<()> {
+async fn beleg_summe_neu_berechnen(conn: &mut sqlx::SqliteConnection, beleg_id: &str) -> AppResult<()> {
     let summen: Vec<(i64,)> = sqlx::query_as(
         "SELECT positionssumme_cent FROM belegposition WHERE beleg_id = ? AND deleted_at IS NULL")
-        .bind(beleg_id).fetch_all(pool).await?;
+        .bind(beleg_id).fetch_all(&mut *conn).await?;
     let summe = belegsumme_cent(&summen.iter().map(|s| s.0).collect::<Vec<_>>());
     sqlx::query("UPDATE beleg SET summe_cent = ?, updated_at = ? WHERE id = ?")
-        .bind(summe).bind(jetzt()).bind(beleg_id).execute(pool).await?;
+        .bind(summe).bind(jetzt()).bind(beleg_id).execute(&mut *conn).await?;
     Ok(())
 }
 
@@ -234,8 +234,10 @@ pub async fn position_speichern(pool: &SqlitePool, d: BelegpositionNeu) -> AppRe
 
     let summe = positionssumme_cent(d.menge, einzelpreis_cent)?;
 
+    let mut tx = pool.begin().await?;
+
     let position = if d.id.is_empty() {
-        let reihenfolge = naechste_reihenfolge(pool, &d.beleg_id).await?;
+        let reihenfolge = naechste_reihenfolge(&mut tx, &d.beleg_id).await?;
         let pos = Belegposition {
             id: Uuid::new_v4().to_string(), beleg_id: d.beleg_id.clone(), artikel_id: d.artikel_id.clone(),
             bezeichnung, einheit_kuerzel, einzelpreis_cent, menge: d.menge,
@@ -245,15 +247,15 @@ pub async fn position_speichern(pool: &SqlitePool, d: BelegpositionNeu) -> AppRe
             .bind(&pos.id).bind(&pos.beleg_id).bind(&pos.artikel_id).bind(&pos.bezeichnung)
             .bind(&pos.einheit_kuerzel).bind(pos.einzelpreis_cent).bind(pos.menge)
             .bind(pos.positionssumme_cent).bind(pos.reihenfolge).bind(jetzt()).bind(jetzt())
-            .execute(pool).await?;
+            .execute(&mut *tx).await?;
         pos
     } else {
         let bestehende: (i64,) = sqlx::query_as("SELECT reihenfolge FROM belegposition WHERE id = ? AND deleted_at IS NULL")
-            .bind(&d.id).fetch_optional(pool).await?.ok_or(AppError::NichtGefunden)?;
+            .bind(&d.id).fetch_optional(&mut *tx).await?.ok_or(AppError::NichtGefunden)?;
         sqlx::query("UPDATE belegposition SET artikel_id=?, bezeichnung=?, einheit_kuerzel=?, einzelpreis_cent=?, menge=?, positionssumme_cent=?, updated_at=? WHERE id=?")
             .bind(&d.artikel_id).bind(&bezeichnung).bind(&einheit_kuerzel).bind(einzelpreis_cent)
             .bind(d.menge).bind(summe).bind(jetzt()).bind(&d.id)
-            .execute(pool).await?;
+            .execute(&mut *tx).await?;
         Belegposition {
             id: d.id.clone(), beleg_id: d.beleg_id.clone(), artikel_id: d.artikel_id.clone(),
             bezeichnung, einheit_kuerzel, einzelpreis_cent, menge: d.menge,
@@ -261,7 +263,8 @@ pub async fn position_speichern(pool: &SqlitePool, d: BelegpositionNeu) -> AppRe
         }
     };
 
-    beleg_summe_neu_berechnen(pool, &d.beleg_id).await?;
+    beleg_summe_neu_berechnen(&mut tx, &d.beleg_id).await?;
+    tx.commit().await?;
     Ok(position)
 }
 
@@ -270,8 +273,10 @@ pub async fn position_loeschen(pool: &SqlitePool, id: String) -> AppResult<()> {
         .bind(&id).fetch_optional(pool).await?.ok_or(AppError::NichtGefunden)?;
     let beleg = lade_beleg(pool, &row.0).await?;
     pruefe_ist_entwurf(&beleg)?;
-    sqlx::query("UPDATE belegposition SET deleted_at = ? WHERE id = ?").bind(jetzt()).bind(&id).execute(pool).await?;
-    beleg_summe_neu_berechnen(pool, &row.0).await?;
+    let mut tx = pool.begin().await?;
+    sqlx::query("UPDATE belegposition SET deleted_at = ? WHERE id = ?").bind(jetzt()).bind(&id).execute(&mut *tx).await?;
+    beleg_summe_neu_berechnen(&mut tx, &row.0).await?;
+    tx.commit().await?;
     Ok(())
 }
 
@@ -497,6 +502,22 @@ mod tests {
             id: "".into(), beleg_id: beleg.id, artikel_id: Some(artikel_id),
             bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000,
         }).await.unwrap_err();
+        assert!(matches!(err, AppError::Validation { .. }));
+    }
+
+    #[tokio::test]
+    async fn position_loeschen_an_gestelltem_beleg_wird_abgelehnt() {
+        let (_dir, pool) = test_pool().await;
+        let kunde_id = kunde_anlegen(&pool).await;
+        let artikel_id = artikel_anlegen(&pool, 5000).await;
+        let beleg = create(&pool, beleg_neu("angebot", &kunde_id)).await.unwrap();
+        let pos = position_speichern(&pool, BelegpositionNeu {
+            id: "".into(), beleg_id: beleg.id.clone(), artikel_id: Some(artikel_id),
+            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000,
+        }).await.unwrap();
+        sqlx::query("UPDATE beleg SET status = 'versendet' WHERE id = ?")
+            .bind(&beleg.id).execute(&pool).await.unwrap();
+        let err = position_loeschen(&pool, pos.id).await.unwrap_err();
         assert!(matches!(err, AppError::Validation { .. }));
     }
 }
