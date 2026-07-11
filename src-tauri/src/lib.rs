@@ -3,6 +3,7 @@ use tauri::Manager;
 
 mod commands;
 mod db;
+mod dokument;
 mod domain;
 mod error;
 
