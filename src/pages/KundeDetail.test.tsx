@@ -1,5 +1,7 @@
-import { render, screen, waitFor } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+afterEach(cleanup);
 
 vi.mock("../api", () => ({
   api: {
@@ -37,6 +39,40 @@ vi.mock("../api", () => ({
       ansprechpartnerSave: vi.fn(),
       ansprechpartnerDelete: vi.fn(),
     },
+    belege: {
+      list: vi.fn().mockResolvedValue([
+        {
+          id: "b1",
+          typ: "rechnung",
+          nummer: "RE-2026-0001",
+          status: "gestellt",
+          kunde_id: "1",
+          datum: "2026-07-10",
+          leistungsdatum: "2026-07-10",
+          zahlungsziel_tage: 14,
+          kopftext: "",
+          fusstext: "",
+          summe_cent: 9500,
+          ursprungsangebot_id: null,
+          storno_von_id: null,
+        },
+        {
+          id: "b2",
+          typ: "angebot",
+          nummer: "AN-2026-0003",
+          status: "versendet",
+          kunde_id: "anderer-kunde",
+          datum: "2026-07-01",
+          leistungsdatum: "2026-07-01",
+          zahlungsziel_tage: 14,
+          kopftext: "",
+          fusstext: "",
+          summe_cent: 5000,
+          ursprungsangebot_id: null,
+          storno_von_id: null,
+        },
+      ]),
+    },
   },
   istValidierungsfehler: () => false,
 }));
@@ -47,5 +83,13 @@ describe("KundeDetail", () => {
     render(<KundeDetail id="1" />);
     await waitFor(() => expect(screen.getByDisplayValue("ACME GmbH")).toBeTruthy());
     expect(screen.getByText("KD-0001")).toBeTruthy();
+  });
+
+  it("zeigt nur Belege dieses Kunden", async () => {
+    render(<KundeDetail id="1" />);
+    await waitFor(() => expect(screen.getByText("ACME GmbH")).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Belege" }));
+    await waitFor(() => expect(screen.getByText("RE-2026-0001")).toBeTruthy());
+    expect(screen.queryByText("AN-2026-0003")).toBeNull();
   });
 });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatCent, parseEuro } from "./geld";
+import { formatCent, formatMenge, parseEuro, parseMenge } from "./geld";
 
 describe("parseEuro", () => {
   it("parst zwei Nachkommastellen", () => {
@@ -28,5 +28,26 @@ describe("parseEuro", () => {
 describe("formatCent", () => {
   it("formatiert Cent als deutschen Euro-Betrag", () => {
     expect(formatCent(9550)).toBe("95,50 €");
+  });
+});
+
+describe("parseMenge", () => {
+  it("parst ganze und Komma-Mengen", () => {
+    expect(parseMenge("2")).toBe(2000);
+    expect(parseMenge("2,5")).toBe(2500);
+    expect(parseMenge("1,333")).toBe(1333);
+  });
+  it("lehnt ungültige Eingaben ab", () => {
+    expect(parseMenge("")).toBeNull();
+    expect(parseMenge("abc")).toBeNull();
+    expect(parseMenge("1,2345")).toBeNull();
+  });
+});
+
+describe("formatMenge", () => {
+  it("formatiert Tausendstel als deutsche Dezimalzahl", () => {
+    expect(formatMenge(2500)).toBe("2,5");
+    expect(formatMenge(1000)).toBe("1");
+    expect(formatMenge(1333)).toBe("1,333");
   });
 });

@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { t } from "../i18n";
 
-export type Seite = "kunden" | "artikel" | "einstellungen";
+export type Seite = "kunden" | "artikel" | "angebote" | "rechnungen" | "einstellungen";
 
 interface NavEintrag {
   seite: Seite;
@@ -11,6 +11,8 @@ interface NavEintrag {
 const NAV_EINTRAEGE: NavEintrag[] = [
   { seite: "kunden", label: t("nav.kunden") },
   { seite: "artikel", label: t("nav.artikel") },
+  { seite: "angebote", label: t("nav.angebote") },
+  { seite: "rechnungen", label: t("nav.rechnungen") },
   { seite: "einstellungen", label: t("nav.einstellungen") },
 ];
 
@@ -23,7 +25,7 @@ interface LayoutProps {
 /**
  * App-Layout mit fester linker Navigation und Content-Bereich. Kontrolliert
  * durch die Eltern-Komponente (App.tsx hält den Routing-State via useState) —
- * kein eigener Router, da bei drei Seiten nicht nötig.
+ * kein eigener Router, da bei fünf Seiten nicht nötig.
  */
 export function Layout({ aktiveSeite, onNavigiere, children }: LayoutProps) {
   return (

@@ -7,6 +7,9 @@ import { Einstellungen } from "./pages/Einstellungen";
 import { Kunden } from "./pages/Kunden";
 import { KundeDetail } from "./pages/KundeDetail";
 import { Artikel } from "./pages/Artikel";
+import { Angebote } from "./pages/Angebote";
+import { Rechnungen } from "./pages/Rechnungen";
+import { BelegEditor } from "./pages/BelegEditor";
 import "./App.css";
 
 function App() {
@@ -14,6 +17,8 @@ function App() {
   const [fehler, setFehler] = useState<AppFehler | null>(null);
   const [seite, setSeite] = useState<Seite>("kunden");
   const [ausgewaehlterKunde, setAusgewaehlterKunde] = useState<string | null>(null);
+  const [ausgewaehltesAngebot, setAusgewaehltesAngebot] = useState<string | null>(null);
+  const [ausgewaehlteRechnung, setAusgewaehlteRechnung] = useState<string | null>(null);
 
   useEffect(() => {
     api.firma.get().then(setFirma).catch((e) => setFehler(e as AppFehler));
@@ -33,6 +38,8 @@ function App() {
 
   function navigiere(neueSeite: Seite) {
     setAusgewaehlterKunde(null);
+    setAusgewaehltesAngebot(null);
+    setAusgewaehlteRechnung(null);
     setSeite(neueSeite);
   }
 
@@ -45,6 +52,25 @@ function App() {
           <Kunden onOeffnen={setAusgewaehlterKunde} />
         ))}
       {seite === "artikel" && <Artikel />}
+      {seite === "angebote" &&
+        (ausgewaehltesAngebot ? (
+          <BelegEditor
+            id={ausgewaehltesAngebot}
+            onRechnungErstellt={(rechnungId) => {
+              setSeite("rechnungen");
+              setAusgewaehltesAngebot(null);
+              setAusgewaehlteRechnung(rechnungId);
+            }}
+          />
+        ) : (
+          <Angebote onOeffnen={setAusgewaehltesAngebot} />
+        ))}
+      {seite === "rechnungen" &&
+        (ausgewaehlteRechnung ? (
+          <BelegEditor id={ausgewaehlteRechnung} />
+        ) : (
+          <Rechnungen onOeffnen={setAusgewaehlteRechnung} />
+        ))}
       {seite === "einstellungen" && <Einstellungen />}
     </Layout>
   );

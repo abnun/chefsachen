@@ -77,6 +77,73 @@ export interface Nummernkreis {
   zaehler: number;
   jahres_reset: boolean;
 }
+export interface Beleg {
+  id: string;
+  typ: "angebot" | "rechnung";
+  nummer: string | null;
+  status: string;
+  kunde_id: string;
+  datum: string;
+  leistungsdatum: string;
+  zahlungsziel_tage: number;
+  kopftext: string;
+  fusstext: string;
+  summe_cent: number;
+  ursprungsangebot_id: string | null;
+  storno_von_id: string | null;
+}
+export type BelegNeu = Pick<
+  Beleg,
+  "typ" | "kunde_id" | "datum" | "leistungsdatum" | "zahlungsziel_tage" | "kopftext" | "fusstext"
+>;
+export interface BelegUpdate {
+  id: string;
+  kunde_id: string;
+  datum: string;
+  leistungsdatum: string;
+  zahlungsziel_tage: number;
+  kopftext: string;
+  fusstext: string;
+}
+export interface Belegposition {
+  id: string;
+  beleg_id: string;
+  artikel_id: string | null;
+  bezeichnung: string;
+  einheit_kuerzel: string;
+  einzelpreis_cent: number;
+  menge: number;
+  positionssumme_cent: number;
+  reihenfolge: number;
+}
+export interface BelegpositionNeu {
+  id: string;
+  beleg_id: string;
+  artikel_id: string | null;
+  bezeichnung: string;
+  einheit_kuerzel: string;
+  einzelpreis_cent: number | null;
+  menge: number;
+}
+export interface Zahlung {
+  id: string;
+  rechnung_id: string;
+  datum: string;
+  betrag_cent: number;
+  notiz: string;
+}
+export type ZahlungNeu = Omit<Zahlung, "id">;
+export interface BelegDetail {
+  beleg: Beleg;
+  positionen: Belegposition[];
+  zahlungen: Zahlung[];
+  bezahlt_cent: number;
+  offener_betrag_cent: number;
+}
+export interface OffenerPosten {
+  beleg: Beleg;
+  offener_betrag_cent: number;
+}
 export type AppFehler =
   | { typ: "validation"; feld: string; meldung: string }
   | { typ: "nicht_gefunden"; meldung: string }
@@ -131,5 +198,23 @@ export const api = {
     // nicht `jahresReset` wie im ursprünglichen Brief-Entwurf.
     nummernkreisUpdate: (art: string, format: string, jahresReset: boolean) =>
       invoke<void>("nummernkreis_update", { art, format, jahres_reset: jahresReset }),
+  },
+  belege: {
+    list: (typ?: "angebot" | "rechnung", status?: string) =>
+      invoke<Beleg[]>("beleg_list", { typ: typ ?? null, status: status ?? null }),
+    get: (id: string) => invoke<BelegDetail>("beleg_get", { id }),
+    create: (daten: BelegNeu) => invoke<Beleg>("beleg_create", { daten }),
+    update: (daten: BelegUpdate) => invoke<Beleg>("beleg_update", { daten }),
+    delete: (id: string) => invoke<void>("beleg_delete", { id }),
+    positionSave: (position: BelegpositionNeu) => invoke<Belegposition>("belegposition_save", { position }),
+    positionDelete: (id: string) => invoke<void>("belegposition_delete", { id }),
+    stellen: (id: string) => invoke<Beleg>("beleg_stellen", { id }),
+    angebotStatusSetzen: (id: string, status: string) => invoke<Beleg>("angebot_status_setzen", { id, status }),
+    angebotInRechnungUeberfuehren: (angebotId: string) =>
+      invoke<Beleg>("angebot_in_rechnung_ueberfuehren", { angebot_id: angebotId }),
+    rechnungStornieren: (id: string) => invoke<Beleg>("rechnung_stornieren", { id }),
+    zahlungErfassen: (daten: ZahlungNeu) => invoke<Zahlung>("zahlung_erfassen", { daten }),
+    zahlungDelete: (id: string) => invoke<void>("zahlung_delete", { id }),
+    offenePosten: () => invoke<OffenerPosten[]>("offene_posten_list"),
   },
 };

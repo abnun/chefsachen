@@ -2,6 +2,8 @@ export const translations: Record<string, string> = {
   "nav.kunden": "Kunden",
   "nav.artikel": "Artikel & Leistungen",
   "nav.einstellungen": "Einstellungen",
+  "nav.angebote": "Angebote",
+  "nav.rechnungen": "Rechnungen",
 };
 
 /**

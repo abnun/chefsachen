@@ -48,3 +48,30 @@ export function formatCent(cents: number): string {
     euro.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " €"
   );
 }
+
+/**
+ * Parst eine deutsch formatierte Mengenangabe ("2,5", "10", "1,333") in
+ * Tausendstel (Faktor 1000) als ganzzahligen Wert. Gibt `null` zurück bei
+ * ungültiger Eingabe (leer, nicht-numerisch, mehr als drei Nachkommastellen).
+ */
+export function parseMenge(input: string): number | null {
+  const trimmed = input.trim();
+  if (trimmed === "") {
+    return null;
+  }
+  const muster = /^\d+(,\d{1,3})?$/;
+  if (!muster.test(trimmed)) {
+    return null;
+  }
+  const [ganzzahlTeil, nachkommaRoh] = trimmed.split(",");
+  const nachkomma = (nachkommaRoh ?? "").padEnd(3, "0");
+  return parseInt(ganzzahlTeil, 10) * 1000 + parseInt(nachkomma, 10);
+}
+
+/**
+ * Formatiert eine Menge mit Faktor 1000 als deutsche Dezimalzahl, z. B.
+ * 2500 -> "2,5", 1000 -> "1".
+ */
+export function formatMenge(mengeX1000: number): string {
+  return (mengeX1000 / 1000).toLocaleString("de-DE", { maximumFractionDigits: 3 });
+}
