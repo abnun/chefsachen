@@ -18,7 +18,31 @@ fn dict_aus_feldern(felder: impl IntoIterator<Item = (&'static str, String)>) ->
         .collect()
 }
 
-pub fn rendern(kontext: &BelegKontext) -> AppResult<Vec<u8>> {
+/// Formatiert eine Menge (fixkomma, 3 Nachkommastellen als i64 kodiert) nach deutscher
+/// Konvention, wobei überflüssige Nullen entfernt werden (1000 -> "1", 1500 -> "1,5").
+fn menge_format(menge_x1000: i64) -> String {
+    let ganz = menge_x1000 / 1000;
+    let rest = menge_x1000 % 1000;
+    if rest == 0 {
+        ganz.to_string()
+    } else {
+        format!("{},{:03}", ganz, rest)
+            .trim_end_matches('0')
+            .trim_end_matches(',')
+            .to_string()
+    }
+}
+
+/// Formatiert einen Cent-Betrag nach deutscher Konvention ("1234,56 €").
+fn cent_format(cent: i64) -> String {
+    // Vorzeichen explizit behandeln: bei -50 Cent liefert Integer-Division 0,
+    // das Minus ginge sonst verloren ("0,50 €" statt "-0,50 €").
+    let vorzeichen = if cent < 0 { "-" } else { "" };
+    let betrag = cent.abs();
+    format!("{}{},{:02} €", vorzeichen, betrag / 100, betrag % 100)
+}
+
+pub fn rendern(kontext: &BelegKontext, logo: Option<&[u8]>) -> AppResult<Vec<u8>> {
     let titel = if kontext.beleg.typ == "angebot" {
         "Angebot"
     } else if kontext.beleg.storno_von_id.is_some() {
@@ -27,19 +51,46 @@ pub fn rendern(kontext: &BelegKontext) -> AppResult<Vec<u8>> {
         "Rechnung"
     };
 
-    let engine = TypstEngine::builder()
-        .main_file(VORLAGE)
-        .fonts([SCHRIFT])
-        .build();
+    let positionen_json = serde_json::to_string(
+        &kontext
+            .positionen
+            .iter()
+            .map(|p| {
+                serde_json::json!({
+                    "bezeichnung": p.bezeichnung,
+                    "menge": format!("{} {}", menge_format(p.menge), p.einheit_kuerzel),
+                    "einzelpreis": cent_format(p.einzelpreis_cent),
+                    "summe": cent_format(p.positionssumme_cent),
+                })
+            })
+            .collect::<Vec<_>>(),
+    )
+    .map_err(|e| AppError::Technisch(e.to_string()))?;
+
+    let mut builder = TypstEngine::builder().main_file(VORLAGE).fonts([SCHRIFT]);
+    if let Some(bytes) = logo {
+        builder = builder.with_static_file_resolver([("logo.png", bytes.to_vec())]);
+    }
+    let engine = builder.build();
 
     let eingabe = dict_aus_feldern([
         ("titel", titel.to_string()),
         ("nummer", kontext.beleg.nummer.clone().unwrap_or_default()),
         ("datum", kontext.beleg.datum.clone()),
+        ("leistungsdatum", kontext.beleg.leistungsdatum.clone()),
+        ("zahlungsziel_tage", kontext.beleg.zahlungsziel_tage.to_string()),
         ("kunde_name", kontext.kunde_name.clone()),
         ("kunde_strasse", kontext.adresse_strasse.clone()),
         ("kunde_plz", kontext.adresse_plz.clone()),
         ("kunde_ort", kontext.adresse_ort.clone()),
+        ("firma_name", kontext.firma.name.clone()),
+        ("firma_strasse", kontext.firma.strasse.clone()),
+        ("firma_plz", kontext.firma.plz.clone()),
+        ("firma_ort", kontext.firma.ort.clone()),
+        ("positionen_json", positionen_json),
+        ("summe", cent_format(kontext.beleg.summe_cent)),
+        ("fusstext", kontext.beleg.fusstext.clone()),
+        ("hat_logo", if logo.is_some() { "ja" } else { "" }.to_string()),
     ]);
 
     let dokument = engine
@@ -53,21 +104,25 @@ pub fn rendern(kontext: &BelegKontext) -> AppResult<Vec<u8>> {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
     use crate::commands::belege::{Beleg, Belegposition};
     use crate::commands::firma::Firma;
 
-    fn test_kontext() -> BelegKontext {
+    pub(crate) fn test_kontext() -> BelegKontext {
         BelegKontext {
             beleg: Beleg {
                 id: "b1".into(), typ: "rechnung".into(), nummer: Some("RE-2026-0001".into()),
                 status: "gestellt".into(), kunde_id: "k1".into(), datum: "2026-07-11".into(),
                 leistungsdatum: "2026-07-11".into(), zahlungsziel_tage: 14,
-                kopftext: "".into(), fusstext: "".into(), summe_cent: 9500,
+                kopftext: "".into(), fusstext: "Danke für Ihren Auftrag.".into(), summe_cent: 9500,
                 ursprungsangebot_id: None, storno_von_id: None,
             },
-            positionen: Vec::<Belegposition>::new(),
+            positionen: vec![Belegposition {
+                id: "p1".into(), beleg_id: "b1".into(), artikel_id: None,
+                bezeichnung: "Beratung".into(), einheit_kuerzel: "Std.".into(),
+                einzelpreis_cent: 9500, menge: 1000, positionssumme_cent: 9500, reihenfolge: 0,
+            }],
             firma: Firma {
                 id: "f1".into(), name: "Meine Firma".into(), strasse: "Weg 1".into(), plz: "10115".into(),
                 ort: "Berlin".into(), land: "DE".into(), steuernummer: "12/345".into(), ust_idnr: "".into(),
@@ -81,9 +136,25 @@ mod tests {
     }
 
     #[test]
-    fn rendern_erzeugt_gueltige_pdf_bytes() {
-        let bytes = rendern(&test_kontext()).unwrap();
+    fn rendern_mit_position_erzeugt_gueltige_pdf_bytes() {
+        let bytes = rendern(&test_kontext(), None).unwrap();
         assert!(bytes.starts_with(b"%PDF-"), "Ausgabe beginnt nicht mit der PDF-Signatur");
         assert!(bytes.len() > 500, "PDF wirkt verdächtig klein");
+    }
+
+    #[test]
+    fn rendern_storno_erzeugt_gueltige_pdf_bytes() {
+        let mut kontext = test_kontext();
+        kontext.beleg.storno_von_id = Some("r1".into());
+        kontext.beleg.summe_cent = -9500;
+        let bytes = rendern(&kontext, None).unwrap();
+        assert!(bytes.starts_with(b"%PDF-"));
+    }
+
+    #[test]
+    fn rendern_mit_logo_erzeugt_gueltige_pdf_bytes() {
+        const LOGO: &[u8] = include_bytes!("../../resources/test/logo_1x1.png");
+        let bytes = rendern(&test_kontext(), Some(LOGO)).unwrap();
+        assert!(bytes.starts_with(b"%PDF-"));
     }
 }
