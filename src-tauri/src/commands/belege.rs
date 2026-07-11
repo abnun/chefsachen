@@ -369,6 +369,21 @@ pub async fn angebot_ueberfuehren(pool: &SqlitePool, angebot_id: String) -> AppR
     // nötig, daher keine Deadlock-Gefahr unter max_connections(1).
     let mut tx = pool.begin().await?;
 
+    // Race-Guard: verhindert, dass dasselbe Angebot mehrfach (konkurrierend oder
+    // sequentiell durch erneutes Klicken) in eine Rechnung überführt wird. Muss die
+    // erste Aktion innerhalb der Transaktion sein: unter max_connections(1) muss ein
+    // zweiter, konkurrierender Aufruf auf den Commit dieser Transaktion warten und
+    // sieht danach garantiert die hier eingefügte Rechnung.
+    let bereits_ueberfuehrt: (i64,) = sqlx::query_as(
+        "SELECT COUNT(*) FROM beleg WHERE ursprungsangebot_id = ? AND deleted_at IS NULL")
+        .bind(&angebot_id).fetch_one(&mut *tx).await?;
+    if bereits_ueberfuehrt.0 > 0 {
+        return Err(AppError::Validation {
+            feld: "ursprungsangebot_id".into(),
+            meldung: "Angebot wurde bereits in eine Rechnung überführt".into(),
+        });
+    }
+
     sqlx::query("INSERT INTO beleg (id, typ, nummer, status, kunde_id, datum, leistungsdatum, zahlungsziel_tage, kopftext, fusstext, summe_cent, ursprungsangebot_id, storno_von_id, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
         .bind(&rechnung.id).bind(&rechnung.typ).bind(&rechnung.nummer).bind(&rechnung.status).bind(&rechnung.kunde_id)
         .bind(&rechnung.datum).bind(&rechnung.leistungsdatum).bind(rechnung.zahlungsziel_tage)
@@ -448,8 +463,20 @@ pub async fn storniere_rechnung(pool: &SqlitePool, id: String) -> AppResult<Bele
             .execute(&mut *tx).await?;
     }
 
-    sqlx::query("UPDATE beleg SET status = 'storniert', updated_at = ? WHERE id = ?")
+    let ergebnis = sqlx::query(
+        "UPDATE beleg SET status = 'storniert', updated_at = ? WHERE id = ? AND status = 'gestellt'")
         .bind(jetzt()).bind(&id).execute(&mut *tx).await?;
+    if ergebnis.rows_affected() == 0 {
+        // Verlorenes Rennen: zwischen der initialen Prüfung oben und diesem UPDATE
+        // hat ein konkurrierender storniere_rechnung()-Aufruf die Rechnung bereits
+        // storniert. Der bereits in dieser (noch offenen) Transaktion eingefügte
+        // Storno-Beleg samt Positionen wird durch das Err hier verworfen, da
+        // Transaction::drop bei Rust automatisch zurückrollt (siehe angebot_ueberfuehren).
+        return Err(AppError::Validation {
+            feld: "status".into(),
+            meldung: "Rechnung wurde zwischenzeitlich bereits storniert".into(),
+        });
+    }
 
     tx.commit().await?;
 
@@ -955,6 +982,47 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn ueberfuehrung_lehnt_konkurrierende_doppelte_konvertierung_ab() {
+        // Regression: zwei parallele angebot_ueberfuehren()-Aufrufe für dasselbe
+        // Angebot dürfen nicht beide eine Rechnung erzeugen. Unter max_connections(1)
+        // serialisiert der Pool die beiden Transaktionskörper vollständig (der zweite
+        // Aufruf wartet beim pool.begin() bzw. beim ersten Zugriff auf die Connection,
+        // bis der erste committed oder zurückrollt), sodass der Race-Guard-Read der
+        // zweiten Transaktion garantiert die bereits committete Rechnung der ersten sieht.
+        let (_dir, pool) = test_pool().await;
+        let kunde_id = kunde_anlegen(&pool).await;
+        let artikel_id = artikel_anlegen(&pool, 5000).await;
+        let angebot = create(&pool, beleg_neu("angebot", &kunde_id)).await.unwrap();
+        position_speichern(&pool, BelegpositionNeu {
+            id: "".into(), beleg_id: angebot.id.clone(), artikel_id: Some(artikel_id),
+            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000,
+        }).await.unwrap();
+        let gestellt = stellen(&pool, angebot.id).await.unwrap();
+
+        let pool_a = pool.clone();
+        let pool_b = pool.clone();
+        let id_a = gestellt.id.clone();
+        let id_b = gestellt.id.clone();
+        let task_a = tokio::spawn(async move { angebot_ueberfuehren(&pool_a, id_a).await });
+        let task_b = tokio::spawn(async move { angebot_ueberfuehren(&pool_b, id_b).await });
+        let (ergebnis_a, ergebnis_b) = tokio::join!(task_a, task_b);
+        let ergebnis_a = ergebnis_a.unwrap();
+        let ergebnis_b = ergebnis_b.unwrap();
+
+        let erfolge = [&ergebnis_a, &ergebnis_b].iter().filter(|r| r.is_ok()).count();
+        let fehler = [&ergebnis_a, &ergebnis_b].iter().filter(|r| r.is_err()).count();
+        assert_eq!(erfolge, 1, "genau einer der beiden konkurrierenden Aufrufe darf gewinnen");
+        assert_eq!(fehler, 1, "der Verlierer muss einen Fehler statt einer doppelten Rechnung erhalten");
+        let verlierer = if ergebnis_a.is_err() { ergebnis_a } else { ergebnis_b };
+        assert!(matches!(verlierer, Err(AppError::Validation { .. })));
+
+        let anzahl_rechnungen: (i64,) = sqlx::query_as(
+            "SELECT COUNT(*) FROM beleg WHERE ursprungsangebot_id = ? AND deleted_at IS NULL")
+            .bind(&gestellt.id).fetch_one(&pool).await.unwrap();
+        assert_eq!(anzahl_rechnungen.0, 1, "es darf nur genau eine Rechnung aus dem Angebot entstehen");
+    }
+
+    #[tokio::test]
     async fn storno_erzeugt_gegenbeleg_und_markiert_ursprung() {
         let (_dir, pool) = test_pool().await;
         let kunde_id = kunde_anlegen(&pool).await;
@@ -1002,6 +1070,49 @@ mod tests {
         storniere_rechnung(&pool, gestellt.id.clone()).await.unwrap();
         let err = storniere_rechnung(&pool, gestellt.id.clone()).await.unwrap_err();
         assert!(matches!(err, AppError::Validation { .. }));
+    }
+
+    #[tokio::test]
+    async fn storno_lehnt_konkurrierende_doppel_stornierung_ab() {
+        // Regression: zwei parallele storniere_rechnung()-Aufrufe für dieselbe
+        // gestellte Rechnung dürfen nicht beide einen Storno-Beleg erzeugen und
+        // den Ursprung stornieren. Dank max_connections(1) interleaven die beiden
+        // Tasks real an den .await-Punkten, sodass ein echtes Rennen zwischen den
+        // beiden lade_beleg/naechste_nummer/INSERT/UPDATE-Sequenzen entsteht.
+        let (_dir, pool) = test_pool().await;
+        let kunde_id = kunde_anlegen(&pool).await;
+        let artikel_id = artikel_anlegen(&pool, 5000).await;
+        let rechnung = create(&pool, beleg_neu("rechnung", &kunde_id)).await.unwrap();
+        position_speichern(&pool, BelegpositionNeu {
+            id: "".into(), beleg_id: rechnung.id.clone(), artikel_id: Some(artikel_id),
+            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000,
+        }).await.unwrap();
+        let gestellt = stellen(&pool, rechnung.id).await.unwrap();
+
+        let pool_a = pool.clone();
+        let pool_b = pool.clone();
+        let id_a = gestellt.id.clone();
+        let id_b = gestellt.id.clone();
+        let task_a = tokio::spawn(async move { storniere_rechnung(&pool_a, id_a).await });
+        let task_b = tokio::spawn(async move { storniere_rechnung(&pool_b, id_b).await });
+        let (ergebnis_a, ergebnis_b) = tokio::join!(task_a, task_b);
+        let ergebnis_a = ergebnis_a.unwrap();
+        let ergebnis_b = ergebnis_b.unwrap();
+
+        let erfolge = [&ergebnis_a, &ergebnis_b].iter().filter(|r| r.is_ok()).count();
+        let fehler = [&ergebnis_a, &ergebnis_b].iter().filter(|r| r.is_err()).count();
+        assert_eq!(erfolge, 1, "genau einer der beiden konkurrierenden Aufrufe darf gewinnen");
+        assert_eq!(fehler, 1, "der Verlierer muss einen Fehler statt eines doppelten Storno-Belegs erhalten");
+        let verlierer = if ergebnis_a.is_err() { ergebnis_a } else { ergebnis_b };
+        assert!(matches!(verlierer, Err(AppError::Validation { .. })));
+
+        let anzahl_stornos: (i64,) = sqlx::query_as(
+            "SELECT COUNT(*) FROM beleg WHERE storno_von_id = ? AND deleted_at IS NULL")
+            .bind(&gestellt.id).fetch_one(&pool).await.unwrap();
+        assert_eq!(anzahl_stornos.0, 1, "es darf nur genau ein Storno-Beleg entstehen");
+
+        let ursprung = get(&pool, gestellt.id).await.unwrap().beleg;
+        assert_eq!(ursprung.status, "storniert");
     }
 
     #[tokio::test]
