@@ -113,6 +113,24 @@ pub fn xml_erzeugen(kontext: &BelegKontext) -> AppResult<String> {
 
     writer.write_event(Event::Start(BytesStart::new("ram:ApplicableHeaderTradeSettlement"))).unwrap();
     schreibe_text(&mut writer, "ram:InvoiceCurrencyCode", "EUR");
+    // ram:SpecifiedTradeSettlementPaymentMeans steht laut CII-Schema vor
+    // ram:SpecifiedTradePaymentTerms (Reihenfolge innerhalb von ApplicableHeaderTradeSettlement:
+    // ...PaymentReference?, InvoiceCurrencyCode, PayeeTradeParty?, SpecifiedTradeSettlementPaymentMeans*,
+    // ApplicableTradeTax*, ..., SpecifiedTradePaymentTerms*, ...). IBAN ist Pflicht für den Block,
+    // BIC optional — bei leerer IBAN wird der gesamte Block ausgelassen statt eines leeren Elements.
+    if !kontext.firma.iban.trim().is_empty() {
+        writer.write_event(Event::Start(BytesStart::new("ram:SpecifiedTradeSettlementPaymentMeans"))).unwrap();
+        schreibe_text(&mut writer, "ram:TypeCode", "58");
+        writer.write_event(Event::Start(BytesStart::new("ram:PayeePartyCreditorFinancialAccount"))).unwrap();
+        schreibe_text(&mut writer, "ram:IBANID", &kontext.firma.iban);
+        writer.write_event(Event::End(BytesEnd::new("ram:PayeePartyCreditorFinancialAccount"))).unwrap();
+        if !kontext.firma.bic.trim().is_empty() {
+            writer.write_event(Event::Start(BytesStart::new("ram:PayeeSpecifiedCreditorFinancialInstitution"))).unwrap();
+            schreibe_text(&mut writer, "ram:BICID", &kontext.firma.bic);
+            writer.write_event(Event::End(BytesEnd::new("ram:PayeeSpecifiedCreditorFinancialInstitution"))).unwrap();
+        }
+        writer.write_event(Event::End(BytesEnd::new("ram:SpecifiedTradeSettlementPaymentMeans"))).unwrap();
+    }
     writer.write_event(Event::Start(BytesStart::new("ram:SpecifiedTradePaymentTerms"))).unwrap();
     schreibe_text(&mut writer, "ram:Description",
         &format!("Zahlbar innerhalb von {} Tagen", kontext.beleg.zahlungsziel_tage));
@@ -215,6 +233,32 @@ mod tests {
         // Leitweg-ID belegt BT-10 (BuyerReference), Käuferreferenz wandert in die Bestellreferenz.
         assert!(xml.contains("<ram:BuyerReference>991-12345-67</ram:BuyerReference>"));
         assert!(xml.contains("PO-42"));
+    }
+
+    #[test]
+    fn xml_erzeugen_enthaelt_iban_und_bic_in_den_zahlungsmitteln() {
+        let xml = xml_erzeugen(&test_kontext(None, 9500)).unwrap();
+        assert!(xml.contains("<ram:TypeCode>58</ram:TypeCode>"));
+        assert!(xml.contains("<ram:IBANID>DE00 1234 5678</ram:IBANID>"));
+        assert!(xml.contains("<ram:BICID>ABCDDEFF</ram:BICID>"));
+    }
+
+    #[test]
+    fn xml_erzeugen_laesst_zahlungsmittel_block_ohne_iban_weg() {
+        let mut kontext = test_kontext(None, 9500);
+        kontext.firma.iban = "".into();
+        kontext.firma.bic = "".into();
+        let xml = xml_erzeugen(&kontext).unwrap();
+        assert!(!xml.contains("SpecifiedTradeSettlementPaymentMeans"));
+    }
+
+    #[test]
+    fn xml_erzeugen_laesst_bic_element_ohne_bic_weg() {
+        let mut kontext = test_kontext(None, 9500);
+        kontext.firma.bic = "".into();
+        let xml = xml_erzeugen(&kontext).unwrap();
+        assert!(xml.contains("<ram:IBANID>DE00 1234 5678</ram:IBANID>"));
+        assert!(!xml.contains("BICID"));
     }
 
     #[test]
