@@ -15,6 +15,14 @@ const STATUS_LABEL: Record<string, string> = {
   abgelaufen: "Abgelaufen",
 };
 
+const STATUS_KLASSE: Record<string, string> = {
+  entwurf: "status-entwurf",
+  abgelaufen: "status-entwurf",
+  versendet: "status-gestellt",
+  angenommen: "status-bezahlt",
+  abgelehnt: "status-storniert",
+};
+
 export function Angebote({ onOeffnen }: AngeboteProps) {
   const [angebote, setAngebote] = useState<Beleg[]>([]);
   const [statusFilter, setStatusFilter] = useState("");
@@ -67,20 +75,22 @@ export function Angebote({ onOeffnen }: AngeboteProps) {
 
   return (
     <div>
-      <h1>Angebote</h1>
+      <h1 className="seiten-kopf">Angebote</h1>
       {fehler && <Fehler fehler={fehler} />}
-      <label>
-        Status
-        <select value={statusFilter} onChange={(e) => setStatusFilter(e.currentTarget.value)}>
-          <option value="">Alle</option>
-          {Object.entries(STATUS_LABEL).map(([wert, label]) => (
-            <option key={wert} value={wert}>
-              {label}
-            </option>
-          ))}
-        </select>
-      </label>
-      <table>
+      <div className="werkzeugleiste">
+        <label className="feld">
+          Status
+          <select value={statusFilter} onChange={(e) => setStatusFilter(e.currentTarget.value)}>
+            <option value="">Alle</option>
+            {Object.entries(STATUS_LABEL).map(([wert, label]) => (
+              <option key={wert} value={wert}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+      <table className="tabelle tabelle-klickbar">
         <thead>
           <tr>
             <th>Nummer</th>
@@ -92,11 +102,15 @@ export function Angebote({ onOeffnen }: AngeboteProps) {
         </thead>
         <tbody>
           {angebote.map((a) => (
-            <tr key={a.id} onClick={() => onOeffnen(a.id)} style={{ cursor: "pointer" }}>
-              <td>{a.nummer ?? "Entwurf"}</td>
+            <tr key={a.id} onClick={() => onOeffnen(a.id)}>
+              <td className="tabelle-num">{a.nummer ?? "Entwurf"}</td>
               <td>{kunden.find((k) => k.id === a.kunde_id)?.name ?? a.kunde_id}</td>
               <td>{a.datum}</td>
-              <td>{STATUS_LABEL[a.status] ?? a.status}</td>
+              <td>
+                <span className={`status ${STATUS_KLASSE[a.status] ?? "status-entwurf"}`}>
+                  {STATUS_LABEL[a.status] ?? a.status}
+                </span>
+              </td>
               <td>{formatCent(a.summe_cent)}</td>
             </tr>
           ))}
@@ -104,13 +118,14 @@ export function Angebote({ onOeffnen }: AngeboteProps) {
       </table>
       {zeigeFormular ? (
         <form
+          className="karte"
           onSubmit={(e) => {
             e.preventDefault();
             anlegen();
           }}
         >
           {formFehler && <Fehler fehler={formFehler} />}
-          <label>
+          <label className="feld">
             Kunde
             <select value={kundeId} onChange={(e) => setKundeId(e.currentTarget.value)}>
               <option value="">– wählen –</option>
@@ -121,14 +136,14 @@ export function Angebote({ onOeffnen }: AngeboteProps) {
               ))}
             </select>
           </label>
-          <label>
+          <label className="feld">
             Datum
             <input type="date" value={datum} onChange={(e) => setDatum(e.currentTarget.value)} />
           </label>
-          <button type="submit">Anlegen</button>
+          <button type="submit" className="btn btn-primaer">Anlegen</button>
         </form>
       ) : (
-        <button type="button" onClick={() => setZeigeFormular(true)}>
+        <button type="button" className="btn btn-primaer" onClick={() => setZeigeFormular(true)}>
           Neues Angebot
         </button>
       )}
