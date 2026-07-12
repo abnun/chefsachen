@@ -1,0 +1,84 @@
+:root {
+  /* Farben — Hell */
+  --bg: #f4f6f8;
+  --bg-gedaempft: #f7f8fa;
+  --flaeche: #ffffff;
+  --flaeche-eingabe: #ffffff;
+  --rand: #e3e6ec;
+  --rand-stark: #d3d8e0;
+  --text: #1c2230;
+  --text-leise: #6b7280;
+  --text-leiser: #8a92a3;
+  --akzent: #33506b;
+  --akzent-hover: #2b4459;
+  --akzent-text: #ffffff;
+  --akzent-leise: #e9ecf1;
+
+  --st-entwurf-bg: #eef0f3;
+  --st-entwurf-text: #5a6273;
+  --st-gestellt-bg: #e4edf5;
+  --st-gestellt-text: #2f5c86;
+  --st-bezahlt-bg: #e6f4ec;
+  --st-bezahlt-text: #1f7a52;
+  --st-storniert-bg: #fdecea;
+  --st-storniert-text: #a3231f;
+
+  --fehler-bg: #fdecea;
+  --fehler-text: #7a1212;
+  --fehler-rand: #f5c2c0;
+
+  /* Abstände */
+  --abstand-xs: 4px;
+  --abstand-s: 8px;
+  --abstand-m: 12px;
+  --abstand-l: 16px;
+  --abstand-xl: 24px;
+
+  /* Radien */
+  --radius-s: 6px;
+  --radius-m: 8px;
+  --radius-pill: 999px;
+
+  /* Schatten */
+  --schatten: 0 1px 2px rgba(20, 24, 33, 0.06);
+
+  /* Schrift */
+  --schrift: -apple-system, system-ui, "Segoe UI", Roboto, sans-serif;
+  --text-s: 12px;
+  --text-m: 14px;
+  --text-l: 16px;
+  --text-xl: 20px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #16181d;
+    --bg-gedaempft: #1b1e24;
+    --flaeche: #21252c;
+    --flaeche-eingabe: #1b1e24;
+    --rand: #2e333c;
+    --rand-stark: #3a414c;
+    --text: #e6e8ec;
+    --text-leise: #9aa2b0;
+    --text-leiser: #838b99;
+    --akzent: #4d7093;
+    --akzent-hover: #5a80a4;
+    --akzent-text: #ffffff;
+    --akzent-leise: #26303a;
+
+    --st-entwurf-bg: #262b33;
+    --st-entwurf-text: #9aa2b0;
+    --st-gestellt-bg: #1d2c3a;
+    --st-gestellt-text: #83aed6;
+    --st-bezahlt-bg: #163a2a;
+    --st-bezahlt-text: #6ed3a0;
+    --st-storniert-bg: #3a1e1c;
+    --st-storniert-text: #ef8f8a;
+
+    --fehler-bg: #2c1a1a;
+    --fehler-text: #ef9a95;
+    --fehler-rand: #4a2c2a;
+
+    --schatten: 0 1px 3px rgba(0, 0, 0, 0.4);
+  }
+}
