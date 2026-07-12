@@ -41,3 +41,8 @@ Zahlungsziel: #sys.inputs.zahlungsziel_tage Tage
 #v(1cm)
 
 #sys.inputs.fusstext
+
+#if sys.inputs.kleinunternehmer == "ja" [
+  #v(0.3cm)
+  Gemäß § 19 UStG wird keine Umsatzsteuer berechnet.
+]

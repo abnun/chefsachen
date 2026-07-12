@@ -56,6 +56,14 @@ fn logo_dateiname(bytes: &[u8]) -> &'static str {
     }
 }
 
+/// Übersetzt das `Firma.kleinunternehmer`-Flag in den String-Wert, der als Typst-Input
+/// dient (analog zur bestehenden `hat_logo`-Konvention: "ja"/leerer String statt eines
+/// echten Bool, da `typst-as-lib` hier nur String-Werte entgegennimmt, siehe `dict_aus_feldern`).
+/// Steuert im Template (`rechnung.typ`), ob der § 19 UStG-Hinweis angezeigt wird.
+fn kleinunternehmer_flag(firma: &crate::commands::firma::Firma) -> &'static str {
+    if firma.kleinunternehmer { "ja" } else { "" }
+}
+
 pub fn rendern(kontext: &BelegKontext, logo: Option<&[u8]>) -> AppResult<Vec<u8>> {
     let titel = if kontext.beleg.typ == "angebot" {
         "Angebot"
@@ -107,6 +115,7 @@ pub fn rendern(kontext: &BelegKontext, logo: Option<&[u8]>) -> AppResult<Vec<u8>
         ("summe", cent_format(kontext.beleg.summe_cent)),
         ("fusstext", kontext.beleg.fusstext.clone()),
         ("hat_logo", logo_dateiname.to_string()),
+        ("kleinunternehmer", kleinunternehmer_flag(&kontext.firma).to_string()),
     ]);
 
     let dokument = engine
@@ -156,6 +165,46 @@ pub(crate) mod tests {
         let bytes = rendern(&test_kontext(), None).unwrap();
         assert!(bytes.starts_with(b"%PDF-"), "Ausgabe beginnt nicht mit der PDF-Signatur");
         assert!(bytes.len() > 500, "PDF wirkt verdächtig klein");
+    }
+
+    // Hinweis zum Testansatz für den § 19 UStG-Hinweis: Ein inhaltlicher Test auf den
+    // gerenderten PDF-Bytes (Text-Extraktion) wurde versucht (`lopdf::Document::extract_text`),
+    // scheitert aber zuverlässig an `ToUnicodeCMap(Parse(Error))` — die von `typst-pdf` erzeugten
+    // ToUnicode-CMaps sind mit `lopdf` 0.35 nicht kompatibel (unabhängig vom eingebetteten Text).
+    // Daher wird hier stattdessen die Eingabe-Dict-Ebene geprüft: `kleinunternehmer_flag` ist die
+    // einzige Stelle, die entscheidet, ob das Template den Hinweis zeigt (`#if sys.inputs.kleinunternehmer
+    // == "ja"` in rechnung.typ), und `rendern_mit_kleinunternehmer_flag_erzeugt_gueltige_pdf_bytes` /
+    // `rendern_ohne_kleinunternehmer_flag_erzeugt_gueltige_pdf_bytes` stellen zusätzlich sicher, dass
+    // beide Zweige des Templates (mit und ohne den zusätzlichen `#if`-Block) fehlerfrei kompilieren.
+
+    #[test]
+    fn kleinunternehmer_flag_liefert_ja_wenn_firma_kleinunternehmer_ist() {
+        let mut kontext = test_kontext();
+        kontext.firma.kleinunternehmer = true;
+        assert_eq!(kleinunternehmer_flag(&kontext.firma), "ja");
+    }
+
+    #[test]
+    fn kleinunternehmer_flag_liefert_leeren_string_wenn_firma_kein_kleinunternehmer_ist() {
+        let mut kontext = test_kontext();
+        kontext.firma.kleinunternehmer = false;
+        assert_eq!(kleinunternehmer_flag(&kontext.firma), "");
+    }
+
+    #[test]
+    fn rendern_mit_kleinunternehmer_flag_erzeugt_gueltige_pdf_bytes() {
+        let mut kontext = test_kontext();
+        kontext.firma.kleinunternehmer = true;
+        let bytes = rendern(&kontext, None).unwrap();
+        assert!(bytes.starts_with(b"%PDF-"));
+    }
+
+    #[test]
+    fn rendern_ohne_kleinunternehmer_flag_erzeugt_gueltige_pdf_bytes() {
+        let mut kontext = test_kontext();
+        kontext.firma.kleinunternehmer = false;
+        let bytes = rendern(&kontext, None).unwrap();
+        assert!(bytes.starts_with(b"%PDF-"));
     }
 
     #[test]
