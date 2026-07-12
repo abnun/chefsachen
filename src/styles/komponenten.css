@@ -1,0 +1,239 @@
+/* Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: var(--radius-s);
+  border: 1px solid var(--rand-stark);
+  background: var(--flaeche);
+  color: var(--text);
+  font-size: var(--text-m);
+  font-weight: 500;
+  box-shadow: var(--schatten);
+}
+
+.btn:hover {
+  border-color: var(--akzent);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-primaer {
+  background: var(--akzent);
+  border-color: var(--akzent);
+  color: var(--akzent-text);
+}
+
+.btn-primaer:hover {
+  background: var(--akzent-hover);
+  border-color: var(--akzent-hover);
+}
+
+.btn-gefahr {
+  background: var(--flaeche);
+  border-color: var(--st-storniert-bg);
+  color: var(--st-storniert-text);
+}
+
+.btn-gefahr:hover {
+  border-color: var(--st-storniert-text);
+}
+
+.btn-leise {
+  background: transparent;
+  border-color: transparent;
+  color: var(--akzent);
+  box-shadow: none;
+}
+
+.btn-leise:hover {
+  background: var(--akzent-leise);
+}
+
+.btn[aria-current="page"] {
+  background: var(--akzent-leise);
+  border-color: var(--akzent);
+  color: var(--akzent);
+  font-weight: 600;
+}
+
+/* Seitenkopf */
+.seiten-kopf {
+  display: flex;
+  align-items: baseline;
+  gap: var(--abstand-s);
+}
+
+.seiten-kopf small {
+  font-size: var(--text-s);
+  font-weight: 400;
+  color: var(--text-leise);
+}
+
+/* Formularfelder */
+.feld,
+label.feld {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: var(--abstand-m);
+}
+
+.feld > label {
+  font-size: var(--text-s);
+  font-weight: 500;
+  color: var(--text-leise);
+}
+
+label.feld {
+  font-size: var(--text-s);
+  font-weight: 500;
+  color: var(--text-leise);
+}
+
+.feld input,
+.feld select,
+.feld textarea,
+label.feld input,
+label.feld select,
+label.feld textarea {
+  font-size: var(--text-m);
+  font-weight: 400;
+  color: var(--text);
+}
+
+.feld-checkbox {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--abstand-s);
+  margin-bottom: var(--abstand-m);
+  font-size: var(--text-m);
+  font-weight: 400;
+  color: var(--text);
+}
+
+.feld-checkbox input {
+  width: auto;
+}
+
+.feld-fehler {
+  color: var(--fehler-text);
+  font-size: var(--text-s);
+  margin: -6px 0 var(--abstand-m);
+}
+
+/* Tabellen */
+.tabelle {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--flaeche);
+  border: 1px solid var(--rand);
+  border-radius: var(--radius-m);
+  overflow: hidden;
+}
+
+.tabelle th {
+  text-align: left;
+  font-size: var(--text-s);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: var(--text-leiser);
+  padding: var(--abstand-s) var(--abstand-m);
+  background: var(--bg-gedaempft);
+  border-bottom: 1px solid var(--rand);
+}
+
+.tabelle td {
+  padding: var(--abstand-s) var(--abstand-m);
+  border-bottom: 1px solid var(--rand);
+}
+
+.tabelle tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.tabelle tbody tr:hover {
+  background: var(--bg-gedaempft);
+}
+
+.tabelle-klickbar tbody tr {
+  cursor: pointer;
+}
+
+.tabelle-num {
+  color: var(--text-leiser);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Karte */
+.karte {
+  background: var(--flaeche);
+  border: 1px solid var(--rand);
+  border-radius: var(--radius-m);
+  padding: var(--abstand-l);
+  margin-bottom: var(--abstand-l);
+}
+
+/* Werkzeugleiste */
+.werkzeugleiste {
+  display: flex;
+  gap: var(--abstand-s);
+  margin-bottom: var(--abstand-m);
+}
+
+.werkzeugleiste input[type="search"] {
+  flex: 1;
+}
+
+.werkzeugleiste .feld {
+  margin-bottom: 0;
+}
+
+/* Fehler-Box */
+.fehler-box {
+  background: var(--fehler-bg);
+  color: var(--fehler-text);
+  border: 1px solid var(--fehler-rand);
+  border-radius: var(--radius-m);
+  padding: var(--abstand-m) var(--abstand-l);
+  margin-bottom: var(--abstand-l);
+}
+
+.fehler-box p {
+  margin: 0;
+}
+
+/* Status-Badges */
+.status {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: var(--radius-pill);
+  font-size: var(--text-s);
+  font-weight: 600;
+}
+
+.status-entwurf {
+  background: var(--st-entwurf-bg);
+  color: var(--st-entwurf-text);
+}
+
+.status-gestellt {
+  background: var(--st-gestellt-bg);
+  color: var(--st-gestellt-text);
+}
+
+.status-bezahlt {
+  background: var(--st-bezahlt-bg);
+  color: var(--st-bezahlt-text);
+}
+
+.status-storniert {
+  background: var(--st-storniert-bg);
+  color: var(--st-storniert-text);
+}
