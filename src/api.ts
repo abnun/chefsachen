@@ -216,5 +216,8 @@ export const api = {
     zahlungErfassen: (daten: ZahlungNeu) => invoke<Zahlung>("zahlung_erfassen", { daten }),
     zahlungDelete: (id: string) => invoke<void>("zahlung_delete", { id }),
     offenePosten: () => invoke<OffenerPosten[]>("offene_posten_list"),
+    pdfExportieren: (id: string) => invoke<number[]>("beleg_pdf_exportieren", { id }),
+    xrechnungExportieren: (id: string) => invoke<number[]>("rechnung_xrechnung_exportieren", { id }),
+    zugferdExportieren: (id: string) => invoke<number[]>("rechnung_zugferd_exportieren", { id }),
   },
 };
