@@ -10,7 +10,9 @@ import { Artikel } from "./pages/Artikel";
 import { Angebote } from "./pages/Angebote";
 import { Rechnungen } from "./pages/Rechnungen";
 import { BelegEditor } from "./pages/BelegEditor";
-import "./App.css";
+import "./styles/tokens.css";
+import "./styles/basis.css";
+import "./styles/komponenten.css";
 
 function App() {
   const [firma, setFirma] = useState<Firma | null>(null);
