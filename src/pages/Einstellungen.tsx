@@ -18,7 +18,7 @@ import { Fehler } from "../components/Fehler";
 export function Einstellungen() {
   return (
     <div>
-      <h1>Einstellungen</h1>
+      <h1 className="seiten-kopf">Einstellungen</h1>
       <FirmendatenAbschnitt />
       <EinheitenAbschnitt />
       <NummernkreiseAbschnitt />
@@ -67,19 +67,20 @@ function FirmendatenAbschnitt() {
       {fehler && !istValidierungsfehler(fehler) && <Fehler fehler={fehler} />}
       {gespeichert && <p>Gespeichert.</p>}
       <form
+        className="karte"
         onSubmit={(e) => {
           e.preventDefault();
           speichern();
         }}
       >
-        <div>
+        <div className="feld">
           <label>
             Name
             <input value={firma.name} onChange={(e) => setFirma({ ...firma, name: e.currentTarget.value })} />
           </label>
-          {feldFehler("name") && <div role="alert">{feldFehler("name")}</div>}
+          {feldFehler("name") && <div role="alert" className="feld-fehler">{feldFehler("name")}</div>}
         </div>
-        <div>
+        <div className="feld">
           <label>
             Straße
             <input
@@ -87,30 +88,30 @@ function FirmendatenAbschnitt() {
               onChange={(e) => setFirma({ ...firma, strasse: e.currentTarget.value })}
             />
           </label>
-          {feldFehler("strasse") && <div role="alert">{feldFehler("strasse")}</div>}
+          {feldFehler("strasse") && <div role="alert" className="feld-fehler">{feldFehler("strasse")}</div>}
         </div>
-        <div>
+        <div className="feld">
           <label>
             PLZ
             <input value={firma.plz} onChange={(e) => setFirma({ ...firma, plz: e.currentTarget.value })} />
           </label>
-          {feldFehler("plz") && <div role="alert">{feldFehler("plz")}</div>}
+          {feldFehler("plz") && <div role="alert" className="feld-fehler">{feldFehler("plz")}</div>}
         </div>
-        <div>
+        <div className="feld">
           <label>
             Ort
             <input value={firma.ort} onChange={(e) => setFirma({ ...firma, ort: e.currentTarget.value })} />
           </label>
-          {feldFehler("ort") && <div role="alert">{feldFehler("ort")}</div>}
+          {feldFehler("ort") && <div role="alert" className="feld-fehler">{feldFehler("ort")}</div>}
         </div>
-        <div>
+        <div className="feld">
           <label>
             Land
             <input value={firma.land} onChange={(e) => setFirma({ ...firma, land: e.currentTarget.value })} />
           </label>
-          {feldFehler("land") && <div role="alert">{feldFehler("land")}</div>}
+          {feldFehler("land") && <div role="alert" className="feld-fehler">{feldFehler("land")}</div>}
         </div>
-        <div>
+        <div className="feld">
           <label>
             Steuernummer
             <input
@@ -118,9 +119,9 @@ function FirmendatenAbschnitt() {
               onChange={(e) => setFirma({ ...firma, steuernummer: e.currentTarget.value })}
             />
           </label>
-          {feldFehler("steuernummer") && <div role="alert">{feldFehler("steuernummer")}</div>}
+          {feldFehler("steuernummer") && <div role="alert" className="feld-fehler">{feldFehler("steuernummer")}</div>}
         </div>
-        <div>
+        <div className="feld">
           <label>
             USt-IdNr.
             <input
@@ -128,33 +129,31 @@ function FirmendatenAbschnitt() {
               onChange={(e) => setFirma({ ...firma, ust_idnr: e.currentTarget.value })}
             />
           </label>
-          {feldFehler("ust_idnr") && <div role="alert">{feldFehler("ust_idnr")}</div>}
+          {feldFehler("ust_idnr") && <div role="alert" className="feld-fehler">{feldFehler("ust_idnr")}</div>}
         </div>
-        <div>
+        <div className="feld">
           <label>
             IBAN
             <input value={firma.iban} onChange={(e) => setFirma({ ...firma, iban: e.currentTarget.value })} />
           </label>
-          {feldFehler("iban") && <div role="alert">{feldFehler("iban")}</div>}
+          {feldFehler("iban") && <div role="alert" className="feld-fehler">{feldFehler("iban")}</div>}
         </div>
-        <div>
+        <div className="feld">
           <label>
             BIC
             <input value={firma.bic} onChange={(e) => setFirma({ ...firma, bic: e.currentTarget.value })} />
           </label>
-          {feldFehler("bic") && <div role="alert">{feldFehler("bic")}</div>}
+          {feldFehler("bic") && <div role="alert" className="feld-fehler">{feldFehler("bic")}</div>}
         </div>
-        <div>
-          <label>
-            <input
-              type="checkbox"
-              checked={firma.kleinunternehmer}
-              onChange={(e) => setFirma({ ...firma, kleinunternehmer: e.currentTarget.checked })}
-            />
-            Kleinunternehmer (§19 UStG)
-          </label>
-        </div>
-        <button type="submit">Speichern</button>
+        <label className="feld-checkbox">
+          <input
+            type="checkbox"
+            checked={firma.kleinunternehmer}
+            onChange={(e) => setFirma({ ...firma, kleinunternehmer: e.currentTarget.checked })}
+          />
+          Kleinunternehmer (§19 UStG)
+        </label>
+        <button type="submit" className="btn btn-primaer">Speichern</button>
       </form>
     </section>
   );
@@ -213,10 +212,10 @@ function EinheitenAbschnitt() {
   }
 
   return (
-    <section>
+    <section className="karte">
       <h2>Einheiten</h2>
       {fehler && !istValidierungsfehler(fehler) && <Fehler fehler={fehler} />}
-      <table>
+      <table className="tabelle">
         <thead>
           <tr>
             <th>Name</th>
@@ -230,10 +229,10 @@ function EinheitenAbschnitt() {
               <td>{e.name}</td>
               <td>{e.kuerzel}</td>
               <td>
-                <button type="button" onClick={() => bearbeiten(e)}>
+                <button type="button" className="btn" onClick={() => bearbeiten(e)}>
                   Bearbeiten
                 </button>
-                <button type="button" onClick={() => loeschen(e.id)}>
+                <button type="button" className="btn btn-gefahr" onClick={() => loeschen(e.id)}>
                   Löschen
                 </button>
               </td>
@@ -247,15 +246,15 @@ function EinheitenAbschnitt() {
           speichern();
         }}
       >
-        <label>
+        <label className="feld">
           Name
           <input value={name} onChange={(e) => setName(e.currentTarget.value)} />
         </label>
-        <label>
+        <label className="feld">
           Kürzel
           <input value={kuerzel} onChange={(e) => setKuerzel(e.currentTarget.value)} />
         </label>
-        <button type="submit">{bearbeiteId ? "Aktualisieren" : "Hinzufügen"}</button>
+        <button type="submit" className="btn btn-primaer">{bearbeiteId ? "Aktualisieren" : "Hinzufügen"}</button>
       </form>
     </section>
   );
@@ -305,16 +304,17 @@ function NummernkreiseAbschnitt() {
       {nummernkreise.map((nk) => (
         <form
           key={nk.art}
+          className="karte"
           onSubmit={(e) => {
             e.preventDefault();
             speichern(nk);
           }}
         >
-          <label>
+          <label className="feld">
             {NUMMERNKREIS_LABEL[nk.art] ?? nk.art}
             <input value={nk.format} onChange={(e) => aendere(nk.art, { format: e.currentTarget.value })} />
           </label>
-          <label>
+          <label className="feld-checkbox">
             <input
               type="checkbox"
               checked={nk.jahres_reset}
@@ -322,8 +322,8 @@ function NummernkreiseAbschnitt() {
             />
             Jährlicher Reset
           </label>
-          <span>Aktueller Zähler: {nk.zaehler}</span>
-          <button type="submit">Speichern</button>
+          <p>Aktueller Zähler: {nk.zaehler}</p>
+          <button type="submit" className="btn btn-primaer">Speichern</button>
         </form>
       ))}
     </section>
@@ -375,16 +375,17 @@ function TextbausteineAbschnitt() {
       {TEXTBAUSTEIN_KEYS.map((key) => (
         <form
           key={key}
+          className="karte"
           onSubmit={(e) => {
             e.preventDefault();
             speichern(key);
           }}
         >
-          <label>
+          <label className="feld">
             {TEXTBAUSTEIN_LABEL[key]}
             <textarea value={werte[key] ?? ""} onChange={(e) => aendere(key, e.currentTarget.value)} />
           </label>
-          <button type="submit">Speichern</button>
+          <button type="submit" className="btn btn-primaer">Speichern</button>
         </form>
       ))}
     </section>
