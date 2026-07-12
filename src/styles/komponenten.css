@@ -237,3 +237,63 @@ label.feld textarea {
   background: var(--st-storniert-bg);
   color: var(--st-storniert-text);
 }
+
+/* Layout */
+.app-layout {
+  display: flex;
+  min-height: 100vh;
+}
+
+.app-nav {
+  width: 220px;
+  flex-shrink: 0;
+  background: var(--bg-gedaempft);
+  border-right: 1px solid var(--rand);
+  padding: var(--abstand-l) 0;
+}
+
+.app-nav-liste {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.app-nav-eintrag {
+  display: flex;
+  align-items: center;
+  gap: var(--abstand-s);
+  width: calc(100% - 16px);
+  margin: 2px var(--abstand-s);
+  text-align: left;
+  padding: var(--abstand-s) var(--abstand-m);
+  border: none;
+  border-radius: var(--radius-s);
+  background: transparent;
+  color: var(--text-leise);
+  font-size: var(--text-m);
+  font-weight: 400;
+  box-shadow: none;
+}
+
+.app-nav-eintrag:hover {
+  background: var(--rand);
+  border-color: transparent;
+  color: var(--text);
+}
+
+.app-nav-eintrag[aria-current="page"] {
+  background: var(--akzent-leise);
+  color: var(--akzent);
+  font-weight: 600;
+}
+
+.app-nav-icon {
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
+.app-main {
+  flex: 1;
+  padding: var(--abstand-xl);
+  max-width: 960px;
+}
