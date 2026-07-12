@@ -120,22 +120,23 @@ export function Artikel() {
 
   return (
     <div>
-      <h1>Artikel & Leistungen</h1>
+      <h1 className="seiten-kopf">Artikel &amp; Leistungen</h1>
       <Fehler fehler={fehler} />
 
-      <button type="button" onClick={neuFormular}>
+      <button type="button" className="btn btn-primaer" onClick={neuFormular}>
         Neuer Artikel
       </button>
 
       {zeigeFormular && (
         <form
+          className="karte"
           onSubmit={(e) => {
             e.preventDefault();
             speichern();
           }}
         >
           {formFehler && !istValidierungsfehler(formFehler) && <Fehler fehler={formFehler} />}
-          <div>
+          <div className="feld">
             <label>
               Bezeichnung
               <input
@@ -143,9 +144,9 @@ export function Artikel() {
                 onChange={(e) => setForm({ ...form, bezeichnung: e.currentTarget.value })}
               />
             </label>
-            {feldFehler("bezeichnung") && <div role="alert">{feldFehler("bezeichnung")}</div>}
+            {feldFehler("bezeichnung") && <div className="feld-fehler" role="alert">{feldFehler("bezeichnung")}</div>}
           </div>
-          <div>
+          <div className="feld">
             <label>
               Beschreibung
               <textarea
@@ -154,7 +155,7 @@ export function Artikel() {
               />
             </label>
           </div>
-          <div>
+          <div className="feld">
             <label>
               Einheit
               <select
@@ -170,18 +171,18 @@ export function Artikel() {
               </select>
             </label>
           </div>
-          <div>
+          <div className="feld">
             <label>
               Standardpreis (€)
               <input value={preisText} onChange={(e) => setPreisText(e.currentTarget.value)} />
             </label>
-            {preisFehlerText && <div role="alert">{preisFehlerText}</div>}
+            {preisFehlerText && <div className="feld-fehler" role="alert">{preisFehlerText}</div>}
           </div>
-          <button type="submit">Speichern</button>
+          <button type="submit" className="btn btn-primaer">Speichern</button>
         </form>
       )}
 
-      <table>
+      <table className="tabelle">
         <thead>
           <tr>
             <th>Nummer</th>
@@ -195,16 +196,17 @@ export function Artikel() {
           {artikel.map((a) => (
             <Fragment key={a.id}>
               <tr>
-                <td>{a.artikelnummer}</td>
+                <td className="tabelle-num">{a.artikelnummer}</td>
                 <td>{a.bezeichnung}</td>
                 <td>{einheitKuerzel(a.einheit_id)}</td>
                 <td>{formatCent(a.standardpreis_cent)}</td>
                 <td>
-                  <button type="button" onClick={() => bearbeiten(a)}>
+                  <button type="button" className="btn" onClick={() => bearbeiten(a)}>
                     Bearbeiten
                   </button>
                   <button
                     type="button"
+                    className="btn btn-leise"
                     onClick={() => setAufgeklappt(aufgeklappt === a.id ? null : a.id)}
                   >
                     Kundenpreise
@@ -281,10 +283,10 @@ function KundenpreiseBereich({ artikelId, kunden }: KundenpreiseBereichProps) {
   }
 
   return (
-    <div>
+    <div className="karte">
       <h3>Kundenpreise</h3>
       <Fehler fehler={fehler} />
-      <table>
+      <table className="tabelle">
         <thead>
           <tr>
             <th>Kunde</th>
@@ -308,7 +310,7 @@ function KundenpreiseBereich({ artikelId, kunden }: KundenpreiseBereichProps) {
           speichern();
         }}
       >
-        <label>
+        <label className="feld">
           Kunde
           <select value={kundeId} onChange={(e) => setKundeId(e.currentTarget.value)}>
             <option value="">–</option>
@@ -319,16 +321,16 @@ function KundenpreiseBereich({ artikelId, kunden }: KundenpreiseBereichProps) {
             ))}
           </select>
         </label>
-        <label>
+        <label className="feld">
           Preis (€)
           <input value={preisText} onChange={(e) => setPreisText(e.currentTarget.value)} />
         </label>
-        {preisFehlerText && <div role="alert">{preisFehlerText}</div>}
-        <label>
+        {preisFehlerText && <div className="feld-fehler" role="alert">{preisFehlerText}</div>}
+        <label className="feld">
           Gültig ab
           <input type="date" value={gueltigAb} onChange={(e) => setGueltigAb(e.currentTarget.value)} />
         </label>
-        <button type="submit">Speichern</button>
+        <button type="submit" className="btn btn-primaer">Speichern</button>
       </form>
     </div>
   );
