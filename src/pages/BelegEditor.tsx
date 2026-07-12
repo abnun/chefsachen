@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { save } from "@tauri-apps/plugin-dialog";
+import { writeFile } from "@tauri-apps/plugin-fs";
 import {
   api,
   type AppFehler,
@@ -128,6 +130,45 @@ export function BelegEditor({ id, onGeaendert, onRechnungErstellt }: BelegEditor
     }
   }
 
+  async function pdfExportieren() {
+    setFehler(null);
+    try {
+      const bytes = await api.belege.pdfExportieren(beleg.id);
+      const ziel = await save({ defaultPath: `${beleg.nummer ?? beleg.id}.pdf`, filters: [{ name: "PDF", extensions: ["pdf"] }] });
+      if (ziel) {
+        await writeFile(ziel, new Uint8Array(bytes));
+      }
+    } catch (e) {
+      setFehler(e as AppFehler);
+    }
+  }
+
+  async function xrechnungExportieren() {
+    setFehler(null);
+    try {
+      const bytes = await api.belege.xrechnungExportieren(beleg.id);
+      const ziel = await save({ defaultPath: `${beleg.nummer ?? beleg.id}.xml`, filters: [{ name: "XML", extensions: ["xml"] }] });
+      if (ziel) {
+        await writeFile(ziel, new Uint8Array(bytes));
+      }
+    } catch (e) {
+      setFehler(e as AppFehler);
+    }
+  }
+
+  async function zugferdExportieren() {
+    setFehler(null);
+    try {
+      const bytes = await api.belege.zugferdExportieren(beleg.id);
+      const ziel = await save({ defaultPath: `${beleg.nummer ?? beleg.id}-zugferd.pdf`, filters: [{ name: "PDF", extensions: ["pdf"] }] });
+      if (ziel) {
+        await writeFile(ziel, new Uint8Array(bytes));
+      }
+    } catch (e) {
+      setFehler(e as AppFehler);
+    }
+  }
+
   return (
     <main>
       <h1>
@@ -153,6 +194,22 @@ export function BelegEditor({ id, onGeaendert, onRechnungErstellt }: BelegEditor
       />
 
       <p>Summe: {formatCent(beleg.summe_cent)}</p>
+
+      {beleg.status !== "entwurf" && (
+        <button type="button" onClick={pdfExportieren}>
+          Als PDF exportieren
+        </button>
+      )}
+      {beleg.typ === "rechnung" && beleg.status !== "entwurf" && (
+        <>
+          <button type="button" onClick={xrechnungExportieren}>
+            Als XRechnung (XML) exportieren
+          </button>
+          <button type="button" onClick={zugferdExportieren}>
+            Als ZUGFeRD-Rechnung exportieren
+          </button>
+        </>
+      )}
 
       {istEntwurf && (
         <button type="button" disabled={positionen.length === 0} onClick={stellen}>

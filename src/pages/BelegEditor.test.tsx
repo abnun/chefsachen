@@ -33,12 +33,19 @@ vi.mock("../api", () => ({
         datum: "2026-07-10", leistungsdatum: "2026-07-10", zahlungsziel_tage: 14,
         kopftext: "", fusstext: "", summe_cent: 9550, ursprungsangebot_id: "b1", storno_von_id: null,
       }),
+      pdfExportieren: vi.fn().mockResolvedValue([1, 2, 3]),
+      xrechnungExportieren: vi.fn().mockResolvedValue([1, 2, 3]),
+      zugferdExportieren: vi.fn().mockResolvedValue([1, 2, 3]),
     },
     kunden: { list: vi.fn().mockResolvedValue([]) },
     artikel: { list: vi.fn().mockResolvedValue([]) },
   },
 }));
+vi.mock("@tauri-apps/plugin-dialog", () => ({ save: vi.fn().mockResolvedValue("/pfad/rechnung.pdf") }));
+vi.mock("@tauri-apps/plugin-fs", () => ({ writeFile: vi.fn().mockResolvedValue(undefined) }));
 import { api } from "../api";
+import { save } from "@tauri-apps/plugin-dialog";
+import { writeFile } from "@tauri-apps/plugin-fs";
 import { BelegEditor } from "./BelegEditor";
 
 afterEach(() => {
@@ -197,5 +204,79 @@ describe("BelegEditor – Zahlungen", () => {
         }),
       ),
     );
+  });
+});
+
+describe("BelegEditor – Export", () => {
+  it("exportiert ein PDF über den Speichern-Dialog", async () => {
+    vi.mocked(api.belege.get).mockResolvedValue({
+      beleg: {
+        id: "b1", typ: "rechnung", nummer: "RE-2026-0001", status: "gestellt", kunde_id: "k1",
+        datum: "2026-07-11", leistungsdatum: "2026-07-11", zahlungsziel_tage: 14,
+        kopftext: "", fusstext: "", summe_cent: 9500, ursprungsangebot_id: null, storno_von_id: null,
+      },
+      positionen: [], zahlungen: [], bezahlt_cent: 0, offener_betrag_cent: 9500,
+    });
+    render(<BelegEditor id="b1" />);
+    await waitFor(() => expect(screen.getByRole("button", { name: "Als PDF exportieren" })).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Als PDF exportieren" }));
+    await waitFor(() => expect(api.belege.pdfExportieren).toHaveBeenCalledWith("b1"));
+    await waitFor(() =>
+      expect(save).toHaveBeenCalledWith(
+        expect.objectContaining({ defaultPath: "RE-2026-0001.pdf" }),
+      ),
+    );
+    await waitFor(() =>
+      expect(writeFile).toHaveBeenCalledWith("/pfad/rechnung.pdf", new Uint8Array([1, 2, 3])),
+    );
+  });
+
+  it("exportiert eine XRechnung (XML) über den Speichern-Dialog", async () => {
+    vi.mocked(api.belege.get).mockResolvedValue({
+      beleg: {
+        id: "b1", typ: "rechnung", nummer: "RE-2026-0001", status: "gestellt", kunde_id: "k1",
+        datum: "2026-07-11", leistungsdatum: "2026-07-11", zahlungsziel_tage: 14,
+        kopftext: "", fusstext: "", summe_cent: 9500, ursprungsangebot_id: null, storno_von_id: null,
+      },
+      positionen: [], zahlungen: [], bezahlt_cent: 0, offener_betrag_cent: 9500,
+    });
+    render(<BelegEditor id="b1" />);
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Als XRechnung (XML) exportieren" })).toBeTruthy(),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Als XRechnung (XML) exportieren" }));
+    await waitFor(() => expect(api.belege.xrechnungExportieren).toHaveBeenCalledWith("b1"));
+  });
+
+  it("exportiert eine ZUGFeRD-Rechnung über den Speichern-Dialog", async () => {
+    vi.mocked(api.belege.get).mockResolvedValue({
+      beleg: {
+        id: "b1", typ: "rechnung", nummer: "RE-2026-0001", status: "gestellt", kunde_id: "k1",
+        datum: "2026-07-11", leistungsdatum: "2026-07-11", zahlungsziel_tage: 14,
+        kopftext: "", fusstext: "", summe_cent: 9500, ursprungsangebot_id: null, storno_von_id: null,
+      },
+      positionen: [], zahlungen: [], bezahlt_cent: 0, offener_betrag_cent: 9500,
+    });
+    render(<BelegEditor id="b1" />);
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Als ZUGFeRD-Rechnung exportieren" })).toBeTruthy(),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Als ZUGFeRD-Rechnung exportieren" }));
+    await waitFor(() => expect(api.belege.zugferdExportieren).toHaveBeenCalledWith("b1"));
+  });
+
+  it("zeigt XRechnung/ZUGFeRD-Buttons nicht für Angebote an", async () => {
+    vi.mocked(api.belege.get).mockResolvedValue({
+      beleg: {
+        id: "b1", typ: "angebot", nummer: "A-2026-0001", status: "versendet", kunde_id: "k1",
+        datum: "2026-07-11", leistungsdatum: "2026-07-11", zahlungsziel_tage: 14,
+        kopftext: "", fusstext: "", summe_cent: 9500, ursprungsangebot_id: null, storno_von_id: null,
+      },
+      positionen: [], zahlungen: [], bezahlt_cent: 0, offener_betrag_cent: 9500,
+    });
+    render(<BelegEditor id="b1" />);
+    await waitFor(() => expect(screen.getByRole("button", { name: "Als PDF exportieren" })).toBeTruthy());
+    expect(screen.queryByRole("button", { name: "Als XRechnung (XML) exportieren" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Als ZUGFeRD-Rechnung exportieren" })).toBeNull();
   });
 });
