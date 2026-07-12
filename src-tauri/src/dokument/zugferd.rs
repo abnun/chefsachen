@@ -9,7 +9,7 @@
 //! daher konsequent das Factur-X-Schema, sowohl im Code als auch im Test.
 
 use crate::error::{AppError, AppResult};
-use lopdf::{Dictionary, Document, Object, Stream};
+use lopdf::{dictionary, Document, Object, Stream};
 use xmp_writer::{CustomNamespace, Namespace, XmpWriter};
 
 const ICC_PROFIL: &[u8] = include_bytes!("../../resources/srgb.icc");
@@ -53,53 +53,48 @@ pub fn einbetten(pdf_bytes: Vec<u8>, xml: &str) -> AppResult<Vec<u8>> {
 
     let xmp_bytes = xmp.finish(None).into_bytes();
     let xmp_stream = Stream::new(
-        Dictionary::from_iter([
-            (b"Type".to_vec(), Object::Name(b"Metadata".to_vec())),
-            (b"Subtype".to_vec(), Object::Name(b"XML".to_vec())),
-        ]),
+        dictionary! {
+            "Type" => "Metadata",
+            "Subtype" => "XML",
+        },
         xmp_bytes,
     );
     let xmp_id = doc.add_object(xmp_stream);
 
     // Eingebettete XML-Datei (factur-x.xml, ZUGFeRD-Standardname)
     let datei_stream = Stream::new(
-        Dictionary::from_iter([
-            (b"Type".to_vec(), Object::Name(b"EmbeddedFile".to_vec())),
-            (b"Subtype".to_vec(), Object::Name(b"text/xml".to_vec())),
-        ]),
+        dictionary! {
+            "Type" => "EmbeddedFile",
+            "Subtype" => "text/xml",
+        },
         xml.as_bytes().to_vec(),
     );
     let datei_id = doc.add_object(datei_stream);
-    let filespec = Dictionary::from_iter([
-        (b"Type".to_vec(), Object::Name(b"Filespec".to_vec())),
-        (b"F".to_vec(), Object::string_literal("factur-x.xml")),
-        (b"UF".to_vec(), Object::string_literal("factur-x.xml")),
-        (b"AFRelationship".to_vec(), Object::Name(b"Data".to_vec())),
-        (
-            b"EF".to_vec(),
-            Object::Dictionary(Dictionary::from_iter([(
-                b"F".to_vec(),
-                Object::Reference(datei_id),
-            )])),
-        ),
-    ]);
+    let filespec = dictionary! {
+        "Type" => "Filespec",
+        "F" => Object::string_literal("factur-x.xml"),
+        "UF" => Object::string_literal("factur-x.xml"),
+        "AFRelationship" => "Data",
+        "EF" => dictionary! {
+            "F" => Object::Reference(datei_id),
+        },
+    };
     let filespec_id = doc.add_object(filespec);
 
     // OutputIntent (PDF/A-Pflichtangabe)
     let icc_stream = Stream::new(
-        Dictionary::from_iter([(b"N".to_vec(), Object::Integer(3))]),
+        dictionary! {
+            "N" => 3,
+        },
         ICC_PROFIL.to_vec(),
     );
     let icc_id = doc.add_object(icc_stream);
-    let output_intent = Dictionary::from_iter([
-        (b"Type".to_vec(), Object::Name(b"OutputIntent".to_vec())),
-        (b"S".to_vec(), Object::Name(b"GTS_PDFA1".to_vec())),
-        (
-            b"OutputConditionIdentifier".to_vec(),
-            Object::string_literal("sRGB IEC61966-2.1"),
-        ),
-        (b"DestOutputProfile".to_vec(), Object::Reference(icc_id)),
-    ]);
+    let output_intent = dictionary! {
+        "Type" => "OutputIntent",
+        "S" => "GTS_PDFA1",
+        "OutputConditionIdentifier" => Object::string_literal("sRGB IEC61966-2.1"),
+        "DestOutputProfile" => Object::Reference(icc_id),
+    };
     let output_intent_id = doc.add_object(output_intent);
 
     // Im Katalog verankern
@@ -113,16 +108,14 @@ pub fn einbetten(pdf_bytes: Vec<u8>, xml: &str) -> AppResult<Vec<u8>> {
     );
     katalog.set(
         "Names",
-        Object::Dictionary(Dictionary::from_iter([(
-            "EmbeddedFiles",
-            Object::Dictionary(Dictionary::from_iter([(
-                "Names",
-                Object::Array(vec![
+        dictionary! {
+            "EmbeddedFiles" => dictionary! {
+                "Names" => Object::Array(vec![
                     Object::string_literal("factur-x.xml"),
                     Object::Reference(filespec_id),
                 ]),
-            )])),
-        )])),
+            },
+        },
     );
     katalog.set("AF", Object::Array(vec![Object::Reference(filespec_id)]));
 
