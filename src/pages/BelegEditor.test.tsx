@@ -265,6 +265,29 @@ describe("BelegEditor – Export", () => {
     await waitFor(() => expect(api.belege.zugferdExportieren).toHaveBeenCalledWith("b1"));
   });
 
+  it("zeigt eine Fehlermeldung an, wenn der XRechnung-Export mit einem Validierungsfehler abgelehnt wird", async () => {
+    vi.mocked(api.belege.get).mockResolvedValue({
+      beleg: {
+        id: "b1", typ: "rechnung", nummer: "RE-2026-0001", status: "gestellt", kunde_id: "k1",
+        datum: "2026-07-11", leistungsdatum: "2026-07-11", zahlungsziel_tage: 14,
+        kopftext: "", fusstext: "", summe_cent: 9500, ursprungsangebot_id: null, storno_von_id: null,
+      },
+      positionen: [], zahlungen: [], bezahlt_cent: 0, offener_betrag_cent: 9500,
+    });
+    vi.mocked(api.belege.xrechnungExportieren).mockRejectedValue({
+      typ: "validation",
+      feld: "kaeuferreferenz",
+      meldung: "Für den XRechnung-Export ist eine Käuferreferenz beim Kunden erforderlich",
+    });
+    render(<BelegEditor id="b1" />);
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Als XRechnung (XML) exportieren" })).toBeTruthy(),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Als XRechnung (XML) exportieren" }));
+    await waitFor(() => expect(api.belege.xrechnungExportieren).toHaveBeenCalledWith("b1"));
+    await screen.findByText("Für den XRechnung-Export ist eine Käuferreferenz beim Kunden erforderlich");
+  });
+
   it("zeigt XRechnung/ZUGFeRD-Buttons nicht für Angebote an", async () => {
     vi.mocked(api.belege.get).mockResolvedValue({
       beleg: {
