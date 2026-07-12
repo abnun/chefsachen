@@ -26,6 +26,16 @@ const ANGEBOT_ABSCHLUSS_STATUS = [
   { wert: "abgelaufen", label: "Abgelaufen" },
 ];
 
+const BELEGEDITOR_STATUS_KLASSE: Record<string, string> = {
+  entwurf: "status-entwurf",
+  abgelaufen: "status-entwurf",
+  versendet: "status-gestellt",
+  gestellt: "status-gestellt",
+  angenommen: "status-bezahlt",
+  abgelehnt: "status-storniert",
+  storniert: "status-storniert",
+};
+
 /**
  * Editor für Angebote und Rechnungen — beide teilen sich Datenmodell,
  * Status-Workflow (Entwurf → gestellt) und Positions-Verwaltung, daher eine
@@ -171,10 +181,15 @@ export function BelegEditor({ id, onGeaendert, onRechnungErstellt }: BelegEditor
 
   return (
     <main>
-      <h1>
+      <h1 className="seiten-kopf">
         {beleg.typ === "angebot" ? "Angebot" : "Rechnung"} {beleg.nummer ?? "(Entwurf)"}
       </h1>
-      <p>Status: {beleg.status}</p>
+      <p>
+        Status:{" "}
+        <span className={`status ${BELEGEDITOR_STATUS_KLASSE[beleg.status] ?? "status-entwurf"}`}>
+          {beleg.status}
+        </span>
+      </p>
       {fehler && <Fehler fehler={fehler} />}
 
       <StammdatenAbschnitt
@@ -196,23 +211,23 @@ export function BelegEditor({ id, onGeaendert, onRechnungErstellt }: BelegEditor
       <p>Summe: {formatCent(beleg.summe_cent)}</p>
 
       {beleg.status !== "entwurf" && (
-        <button type="button" onClick={pdfExportieren}>
+        <button type="button" className="btn btn-leise" onClick={pdfExportieren}>
           Als PDF exportieren
         </button>
       )}
       {beleg.typ === "rechnung" && beleg.status !== "entwurf" && (
         <>
-          <button type="button" onClick={xrechnungExportieren}>
+          <button type="button" className="btn btn-leise" onClick={xrechnungExportieren}>
             Als XRechnung (XML) exportieren
           </button>
-          <button type="button" onClick={zugferdExportieren}>
+          <button type="button" className="btn btn-leise" onClick={zugferdExportieren}>
             Als ZUGFeRD-Rechnung exportieren
           </button>
         </>
       )}
 
       {istEntwurf && (
-        <button type="button" disabled={positionen.length === 0} onClick={stellen}>
+        <button type="button" className="btn btn-primaer" disabled={positionen.length === 0} onClick={stellen}>
           Stellen
         </button>
       )}
@@ -221,7 +236,7 @@ export function BelegEditor({ id, onGeaendert, onRechnungErstellt }: BelegEditor
         <section>
           <h2>Abschluss</h2>
           {ANGEBOT_ABSCHLUSS_STATUS.map((s) => (
-            <button key={s.wert} type="button" onClick={() => angebotStatus(s.wert)}>
+            <button key={s.wert} type="button" className="btn" onClick={() => angebotStatus(s.wert)}>
               {s.label}
             </button>
           ))}
@@ -229,13 +244,13 @@ export function BelegEditor({ id, onGeaendert, onRechnungErstellt }: BelegEditor
       )}
 
       {beleg.typ === "angebot" && ["versendet", "angenommen"].includes(beleg.status) && (
-        <button type="button" onClick={inRechnungUeberfuehren}>
+        <button type="button" className="btn btn-primaer" onClick={inRechnungUeberfuehren}>
           In Rechnung überführen
         </button>
       )}
 
       {beleg.typ === "rechnung" && beleg.status === "gestellt" && (
-        <button type="button" onClick={stornieren}>
+        <button type="button" className="btn btn-gefahr" onClick={stornieren}>
           Stornieren
         </button>
       )}
@@ -285,7 +300,7 @@ function StammdatenAbschnitt({ beleg, kunden, bearbeitbar, onSpeichern }: Stammd
 
   if (!bearbeitbar) {
     return (
-      <section>
+      <section className="karte">
         <h2>Stammdaten</h2>
         <p>Kunde: {kunde?.name ?? beleg.kunde_id}</p>
         <p>Datum: {beleg.datum}</p>
@@ -296,7 +311,7 @@ function StammdatenAbschnitt({ beleg, kunden, bearbeitbar, onSpeichern }: Stammd
   }
 
   return (
-    <section>
+    <section className="karte">
       <h2>Stammdaten</h2>
       <p>Kunde: {kunde?.name ?? beleg.kunde_id}</p>
       <form
@@ -305,15 +320,15 @@ function StammdatenAbschnitt({ beleg, kunden, bearbeitbar, onSpeichern }: Stammd
           onSpeichern({ datum, leistungsdatum, zahlungsziel_tage: zahlungszielTage, kopftext, fusstext });
         }}
       >
-        <label>
+        <label className="feld">
           Datum
           <input type="date" value={datum} onChange={(e) => setDatum(e.currentTarget.value)} />
         </label>
-        <label>
+        <label className="feld">
           Leistungsdatum
           <input type="date" value={leistungsdatum} onChange={(e) => setLeistungsdatum(e.currentTarget.value)} />
         </label>
-        <label>
+        <label className="feld">
           Zahlungsziel (Tage)
           <input
             type="number"
@@ -321,15 +336,15 @@ function StammdatenAbschnitt({ beleg, kunden, bearbeitbar, onSpeichern }: Stammd
             onChange={(e) => setZahlungszielTage(Number(e.currentTarget.value))}
           />
         </label>
-        <label>
+        <label className="feld">
           Kopftext
           <textarea value={kopftext} onChange={(e) => setKopftext(e.currentTarget.value)} />
         </label>
-        <label>
+        <label className="feld">
           Fußtext
           <textarea value={fusstext} onChange={(e) => setFusstext(e.currentTarget.value)} />
         </label>
-        <button type="submit">Speichern</button>
+        <button type="submit" className="btn btn-primaer">Speichern</button>
       </form>
     </section>
   );
@@ -394,10 +409,10 @@ function PositionenAbschnitt({
   }
 
   return (
-    <section>
+    <section className="karte">
       <h2>Positionen</h2>
       {fehler && <Fehler fehler={fehler} />}
-      <table>
+      <table className="tabelle">
         <thead>
           <tr>
             <th>Bezeichnung</th>
@@ -418,7 +433,7 @@ function PositionenAbschnitt({
               <td>{formatCent(p.positionssumme_cent)}</td>
               <td>
                 {bearbeitbar && (
-                  <button type="button" onClick={() => onLoeschen(p.id)}>
+                  <button type="button" className="btn btn-gefahr" onClick={() => onLoeschen(p.id)}>
                     Löschen
                   </button>
                 )}
@@ -434,28 +449,28 @@ function PositionenAbschnitt({
             hinzufuegen();
           }}
         >
-          <label>
+          <label className="feld-checkbox">
             <input type="checkbox" checked={freitext} onChange={(e) => setFreitext(e.currentTarget.checked)} />
             Freitextposition
           </label>
           {freitext ? (
             <>
-              <label>
+              <label className="feld">
                 Bezeichnung
                 <input value={bezeichnung} onChange={(e) => setBezeichnung(e.currentTarget.value)} />
               </label>
-              <label>
+              <label className="feld">
                 Einheit
                 <input value={einheitKuerzel} onChange={(e) => setEinheitKuerzel(e.currentTarget.value)} />
               </label>
-              <label>
+              <label className="feld">
                 Einzelpreis
                 <input value={einzelpreis} onChange={(e) => setEinzelpreis(e.currentTarget.value)} placeholder="95,00" />
               </label>
             </>
           ) : (
             <>
-              <label>
+              <label className="feld">
                 Artikel
                 <select value={artikelId} onChange={(e) => setArtikelId(e.currentTarget.value)}>
                   <option value="">– wählen –</option>
@@ -466,17 +481,17 @@ function PositionenAbschnitt({
                   ))}
                 </select>
               </label>
-              <label>
+              <label className="feld">
                 Preis überschreiben (optional)
                 <input value={einzelpreis} onChange={(e) => setEinzelpreis(e.currentTarget.value)} placeholder="automatisch" />
               </label>
             </>
           )}
-          <label>
+          <label className="feld">
             Menge
             <input value={menge} onChange={(e) => setMenge(e.currentTarget.value)} />
           </label>
-          <button type="submit">Position hinzufügen</button>
+          <button type="submit" className="btn btn-primaer">Position hinzufügen</button>
         </form>
       )}
     </section>
@@ -520,11 +535,11 @@ function ZahlungenAbschnitt({ rechnungId, zahlungen, offenerBetragCent, onGeaend
   }
 
   return (
-    <section>
+    <section className="karte">
       <h2>Zahlungen</h2>
       {fehler && <Fehler fehler={fehler} />}
       <p>Offener Betrag: {formatCent(offenerBetragCent)}</p>
-      <table>
+      <table className="tabelle">
         <thead>
           <tr>
             <th>Datum</th>
@@ -548,23 +563,23 @@ function ZahlungenAbschnitt({ rechnungId, zahlungen, offenerBetragCent, onGeaend
           erfassen();
         }}
       >
-        <label>
+        <label className="feld">
           Datum
           <input type="date" value={datum} onChange={(e) => setDatum(e.currentTarget.value)} />
         </label>
-        <label>
+        <label className="feld">
           Betrag
           <input value={betrag} onChange={(e) => setBetrag(e.currentTarget.value)} placeholder="95,00" />
         </label>
-        <label>
+        <label className="feld-checkbox">
           <input type="checkbox" checked={erstattung} onChange={(e) => setErstattung(e.currentTarget.checked)} />
           Erstattung (negativer Betrag)
         </label>
-        <label>
+        <label className="feld">
           Notiz
           <input value={notiz} onChange={(e) => setNotiz(e.currentTarget.value)} />
         </label>
-        <button type="submit">Zahlung erfassen</button>
+        <button type="submit" className="btn btn-primaer">Zahlung erfassen</button>
       </form>
     </section>
   );
