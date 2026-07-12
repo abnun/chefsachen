@@ -63,29 +63,32 @@ export function Kunden({ onOeffnen }: KundenProps) {
 
   return (
     <div>
-      <h1>Kunden</h1>
+      <h1 className="seiten-kopf">Kunden</h1>
       <Fehler fehler={fehler} />
 
-      <input
-        type="search"
-        placeholder="Suche…"
-        value={suche}
-        onChange={(e) => setSuche(e.currentTarget.value)}
-        aria-label="Kunden suchen"
-      />
-      <button type="button" onClick={() => setZeigeFormular((v) => !v)}>
-        Neuer Kunde
-      </button>
+      <div className="werkzeugleiste">
+        <input
+          type="search"
+          placeholder="Suche…"
+          value={suche}
+          onChange={(e) => setSuche(e.currentTarget.value)}
+          aria-label="Kunden suchen"
+        />
+        <button type="button" className="btn btn-primaer" onClick={() => setZeigeFormular((v) => !v)}>
+          Neuer Kunde
+        </button>
+      </div>
 
       {zeigeFormular && (
         <form
+          className="karte"
           onSubmit={(e) => {
             e.preventDefault();
             anlegen();
           }}
         >
           {formFehler && !istValidierungsfehler(formFehler) && <Fehler fehler={formFehler} />}
-          <div>
+          <div className="feld">
             <label>
               Typ
               <select
@@ -99,7 +102,7 @@ export function Kunden({ onOeffnen }: KundenProps) {
               </select>
             </label>
           </div>
-          <div>
+          <div className="feld">
             <label>
               Name
               <input
@@ -107,9 +110,9 @@ export function Kunden({ onOeffnen }: KundenProps) {
                 onChange={(e) => setNeuerKunde({ ...neuerKunde, name: e.currentTarget.value })}
               />
             </label>
-            {feldFehler("name") && <div role="alert">{feldFehler("name")}</div>}
+            {feldFehler("name") && <div className="feld-fehler" role="alert">{feldFehler("name")}</div>}
           </div>
-          <div>
+          <div className="feld">
             <label>
               Zahlungsziel (Tage)
               <input
@@ -121,7 +124,7 @@ export function Kunden({ onOeffnen }: KundenProps) {
               />
             </label>
           </div>
-          <div>
+          <div className="feld">
             <label>
               Notizen
               <textarea
@@ -130,7 +133,7 @@ export function Kunden({ onOeffnen }: KundenProps) {
               />
             </label>
           </div>
-          <div>
+          <div className="feld">
             <label>
               USt-IdNr.
               <input
@@ -139,7 +142,7 @@ export function Kunden({ onOeffnen }: KundenProps) {
               />
             </label>
           </div>
-          <div>
+          <div className="feld">
             <label>
               E-Mail
               <input
@@ -147,9 +150,9 @@ export function Kunden({ onOeffnen }: KundenProps) {
                 onChange={(e) => setNeuerKunde({ ...neuerKunde, email: e.currentTarget.value })}
               />
             </label>
-            {feldFehler("email") && <div role="alert">{feldFehler("email")}</div>}
+            {feldFehler("email") && <div className="feld-fehler" role="alert">{feldFehler("email")}</div>}
           </div>
-          <div>
+          <div className="feld">
             <label>
               Leitweg-ID
               <input
@@ -158,7 +161,7 @@ export function Kunden({ onOeffnen }: KundenProps) {
               />
             </label>
           </div>
-          <div>
+          <div className="feld">
             <label>
               Käuferreferenz
               <input
@@ -169,11 +172,11 @@ export function Kunden({ onOeffnen }: KundenProps) {
               />
             </label>
           </div>
-          <button type="submit">Speichern</button>
+          <button type="submit" className="btn btn-primaer">Speichern</button>
         </form>
       )}
 
-      <table>
+      <table className="tabelle tabelle-klickbar">
         <thead>
           <tr>
             <th>Nummer</th>
@@ -183,8 +186,8 @@ export function Kunden({ onOeffnen }: KundenProps) {
         </thead>
         <tbody>
           {kunden.map((kunde) => (
-            <tr key={kunde.id} onClick={() => onOeffnen(kunde.id)} style={{ cursor: "pointer" }}>
-              <td>{kunde.kundennummer}</td>
+            <tr key={kunde.id} onClick={() => onOeffnen(kunde.id)}>
+              <td className="tabelle-num">{kunde.kundennummer}</td>
               <td>{kunde.name}</td>
               <td>{kunde.typ}</td>
             </tr>
