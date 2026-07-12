@@ -1,8 +1,8 @@
 #set text(font: "Inter", size: 10pt)
 #set page(margin: 2.5cm)
 
-#if sys.inputs.hat_logo == "ja" [
-  #image("logo.png", width: 3cm)
+#if sys.inputs.hat_logo != "" [
+  #image(sys.inputs.hat_logo, width: 3cm)
 ]
 
 #align(right)[

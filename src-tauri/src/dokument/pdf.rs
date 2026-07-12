@@ -42,6 +42,20 @@ fn cent_format(cent: i64) -> String {
     format!("{}{},{:02} €", vorzeichen, betrag / 100, betrag % 100)
 }
 
+/// Ermittelt anhand der Magic Bytes den virtuellen Dateinamen für ein Logo-Bild,
+/// damit Typsts Bild-Decoder das richtige Format erwartet (PNG vs. JPEG).
+/// Bei unbekanntem/nicht erkennbarem Format wird `"logo.png"` als Fallback
+/// verwendet — ein defektes Logo soll den Export nicht zum Absturz bringen.
+fn logo_dateiname(bytes: &[u8]) -> &'static str {
+    if bytes.starts_with(&[0x89, b'P', b'N', b'G']) {
+        "logo.png"
+    } else if bytes.starts_with(&[0xFF, 0xD8]) {
+        "logo.jpg"
+    } else {
+        "logo.png"
+    }
+}
+
 pub fn rendern(kontext: &BelegKontext, logo: Option<&[u8]>) -> AppResult<Vec<u8>> {
     let titel = if kontext.beleg.typ == "angebot" {
         "Angebot"
@@ -67,9 +81,11 @@ pub fn rendern(kontext: &BelegKontext, logo: Option<&[u8]>) -> AppResult<Vec<u8>
     )
     .map_err(|e| AppError::Technisch(e.to_string()))?;
 
+    let logo_dateiname = logo.map(logo_dateiname).unwrap_or("");
+
     let mut builder = TypstEngine::builder().main_file(VORLAGE).fonts([SCHRIFT]);
     if let Some(bytes) = logo {
-        builder = builder.with_static_file_resolver([("logo.png", bytes.to_vec())]);
+        builder = builder.with_static_file_resolver([(logo_dateiname, bytes.to_vec())]);
     }
     let engine = builder.build();
 
@@ -90,7 +106,7 @@ pub fn rendern(kontext: &BelegKontext, logo: Option<&[u8]>) -> AppResult<Vec<u8>
         ("positionen_json", positionen_json),
         ("summe", cent_format(kontext.beleg.summe_cent)),
         ("fusstext", kontext.beleg.fusstext.clone()),
-        ("hat_logo", if logo.is_some() { "ja" } else { "" }.to_string()),
+        ("hat_logo", logo_dateiname.to_string()),
     ]);
 
     let dokument = engine
@@ -156,5 +172,28 @@ pub(crate) mod tests {
         const LOGO: &[u8] = include_bytes!("../../resources/test/logo_1x1.png");
         let bytes = rendern(&test_kontext(), Some(LOGO)).unwrap();
         assert!(bytes.starts_with(b"%PDF-"));
+    }
+
+    #[test]
+    fn rendern_mit_jpeg_logo_erzeugt_gueltige_pdf_bytes() {
+        const LOGO: &[u8] = include_bytes!("../../resources/test/logo_1x1.jpg");
+        let bytes = rendern(&test_kontext(), Some(LOGO)).unwrap();
+        assert!(bytes.starts_with(b"%PDF-"));
+    }
+
+    #[test]
+    fn logo_dateiname_erkennt_png() {
+        assert_eq!(logo_dateiname(&[0x89, b'P', b'N', b'G', 0x0D, 0x0A]), "logo.png");
+    }
+
+    #[test]
+    fn logo_dateiname_erkennt_jpeg() {
+        assert_eq!(logo_dateiname(&[0xFF, 0xD8, 0xFF, 0xE0]), "logo.jpg");
+    }
+
+    #[test]
+    fn logo_dateiname_faellt_bei_unbekanntem_format_auf_png_zurueck() {
+        assert_eq!(logo_dateiname(&[0x00, 0x01, 0x02, 0x03]), "logo.png");
+        assert_eq!(logo_dateiname(&[]), "logo.png");
     }
 }
