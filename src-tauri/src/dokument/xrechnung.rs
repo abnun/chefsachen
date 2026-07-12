@@ -1,5 +1,5 @@
 use crate::dokument::kontext::BelegKontext;
-use crate::error::AppResult;
+use crate::error::{AppError, AppResult};
 use quick_xml::events::{BytesDecl, BytesEnd, BytesStart, BytesText, Event};
 use quick_xml::Writer;
 use std::io::Cursor;
@@ -141,6 +141,22 @@ fn schreibe_text(writer: &mut Writer<Cursor<Vec<u8>>>, tag: &str, text: &str) {
     writer.write_event(Event::End(BytesEnd::new(tag))).unwrap();
 }
 
+pub fn pruefe_exportierbarkeit(kontext: &BelegKontext) -> AppResult<()> {
+    if kontext.firma.steuernummer.trim().is_empty() && kontext.firma.ust_idnr.trim().is_empty() {
+        return Err(AppError::Validation {
+            feld: "steuernummer".into(),
+            meldung: "Für den XRechnung-Export ist eine Steuernummer oder USt-IdNr. erforderlich".into(),
+        });
+    }
+    if kontext.kunde_kaeuferreferenz.trim().is_empty() {
+        return Err(AppError::Validation {
+            feld: "kaeuferreferenz".into(),
+            meldung: "Für den XRechnung-Export ist eine Käuferreferenz beim Kunden erforderlich".into(),
+        });
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -207,5 +223,27 @@ mod tests {
         assert!(xml.contains("10115"), "Verkäufer-PLZ fehlt");
         assert!(xml.contains("10117"), "Käufer-PLZ fehlt");
         assert!(xml.contains("<ram:CountryID>DE</ram:CountryID>"));
+    }
+
+    #[test]
+    fn pruefe_exportierbarkeit_verlangt_steuernummer_oder_ustidnr() {
+        let mut kontext = test_kontext(None, 9500);
+        kontext.firma.steuernummer = "".into();
+        kontext.firma.ust_idnr = "".into();
+        let err = pruefe_exportierbarkeit(&kontext).unwrap_err();
+        assert!(matches!(err, crate::error::AppError::Validation { feld, .. } if feld == "steuernummer"));
+    }
+
+    #[test]
+    fn pruefe_exportierbarkeit_verlangt_kaeuferreferenz() {
+        let mut kontext = test_kontext(None, 9500);
+        kontext.kunde_kaeuferreferenz = "".into();
+        let err = pruefe_exportierbarkeit(&kontext).unwrap_err();
+        assert!(matches!(err, crate::error::AppError::Validation { feld, .. } if feld == "kaeuferreferenz"));
+    }
+
+    #[test]
+    fn pruefe_exportierbarkeit_akzeptiert_vollstaendigen_kontext() {
+        assert!(pruefe_exportierbarkeit(&test_kontext(None, 9500)).is_ok());
     }
 }
