@@ -59,12 +59,12 @@ export function KundeDetail({ id }: KundeDetailProps) {
 
   return (
     <div>
-      <h1>
+      <h1 className="seiten-kopf">
         {detail.kunde.name} <small>{detail.kunde.kundennummer}</small>
       </h1>
       {fehler && <Fehler fehler={fehler} />}
 
-      <nav>
+      <nav className="werkzeugleiste">
         {REITER.map((r) => (
           <button
             key={r.id}
@@ -72,6 +72,7 @@ export function KundeDetail({ id }: KundeDetailProps) {
             disabled={!r.aktiv}
             aria-current={reiter === r.id ? "page" : undefined}
             onClick={() => r.aktiv && setReiter(r.id)}
+            className="btn"
           >
             {r.label}
           </button>
@@ -122,7 +123,7 @@ function BelegeReiter({ kundeId }: { kundeId: string }) {
     <section>
       <h2>Belege</h2>
       {fehler && <Fehler fehler={fehler} />}
-      <table>
+      <table className="tabelle">
         <thead>
           <tr>
             <th>Typ</th>
@@ -136,9 +137,11 @@ function BelegeReiter({ kundeId }: { kundeId: string }) {
           {belege.map((b) => (
             <tr key={b.id}>
               <td>{b.typ === "angebot" ? "Angebot" : "Rechnung"}</td>
-              <td>{b.nummer ?? "Entwurf"}</td>
+              <td className="tabelle-num">{b.nummer ?? "Entwurf"}</td>
               <td>{b.datum}</td>
-              <td>{b.status}</td>
+              <td>
+                <span className={`status ${STATUS_BADGE_KLASSE[b.status] ?? "status-entwurf"}`}>{b.status}</span>
+              </td>
               <td>{formatCent(b.summe_cent)}</td>
             </tr>
           ))}
@@ -147,6 +150,16 @@ function BelegeReiter({ kundeId }: { kundeId: string }) {
     </section>
   );
 }
+
+const STATUS_BADGE_KLASSE: Record<string, string> = {
+  entwurf: "status-entwurf",
+  abgelaufen: "status-entwurf",
+  versendet: "status-gestellt",
+  gestellt: "status-gestellt",
+  angenommen: "status-bezahlt",
+  abgelehnt: "status-storniert",
+  storniert: "status-storniert",
+};
 
 interface StammdatenReiterProps {
   kunde: Kunde;
@@ -182,12 +195,13 @@ function StammdatenReiter({ kunde, onGespeichert }: StammdatenReiterProps) {
       {fehler && !istValidierungsfehler(fehler) && <Fehler fehler={fehler} />}
       {gespeichert && <p>Gespeichert.</p>}
       <form
+        className="karte"
         onSubmit={(e) => {
           e.preventDefault();
           speichern();
         }}
       >
-        <div>
+        <div className="feld">
           <label>
             Typ
             <select
@@ -199,14 +213,18 @@ function StammdatenReiter({ kunde, onGespeichert }: StammdatenReiterProps) {
             </select>
           </label>
         </div>
-        <div>
+        <div className="feld">
           <label>
             Name
             <input value={form.name} onChange={(e) => setForm({ ...form, name: e.currentTarget.value })} />
           </label>
-          {feldFehler("name") && <div role="alert">{feldFehler("name")}</div>}
+          {feldFehler("name") && (
+            <div role="alert" className="feld-fehler">
+              {feldFehler("name")}
+            </div>
+          )}
         </div>
-        <div>
+        <div className="feld">
           <label>
             Zahlungsziel (Tage)
             <input
@@ -216,7 +234,7 @@ function StammdatenReiter({ kunde, onGespeichert }: StammdatenReiterProps) {
             />
           </label>
         </div>
-        <div>
+        <div className="feld">
           <label>
             Notizen
             <textarea
@@ -225,7 +243,7 @@ function StammdatenReiter({ kunde, onGespeichert }: StammdatenReiterProps) {
             />
           </label>
         </div>
-        <div>
+        <div className="feld">
           <label>
             USt-IdNr.
             <input
@@ -233,16 +251,24 @@ function StammdatenReiter({ kunde, onGespeichert }: StammdatenReiterProps) {
               onChange={(e) => setForm({ ...form, ust_idnr: e.currentTarget.value })}
             />
           </label>
-          {feldFehler("ust_idnr") && <div role="alert">{feldFehler("ust_idnr")}</div>}
+          {feldFehler("ust_idnr") && (
+            <div role="alert" className="feld-fehler">
+              {feldFehler("ust_idnr")}
+            </div>
+          )}
         </div>
-        <div>
+        <div className="feld">
           <label>
             E-Mail
             <input value={form.email} onChange={(e) => setForm({ ...form, email: e.currentTarget.value })} />
           </label>
-          {feldFehler("email") && <div role="alert">{feldFehler("email")}</div>}
+          {feldFehler("email") && (
+            <div role="alert" className="feld-fehler">
+              {feldFehler("email")}
+            </div>
+          )}
         </div>
-        <div>
+        <div className="feld">
           <label>
             Leitweg-ID
             <input
@@ -251,7 +277,7 @@ function StammdatenReiter({ kunde, onGespeichert }: StammdatenReiterProps) {
             />
           </label>
         </div>
-        <div>
+        <div className="feld">
           <label>
             Käuferreferenz
             <input
@@ -260,7 +286,9 @@ function StammdatenReiter({ kunde, onGespeichert }: StammdatenReiterProps) {
             />
           </label>
         </div>
-        <button type="submit">Speichern</button>
+        <button type="submit" className="btn btn-primaer">
+          Speichern
+        </button>
       </form>
     </section>
   );
@@ -310,7 +338,7 @@ function AdressenReiter({ kundeId, adressen, onGeaendert }: AdressenReiterProps)
   return (
     <section>
       {fehler && <Fehler fehler={fehler} />}
-      <table>
+      <table className="tabelle">
         <thead>
           <tr>
             <th>Typ</th>
@@ -332,10 +360,10 @@ function AdressenReiter({ kundeId, adressen, onGeaendert }: AdressenReiterProps)
               <td>{a.land}</td>
               <td>{a.ist_standard ? "Ja" : "Nein"}</td>
               <td>
-                <button type="button" onClick={() => setForm(a)}>
+                <button type="button" className="btn" onClick={() => setForm(a)}>
                   Bearbeiten
                 </button>
-                <button type="button" onClick={() => loeschen(a.id)}>
+                <button type="button" className="btn btn-gefahr" onClick={() => loeschen(a.id)}>
                   Löschen
                 </button>
               </td>
@@ -344,12 +372,13 @@ function AdressenReiter({ kundeId, adressen, onGeaendert }: AdressenReiterProps)
         </tbody>
       </table>
       <form
+        className="karte"
         onSubmit={(e) => {
           e.preventDefault();
           speichern();
         }}
       >
-        <label>
+        <label className="feld">
           Typ
           <select
             value={form.typ}
@@ -359,23 +388,23 @@ function AdressenReiter({ kundeId, adressen, onGeaendert }: AdressenReiterProps)
             <option value="lieferung">Lieferung</option>
           </select>
         </label>
-        <label>
+        <label className="feld">
           Straße
           <input value={form.strasse} onChange={(e) => setForm({ ...form, strasse: e.currentTarget.value })} />
         </label>
-        <label>
+        <label className="feld">
           PLZ
           <input value={form.plz} onChange={(e) => setForm({ ...form, plz: e.currentTarget.value })} />
         </label>
-        <label>
+        <label className="feld">
           Ort
           <input value={form.ort} onChange={(e) => setForm({ ...form, ort: e.currentTarget.value })} />
         </label>
-        <label>
+        <label className="feld">
           Land
           <input value={form.land} onChange={(e) => setForm({ ...form, land: e.currentTarget.value })} />
         </label>
-        <label>
+        <label className="feld-checkbox">
           <input
             type="checkbox"
             checked={form.ist_standard}
@@ -383,7 +412,9 @@ function AdressenReiter({ kundeId, adressen, onGeaendert }: AdressenReiterProps)
           />
           Standardadresse
         </label>
-        <button type="submit">{form.id ? "Aktualisieren" : "Hinzufügen"}</button>
+        <button type="submit" className="btn btn-primaer">
+          {form.id ? "Aktualisieren" : "Hinzufügen"}
+        </button>
       </form>
     </section>
   );
@@ -437,7 +468,7 @@ function AnsprechpartnerReiter({ kundeId, ansprechpartner, onGeaendert }: Anspre
   return (
     <section>
       {fehler && <Fehler fehler={fehler} />}
-      <table>
+      <table className="tabelle">
         <thead>
           <tr>
             <th>Name</th>
@@ -457,10 +488,10 @@ function AnsprechpartnerReiter({ kundeId, ansprechpartner, onGeaendert }: Anspre
               <td>{a.telefon}</td>
               <td>{a.ist_standard ? "Ja" : "Nein"}</td>
               <td>
-                <button type="button" onClick={() => setForm(a)}>
+                <button type="button" className="btn" onClick={() => setForm(a)}>
                   Bearbeiten
                 </button>
-                <button type="button" onClick={() => loeschen(a.id)}>
+                <button type="button" className="btn btn-gefahr" onClick={() => loeschen(a.id)}>
                   Löschen
                 </button>
               </td>
@@ -469,28 +500,29 @@ function AnsprechpartnerReiter({ kundeId, ansprechpartner, onGeaendert }: Anspre
         </tbody>
       </table>
       <form
+        className="karte"
         onSubmit={(e) => {
           e.preventDefault();
           speichern();
         }}
       >
-        <label>
+        <label className="feld">
           Name
           <input value={form.name} onChange={(e) => setForm({ ...form, name: e.currentTarget.value })} />
         </label>
-        <label>
+        <label className="feld">
           Rolle
           <input value={form.rolle} onChange={(e) => setForm({ ...form, rolle: e.currentTarget.value })} />
         </label>
-        <label>
+        <label className="feld">
           E-Mail
           <input value={form.email} onChange={(e) => setForm({ ...form, email: e.currentTarget.value })} />
         </label>
-        <label>
+        <label className="feld">
           Telefon
           <input value={form.telefon} onChange={(e) => setForm({ ...form, telefon: e.currentTarget.value })} />
         </label>
-        <label>
+        <label className="feld-checkbox">
           <input
             type="checkbox"
             checked={form.ist_standard}
@@ -498,7 +530,9 @@ function AnsprechpartnerReiter({ kundeId, ansprechpartner, onGeaendert }: Anspre
           />
           Standard-Ansprechpartner
         </label>
-        <button type="submit">{form.id ? "Aktualisieren" : "Hinzufügen"}</button>
+        <button type="submit" className="btn btn-primaer">
+          {form.id ? "Aktualisieren" : "Hinzufügen"}
+        </button>
       </form>
     </section>
   );
