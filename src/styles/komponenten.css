@@ -297,3 +297,10 @@ label.feld textarea {
   padding: var(--abstand-xl);
   max-width: 960px;
 }
+
+/* Einrichtungs-Assistent */
+.einrichtung-main {
+  max-width: 480px;
+  margin: 48px auto;
+  padding: 0 var(--abstand-l);
+}

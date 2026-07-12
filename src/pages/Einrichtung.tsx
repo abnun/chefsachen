@@ -30,7 +30,7 @@ export function Einrichtung({ onFertig }: EinrichtungProps) {
 
   if (!firma) {
     return (
-      <main style={{ maxWidth: "480px", margin: "3rem auto" }}>
+      <main className="einrichtung-main">
         {fehler && <Fehler fehler={fehler} />}
       </main>
     );
@@ -66,21 +66,21 @@ export function Einrichtung({ onFertig }: EinrichtungProps) {
   }
 
   return (
-    <main style={{ maxWidth: "480px", margin: "3rem auto" }}>
-      <h1>Ersteinrichtung</h1>
+    <main className="einrichtung-main">
+      <h1 className="seiten-kopf">Ersteinrichtung</h1>
       {fehler && !istValidierungsfehler(fehler) && <Fehler fehler={fehler} />}
 
       {schritt === 1 && (
-        <section>
+        <section className="karte">
           <h2>Firmendaten</h2>
-          <div>
+          <div className="feld">
             <label>
               Name
               <input value={firma.name} onChange={(e) => setFirma({ ...firma, name: e.currentTarget.value })} />
             </label>
-            {feldFehler("name") && <div role="alert">{feldFehler("name")}</div>}
+            {feldFehler("name") && <div className="feld-fehler" role="alert">{feldFehler("name")}</div>}
           </div>
-          <div>
+          <div className="feld">
             <label>
               Straße
               <input
@@ -89,19 +89,19 @@ export function Einrichtung({ onFertig }: EinrichtungProps) {
               />
             </label>
           </div>
-          <div>
+          <div className="feld">
             <label>
               PLZ
               <input value={firma.plz} onChange={(e) => setFirma({ ...firma, plz: e.currentTarget.value })} />
             </label>
           </div>
-          <div>
+          <div className="feld">
             <label>
               Ort
               <input value={firma.ort} onChange={(e) => setFirma({ ...firma, ort: e.currentTarget.value })} />
             </label>
           </div>
-          <div>
+          <div className="feld">
             <label>
               Steuernummer
               <input
@@ -109,9 +109,9 @@ export function Einrichtung({ onFertig }: EinrichtungProps) {
                 onChange={(e) => setFirma({ ...firma, steuernummer: e.currentTarget.value })}
               />
             </label>
-            {feldFehler("steuernummer") && <div role="alert">{feldFehler("steuernummer")}</div>}
+            {feldFehler("steuernummer") && <div className="feld-fehler" role="alert">{feldFehler("steuernummer")}</div>}
           </div>
-          <div>
+          <div className="feld">
             <label>
               USt-IdNr.
               <input
@@ -120,37 +120,37 @@ export function Einrichtung({ onFertig }: EinrichtungProps) {
               />
             </label>
           </div>
-          <div>
+          <div className="feld">
             <label>
               IBAN
               <input value={firma.iban} onChange={(e) => setFirma({ ...firma, iban: e.currentTarget.value })} />
             </label>
           </div>
-          <div>
+          <div className="feld">
             <label>
               BIC
               <input value={firma.bic} onChange={(e) => setFirma({ ...firma, bic: e.currentTarget.value })} />
             </label>
           </div>
-          <button type="button" onClick={() => setSchritt(2)}>
+          <button type="button" className="btn btn-primaer" onClick={() => setSchritt(2)}>
             Weiter
           </button>
         </section>
       )}
 
       {schritt === 2 && (
-        <section>
+        <section className="karte">
           <h2>Logo</h2>
           <p>Optional — kann auch später in den Einstellungen hinzugefügt werden.</p>
-          <button type="button" onClick={logoWaehlen}>
+          <button type="button" className="btn" onClick={logoWaehlen}>
             Datei wählen
           </button>
           {logoBytes && <p>Logo ausgewählt ({logoBytes.length} Bytes).</p>}
-          <div>
-            <button type="button" onClick={() => setSchritt(1)}>
+          <div className="werkzeugleiste">
+            <button type="button" className="btn btn-leise" onClick={() => setSchritt(1)}>
               Zurück
             </button>
-            <button type="button" onClick={() => setSchritt(3)}>
+            <button type="button" className="btn btn-primaer" onClick={() => setSchritt(3)}>
               Weiter
             </button>
           </div>
@@ -158,14 +158,14 @@ export function Einrichtung({ onFertig }: EinrichtungProps) {
       )}
 
       {schritt === 3 && (
-        <section>
+        <section className="karte">
           <h2>Kleinunternehmer-Bestätigung</h2>
           <p>
             Nach § 19 UStG müssen Kleinunternehmer keine Umsatzsteuer ausweisen, solange der
             Vorjahresumsatz 25.000 € und der voraussichtliche Umsatz des laufenden Jahres 100.000 € nicht
             übersteigt.
           </p>
-          <label>
+          <label className="feld-checkbox">
             <input
               type="checkbox"
               checked={firma.kleinunternehmer}
@@ -173,11 +173,11 @@ export function Einrichtung({ onFertig }: EinrichtungProps) {
             />
             Ich falle unter die Kleinunternehmerregelung
           </label>
-          <div>
-            <button type="button" onClick={() => setSchritt(2)}>
+          <div className="werkzeugleiste">
+            <button type="button" className="btn btn-leise" onClick={() => setSchritt(2)}>
               Zurück
             </button>
-            <button type="button" onClick={() => setSchritt(4)}>
+            <button type="button" className="btn btn-primaer" onClick={() => setSchritt(4)}>
               Weiter
             </button>
           </div>
@@ -185,7 +185,7 @@ export function Einrichtung({ onFertig }: EinrichtungProps) {
       )}
 
       {schritt === 4 && (
-        <section>
+        <section className="karte">
           <h2>Nummernkreise</h2>
           <p>Die vorbelegten Formate können später jederzeit in den Einstellungen angepasst werden.</p>
           <ul>
@@ -194,11 +194,11 @@ export function Einrichtung({ onFertig }: EinrichtungProps) {
             <li>Angebote: AN-{new Date().getFullYear()}-0001</li>
             <li>Rechnungen: RE-{new Date().getFullYear()}-0001</li>
           </ul>
-          <div>
-            <button type="button" onClick={() => setSchritt(3)}>
+          <div className="werkzeugleiste">
+            <button type="button" className="btn btn-leise" onClick={() => setSchritt(3)}>
               Zurück
             </button>
-            <button type="button" disabled={speichert} onClick={abschliessen}>
+            <button type="button" className="btn btn-primaer" disabled={speichert} onClick={abschliessen}>
               Einrichtung abschließen
             </button>
           </div>
