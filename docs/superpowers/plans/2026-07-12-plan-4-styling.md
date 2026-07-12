@@ -149,7 +149,6 @@ git commit -m "feat: Design-Tokens für Hell-/Dunkelmodus"
 
 **Files:**
 - Create: `src/styles/basis.css`
-- Modify: `src/App.css` (Boilerplate entfernen)
 
 - [ ] **Step 1: `src/styles/basis.css` erstellen**
 
@@ -225,23 +224,15 @@ table {
 }
 ```
 
-- [ ] **Step 2: `src/App.css` leeren**
-
-`src/App.css` komplett durch einen leeren Kommentar ersetzen (Datei bleibt bestehen, da `App.tsx` sie importiert — Import wird in Task 4 auf die neuen Dateien umgestellt, `App.css` fällt dabei ganz weg, siehe Task 4 Step 1):
-
-```css
-/* durch src/styles/{tokens,basis,komponenten}.css ersetzt */
-```
-
-- [ ] **Step 3: Tests laufen lassen**
+- [ ] **Step 2: Tests laufen lassen**
 
 Run: `npm test`
-Erwartet: weiterhin alle Tests grün (reine CSS-Änderung, keine Komponenten betroffen).
+Erwartet: weiterhin alle Tests grün (neue, noch nicht importierte Datei — keine Komponente betroffen).
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 3: Commit**
 
 ```bash
-git add src/styles/basis.css src/App.css
+git add src/styles/basis.css
 git commit -m "feat: Basis-Styles (Typografie, Formularelemente, Fokus-Ringe)"
 ```
 
@@ -309,6 +300,13 @@ git commit -m "feat: Basis-Styles (Typografie, Formularelemente, Fokus-Ringe)"
 
 .btn-leise:hover {
   background: var(--akzent-leise);
+}
+
+.btn[aria-current="page"] {
+  background: var(--akzent-leise);
+  border-color: var(--akzent);
+  color: var(--akzent);
+  font-weight: 600;
 }
 
 /* Seitenkopf */
@@ -439,6 +437,10 @@ label.feld textarea {
 
 .werkzeugleiste input[type="search"] {
   flex: 1;
+}
+
+.werkzeugleiste .feld {
+  margin-bottom: 0;
 }
 
 /* Fehler-Box */
@@ -620,9 +622,10 @@ Erwartet: alle Tests grün (Fehler-Komponente behält `role="alert"` und Textinh
 
 ```bash
 git add src/App.tsx src/components/Fehler.tsx
-git rm --cached src/App.css 2>/dev/null; true
 git commit -m "feat: App-Einstieg auf neues Stylesheet umstellen, Fehler-Box stylen"
 ```
+
+(Der `git rm src/App.css` aus Step 2 ist Teil desselben Commits, da er bereits im Index steht.)
 
 ---
 
@@ -920,7 +923,7 @@ Nachher:
           </div>
 ```
 
-Die verbleibenden Formularfelder (Zahlungsziel, Notizen, USt-IdNr., E-Mail, Leitweg-ID, Käuferreferenz) folgen demselben Muster — jedes umschließende `<div>` bekommt `className="feld"`, jedes `<div role="alert">{feldFehler(...)}</div>` bekommt zusätzlich `className="feld-fehler"`. Für USt-IdNr. und E-Mail (haben `feldFehler`-Aufrufe) genauso wie beim Name-Feld verfahren.
+Jedes weitere umschließende `<div>` im Formular bekommt ebenso `className="feld"` — konkret die `<div>`-Wrapper um: `Zahlungsziel (Tage)` (kein `feldFehler`-Aufruf), `Notizen` (Textarea, kein `feldFehler`-Aufruf), `USt-IdNr.` (hat `feldFehler("ust_idnr")` — dessen `<div role="alert">` bekommt zusätzlich `className="feld-fehler"`, analog zum Name-Feld), `E-Mail` (hat `feldFehler("email")` — ebenso `className="feld-fehler"` auf dessen `<div role="alert">`), `Leitweg-ID` (kein `feldFehler`-Aufruf), `Käuferreferenz` (kein `feldFehler`-Aufruf). Kein Feld wird umstrukturiert — es wird ausschließlich `className="feld"` auf das jeweils schon vorhandene `<div>` gesetzt.
 
 Der Submit-Button:
 
@@ -1267,12 +1270,11 @@ Nachher:
           speichern();
         }}
       >
-        <div className="feld">
-        <label>
+        <label className="feld">
           Typ
 ```
 
-**Wichtig:** Bei `AdressenReiter` und `AnsprechpartnerReiter` sind die Formularfelder als bare `<label>Text<input/></label>` ohne umschließendes `<div>` geschrieben (anders als bei `Kunden.tsx`/`StammdatenReiter`). Hier `className="feld"` **direkt auf jedes `<label>`** setzen (nicht extra einpacken), außer beim Checkbox-Feld (`Standardadresse`) — dort `className="feld-checkbox"` auf das `<label>` setzen. Beispiel für das Straße-Feld:
+**Wichtig:** Bei `AdressenReiter` und `AnsprechpartnerReiter` sind die Formularfelder als bare `<label>Text<input/></label>` ohne umschließendes `<div>` geschrieben (anders als bei `Kunden.tsx`/`StammdatenReiter`). Hier `className="feld"` **direkt auf jedes `<label>`** setzen (nicht extra einpacken), außer beim Checkbox-Feld (`Standardadresse`) — dort `className="feld-checkbox"` auf das `<label>` setzen. Das Typ-Select oben ist bereits so umgesetzt (`<label className="feld">`, kein zusätzlicher `<div>`-Wrapper, `</label>` bleibt als Abschluss stehen). Beispiel für das Straße-Feld:
 
 Vorher:
 ```tsx
@@ -1316,21 +1318,6 @@ Nachher:
           Standardadresse
         </label>
         <button type="submit" className="btn btn-primaer">{form.id ? "Aktualisieren" : "Hinzufügen"}</button>
-```
-
-Das zuvor als `<div className="feld"><label>Typ...` begonnene Select-Feld am Formularanfang schließend korrekt mit `</div>` statt nur `</label>` versehen (`</label>\n        </div>`), da hier — anders als bei den bare Labels darunter — ein `<div>`-Wrapper verwendet wird, um konsistent mit dem in Step 4 gezeigten Muster zu bleiben. Alternativ (einfacher, empfohlen): auch das Typ-Select als bare `<label className="feld">` schreiben, analog zu Straße/PLZ/Ort/Land, damit die ganze Funktion einheitlich ist:
-
-```tsx
-        <label className="feld">
-          Typ
-          <select
-            value={form.typ}
-            onChange={(e) => setForm({ ...form, typ: e.currentTarget.value as "rechnung" | "lieferung" })}
-          >
-            <option value="rechnung">Rechnung</option>
-            <option value="lieferung">Lieferung</option>
-          </select>
-        </label>
 ```
 
 - [ ] **Step 5: `AnsprechpartnerReiter` — Tabelle und Formular**
@@ -1755,7 +1742,7 @@ Nachher:
       <h1 className="seiten-kopf">Angebote</h1>
       {fehler && <Fehler fehler={fehler} />}
       <div className="werkzeugleiste">
-        <label className="feld" style={{ marginBottom: 0 }}>
+        <label className="feld">
           Status
           <select value={statusFilter} onChange={(e) => setStatusFilter(e.currentTarget.value)}>
             <option value="">Alle</option>
