@@ -27,6 +27,10 @@
   --fehler-text: #7a1212;
   --fehler-rand: #f5c2c0;
 
+  --hinweis-bg: #eaf1f7;
+  --hinweis-text: #2c5a7c;
+  --hinweis-rand: #c9dced;
+
   /* Abstände */
   --abstand-xs: 4px;
   --abstand-s: 8px;
@@ -78,6 +82,10 @@
     --fehler-bg: #2c1a1a;
     --fehler-text: #ef9a95;
     --fehler-rand: #4a2c2a;
+
+    --hinweis-bg: #1a2733;
+    --hinweis-text: #8fc1e8;
+    --hinweis-rand: #2d4358;
 
     --schatten: 0 1px 3px rgba(0, 0, 0, 0.4);
   }
