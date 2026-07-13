@@ -16,8 +16,9 @@ export interface Kunde {
   email: string;
   leitweg_id: string;
   kaeuferreferenz: string;
+  hat_adresse: boolean;
 }
-export type KundeNeu = Omit<Kunde, "id" | "kundennummer">;
+export type KundeNeu = Omit<Kunde, "id" | "kundennummer" | "hat_adresse">;
 export interface Adresse {
   id: string;
   kunde_id: string;

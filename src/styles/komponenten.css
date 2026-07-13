@@ -332,3 +332,10 @@ label.feld textarea {
   padding: 0 0 0 var(--abstand-s);
   cursor: pointer;
 }
+
+/* Warnsymbol (z. B. Kunde ohne Adresse) */
+.warnung-icon {
+  margin-left: 6px;
+  vertical-align: middle;
+  color: var(--st-storniert-text);
+}

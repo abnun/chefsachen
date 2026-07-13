@@ -13,7 +13,7 @@ vi.mock("../api", () => ({
     kunden: {
       list: vi.fn().mockResolvedValue([
         { id: "k1", typ: "firma", name: "ACME GmbH", kundennummer: "KD-0001", zahlungsziel_tage: 14,
-          notizen: "", ust_idnr: "", email: "", leitweg_id: "", kaeuferreferenz: "" },
+          notizen: "", ust_idnr: "", email: "", leitweg_id: "", kaeuferreferenz: "", hat_adresse: true },
       ]),
     },
     einstellungen: { get: vi.fn().mockResolvedValue("") },

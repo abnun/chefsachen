@@ -18,6 +18,7 @@ vi.mock("../api", () => ({
           email: "",
           leitweg_id: "",
           kaeuferreferenz: "",
+          hat_adresse: true,
         },
         adressen: [
           {

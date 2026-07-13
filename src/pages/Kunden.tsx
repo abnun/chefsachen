@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api, istValidierungsfehler, type AppFehler, type Kunde, type KundeNeu } from "../api";
 import { Fehler } from "../components/Fehler";
+import { Hinweis } from "../components/Hinweis";
 
 interface KundenProps {
   onOeffnen: (id: string) => void;
@@ -10,6 +11,14 @@ const KUNDE_TYP_LABEL: Record<string, string> = {
   firma: "Firma",
   privat: "Privat",
 };
+
+const WARNUNG_ICON = (
+  <svg className="warnung-icon" viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.6">
+    <circle cx="10" cy="10" r="7.5" />
+    <path d="M10 6.5v4.5" strokeLinecap="round" />
+    <circle cx="10" cy="13.5" r="0.4" fill="currentColor" stroke="none" />
+  </svg>
+);
 
 const KUNDE_NEU_LEER: KundeNeu = {
   typ: "firma",
@@ -30,6 +39,7 @@ const KUNDE_NEU_LEER: KundeNeu = {
 export function Kunden({ onOeffnen }: KundenProps) {
   const [kunden, setKunden] = useState<Kunde[]>([]);
   const [suche, setSuche] = useState("");
+  const [leerHinweisVersteckt, setLeerHinweisVersteckt] = useState(false);
   const [fehler, setFehler] = useState<AppFehler | null>(null);
   const [zeigeFormular, setZeigeFormular] = useState(false);
   const [neuerKunde, setNeuerKunde] = useState<KundeNeu>(KUNDE_NEU_LEER);
@@ -181,6 +191,12 @@ export function Kunden({ onOeffnen }: KundenProps) {
         </form>
       )}
 
+      {kunden.length === 0 && suche === "" && !leerHinweisVersteckt && (
+        <Hinweis onSchliessen={() => setLeerHinweisVersteckt(true)}>
+          Noch keine Kunden — leg direkt los.
+        </Hinweis>
+      )}
+
       <table className="tabelle tabelle-klickbar">
         <thead>
           <tr>
@@ -193,7 +209,12 @@ export function Kunden({ onOeffnen }: KundenProps) {
           {kunden.map((kunde) => (
             <tr key={kunde.id} onClick={() => onOeffnen(kunde.id)}>
               <td className="tabelle-num">{kunde.kundennummer}</td>
-              <td>{kunde.name}</td>
+              <td>
+                {kunde.name}
+                {!kunde.hat_adresse && (
+                  <span title="Keine Adresse hinterlegt">{WARNUNG_ICON}</span>
+                )}
+              </td>
               <td>{KUNDE_TYP_LABEL[kunde.typ] ?? kunde.typ}</td>
             </tr>
           ))}
