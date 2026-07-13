@@ -10,6 +10,7 @@ pub struct Kunde {
     pub id: String, pub typ: String, pub name: String, pub kundennummer: String,
     pub zahlungsziel_tage: i64, pub notizen: String, pub ust_idnr: String,
     pub email: String, pub leitweg_id: String, pub kaeuferreferenz: String,
+    pub hat_adresse: bool,
 }
 
 #[derive(Debug, Deserialize)]
@@ -53,7 +54,7 @@ pub async fn create(pool: &SqlitePool, d: KundeNeu) -> AppResult<Kunde> {
     let k = Kunde { id: Uuid::new_v4().to_string(), typ: d.typ, name: d.name.trim().into(),
         kundennummer, zahlungsziel_tage: d.zahlungsziel_tage, notizen: d.notizen,
         ust_idnr: d.ust_idnr, email: d.email, leitweg_id: d.leitweg_id,
-        kaeuferreferenz: d.kaeuferreferenz };
+        kaeuferreferenz: d.kaeuferreferenz, hat_adresse: false };
     sqlx::query("INSERT INTO kunde (id, typ, name, kundennummer, zahlungsziel_tage, notizen, ust_idnr, email, leitweg_id, kaeuferreferenz, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)")
         .bind(&k.id).bind(&k.typ).bind(&k.name).bind(&k.kundennummer)
         .bind(k.zahlungsziel_tage).bind(&k.notizen).bind(&k.ust_idnr).bind(&k.email)
@@ -65,15 +66,19 @@ pub async fn create(pool: &SqlitePool, d: KundeNeu) -> AppResult<Kunde> {
 pub async fn list(pool: &SqlitePool, suche: Option<String>) -> AppResult<Vec<Kunde>> {
     let muster = format!("%{}%", suche.unwrap_or_default().to_lowercase());
     Ok(sqlx::query_as(
-        "SELECT id, typ, name, kundennummer, zahlungsziel_tage, notizen, ust_idnr, email, leitweg_id, kaeuferreferenz \
-         FROM kunde WHERE deleted_at IS NULL AND (lower(name) LIKE ? OR lower(kundennummer) LIKE ?) ORDER BY name")
+        "SELECT k.id, k.typ, k.name, k.kundennummer, k.zahlungsziel_tage, k.notizen, k.ust_idnr, \
+                k.email, k.leitweg_id, k.kaeuferreferenz, \
+                EXISTS(SELECT 1 FROM adresse a WHERE a.kunde_id = k.id AND a.deleted_at IS NULL) AS hat_adresse \
+         FROM kunde k WHERE k.deleted_at IS NULL AND (lower(k.name) LIKE ? OR lower(k.kundennummer) LIKE ?) ORDER BY k.name")
         .bind(&muster).bind(&muster).fetch_all(pool).await?)
 }
 
 pub async fn get(pool: &SqlitePool, id: String) -> AppResult<KundeDetail> {
     let kunde: Kunde = sqlx::query_as(
-        "SELECT id, typ, name, kundennummer, zahlungsziel_tage, notizen, ust_idnr, email, leitweg_id, kaeuferreferenz \
-         FROM kunde WHERE id = ? AND deleted_at IS NULL")
+        "SELECT k.id, k.typ, k.name, k.kundennummer, k.zahlungsziel_tage, k.notizen, k.ust_idnr, \
+                k.email, k.leitweg_id, k.kaeuferreferenz, \
+                EXISTS(SELECT 1 FROM adresse a WHERE a.kunde_id = k.id AND a.deleted_at IS NULL) AS hat_adresse \
+         FROM kunde k WHERE k.id = ? AND k.deleted_at IS NULL")
         .bind(&id).fetch_optional(pool).await?.ok_or(AppError::NichtGefunden)?;
     let adressen = sqlx::query_as(
         "SELECT id, kunde_id, typ, strasse, plz, ort, land, ist_standard FROM adresse WHERE kunde_id = ? AND deleted_at IS NULL")
@@ -252,5 +257,23 @@ mod tests {
             .filter(|a| a.typ == "rechnung" && a.ist_standard).collect();
         assert_eq!(standards.len(), 1);
         assert_ne!(standards[0].id, a1.id);
+    }
+
+    #[tokio::test]
+    async fn list_liefert_hat_adresse_korrekt() {
+        let (_dir, pool) = test_pool().await;
+        let mit_adresse = create(&pool, neu("Mit Adresse GmbH")).await.unwrap();
+        let ohne_adresse = create(&pool, neu("Ohne Adresse GmbH")).await.unwrap();
+        adresse_speichern(&pool, Adresse {
+            id: "".into(), kunde_id: mit_adresse.id.clone(), typ: "rechnung".into(),
+            strasse: "Weg 1".into(), plz: "10115".into(), ort: "Berlin".into(),
+            land: "DE".into(), ist_standard: true,
+        }).await.unwrap();
+
+        let liste = list(&pool, None).await.unwrap();
+        let treffer_mit = liste.iter().find(|k| k.id == mit_adresse.id).unwrap();
+        let treffer_ohne = liste.iter().find(|k| k.id == ohne_adresse.id).unwrap();
+        assert!(treffer_mit.hat_adresse);
+        assert!(!treffer_ohne.hat_adresse);
     }
 }
