@@ -34,7 +34,9 @@ Aus dem 4-Schritte- wird ein **5-Schritte-Assistent**:
    - „Ersten Artikel anlegen" (`btn btn-primaer`)
    - Hinweistext darunter: „Firmendaten und Nummernkreise kannst du jederzeit in den Einstellungen ändern."
 
-Jeder der beiden Buttons ruft `abschliessen()` auf (wie bisher der einzige Abschluss-Button) und übergibt zusätzlich ein Sprungziel an `onFertig`. `onFertig` bekommt einen neuen optionalen Parameter `zielSeite?: "kunden" | "artikel"`; `App.tsx` nutzt ihn, um nach der Einrichtung nicht nur `firma` neu zu laden, sondern auch `seite` und — falls `zielSeite === "kunden"` bzw. `"artikel"` — einen neuen `zeigeFormularBeimStart`-Flag zu setzen, den `Kunden.tsx`/`Artikel.tsx` als Prop bekommen, um ihr Anlage-Formular direkt offen zu rendern statt erst nach Klick auf „Neuer Kunde"/„Neuer Artikel".
+Jeder der beiden Buttons ruft `abschliessen()` auf (wie bisher der einzige Abschluss-Button) und übergibt zusätzlich ein Sprungziel an `onFertig`. `onFertig` bekommt einen neuen optionalen Parameter `zielSeite?: "kunden" | "artikel"`; `App.tsx` nutzt ihn, um nach der Einrichtung nicht nur `firma` neu zu laden, sondern auch `seite` zu setzen und einen neuen State `formularBeimStartZiel: "kunden" | "artikel" | null` zu befüllen.
+
+**Einmal-Konsum-Mechanismus (wichtig, da `Kunden`/`Artikel` bei jedem Seitenwechsel neu gemountet werden):** `App.tsx` reicht `zeigeFormularBeimStart={formularBeimStartZiel === "kunden"}` (bzw. `"artikel"`) als Prop durch, zusammen mit einer Callback-Prop `onFormularUebernommen: () => void`. Die jeweilige Seite ruft `onFormularUebernommen()` einmalig in einem `useEffect` beim Mount auf, sobald sie das offene Formular gerendert hat; `App.tsx` setzt daraufhin `formularBeimStartZiel` zurück auf `null`. Ohne diesen Rückkanal würde das Formular bei jeder späteren Navigation zur Seite erneut aufklappen, nicht nur unmittelbar nach der Einrichtung — genau dasselbe Muster wird unten bei der Kunde↔Artikel-Verzahnung wiederverwendet.
 
 Fortschrittsanzeige: `Schritt {schritt} von 5` als reiner Text über jeder `<h2>`, in `.seiten-kopf small`-ähnlichem Stil (gedämpfte Schriftfarbe, kleiner). Der „Fertig"-Schritt selbst zeigt keine Schrittzahl (kein „Schritt 5 von 5", da er kein Formular ist, sondern der Abschluss).
 
@@ -42,7 +44,7 @@ Fortschrittsanzeige: `Schritt {schritt} von 5` als reiner Text über jeder `<h2>
 
 Rein datengetrieben, kein persistenter Onboarding-Zustand:
 
-- **Kunden-Liste**: wenn `kunden.length === 0` (nach dem ersten Laden), erscheint über der Tabelle ein `Hinweis` (manuell wegklickbar, kein Auto-Dismiss, da er so lange sinnvoll ist wie die Liste leer ist): „Noch keine Kunden — leg direkt los." Verschwindet automatisch (durch Neu-Rendern), sobald `kunden.length > 0`.
+- **Kunden-Liste**: wenn `kunden.length === 0 && suche === ""` (nach dem ersten Laden), erscheint über der Tabelle ein `Hinweis` (manuell wegklickbar, kein Auto-Dismiss, da er so lange sinnvoll ist wie die Liste leer ist): „Noch keine Kunden — leg direkt los." Verschwindet automatisch (durch Neu-Rendern), sobald `kunden.length > 0` oder eine Suche aktiv ist — die zusätzliche `suche === ""`-Bedingung ist nötig, da `Kunden.tsx` ein Suchfeld hat und `kunden.length === 0` sonst auch „Suche ohne Treffer" bedeuten könnte, was fälschlich denselben Hinweis auslösen würde.
 - **Artikel-Liste**: analog bei `artikel.length === 0`: „Noch keine Artikel oder Leistungen — leg direkt los."
 - **Verzahnung nach dem Anlegen**: Sobald ein Kunde erfolgreich angelegt wurde UND zu diesem Zeitpunkt `artikel.length === 0` ist (Artikel-Liste wird dafür beim Laden der Kunden-Seite zusätzlich per `api.artikel.list()` abgefragt, analog zum bestehenden `api.kunden.list()`-Aufruf in `Artikel.tsx`), erscheint ein **auto-verschwindender** `Hinweis`-Banner: „Kunde angelegt — jetzt auch einen Artikel anlegen?" mit einem Link/Button, der zur Artikel-Seite mit offenem Formular navigiert (gleicher `zeigeFormularBeimStart`-Mechanismus wie beim Assistenten). Symmetrisch beim Artikel-Anlegen, wenn `kunden.length === 0`.
 
@@ -51,6 +53,8 @@ Diese Verzahnung funktioniert unabhängig vom Zeitpunkt — egal ob direkt nach 
 ## Kundenanlage-Hinweis (Adresse/Ansprechpartner)
 
 - **Banner** (auto-verschwindend, 4000ms): erscheint auf der Kundenliste unmittelbar nach erfolgreichem Anlegen eines Kunden: „Kunde angelegt — jetzt Adresse und Ansprechpartner ergänzen?" mit einem klickbaren Link (`<button type="button" className="btn-leise">` im Fließtext oder als eigenes Element im Banner) zur Detailseite des neuen Kunden (Reiter Adressen vorausgewählt, dafür bekommt `KundeDetail` einen optionalen `startReiter`-Prop statt immer mit „Stammdaten" zu starten).
+
+  **Weiterleitung des Zielreiters:** `Kunden.tsx` kennt nur `onOeffnen(kundeId)` (Prop von `App.tsx`, wechselt lediglich die Ansicht) — welcher Reiter in `KundeDetail` initial offen sein soll, muss also ebenfalls über `App.tsx` transportiert werden. Analog zum `formularBeimStartZiel`-Mechanismus oben bekommt `App.tsx` einen State `kundeDetailStartReiter: Reiter | null`; der Banner-Link ruft eine neue Prop `onOeffnenMitReiter(kundeId, "adressen")` statt des einfachen `onOeffnen(kundeId)` auf, `App.tsx` setzt darüber `ausgewaehlterKunde` UND `kundeDetailStartReiter`, reicht Letzteres als `startReiter`-Prop an `KundeDetail` durch und setzt es nach Konsum (gleicher Einmal-Callback wie oben, `onReiterUebernommen`) wieder auf `null` zurück.
 - **Dauerhaftes Symbol**: In der Kunden-Tabelle bekommt jede Zeile ohne hinterlegte Adresse ein kleines Hinweis-Icon direkt neben dem Namen — ein schlichtes, mit den bestehenden Nav-Icons aus `Layout.tsx` stilistisch konsistentes Inline-SVG (Kreis mit Ausrufezeichen, `stroke="currentColor"`, Farbe `--st-entwurf-text`, 14×14px), mit `title`-Attribut „Keine Adresse hinterlegt" für Barrierefreiheit. Verschwindet, sobald der Kunde eine Adresse hat.
 
 **Backend-Erweiterung (klein, notwendig):** `kunde_list` liefert aktuell keine Adress-Information. Die Query in `src-tauri/src/commands/kunden.rs::list` wird um ein `hat_adresse`-Feld erweitert:
@@ -74,6 +78,7 @@ Alle neuen Hinweise sind rein informativ und lösen keine API-Aufrufe aus außer
 - **Rust:** Test für `kunde_list`, der prüft, dass `hat_adresse` korrekt `true`/`false` liefert (ein Kunde mit Adresse, einer ohne).
 - **Frontend:**
   - `Einrichtung.test.tsx`: neuer Schritt 5 rendert beide Buttons; Klick auf „Ersten Kunden anlegen" ruft `onFertig` mit `zielSeite: "kunden"` auf (bzw. Äquivalent, je nach finaler Prop-Signatur).
-  - `Kunden.test.tsx`: Leerzustand-Hinweis erscheint bei leerer Liste, verschwindet bei gefüllter Liste; Warnsymbol erscheint nur bei Kunden mit `hat_adresse: false`.
+  - `App.test.tsx` (falls noch nicht vorhanden, sonst erweitern): `formularBeimStartZiel`/`kundeDetailStartReiter` werden nach Aufruf der jeweiligen Einmal-Callback-Prop (`onFormularUebernommen`/`onReiterUebernommen`) zurückgesetzt — Regressionsschutz gegen das „Formular öffnet sich bei jeder Navigation erneut"-Problem.
+  - `Kunden.test.tsx`: Leerzustand-Hinweis erscheint bei leerer Liste ohne aktive Suche, bleibt aber aus, wenn `suche` gesetzt ist und die Liste (durch die Suche) leer ist; verschwindet bei gefüllter Liste; Warnsymbol erscheint nur bei Kunden mit `hat_adresse: false`.
   - `Artikel.test.tsx`: analoger Leerzustand-Test.
   - Neuer `Hinweis.test.tsx`: Komponente rendert Kinder/Text, `onSchliessen` wird bei Klick auf „×" aufgerufen, Auto-Dismiss-Verhalten wird mit `vi.useFakeTimers()` getestet.
