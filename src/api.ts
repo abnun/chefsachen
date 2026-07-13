@@ -176,13 +176,11 @@ export const api = {
     create: (a: Omit<Artikel, "id" | "artikelnummer">) => invoke<Artikel>("artikel_create", { daten: a }),
     update: (a: Artikel) => invoke<Artikel>("artikel_update", { artikel: a }),
     delete: (id: string) => invoke<void>("artikel_delete", { id }),
-    // Rust-Command `kundenpreis_list` erwartet den Parameter `artikel_id` (snake_case),
-    // nicht `artikelId` wie im ursprünglichen Brief-Entwurf.
-    kundenpreise: (artikelId: string) => invoke<Kundenpreis[]>("kundenpreis_list", { artikel_id: artikelId }),
+    kundenpreise: (artikelId: string) => invoke<Kundenpreis[]>("kundenpreis_list", { artikelId }),
     kundenpreisSave: (kp: Kundenpreis) => invoke<Kundenpreis>("kundenpreis_save", { kp }),
     kundenpreisDelete: (id: string) => invoke<void>("kundenpreis_delete", { id }),
     preisErmitteln: (artikelId: string, kundeId: string, belegdatum: string) =>
-      invoke<number>("preis_ermitteln", { artikel_id: artikelId, kunde_id: kundeId, belegdatum }),
+      invoke<number>("preis_ermitteln", { artikelId, kundeId, belegdatum }),
   },
   firma: {
     get: () => invoke<Firma>("firma_get"),
@@ -194,10 +192,8 @@ export const api = {
     get: (key: string) => invoke<string | null>("einstellung_get", { key }),
     set: (key: string, value: string) => invoke<void>("einstellung_set", { key, value }),
     nummernkreise: () => invoke<Nummernkreis[]>("nummernkreis_list"),
-    // Rust-Command `nummernkreis_update` erwartet den Parameter `jahres_reset` (snake_case),
-    // nicht `jahresReset` wie im ursprünglichen Brief-Entwurf.
     nummernkreisUpdate: (art: string, format: string, jahresReset: boolean) =>
-      invoke<void>("nummernkreis_update", { art, format, jahres_reset: jahresReset }),
+      invoke<void>("nummernkreis_update", { art, format, jahresReset }),
   },
   belege: {
     list: (typ?: "angebot" | "rechnung", status?: string) =>
@@ -211,7 +207,7 @@ export const api = {
     stellen: (id: string) => invoke<Beleg>("beleg_stellen", { id }),
     angebotStatusSetzen: (id: string, status: string) => invoke<Beleg>("angebot_status_setzen", { id, status }),
     angebotInRechnungUeberfuehren: (angebotId: string) =>
-      invoke<Beleg>("angebot_in_rechnung_ueberfuehren", { angebot_id: angebotId }),
+      invoke<Beleg>("angebot_in_rechnung_ueberfuehren", { angebotId }),
     rechnungStornieren: (id: string) => invoke<Beleg>("rechnung_stornieren", { id }),
     zahlungErfassen: (daten: ZahlungNeu) => invoke<Zahlung>("zahlung_erfassen", { daten }),
     zahlungDelete: (id: string) => invoke<void>("zahlung_delete", { id }),
