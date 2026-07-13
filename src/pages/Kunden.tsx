@@ -6,6 +6,11 @@ interface KundenProps {
   onOeffnen: (id: string) => void;
 }
 
+const KUNDE_TYP_LABEL: Record<string, string> = {
+  firma: "Firma",
+  privat: "Privat",
+};
+
 const KUNDE_NEU_LEER: KundeNeu = {
   typ: "firma",
   name: "",
@@ -189,7 +194,7 @@ export function Kunden({ onOeffnen }: KundenProps) {
             <tr key={kunde.id} onClick={() => onOeffnen(kunde.id)}>
               <td className="tabelle-num">{kunde.kundennummer}</td>
               <td>{kunde.name}</td>
-              <td>{kunde.typ}</td>
+              <td>{KUNDE_TYP_LABEL[kunde.typ] ?? kunde.typ}</td>
             </tr>
           ))}
         </tbody>

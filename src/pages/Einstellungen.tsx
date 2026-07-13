@@ -261,6 +261,8 @@ function EinheitenAbschnitt() {
 }
 
 const NUMMERNKREIS_LABEL: Record<string, string> = {
+  kunde: "Kunde",
+  artikel: "Artikel",
   rechnung: "Rechnung",
   angebot: "Angebot",
   gutschrift: "Gutschrift",
