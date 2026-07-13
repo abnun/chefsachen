@@ -317,7 +317,7 @@ function AdressenReiter({ kundeId, adressen, onGeaendert }: AdressenReiterProps)
   async function speichern() {
     setFehler(null);
     try {
-      await api.kunden.adresseSave({ id: form.id ?? crypto.randomUUID(), ...form } as Adresse);
+      await api.kunden.adresseSave({ id: form.id ?? "", ...form } as Adresse);
       setForm(ADRESSE_NEU(kundeId));
       onGeaendert();
     } catch (e) {
@@ -445,7 +445,7 @@ function AnsprechpartnerReiter({ kundeId, ansprechpartner, onGeaendert }: Anspre
     setFehler(null);
     try {
       await api.kunden.ansprechpartnerSave({
-        id: form.id ?? crypto.randomUUID(),
+        id: form.id ?? "",
         ...form,
       } as Ansprechpartner);
       setForm(ANSPRECHPARTNER_NEU(kundeId));

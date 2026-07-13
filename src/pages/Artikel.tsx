@@ -263,7 +263,7 @@ function KundenpreiseBereich({ artikelId, kunden }: KundenpreiseBereichProps) {
     setFehler(null);
     try {
       await api.artikel.kundenpreisSave({
-        id: crypto.randomUUID(),
+        id: "",
         artikel_id: artikelId,
         kunde_id: kundeId,
         preis_cent: cent,
