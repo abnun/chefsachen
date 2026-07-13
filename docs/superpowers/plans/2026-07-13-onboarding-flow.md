@@ -319,7 +319,12 @@ git commit -m "feat: hat_adresse-Feld in Kunde-Abfragen (list und get)"
 - Modify: `src/api.ts`
 - Modify: `src/pages/Kunden.tsx`
 - Modify: `src/pages/Kunden.test.tsx`
+- Modify: `src/pages/KundeDetail.test.tsx`
+- Modify: `src/pages/Angebote.test.tsx`
+- Modify: `src/pages/Rechnungen.test.tsx`
 - Modify: `src/styles/komponenten.css`
+
+**Wichtig:** `tsconfig.json` hat `"include": ["src"]` und `"strict": true` — `tsc` (Teil von `npm run build`) typprüft auch Testdateien. Da `hat_adresse` ein **Pflichtfeld** wird, brechen alle bestehenden Mocks, die ein `Kunde`-Objekt ohne dieses Feld konstruieren, sonst den Build. Betroffen sind neben `Kunden.test.tsx` auch `KundeDetail.test.tsx` (Mock für `kunden.get`), `Angebote.test.tsx` und `Rechnungen.test.tsx` (beide mocken `kunden.list`). `Artikel.test.tsx` ist NICHT betroffen, da dessen `kunden.list`-Mock ein leeres Array liefert, ohne einzelnes `Kunde`-Objekt.
 
 - [ ] **Step 1: `Kunde`-TS-Typ um `hat_adresse` erweitern**
 
@@ -406,7 +411,70 @@ describe("Kunden", () => {
 Run: `npm test -- Kunden`
 Erwartet: FAIL — `getByTitle("Keine Adresse hinterlegt")` und der Leerzustand-Text existieren noch nicht.
 
-- [ ] **Step 4: `Kunden.tsx` — Warnsymbol-Icon, `hat_adresse`-Anzeige, Leerzustand-Hinweis**
+- [ ] **Step 4: Bestehende Fremd-Mocks in `KundeDetail.test.tsx`, `Angebote.test.tsx`, `Rechnungen.test.tsx` um `hat_adresse` ergänzen**
+
+In `src/pages/KundeDetail.test.tsx`, im `kunden.get`-Mock:
+
+Vorher:
+```tsx
+      get: vi.fn().mockResolvedValue({
+        kunde: {
+          id: "1",
+          typ: "firma",
+          name: "ACME GmbH",
+          kundennummer: "KD-0001",
+          zahlungsziel_tage: 14,
+          notizen: "",
+          ust_idnr: "",
+          email: "",
+          leitweg_id: "",
+          kaeuferreferenz: "",
+        },
+```
+
+Nachher:
+```tsx
+      get: vi.fn().mockResolvedValue({
+        kunde: {
+          id: "1",
+          typ: "firma",
+          name: "ACME GmbH",
+          kundennummer: "KD-0001",
+          zahlungsziel_tage: 14,
+          notizen: "",
+          ust_idnr: "",
+          email: "",
+          leitweg_id: "",
+          kaeuferreferenz: "",
+          hat_adresse: true,
+        },
+```
+
+In `src/pages/Angebote.test.tsx`, im `kunden.list`-Mock:
+
+Vorher:
+```tsx
+    kunden: {
+      list: vi.fn().mockResolvedValue([
+        { id: "k1", typ: "firma", name: "ACME GmbH", kundennummer: "KD-0001", zahlungsziel_tage: 14,
+          notizen: "", ust_idnr: "", email: "", leitweg_id: "", kaeuferreferenz: "" },
+      ]),
+    },
+```
+
+Nachher:
+```tsx
+    kunden: {
+      list: vi.fn().mockResolvedValue([
+        { id: "k1", typ: "firma", name: "ACME GmbH", kundennummer: "KD-0001", zahlungsziel_tage: 14,
+          notizen: "", ust_idnr: "", email: "", leitweg_id: "", kaeuferreferenz: "", hat_adresse: true },
+      ]),
+    },
+```
+
+In `src/pages/Rechnungen.test.tsx` exakt dieselbe Änderung (identischer Mock-Block, gleiche Vorher/Nachher-Zeilen wie bei `Angebote.test.tsx` oben).
+
+- [ ] **Step 5: `Kunden.tsx` — Warnsymbol-Icon, `hat_adresse`-Anzeige, Leerzustand-Hinweis**
 
 Import ergänzen (nach dem bestehenden `Fehler`-Import):
 
@@ -483,7 +551,7 @@ Nachher:
       <table className="tabelle tabelle-klickbar">
 ```
 
-- [ ] **Step 5: `.warnung-icon`-Klasse an `src/styles/komponenten.css` anhängen**
+- [ ] **Step 6: `.warnung-icon`-Klasse an `src/styles/komponenten.css` anhängen**
 
 ```css
 /* Warnsymbol (z. B. Kunde ohne Adresse) */
@@ -494,20 +562,24 @@ Nachher:
 }
 ```
 
-- [ ] **Step 6: Tests laufen lassen**
+- [ ] **Step 7: Tests laufen lassen**
 
 Run: `npm test -- Kunden`
 Erwartet: PASS (3/3).
+Run: `npm test -- KundeDetail`
+Run: `npm test -- Angebote`
+Run: `npm test -- Rechnungen`
+Erwartet: alle weiterhin PASS (Step 4 hat deren Mocks korrigiert, kein Verhalten geändert).
 
-- [ ] **Step 7: Volle Test-Suite + Build**
+- [ ] **Step 8: Volle Test-Suite + Build**
 
-Run: `npm test` → 41/41 (39 aus Task 1 + 2 neue in `Kunden.test.tsx` — der bestehende „zeigt Kundenliste..."-Test bleibt unverändert erhalten und zählt bereits zu den 39)
-Run: `npm run build` → PASS
+Run: `npm test` → 41/41 (39 aus Task 1 + 2 neue in `Kunden.test.tsx` — der bestehende „zeigt Kundenliste..."-Test bleibt unverändert erhalten und zählt bereits zu den 39; `KundeDetail`/`Angebote`/`Rechnungen`-Tests bleiben zahlenmäßig unverändert, nur deren Mocks wurden korrigiert)
+Run: `npm run build` → PASS (dies ist der entscheidende Nachweis, dass Step 4 tatsächlich alle betroffenen Mocks erwischt hat — vorher hätte `tsc` hier mit „Property 'hat_adresse' is missing" fehlschlagen müssen)
 
-- [ ] **Step 8: Commit**
+- [ ] **Step 9: Commit**
 
 ```bash
-git add src/api.ts src/pages/Kunden.tsx src/pages/Kunden.test.tsx src/styles/komponenten.css
+git add src/api.ts src/pages/Kunden.tsx src/pages/Kunden.test.tsx src/pages/KundeDetail.test.tsx src/pages/Angebote.test.tsx src/pages/Rechnungen.test.tsx src/styles/komponenten.css
 git commit -m "feat: Warnsymbol für Kunden ohne Adresse, Leerzustand-Hinweis auf Kundenliste"
 ```
 
@@ -521,18 +593,18 @@ git commit -m "feat: Warnsymbol für Kunden ohne Adresse, Leerzustand-Hinweis au
 
 - [ ] **Step 1: Fehlschlagenden Test ergänzen**
 
-An `src/pages/KundeDetail.test.tsx` einen neuen Test anhängen (im bestehenden `describe`-Block, unter Wiederverwendung der dort bereits vorhandenen Mock-Struktur — Details der Mocks je nach tatsächlichem Dateiinhalt anpassen, das Muster ist:):
+`src/pages/KundeDetail.test.tsx` verwendet bereits einen Mock mit Kunde `id: "1"` (siehe bestehender Test „laedt Kundendaten..."). An den bestehenden `describe("KundeDetail", ...)`-Block anhängen (nach dem Test „zeigt nur Belege dieses Kunden"):
 
 ```tsx
   it("startet mit dem über startReiter vorgegebenen Reiter", async () => {
-    render(<KundeDetail id="k1" startReiter="adressen" onReiterUebernommen={() => {}} />);
+    render(<KundeDetail id="1" startReiter="adressen" onReiterUebernommen={() => {}} />);
     await waitFor(() => expect(screen.getByRole("button", { name: "Adressen" })).toBeTruthy());
     expect(screen.getByRole("button", { name: "Adressen" })).toHaveAttribute("aria-current", "page");
   });
 
   it("ruft onReiterUebernommen einmalig nach dem Start mit startReiter auf", async () => {
     const onReiterUebernommen = vi.fn();
-    render(<KundeDetail id="k1" startReiter="adressen" onReiterUebernommen={onReiterUebernommen} />);
+    render(<KundeDetail id="1" startReiter="adressen" onReiterUebernommen={onReiterUebernommen} />);
     await waitFor(() => expect(onReiterUebernommen).toHaveBeenCalledTimes(1));
   });
 ```
