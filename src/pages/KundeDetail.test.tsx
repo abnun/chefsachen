@@ -1,3 +1,4 @@
+import "@testing-library/jest-dom/vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -92,5 +93,17 @@ describe("KundeDetail", () => {
     fireEvent.click(screen.getByRole("button", { name: "Belege" }));
     await waitFor(() => expect(screen.getByText("RE-2026-0001")).toBeTruthy());
     expect(screen.queryByText("AN-2026-0003")).toBeNull();
+  });
+
+  it("startet mit dem über startReiter vorgegebenen Reiter", async () => {
+    render(<KundeDetail id="1" startReiter="adressen" onReiterUebernommen={() => {}} />);
+    await waitFor(() => expect(screen.getByRole("button", { name: "Adressen" })).toBeTruthy());
+    expect(screen.getByRole("button", { name: "Adressen" })).toHaveAttribute("aria-current", "page");
+  });
+
+  it("ruft onReiterUebernommen einmalig nach dem Start mit startReiter auf", async () => {
+    const onReiterUebernommen = vi.fn();
+    render(<KundeDetail id="1" startReiter="adressen" onReiterUebernommen={onReiterUebernommen} />);
+    await waitFor(() => expect(onReiterUebernommen).toHaveBeenCalledTimes(1));
   });
 });

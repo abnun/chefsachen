@@ -14,9 +14,11 @@ import { formatCent } from "../geld";
 
 interface KundeDetailProps {
   id: string;
+  startReiter?: Reiter | null;
+  onReiterUebernommen?: () => void;
 }
 
-type Reiter = "stammdaten" | "adressen" | "ansprechpartner" | "sonderpreise" | "belege";
+export type Reiter = "stammdaten" | "adressen" | "ansprechpartner" | "sonderpreise" | "belege";
 
 const REITER: { id: Reiter; label: string; aktiv: boolean }[] = [
   { id: "stammdaten", label: "Stammdaten", aktiv: true },
@@ -31,10 +33,17 @@ const REITER: { id: Reiter; label: string; aktiv: boolean }[] = [
  * Artikel-Seite gepflegt (Kundenpreise je Artikel, s. Plan 1) und bleibt
  * hier bewusst ein deaktivierter Platzhalter-Reiter.
  */
-export function KundeDetail({ id }: KundeDetailProps) {
+export function KundeDetail({ id, startReiter, onReiterUebernommen }: KundeDetailProps) {
   const [detail, setDetail] = useState<KundeDetailTyp | null>(null);
   const [fehler, setFehler] = useState<AppFehler | null>(null);
-  const [reiter, setReiter] = useState<Reiter>("stammdaten");
+  const [reiter, setReiter] = useState<Reiter>(startReiter ?? "stammdaten");
+
+  useEffect(() => {
+    if (startReiter) {
+      onReiterUebernommen?.();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function laden() {
     api.kunden
