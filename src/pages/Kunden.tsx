@@ -2,9 +2,10 @@ import { useEffect, useState } from "react";
 import { api, istValidierungsfehler, type AppFehler, type Kunde, type KundeNeu } from "../api";
 import { Fehler } from "../components/Fehler";
 import { Hinweis } from "../components/Hinweis";
+import type { Reiter } from "./KundeDetail";
 
 interface KundenProps {
-  onOeffnen: (id: string) => void;
+  onOeffnen: (id: string, startReiter?: Reiter) => void;
 }
 
 const KUNDE_TYP_LABEL: Record<string, string> = {
@@ -40,6 +41,8 @@ export function Kunden({ onOeffnen }: KundenProps) {
   const [kunden, setKunden] = useState<Kunde[]>([]);
   const [suche, setSuche] = useState("");
   const [leerHinweisVersteckt, setLeerHinweisVersteckt] = useState(false);
+  const [neuerKundeId, setNeuerKundeId] = useState<string | null>(null);
+  const [zeigtAdressHinweis, setZeigtAdressHinweis] = useState(false);
   const [fehler, setFehler] = useState<AppFehler | null>(null);
   const [zeigeFormular, setZeigeFormular] = useState(false);
   const [neuerKunde, setNeuerKunde] = useState<KundeNeu>(KUNDE_NEU_LEER);
@@ -61,11 +64,13 @@ export function Kunden({ onOeffnen }: KundenProps) {
   async function anlegen() {
     setFormFehler(null);
     try {
-      await api.kunden.create(neuerKunde);
+      const erstellt = await api.kunden.create(neuerKunde);
       setZeigeFormular(false);
       setNeuerKunde(KUNDE_NEU_LEER);
       const liste = await api.kunden.list(suche || undefined);
       setKunden(liste);
+      setNeuerKundeId(erstellt.id);
+      setZeigtAdressHinweis(true);
     } catch (e) {
       setFormFehler(e as AppFehler);
     }
@@ -80,6 +85,19 @@ export function Kunden({ onOeffnen }: KundenProps) {
     <div>
       <h1 className="seiten-kopf">Kunden</h1>
       <Fehler fehler={fehler} />
+
+      {zeigtAdressHinweis && neuerKundeId && (
+        <Hinweis autoDismissMs={4000} onSchliessen={() => setZeigtAdressHinweis(false)}>
+          Kunde angelegt —{" "}
+          <button
+            type="button"
+            className="btn btn-leise"
+            onClick={() => onOeffnen(neuerKundeId, "adressen")}
+          >
+            jetzt Adresse und Ansprechpartner ergänzen?
+          </button>
+        </Hinweis>
+      )}
 
       <div className="werkzeugleiste">
         <input

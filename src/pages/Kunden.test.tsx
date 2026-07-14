@@ -1,4 +1,4 @@
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 afterEach(cleanup);
@@ -11,6 +11,11 @@ vi.mock("../api", () => ({
           zahlungsziel_tage: 14, notizen: "", ust_idnr: "", email: "",
           leitweg_id: "", kaeuferreferenz: "", hat_adresse: false },
       ]),
+      create: vi.fn().mockResolvedValue({
+        id: "neu1", typ: "firma", name: "Neu GmbH", kundennummer: "KD-0002",
+        zahlungsziel_tage: 14, notizen: "", ust_idnr: "", email: "",
+        leitweg_id: "", kaeuferreferenz: "", hat_adresse: false,
+      }),
     },
     artikel: { list: vi.fn().mockResolvedValue([{ id: "a1" }]) },
   },
@@ -36,5 +41,29 @@ describe("Kunden", () => {
     vi.mocked(api.kunden.list).mockResolvedValueOnce([]);
     render(<Kunden onOeffnen={() => {}} />);
     await waitFor(() => expect(screen.getByText(/Noch keine Kunden/)).toBeTruthy());
+  });
+
+  it("zeigt nach dem Anlegen einen Hinweis mit Link zu Adresse/Ansprechpartner", async () => {
+    // Verhindert, dass ein aus dem vorherigen Test noch offenes
+    // mockResolvedValueOnce([]) (dort ungenutzt, da der Leerzustand bereits
+    // durch den initialen State erfüllt ist) diesen Test verfälscht.
+    const { api } = await import("../api");
+    vi.mocked(api.kunden.list).mockReset();
+    vi.mocked(api.kunden.list).mockResolvedValue([
+      { id: "1", typ: "firma", name: "ACME GmbH", kundennummer: "KD-0001",
+        zahlungsziel_tage: 14, notizen: "", ust_idnr: "", email: "",
+        leitweg_id: "", kaeuferreferenz: "", hat_adresse: false },
+    ]);
+    const onOeffnen = vi.fn();
+    render(<Kunden onOeffnen={onOeffnen} />);
+    await waitFor(() => expect(screen.getByText("ACME GmbH")).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Neuer Kunde" }));
+    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Neu GmbH" } });
+    fireEvent.click(screen.getByRole("button", { name: "Speichern" }));
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: /jetzt Adresse und Ansprechpartner ergänzen/ })).toBeTruthy(),
+    );
+    fireEvent.click(screen.getByRole("button", { name: /jetzt Adresse und Ansprechpartner ergänzen/ }));
+    expect(onOeffnen).toHaveBeenCalledWith("neu1", "adressen");
   });
 });

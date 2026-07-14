@@ -5,7 +5,7 @@ import { Fehler } from "./components/Fehler";
 import { Einrichtung } from "./pages/Einrichtung";
 import { Einstellungen } from "./pages/Einstellungen";
 import { Kunden } from "./pages/Kunden";
-import { KundeDetail } from "./pages/KundeDetail";
+import { KundeDetail, type Reiter } from "./pages/KundeDetail";
 import { Artikel } from "./pages/Artikel";
 import { Angebote } from "./pages/Angebote";
 import { Rechnungen } from "./pages/Rechnungen";
@@ -19,6 +19,7 @@ function App() {
   const [fehler, setFehler] = useState<AppFehler | null>(null);
   const [seite, setSeite] = useState<Seite>("kunden");
   const [ausgewaehlterKunde, setAusgewaehlterKunde] = useState<string | null>(null);
+  const [kundeDetailStartReiter, setKundeDetailStartReiter] = useState<Reiter | null>(null);
   const [ausgewaehltesAngebot, setAusgewaehltesAngebot] = useState<string | null>(null);
   const [ausgewaehlteRechnung, setAusgewaehlteRechnung] = useState<string | null>(null);
 
@@ -40,6 +41,7 @@ function App() {
 
   function navigiere(neueSeite: Seite) {
     setAusgewaehlterKunde(null);
+    setKundeDetailStartReiter(null);
     setAusgewaehltesAngebot(null);
     setAusgewaehlteRechnung(null);
     setSeite(neueSeite);
@@ -49,9 +51,18 @@ function App() {
     <Layout aktiveSeite={seite} onNavigiere={navigiere}>
       {seite === "kunden" &&
         (ausgewaehlterKunde ? (
-          <KundeDetail id={ausgewaehlterKunde} />
+          <KundeDetail
+            id={ausgewaehlterKunde}
+            startReiter={kundeDetailStartReiter}
+            onReiterUebernommen={() => setKundeDetailStartReiter(null)}
+          />
         ) : (
-          <Kunden onOeffnen={setAusgewaehlterKunde} />
+          <Kunden
+            onOeffnen={(id, startReiter) => {
+              setAusgewaehlterKunde(id);
+              setKundeDetailStartReiter(startReiter ?? null);
+            }}
+          />
         ))}
       {seite === "artikel" && <Artikel />}
       {seite === "angebote" &&
