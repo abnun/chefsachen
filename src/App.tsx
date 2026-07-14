@@ -22,6 +22,7 @@ function App() {
   const [kundeDetailStartReiter, setKundeDetailStartReiter] = useState<Reiter | null>(null);
   const [ausgewaehltesAngebot, setAusgewaehltesAngebot] = useState<string | null>(null);
   const [ausgewaehlteRechnung, setAusgewaehlteRechnung] = useState<string | null>(null);
+  const [formularBeimStartZiel, setFormularBeimStartZiel] = useState<"kunden" | "artikel" | null>(null);
 
   useEffect(() => {
     api.firma.get().then(setFirma).catch((e) => setFehler(e as AppFehler));
@@ -47,6 +48,11 @@ function App() {
     setSeite(neueSeite);
   }
 
+  function navigiereMitFormular(ziel: "kunden" | "artikel") {
+    navigiere(ziel);
+    setFormularBeimStartZiel(ziel);
+  }
+
   return (
     <Layout aktiveSeite={seite} onNavigiere={navigiere}>
       {seite === "kunden" &&
@@ -62,9 +68,18 @@ function App() {
               setAusgewaehlterKunde(id);
               setKundeDetailStartReiter(startReiter ?? null);
             }}
+            zeigeFormularBeimStart={formularBeimStartZiel === "kunden"}
+            onFormularUebernommen={() => setFormularBeimStartZiel(null)}
+            onZuArtikelWechseln={() => navigiereMitFormular("artikel")}
           />
         ))}
-      {seite === "artikel" && <Artikel />}
+      {seite === "artikel" && (
+        <Artikel
+          zeigeFormularBeimStart={formularBeimStartZiel === "artikel"}
+          onFormularUebernommen={() => setFormularBeimStartZiel(null)}
+          onZuKundenWechseln={() => navigiereMitFormular("kunden")}
+        />
+      )}
       {seite === "angebote" &&
         (ausgewaehltesAngebot ? (
           <BelegEditor

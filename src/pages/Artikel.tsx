@@ -25,12 +25,18 @@ const ARTIKEL_NEU_LEER = {
  * formatierter Text erfasst (Komma statt Punkt) und über geld.ts in Cent
  * konvertiert.
  */
-export function Artikel() {
+interface ArtikelProps {
+  zeigeFormularBeimStart?: boolean;
+  onFormularUebernommen?: () => void;
+  onZuKundenWechseln?: () => void;
+}
+
+export function Artikel({ zeigeFormularBeimStart, onFormularUebernommen, onZuKundenWechseln }: ArtikelProps) {
   const [artikel, setArtikel] = useState<ArtikelTyp[]>([]);
   const [einheiten, setEinheiten] = useState<Einheit[]>([]);
   const [kunden, setKunden] = useState<Kunde[]>([]);
   const [fehler, setFehler] = useState<AppFehler | null>(null);
-  const [zeigeFormular, setZeigeFormular] = useState(false);
+  const [zeigeFormular, setZeigeFormular] = useState(zeigeFormularBeimStart ?? false);
   const [bearbeiteId, setBearbeiteId] = useState<string | null>(null);
   const [form, setForm] = useState(ARTIKEL_NEU_LEER);
   const [preisText, setPreisText] = useState("");
@@ -38,6 +44,14 @@ export function Artikel() {
   const [formFehler, setFormFehler] = useState<AppFehler | null>(null);
   const [aufgeklappt, setAufgeklappt] = useState<string | null>(null);
   const [leerHinweisVersteckt, setLeerHinweisVersteckt] = useState(false);
+  const [zeigtKundenHinweis, setZeigtKundenHinweis] = useState(false);
+
+  useEffect(() => {
+    if (zeigeFormularBeimStart) {
+      onFormularUebernommen?.();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function ladeArtikel() {
     api.artikel
@@ -107,6 +121,9 @@ export function Artikel() {
           einheit_id: form.einheit_id,
           standardpreis_cent: cent,
         });
+        if (kunden.length === 0) {
+          setZeigtKundenHinweis(true);
+        }
       }
       setZeigeFormular(false);
       ladeArtikel();
@@ -124,6 +141,15 @@ export function Artikel() {
     <div>
       <h1 className="seiten-kopf">Artikel &amp; Leistungen</h1>
       <Fehler fehler={fehler} />
+
+      {zeigtKundenHinweis && (
+        <Hinweis autoDismissMs={4000} onSchliessen={() => setZeigtKundenHinweis(false)}>
+          Artikel angelegt —{" "}
+          <button type="button" className="btn btn-leise" onClick={() => onZuKundenWechseln?.()}>
+            jetzt auch einen Kunden anlegen?
+          </button>
+        </Hinweis>
+      )}
 
       <button type="button" className="btn btn-primaer" onClick={neuFormular}>
         Neuer Artikel

@@ -1,5 +1,7 @@
-import { render, screen, waitFor } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+afterEach(cleanup);
 
 vi.mock("../api", () => ({
   api: {
@@ -46,5 +48,22 @@ describe("Artikel", () => {
     vi.mocked(api.artikel.list).mockResolvedValueOnce([]);
     render(<Artikel />);
     await waitFor(() => expect(screen.getByText(/Noch keine Artikel/)).toBeTruthy());
+  });
+
+  it("zeigt nach dem Anlegen einen Kunden-Hinweis, wenn noch keine Kunden existieren", async () => {
+    const { api } = await import("../api");
+    vi.mocked(api.kunden.list).mockResolvedValueOnce([]);
+    const onZuKundenWechseln = vi.fn();
+    render(<Artikel onZuKundenWechseln={onZuKundenWechseln} />);
+    await waitFor(() => expect(screen.getByRole("button", { name: "Neuer Artikel" })).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Neuer Artikel" }));
+    fireEvent.change(screen.getByLabelText("Bezeichnung"), { target: { value: "Beratung" } });
+    fireEvent.change(screen.getByLabelText("Standardpreis (€)"), { target: { value: "50,00" } });
+    fireEvent.click(screen.getByRole("button", { name: "Speichern" }));
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: /jetzt auch einen Kunden anlegen/ })).toBeTruthy(),
+    );
+    fireEvent.click(screen.getByRole("button", { name: /jetzt auch einen Kunden anlegen/ }));
+    expect(onZuKundenWechseln).toHaveBeenCalledTimes(1);
   });
 });

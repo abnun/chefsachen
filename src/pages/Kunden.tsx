@@ -6,6 +6,9 @@ import type { Reiter } from "./KundeDetail";
 
 interface KundenProps {
   onOeffnen: (id: string, startReiter?: Reiter) => void;
+  zeigeFormularBeimStart?: boolean;
+  onFormularUebernommen?: () => void;
+  onZuArtikelWechseln?: () => void;
 }
 
 const KUNDE_TYP_LABEL: Record<string, string> = {
@@ -37,16 +40,34 @@ const KUNDE_NEU_LEER: KundeNeu = {
  * eine Zeile ruft `onOeffnen(id)` — die eigentliche Detail-Navigation ist
  * Aufgabe der Eltern-Komponente (App.tsx), nicht dieser Seite.
  */
-export function Kunden({ onOeffnen }: KundenProps) {
+export function Kunden({
+  onOeffnen,
+  zeigeFormularBeimStart,
+  onFormularUebernommen,
+  onZuArtikelWechseln,
+}: KundenProps) {
   const [kunden, setKunden] = useState<Kunde[]>([]);
   const [suche, setSuche] = useState("");
   const [leerHinweisVersteckt, setLeerHinweisVersteckt] = useState(false);
   const [neuerKundeId, setNeuerKundeId] = useState<string | null>(null);
   const [zeigtAdressHinweis, setZeigtAdressHinweis] = useState(false);
   const [fehler, setFehler] = useState<AppFehler | null>(null);
-  const [zeigeFormular, setZeigeFormular] = useState(false);
+  const [zeigeFormular, setZeigeFormular] = useState(zeigeFormularBeimStart ?? false);
   const [neuerKunde, setNeuerKunde] = useState<KundeNeu>(KUNDE_NEU_LEER);
   const [formFehler, setFormFehler] = useState<AppFehler | null>(null);
+  const [artikelLeer, setArtikelLeer] = useState(false);
+  const [zeigtArtikelHinweis, setZeigtArtikelHinweis] = useState(false);
+
+  useEffect(() => {
+    if (zeigeFormularBeimStart) {
+      onFormularUebernommen?.();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    api.artikel.list().then((liste) => setArtikelLeer(liste.length === 0)).catch(() => {});
+  }, []);
 
   useEffect(() => {
     const timeout = setTimeout(() => {
@@ -71,6 +92,9 @@ export function Kunden({ onOeffnen }: KundenProps) {
       setKunden(liste);
       setNeuerKundeId(erstellt.id);
       setZeigtAdressHinweis(true);
+      if (artikelLeer) {
+        setZeigtArtikelHinweis(true);
+      }
     } catch (e) {
       setFormFehler(e as AppFehler);
     }
@@ -95,6 +119,15 @@ export function Kunden({ onOeffnen }: KundenProps) {
             onClick={() => onOeffnen(neuerKundeId, "adressen")}
           >
             jetzt Adresse und Ansprechpartner ergänzen?
+          </button>
+        </Hinweis>
+      )}
+
+      {zeigtArtikelHinweis && (
+        <Hinweis autoDismissMs={4000} onSchliessen={() => setZeigtArtikelHinweis(false)}>
+          Kunde angelegt —{" "}
+          <button type="button" className="btn btn-leise" onClick={() => onZuArtikelWechseln?.()}>
+            jetzt auch einen Artikel anlegen?
           </button>
         </Hinweis>
       )}
