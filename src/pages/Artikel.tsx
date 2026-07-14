@@ -9,6 +9,7 @@ import {
   type Kundenpreis,
 } from "../api";
 import { Fehler } from "../components/Fehler";
+import { Hinweis } from "../components/Hinweis";
 import { formatCent, parseEuro } from "../geld";
 
 const ARTIKEL_NEU_LEER = {
@@ -36,6 +37,7 @@ export function Artikel() {
   const [preisFehlerText, setPreisFehlerText] = useState<string | null>(null);
   const [formFehler, setFormFehler] = useState<AppFehler | null>(null);
   const [aufgeklappt, setAufgeklappt] = useState<string | null>(null);
+  const [leerHinweisVersteckt, setLeerHinweisVersteckt] = useState(false);
 
   function ladeArtikel() {
     api.artikel
@@ -180,6 +182,12 @@ export function Artikel() {
           </div>
           <button type="submit" className="btn btn-primaer">Speichern</button>
         </form>
+      )}
+
+      {artikel.length === 0 && !leerHinweisVersteckt && (
+        <Hinweis onSchliessen={() => setLeerHinweisVersteckt(true)}>
+          Noch keine Artikel oder Leistungen — leg direkt los.
+        </Hinweis>
       )}
 
       <table className="tabelle">

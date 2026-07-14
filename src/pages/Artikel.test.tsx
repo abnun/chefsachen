@@ -40,4 +40,11 @@ describe("Artikel", () => {
     expect(screen.getByText("Std")).toBeTruthy();
     expect(screen.getByText("95,50 €")).toBeTruthy();
   });
+
+  it("zeigt den Leerzustand-Hinweis, wenn keine Artikel vorhanden sind", async () => {
+    const { api } = await import("../api");
+    vi.mocked(api.artikel.list).mockResolvedValueOnce([]);
+    render(<Artikel />);
+    await waitFor(() => expect(screen.getByText(/Noch keine Artikel/)).toBeTruthy());
+  });
 });
