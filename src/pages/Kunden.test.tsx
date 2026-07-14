@@ -1,7 +1,21 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 afterEach(cleanup);
+
+// Verhindert, dass ein von einem Test noch offenes mockResolvedValueOnce(...)
+// (z. B. im Leerzustand-Test ungenutzt, da der Leerzustand bereits durch den
+// initialen State erfüllt ist, bevor der 300ms-Debounce feuert) in einen
+// nachfolgenden Test durchsickert.
+beforeEach(async () => {
+  const { api } = await import("../api");
+  vi.mocked(api.kunden.list).mockReset();
+  vi.mocked(api.kunden.list).mockResolvedValue([
+    { id: "1", typ: "firma", name: "ACME GmbH", kundennummer: "KD-0001",
+      zahlungsziel_tage: 14, notizen: "", ust_idnr: "", email: "",
+      leitweg_id: "", kaeuferreferenz: "", hat_adresse: false },
+  ]);
+});
 
 vi.mock("../api", () => ({
   api: {
@@ -44,16 +58,6 @@ describe("Kunden", () => {
   });
 
   it("zeigt nach dem Anlegen einen Hinweis mit Link zu Adresse/Ansprechpartner", async () => {
-    // Verhindert, dass ein aus dem vorherigen Test noch offenes
-    // mockResolvedValueOnce([]) (dort ungenutzt, da der Leerzustand bereits
-    // durch den initialen State erfüllt ist) diesen Test verfälscht.
-    const { api } = await import("../api");
-    vi.mocked(api.kunden.list).mockReset();
-    vi.mocked(api.kunden.list).mockResolvedValue([
-      { id: "1", typ: "firma", name: "ACME GmbH", kundennummer: "KD-0001",
-        zahlungsziel_tage: 14, notizen: "", ust_idnr: "", email: "",
-        leitweg_id: "", kaeuferreferenz: "", hat_adresse: false },
-    ]);
     const onOeffnen = vi.fn();
     render(<Kunden onOeffnen={onOeffnen} />);
     await waitFor(() => expect(screen.getByText("ACME GmbH")).toBeTruthy());
