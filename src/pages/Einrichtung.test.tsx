@@ -45,4 +45,9 @@ describe("Einrichtung", () => {
     render(<Einrichtung onFertig={() => {}} />);
     await waitFor(() => expect(screen.getByText("Firmendaten")).toBeTruthy());
   });
+
+  it("zeigt die Fortschrittsanzeige im ersten Schritt", async () => {
+    render(<Einrichtung onFertig={() => {}} />);
+    await waitFor(() => expect(screen.getByText("Schritt 1 von 5")).toBeTruthy());
+  });
 });

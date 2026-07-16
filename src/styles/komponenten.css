@@ -339,3 +339,10 @@ label.feld textarea {
   vertical-align: middle;
   color: var(--st-storniert-text);
 }
+
+/* Einrichtungs-Fortschritt */
+.schritt-fortschritt {
+  font-size: var(--text-s);
+  color: var(--text-leise);
+  margin: 0 0 var(--abstand-s);
+}

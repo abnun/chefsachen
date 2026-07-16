@@ -8,7 +8,7 @@ interface EinrichtungProps {
   onFertig: () => void;
 }
 
-type Schritt = 1 | 2 | 3 | 4;
+type Schritt = 1 | 2 | 3 | 4 | 5;
 
 /**
  * Vier-Schritte-Assistent für die Ersteinrichtung: Firmendaten, Logo
@@ -72,7 +72,9 @@ export function Einrichtung({ onFertig }: EinrichtungProps) {
 
       {schritt === 1 && (
         <section className="karte">
+          <p className="schritt-fortschritt">Schritt 1 von 5</p>
           <h2>Firmendaten</h2>
+          <p>Diese Angaben erscheinen später auf deinen Angeboten und Rechnungen.</p>
           <div className="feld">
             <label>
               Name
@@ -140,6 +142,7 @@ export function Einrichtung({ onFertig }: EinrichtungProps) {
 
       {schritt === 2 && (
         <section className="karte">
+          <p className="schritt-fortschritt">Schritt 2 von 5</p>
           <h2>Logo</h2>
           <p>Optional — kann auch später in den Einstellungen hinzugefügt werden.</p>
           <button type="button" className="btn" onClick={logoWaehlen}>
@@ -159,6 +162,7 @@ export function Einrichtung({ onFertig }: EinrichtungProps) {
 
       {schritt === 3 && (
         <section className="karte">
+          <p className="schritt-fortschritt">Schritt 3 von 5</p>
           <h2>Kleinunternehmer-Bestätigung</h2>
           <p>
             Nach § 19 UStG müssen Kleinunternehmer keine Umsatzsteuer ausweisen, solange der
@@ -186,7 +190,9 @@ export function Einrichtung({ onFertig }: EinrichtungProps) {
 
       {schritt === 4 && (
         <section className="karte">
+          <p className="schritt-fortschritt">Schritt 4 von 5</p>
           <h2>Nummernkreise</h2>
+          <p>Legt fest, wie deine Kunden-, Artikel-, Angebots- und Rechnungsnummern aufgebaut sind — änderbar in den Einstellungen.</p>
           <p>Die vorbelegten Formate können später jederzeit in den Einstellungen angepasst werden.</p>
           <ul>
             <li>Kunden: KD-0001</li>
