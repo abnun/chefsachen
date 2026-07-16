@@ -37,7 +37,17 @@ function App() {
   }
 
   if (!firma.eingerichtet) {
-    return <Einrichtung onFertig={() => api.firma.get().then(setFirma)} />;
+    return (
+      <Einrichtung
+        onFertig={(zielSeite) => {
+          api.firma.get().then(setFirma);
+          if (zielSeite) {
+            setSeite(zielSeite);
+            setFormularBeimStartZiel(zielSeite);
+          }
+        }}
+      />
+    );
   }
 
   function navigiere(neueSeite: Seite) {

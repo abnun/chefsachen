@@ -5,7 +5,7 @@ import { api, istValidierungsfehler, type AppFehler, type Firma } from "../api";
 import { Fehler } from "../components/Fehler";
 
 interface EinrichtungProps {
-  onFertig: () => void;
+  onFertig: (zielSeite?: "kunden" | "artikel") => void;
 }
 
 type Schritt = 1 | 2 | 3 | 4 | 5;
@@ -58,7 +58,8 @@ export function Einrichtung({ onFertig }: EinrichtungProps) {
       if (logoBytes) {
         await api.firma.logoSet(logoBytes);
       }
-      onFertig();
+      setSchritt(5);
+      setSpeichert(false);
     } catch (e) {
       setFehler(e as AppFehler);
       setSpeichert(false);
@@ -208,6 +209,22 @@ export function Einrichtung({ onFertig }: EinrichtungProps) {
               Einrichtung abschließen
             </button>
           </div>
+        </section>
+      )}
+
+      {schritt === 5 && (
+        <section className="karte">
+          <h2>Fertig!</h2>
+          <p>Womit möchtest du starten?</p>
+          <div className="werkzeugleiste">
+            <button type="button" className="btn btn-primaer" onClick={() => onFertig("kunden")}>
+              Ersten Kunden anlegen
+            </button>
+            <button type="button" className="btn btn-primaer" onClick={() => onFertig("artikel")}>
+              Ersten Artikel anlegen
+            </button>
+          </div>
+          <p>Firmendaten und Nummernkreise kannst du jederzeit in den Einstellungen ändern.</p>
         </section>
       )}
     </main>

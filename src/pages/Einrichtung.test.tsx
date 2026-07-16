@@ -1,5 +1,7 @@
-import { render, screen, waitFor } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+afterEach(cleanup);
 
 vi.mock("../api", () => ({
   api: {
@@ -49,5 +51,31 @@ describe("Einrichtung", () => {
   it("zeigt die Fortschrittsanzeige im ersten Schritt", async () => {
     render(<Einrichtung onFertig={() => {}} />);
     await waitFor(() => expect(screen.getByText("Schritt 1 von 5")).toBeTruthy());
+  });
+
+  it("zeigt nach Nummernkreise einen Abschluss-Schritt mit zwei Zielen", async () => {
+    render(<Einrichtung onFertig={() => {}} />);
+    await waitFor(() => expect(screen.getByText("Firmendaten")).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Weiter" }));
+    fireEvent.click(screen.getByRole("button", { name: "Weiter" }));
+    fireEvent.click(screen.getByRole("button", { name: "Weiter" }));
+    fireEvent.click(screen.getByRole("button", { name: "Einrichtung abschließen" }));
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Ersten Kunden anlegen" })).toBeTruthy(),
+    );
+    expect(screen.getByRole("button", { name: "Ersten Artikel anlegen" })).toBeTruthy();
+  });
+
+  it("ruft onFertig mit zielSeite \"kunden\" auf, wenn 'Ersten Kunden anlegen' geklickt wird", async () => {
+    const onFertig = vi.fn();
+    render(<Einrichtung onFertig={onFertig} />);
+    await waitFor(() => expect(screen.getByText("Firmendaten")).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Weiter" }));
+    fireEvent.click(screen.getByRole("button", { name: "Weiter" }));
+    fireEvent.click(screen.getByRole("button", { name: "Weiter" }));
+    fireEvent.click(screen.getByRole("button", { name: "Einrichtung abschließen" }));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Ersten Kunden anlegen" })).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Ersten Kunden anlegen" }));
+    await waitFor(() => expect(onFertig).toHaveBeenCalledWith("kunden"));
   });
 });
