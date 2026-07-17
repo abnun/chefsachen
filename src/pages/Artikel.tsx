@@ -337,24 +337,26 @@ function KundenpreiseBereich({ artikelId, kunden, standardpreisCent, onAenderung
   }
 
   return (
-    <div className="kundenpreis-panel">
-      <h4>Kundenpreise — Ausnahmen vom Standardpreis ({formatCent(standardpreisCent)})</h4>
-      <Fehler fehler={fehler} />
-      {kundenpreise.map((kp) => {
-        const badge = abweichungsBadge(standardpreisCent, kp.preis_cent);
-        return (
-          <div className="kundenpreis-zeile" key={kp.id}>
-            <span>
-              {kundeName(kp.kunde_id)}
-              {kp.gueltig_ab && <span className="kundenpreis-gueltig-ab">ab {kp.gueltig_ab}</span>}
-            </span>
-            <span>
-              <span className="kundenpreis-preis">{formatCent(kp.preis_cent)}</span>
-              {badge && <span className={`kundenpreis-badge ${badge.klasse}`}>{badge.text}</span>}
-            </span>
-          </div>
-        );
-      })}
+    <div className="kundenpreis-bereich">
+      <div className="kundenpreis-liste-box">
+        <h4>Kundenpreise — Ausnahmen vom Standardpreis ({formatCent(standardpreisCent)})</h4>
+        <Fehler fehler={fehler} />
+        {kundenpreise.map((kp) => {
+          const badge = abweichungsBadge(standardpreisCent, kp.preis_cent);
+          return (
+            <div className="kundenpreis-zeile" key={kp.id}>
+              <span>
+                {kundeName(kp.kunde_id)}
+                {kp.gueltig_ab && <span className="kundenpreis-gueltig-ab">ab {kp.gueltig_ab}</span>}
+              </span>
+              <span>
+                <span className="kundenpreis-preis">{formatCent(kp.preis_cent)}</span>
+                {badge && <span className={`kundenpreis-badge ${badge.klasse}`}>{badge.text}</span>}
+              </span>
+            </div>
+          );
+        })}
+      </div>
       <form
         className="kundenpreis-formular"
         onSubmit={(e) => {

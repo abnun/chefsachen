@@ -347,16 +347,22 @@ label.feld textarea {
   margin: 0 0 var(--abstand-s);
 }
 
-/* Kundenpreise-Panel (Artikel-Seite) */
-.kundenpreis-panel {
+/* Kundenpreise-Bereich (Artikel-Seite): zwei getrennte Boxen — Liste, dann Formular */
+.kundenpreis-bereich {
   margin: var(--abstand-s) 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--abstand-l);
+}
+
+.kundenpreis-liste-box {
   padding: var(--abstand-m) var(--abstand-l);
   background: var(--bg-gedaempft);
   border-left: 3px solid var(--akzent);
   border-radius: 0 var(--radius-m) var(--radius-m) 0;
 }
 
-.kundenpreis-panel h4 {
+.kundenpreis-liste-box h4 {
   margin: 0 0 var(--abstand-s);
   font-size: var(--text-s);
   font-weight: 600;
@@ -408,14 +414,17 @@ label.feld textarea {
 }
 
 .kundenpreis-formular {
-  margin-top: var(--abstand-m);
-  padding-top: var(--abstand-m);
-  border-top: 1px solid var(--rand);
+  padding: var(--abstand-m) var(--abstand-l);
+  background: var(--flaeche);
+  border: 1px solid var(--rand-stark);
+  border-radius: var(--radius-m);
 }
 
 .kundenpreis-formular-titel {
-  margin: 0 0 var(--abstand-s);
+  margin: 0 0 var(--abstand-m);
   font-size: var(--text-s);
   font-weight: 600;
   color: var(--text-leise);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
 }
