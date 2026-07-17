@@ -80,18 +80,19 @@ function StammdatenReiter({ kunde, onGespeichert }: StammdatenReiterProps) {
 |---|---|---|
 | `Kunden.tsx` | Neuanlage | **Ausgenommen** — der bestehende Onboarding-Banner („jetzt Adresse ergänzen?") erscheint nach JEDER Kundenanlage unbedingt, deckt den Fall also vollständig ab |
 | `KundeDetail.tsx` (Stammdaten) | Speichern | „Kunde 'ACME GmbH' gespeichert" (ersetzt bestehendes ad-hoc `Gespeichert.`) |
-| `KundeDetail.tsx` (Adressen) | Speichern / Löschen | „Adresse gespeichert" / „Adresse gelöscht" |
-| `KundeDetail.tsx` (Ansprechpartner) | Speichern / Löschen | „Ansprechpartner 'Max Mustermann' gespeichert" / „... gelöscht" |
+| `KundeDetail.tsx` (Adressen) | Anlegen / Bearbeiten / Löschen | „Adresse angelegt" / „Adresse gespeichert" / „Adresse gelöscht" — `speichern()` behandelt beide Fälle in einer Funktion, unterscheidbar über `form.id` (leer = Neuanlage) |
+| `KundeDetail.tsx` (Ansprechpartner) | Anlegen / Bearbeiten / Löschen | „Ansprechpartner 'Max Mustermann' angelegt" / „... gespeichert" / „... gelöscht" — ebenfalls über `form.id` unterschieden |
 | `Artikel.tsx` | Neuanlage | **Bedingt ausgenommen** — siehe Hinweis unten, der bestehende Onboarding-Banner erscheint nur, wenn noch keine Kunden existieren |
 | `Artikel.tsx` | Bearbeiten | „Artikel 'Beratung' gespeichert" |
-| `Artikel.tsx` (Kundenpreise) | Speichern | „Kundenpreis gespeichert" |
-| `Angebote.tsx` | Neuanlage | „Angebot angelegt" |
-| `Rechnungen.tsx` | Neuanlage | „Rechnung angelegt" |
+| `Artikel.tsx` (Kundenpreise) | Anlegen | „Kundenpreis angelegt" — das Formular dort ist ausschließlich Neuanlage, es gibt keine Bearbeitung bestehender Kundenpreise |
+| `Angebote.tsx` | Neuanlage | **Ausgenommen** — siehe Hinweis unten |
+| `Rechnungen.tsx` | Neuanlage | **Ausgenommen** — siehe Hinweis unten |
 | `BelegEditor.tsx` | Position löschen | „Position gelöscht" |
 | `BelegEditor.tsx` | Stornieren | „Rechnung storniert" |
 | `Einstellungen.tsx` (Firma) | Speichern | „Firmendaten gespeichert" (ersetzt bestehendes ad-hoc `Gespeichert.`) |
-| `Einstellungen.tsx` (Einheiten) | Anlegen / Löschen | „Einheit 'Stunde' angelegt" / „... gelöscht" |
+| `Einstellungen.tsx` (Einheiten) | Anlegen / Bearbeiten / Löschen | „Einheit 'Stunde' angelegt" / „Einheit 'Stunde' gespeichert" / „... gelöscht" — `speichern()` behandelt Anlegen UND Bearbeiten in einer Funktion (unterscheidbar über `bearbeiteId`), Text entsprechend wählen |
 | `Einstellungen.tsx` (Nummernkreise) | Speichern | „Nummernkreis gespeichert" |
+| `Einstellungen.tsx` (Textbausteine) | Speichern | „Textbaustein gespeichert" — pro Textfeld ein eigener `speichern(key)`-Aufruf, generischer Text ohne Bezeichnung des konkreten Feldes (z. B. „Fußtext Angebot") reicht |
 
 **Wichtiger Sonderfall — Artikel-Neuanlage:** Im Gegensatz zum Kunden-Onboarding-Banner (der nach JEDER Kundenanlage unbedingt erscheint) ist der Artikel-Onboarding-Banner (`zeigtKundenHinweis`, „jetzt auch einen Kunden anlegen?") NUR bedingt sichtbar — er erscheint ausschließlich, wenn zum Zeitpunkt der Artikel-Anlage noch keine Kunden existieren (`kunden.length === 0`). Existieren bereits Kunden, würde eine pauschale Ausnahme die Artikel-Neuanlage komplett ohne Feedback lassen — genau die Lücke, die dieser Plan schließen soll. Deshalb: In `Artikel.tsx`s `speichern()`-Funktion, im Neuanlage-Zweig, wird der generische Erfolgs-Banner NUR dann NICHT gezeigt, wenn der Onboarding-Banner in diesem Aufruf tatsächlich gesetzt wurde:
 
@@ -102,6 +103,8 @@ if (kunden.length === 0) {
   zeigen(`Artikel „${form.bezeichnung}" angelegt`);
 }
 ```
+
+**Wichtiger Sonderfall — Angebote/Rechnungen-Neuanlage:** `Angebote.tsx`s und `Rechnungen.tsx`s `anlegen()`-Funktionen rufen nach erfolgreichem `api.belege.create()` sofort `onOeffnen(beleg.id)` auf, was laut `App.tsx`s Routing unmittelbar von der Listen-Ansicht zum `BelegEditor` des neu angelegten Dokuments wechselt — die aufrufende Komponente wird dabei ausgehängt. Ein `zeigen()`-Aufruf davor wäre praktisch wirkungslos: Der Banner hätte keine Zeit, sichtbar zu werden, bevor die Seite wechselt. Ein Feedback-Mechanismus, der den „gerade angelegt"-Zustand über die Navigation hinweg zum `BelegEditor` durchreicht, wäre möglich, aber unverhältnismäßiger Mehraufwand für einen Fall, der ohnehin schon eine starke implizite Bestätigung hat: Der Nutzer landet direkt auf dem frisch erstellten Dokument mit eigener Nummer, in der Bearbeitungsansicht. Deshalb: **kein neuer Banner für diesen Fall**, `anlegen()` bleibt unverändert.
 
 ## Textkonventionen
 
