@@ -557,8 +557,16 @@ An `src/pages/Artikel.test.tsx` anhängen. Diese Tests klappen den Kundenpreise-
     await waitFor(() =>
       expect(screen.getByText("Kundenpreise — Ausnahmen vom Standardpreis (95,50 €)")).toBeTruthy(),
     );
-    expect(screen.getByText("ACME GmbH")).toBeTruthy();
-    expect(screen.getByText("65,00 €")).toBeTruthy();
+    // Kundenname und -preis hängen von zwei unabhängig auflösenden Promises ab
+    // (api.kunden.list und api.artikel.kundenpreise) — deshalb eigenes waitFor je
+    // Assertion statt sich auf das Timing des obigen waitFor zu verlassen (das nur
+    // von standardpreisCent abhängt, einer synchron verfügbaren Prop, und daher
+    // schon vor dem Laden der beiden Listen erfüllt sein kann).
+    // { selector: "span" } grenzt außerdem gegen die gleichnamige <option> im
+    // Kunde-Dropdown desselben Panels ab — sonst meldet getByText "Found multiple
+    // elements", da <option>-Text ebenfalls zu getByText passt.
+    await waitFor(() => expect(screen.getByText("ACME GmbH", { selector: "span" })).toBeTruthy());
+    await waitFor(() => expect(screen.getByText("65,00 €")).toBeTruthy());
   });
 
   it("zeigt das Gültig-ab-Datum als Zusatz, wenn gesetzt", async () => {
@@ -1058,7 +1066,11 @@ An `src/pages/Artikel.test.tsx` anhängen:
     render(<Artikel />);
     await waitFor(() => expect(screen.getByText("Beratung")).toBeTruthy());
     fireEvent.click(screen.getByRole("button", { name: "Kundenpreise" }));
-    await waitFor(() => expect(screen.getByLabelText("Kunde")).toBeTruthy());
+    // Explizit auf die geladene <option> warten, nicht nur auf das <select> selbst:
+    // Das <select> existiert schon synchron beim Mount, bevor api.kunden.list
+    // aufgelöst hat — ein fireEvent.change auf "k1" liefe ansonsten ins Leere,
+    // solange die passende <option value="k1"> noch nicht im DOM ist.
+    await waitFor(() => expect(screen.getByRole("option", { name: "ACME GmbH" })).toBeTruthy());
     fireEvent.change(screen.getByLabelText("Kunde"), { target: { value: "k1" } });
     fireEvent.change(screen.getByLabelText("Preis (€)"), { target: { value: "65,00" } });
     fireEvent.click(screen.getByRole("button", { name: "Speichern" }));
