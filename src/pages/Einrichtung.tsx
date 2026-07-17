@@ -61,8 +61,12 @@ export function Einrichtung({ onFertig }: EinrichtungProps) {
       setSchritt(5);
       setSpeichert(false);
     } catch (e) {
-      setFehler(e as AppFehler);
+      const appFehler = e as AppFehler;
+      setFehler(appFehler);
       setSpeichert(false);
+      if (istValidierungsfehler(appFehler)) {
+        setSchritt(1);
+      }
     }
   }
 

@@ -37,7 +37,9 @@ vi.mock("../api", () => ({
       logoSet: vi.fn().mockResolvedValue(undefined),
     },
   },
-  istValidierungsfehler: () => false,
+  istValidierungsfehler: vi.fn(
+    (e: unknown) => typeof e === "object" && e !== null && (e as { typ?: string }).typ === "validation",
+  ),
 }));
 
 import { Einrichtung } from "./Einrichtung";
@@ -77,5 +79,24 @@ describe("Einrichtung", () => {
     await waitFor(() => expect(screen.getByRole("button", { name: "Ersten Kunden anlegen" })).toBeTruthy());
     fireEvent.click(screen.getByRole("button", { name: "Ersten Kunden anlegen" }));
     await waitFor(() => expect(onFertig).toHaveBeenCalledWith("kunden"));
+  });
+
+  it("springt bei einem Validierungsfehler beim Abschließen zurück zu Schritt 1 und zeigt den Feldfehler", async () => {
+    const { api } = await import("../api");
+    vi.mocked(api.firma.save).mockRejectedValueOnce({
+      typ: "validation",
+      feld: "steuernummer",
+      meldung: "Steuernummer oder USt-IdNr. ist erforderlich",
+    });
+    render(<Einrichtung onFertig={() => {}} />);
+    await waitFor(() => expect(screen.getByText("Firmendaten")).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Weiter" }));
+    fireEvent.click(screen.getByRole("button", { name: "Weiter" }));
+    fireEvent.click(screen.getByRole("button", { name: "Weiter" }));
+    fireEvent.click(screen.getByRole("button", { name: "Einrichtung abschließen" }));
+    await waitFor(() =>
+      expect(screen.getByText("Steuernummer oder USt-IdNr. ist erforderlich")).toBeTruthy(),
+    );
+    expect(screen.getByText("Schritt 1 von 5")).toBeTruthy();
   });
 });
