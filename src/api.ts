@@ -50,6 +50,7 @@ export interface Artikel {
   beschreibung: string;
   einheit_id: string;
   standardpreis_cent: number;
+  kundenpreise_anzahl: number;
 }
 export interface Kundenpreis {
   id: string;
@@ -174,7 +175,7 @@ export const api = {
   },
   artikel: {
     list: (suche?: string) => invoke<Artikel[]>("artikel_list", { suche: suche ?? null }),
-    create: (a: Omit<Artikel, "id" | "artikelnummer">) => invoke<Artikel>("artikel_create", { daten: a }),
+    create: (a: Omit<Artikel, "id" | "artikelnummer" | "kundenpreise_anzahl">) => invoke<Artikel>("artikel_create", { daten: a }),
     update: (a: Artikel) => invoke<Artikel>("artikel_update", { artikel: a }),
     delete: (id: string) => invoke<void>("artikel_delete", { id }),
     kundenpreise: (artikelId: string) => invoke<Kundenpreis[]>("kundenpreis_list", { artikelId }),

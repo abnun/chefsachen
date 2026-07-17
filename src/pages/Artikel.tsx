@@ -109,6 +109,7 @@ export function Artikel({ zeigeFormularBeimStart, onFormularUebernommen, onZuKun
         await api.artikel.update({
           id: bearbeiteId,
           artikelnummer: artikel.find((a) => a.id === bearbeiteId)?.artikelnummer ?? "",
+          kundenpreise_anzahl: artikel.find((a) => a.id === bearbeiteId)?.kundenpreise_anzahl ?? 0,
           bezeichnung: form.bezeichnung,
           beschreibung: form.beschreibung,
           einheit_id: form.einheit_id,

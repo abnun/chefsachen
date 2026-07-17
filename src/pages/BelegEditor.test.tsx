@@ -89,7 +89,7 @@ describe("BelegEditor – Position hinzufügen", () => {
     vi.mocked(api.artikel.list).mockResolvedValue([
       {
         id: "a1", artikelnummer: "ART-0001", bezeichnung: "Beratung",
-        beschreibung: "", einheit_id: "e1", standardpreis_cent: 9550,
+        beschreibung: "", einheit_id: "e1", standardpreis_cent: 9550, kundenpreise_anzahl: 0,
       },
     ]);
 

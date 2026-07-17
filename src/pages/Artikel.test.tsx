@@ -14,6 +14,7 @@ vi.mock("../api", () => ({
           beschreibung: "",
           einheit_id: "e1",
           standardpreis_cent: 9550,
+          kundenpreise_anzahl: 0,
         },
       ]),
       create: vi.fn(),
