@@ -255,6 +255,7 @@ export function Artikel({ zeigeFormularBeimStart, onFormularUebernommen, onZuKun
                       artikelId={a.id}
                       kunden={kunden}
                       standardpreisCent={a.standardpreis_cent}
+                      onAenderung={ladeArtikel}
                     />
                   </td>
                 </tr>
@@ -271,6 +272,7 @@ interface KundenpreiseBereichProps {
   artikelId: string;
   kunden: Kunde[];
   standardpreisCent: number;
+  onAenderung: () => void;
 }
 
 function abweichungsBadge(standardpreisCent: number, kundenpreisCent: number): { text: string; klasse: "guenstiger" | "teurer" } | null {
@@ -284,7 +286,7 @@ function abweichungsBadge(standardpreisCent: number, kundenpreisCent: number): {
   return { text: `${vorzeichen}${Math.abs(prozent)}%`, klasse };
 }
 
-function KundenpreiseBereich({ artikelId, kunden, standardpreisCent }: KundenpreiseBereichProps) {
+function KundenpreiseBereich({ artikelId, kunden, standardpreisCent, onAenderung }: KundenpreiseBereichProps) {
   const [kundenpreise, setKundenpreise] = useState<Kundenpreis[]>([]);
   const [fehler, setFehler] = useState<AppFehler | null>(null);
   const [kundeId, setKundeId] = useState("");
@@ -324,6 +326,7 @@ function KundenpreiseBereich({ artikelId, kunden, standardpreisCent }: Kundenpre
       setPreisText("");
       setGueltigAb("");
       laden();
+      onAenderung();
     } catch (e) {
       setFehler(e as AppFehler);
     }

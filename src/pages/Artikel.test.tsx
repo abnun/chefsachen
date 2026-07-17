@@ -197,4 +197,44 @@ describe("Artikel", () => {
     await waitFor(() => expect(screen.getByText("50,00 €")).toBeTruthy());
     expect(screen.queryByText(/%/)).toBeNull();
   });
+
+  it("aktualisiert die Kundenpreise-Anzahl im Button, nachdem ein neuer Kundenpreis gespeichert wurde", async () => {
+    const { api } = await import("../api");
+    vi.mocked(api.kunden.list).mockResolvedValueOnce([
+      {
+        id: "k1", typ: "firma", name: "ACME GmbH", kundennummer: "KD-0001",
+        zahlungsziel_tage: 14, notizen: "", ust_idnr: "", email: "",
+        leitweg_id: "", kaeuferreferenz: "", hat_adresse: true,
+      },
+    ]);
+    vi.mocked(api.artikel.kundenpreise).mockResolvedValueOnce([]);
+    vi.mocked(api.artikel.kundenpreisSave).mockResolvedValueOnce({
+      id: "kp1", artikel_id: "a1", kunde_id: "k1", preis_cent: 6500, gueltig_ab: null,
+    });
+    vi.mocked(api.artikel.list).mockResolvedValueOnce([
+      {
+        id: "a1", artikelnummer: "ART-0001", bezeichnung: "Beratung",
+        beschreibung: "", einheit_id: "e1", standardpreis_cent: 9550, kundenpreise_anzahl: 0,
+      },
+    ]).mockResolvedValueOnce([
+      {
+        id: "a1", artikelnummer: "ART-0001", bezeichnung: "Beratung",
+        beschreibung: "", einheit_id: "e1", standardpreis_cent: 9550, kundenpreise_anzahl: 1,
+      },
+    ]);
+    render(<Artikel />);
+    await waitFor(() => expect(screen.getByText("Beratung")).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Kundenpreise" }));
+    // Explizit auf die geladene <option> warten, nicht nur auf das <select> selbst:
+    // Das <select> existiert schon synchron beim Mount, bevor api.kunden.list
+    // aufgelöst hat — ein fireEvent.change auf "k1" liefe ansonsten ins Leere,
+    // solange die passende <option value="k1"> noch nicht im DOM ist.
+    await waitFor(() => expect(screen.getByRole("option", { name: "ACME GmbH" })).toBeTruthy());
+    fireEvent.change(screen.getByLabelText("Kunde"), { target: { value: "k1" } });
+    fireEvent.change(screen.getByLabelText("Preis (€)"), { target: { value: "65,00" } });
+    fireEvent.click(screen.getByRole("button", { name: "Speichern" }));
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Kundenpreise (1)" })).toBeTruthy(),
+    );
+  });
 });
