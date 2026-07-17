@@ -67,4 +67,23 @@ describe("Artikel", () => {
     fireEvent.click(screen.getByRole("button", { name: /jetzt auch einen Kunden anlegen/ }));
     expect(onZuKundenWechseln).toHaveBeenCalledTimes(1);
   });
+
+  it("zeigt den Kundenpreise-Button ohne Zahl, wenn keine Kundenpreise vorhanden sind", async () => {
+    render(<Artikel />);
+    await waitFor(() => expect(screen.getByText("Beratung")).toBeTruthy());
+    expect(screen.getByRole("button", { name: "Kundenpreise" })).toBeTruthy();
+  });
+
+  it("zeigt den Kundenpreise-Button mit Anzahl, wenn Kundenpreise vorhanden sind", async () => {
+    const { api } = await import("../api");
+    vi.mocked(api.artikel.list).mockResolvedValueOnce([
+      {
+        id: "a1", artikelnummer: "ART-0001", bezeichnung: "Beratung",
+        beschreibung: "", einheit_id: "e1", standardpreis_cent: 9550, kundenpreise_anzahl: 2,
+      },
+    ]);
+    render(<Artikel />);
+    await waitFor(() => expect(screen.getByText("Beratung")).toBeTruthy());
+    expect(screen.getByRole("button", { name: "Kundenpreise (2)" })).toBeTruthy();
+  });
 });

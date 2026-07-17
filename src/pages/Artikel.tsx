@@ -244,7 +244,7 @@ export function Artikel({ zeigeFormularBeimStart, onFormularUebernommen, onZuKun
                     className="btn btn-leise"
                     onClick={() => setAufgeklappt(aufgeklappt === a.id ? null : a.id)}
                   >
-                    Kundenpreise
+                    {a.kundenpreise_anzahl === 0 ? "Kundenpreise" : `Kundenpreise (${a.kundenpreise_anzahl})`}
                   </button>
                 </td>
               </tr>
