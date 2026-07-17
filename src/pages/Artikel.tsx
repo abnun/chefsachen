@@ -273,6 +273,17 @@ interface KundenpreiseBereichProps {
   standardpreisCent: number;
 }
 
+function abweichungsBadge(standardpreisCent: number, kundenpreisCent: number): { text: string; klasse: "guenstiger" | "teurer" } | null {
+  if (standardpreisCent === 0) return null;
+  const prozent = Math.round(((kundenpreisCent - standardpreisCent) / standardpreisCent) * 100);
+  // 0% (Kundenpreis exakt gleich Standardpreis) wird wie "teurer" behandelt — es ist
+  // schlicht keine Verbilligung, eine dritte Sonderfarbe für den seltenen Gleichstand-Fall
+  // lohnt sich nicht.
+  const klasse = prozent < 0 ? "guenstiger" : "teurer";
+  const vorzeichen = prozent < 0 ? "−" : "+";
+  return { text: `${vorzeichen}${Math.abs(prozent)}%`, klasse };
+}
+
 function KundenpreiseBereich({ artikelId, kunden, standardpreisCent }: KundenpreiseBereichProps) {
   const [kundenpreise, setKundenpreise] = useState<Kundenpreis[]>([]);
   const [fehler, setFehler] = useState<AppFehler | null>(null);
@@ -326,15 +337,21 @@ function KundenpreiseBereich({ artikelId, kunden, standardpreisCent }: Kundenpre
     <div className="kundenpreis-panel">
       <h4>Kundenpreise — Ausnahmen vom Standardpreis ({formatCent(standardpreisCent)})</h4>
       <Fehler fehler={fehler} />
-      {kundenpreise.map((kp) => (
-        <div className="kundenpreis-zeile" key={kp.id}>
-          <span>
-            {kundeName(kp.kunde_id)}
-            {kp.gueltig_ab && <span className="kundenpreis-gueltig-ab">ab {kp.gueltig_ab}</span>}
-          </span>
-          <span className="kundenpreis-preis">{formatCent(kp.preis_cent)}</span>
-        </div>
-      ))}
+      {kundenpreise.map((kp) => {
+        const badge = abweichungsBadge(standardpreisCent, kp.preis_cent);
+        return (
+          <div className="kundenpreis-zeile" key={kp.id}>
+            <span>
+              {kundeName(kp.kunde_id)}
+              {kp.gueltig_ab && <span className="kundenpreis-gueltig-ab">ab {kp.gueltig_ab}</span>}
+            </span>
+            <span>
+              <span className="kundenpreis-preis">{formatCent(kp.preis_cent)}</span>
+              {badge && <span className={`kundenpreis-badge ${badge.klasse}`}>{badge.text}</span>}
+            </span>
+          </div>
+        );
+      })}
       <form
         onSubmit={(e) => {
           e.preventDefault();

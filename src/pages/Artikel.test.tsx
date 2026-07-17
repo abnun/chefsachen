@@ -134,4 +134,67 @@ describe("Artikel", () => {
     fireEvent.click(screen.getByRole("button", { name: "Kundenpreise" }));
     await waitFor(() => expect(screen.getByText("ab 2026-01-01")).toBeTruthy());
   });
+
+  it("zeigt eine günstiger-Badge, wenn der Kundenpreis niedriger als der Standardpreis ist", async () => {
+    const { api } = await import("../api");
+    vi.mocked(api.kunden.list).mockResolvedValueOnce([
+      {
+        id: "k1", typ: "firma", name: "ACME GmbH", kundennummer: "KD-0001",
+        zahlungsziel_tage: 14, notizen: "", ust_idnr: "", email: "",
+        leitweg_id: "", kaeuferreferenz: "", hat_adresse: true,
+      },
+    ]);
+    vi.mocked(api.artikel.kundenpreise).mockResolvedValueOnce([
+      { id: "kp1", artikel_id: "a1", kunde_id: "k1", preis_cent: 6500, gueltig_ab: null },
+    ]);
+    render(<Artikel />);
+    await waitFor(() => expect(screen.getByText("Beratung")).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Kundenpreise" }));
+    // Standardpreis 95,50 € -> 65,00 € ist rund 32% günstiger.
+    await waitFor(() => expect(screen.getByText("−32%")).toBeTruthy());
+  });
+
+  it("zeigt eine teurer-Badge, wenn der Kundenpreis höher als der Standardpreis ist", async () => {
+    const { api } = await import("../api");
+    vi.mocked(api.kunden.list).mockResolvedValueOnce([
+      {
+        id: "k1", typ: "firma", name: "ACME GmbH", kundennummer: "KD-0001",
+        zahlungsziel_tage: 14, notizen: "", ust_idnr: "", email: "",
+        leitweg_id: "", kaeuferreferenz: "", hat_adresse: true,
+      },
+    ]);
+    vi.mocked(api.artikel.kundenpreise).mockResolvedValueOnce([
+      { id: "kp1", artikel_id: "a1", kunde_id: "k1", preis_cent: 12000, gueltig_ab: null },
+    ]);
+    render(<Artikel />);
+    await waitFor(() => expect(screen.getByText("Beratung")).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Kundenpreise" }));
+    // Standardpreis 95,50 € -> 120,00 € ist rund 26% teurer.
+    await waitFor(() => expect(screen.getByText("+26%")).toBeTruthy());
+  });
+
+  it("zeigt keine Abweichungs-Badge, wenn der Standardpreis 0 ist", async () => {
+    const { api } = await import("../api");
+    vi.mocked(api.artikel.list).mockResolvedValueOnce([
+      {
+        id: "a1", artikelnummer: "ART-0001", bezeichnung: "Gratis-Beratung",
+        beschreibung: "", einheit_id: "e1", standardpreis_cent: 0, kundenpreise_anzahl: 1,
+      },
+    ]);
+    vi.mocked(api.kunden.list).mockResolvedValueOnce([
+      {
+        id: "k1", typ: "firma", name: "ACME GmbH", kundennummer: "KD-0001",
+        zahlungsziel_tage: 14, notizen: "", ust_idnr: "", email: "",
+        leitweg_id: "", kaeuferreferenz: "", hat_adresse: true,
+      },
+    ]);
+    vi.mocked(api.artikel.kundenpreise).mockResolvedValueOnce([
+      { id: "kp1", artikel_id: "a1", kunde_id: "k1", preis_cent: 5000, gueltig_ab: null },
+    ]);
+    render(<Artikel />);
+    await waitFor(() => expect(screen.getByText("Gratis-Beratung")).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Kundenpreise (1)" }));
+    await waitFor(() => expect(screen.getByText("50,00 €")).toBeTruthy());
+    expect(screen.queryByText(/%/)).toBeNull();
+  });
 });
