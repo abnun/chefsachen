@@ -248,6 +248,8 @@ export function Kunden({
         </Hinweis>
       )}
 
+      {kunden.length === 0 && suche !== "" && <p>Keine Kunden gefunden für „{suche}".</p>}
+
       <table className="tabelle tabelle-klickbar">
         <thead>
           <tr>

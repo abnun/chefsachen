@@ -87,6 +87,15 @@ describe("Kunden", () => {
     expect(onZuArtikelWechseln).toHaveBeenCalledTimes(1);
   });
 
+  it("zeigt einen Hinweis, wenn die Suche keine Treffer liefert", async () => {
+    const { api } = await import("../api");
+    render(<Kunden onOeffnen={() => {}} />);
+    await waitFor(() => expect(screen.getByText("ACME GmbH")).toBeTruthy());
+    vi.mocked(api.kunden.list).mockResolvedValueOnce([]);
+    fireEvent.change(screen.getByLabelText("Kunden suchen"), { target: { value: "xyz" } });
+    await waitFor(() => expect(screen.getByText('Keine Kunden gefunden für „xyz".')).toBeTruthy());
+  });
+
   it("öffnet das Anlage-Formular sofort, wenn zeigeFormularBeimStart gesetzt ist, und meldet die Übernahme", async () => {
     const onFormularUebernommen = vi.fn();
     render(
