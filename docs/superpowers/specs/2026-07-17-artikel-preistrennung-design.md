@@ -10,7 +10,7 @@ Der aufgeklappte Kundenpreise-Bereich soll auf den ersten Blick als **Ausnahme v
 
 ## Umfang
 
-Nur Frontend (`Artikel.tsx`, `komponenten.css`, `tokens.css`) plus eine kleine Backend-Ergänzung (`kunden_preise_anzahl`-Feld am Artikel, analog zum `hat_adresse`-Muster aus dem Onboarding-Plan). Keine Änderung an Preisfindung, Beleg-Erstellung oder sonstiger Geschäftslogik.
+Nur Frontend (`Artikel.tsx`, `komponenten.css`, `tokens.css`) plus eine kleine Backend-Ergänzung (`kundenpreise_anzahl`-Feld am Artikel, analog zum `hat_adresse`-Muster aus dem Onboarding-Plan). Keine Änderung an Preisfindung, Beleg-Erstellung oder sonstiger Geschäftslogik.
 
 ## Verhalten
 
@@ -36,6 +36,8 @@ Nur Frontend (`Artikel.tsx`, `komponenten.css`, `tokens.css`) plus eine kleine B
 abweichung_prozent = round((kundenpreis_cent - standardpreis_cent) / standardpreis_cent * 100)
 ```
 
+Berechnung passiert vollständig im Frontend (`KundenpreiseBereich`) — keine Backend-Beteiligung nötig, da beide Werte zur Render-Zeit bereits vorliegen. **Voraussetzung, die im Implementierungsplan als eigener Schritt vorkommen muss:** `KundenpreiseBereich` kennt den Standardpreis aktuell NICHT — `KundenpreiseBereichProps` hat bisher nur `artikelId` und `kunden`. `Artikel.tsx` muss beim Rendern zusätzlich `standardpreisCent={a.standardpreis_cent}` als neue Prop übergeben (der Wert liegt im `artikel.map((a) => ...)`-Aufrufkontext ohnehin schon vor).
+
 - Positiv → teurer als Standard → rote Badge.
 - Negativ → günstiger als Standard → grüne Badge.
 - `standardpreis_cent === 0` → keine Badge (s. o.).
@@ -46,13 +48,13 @@ abweichung_prozent = round((kundenpreis_cent - standardpreis_cent) / standardpre
 Neue, dedizierte Tokens (bewusst NICHT die bestehenden `--st-bezahlt-*`/`--st-storniert-*` wiederverwendet, um Rechnungsstatus- und Preisvergleichs-Semantik nicht zu vermischen), analog zum bestehenden Muster (`--fehler-*`, `--hinweis-*`):
 
 ```css
-/* Hell */
+/* in :root { ... } (Hell), nach den bestehenden --hinweis-*-Zeilen: */
 --preis-guenstiger-bg: #e6f4ec;
 --preis-guenstiger-text: #1f7a52;
 --preis-teurer-bg: #fdecea;
 --preis-teurer-text: #a3231f;
 
-/* Dunkel */
+/* in @media (prefers-color-scheme: dark) { :root { ... } } (Dunkel), an derselben Stelle: */
 --preis-guenstiger-bg: #163a2a;
 --preis-guenstiger-text: #6ed3a0;
 --preis-teurer-bg: #3a1e1c;
@@ -70,8 +72,10 @@ Analog zum `hat_adresse`-Muster: neues berechnetes Feld am `Artikel`-Struct (Rus
 ```sql
 SELECT id, artikelnummer, bezeichnung, beschreibung, einheit_id, standardpreis_cent,
        (SELECT COUNT(*) FROM kundenpreis kp WHERE kp.artikel_id = a.id AND kp.deleted_at IS NULL) AS kundenpreise_anzahl
-FROM artikel a WHERE a.deleted_at IS NULL AND (...) ORDER BY bezeichnung
+FROM artikel a WHERE a.deleted_at IS NULL AND (lower(a.bezeichnung) LIKE ? OR lower(a.artikelnummer) LIKE ?) ORDER BY a.bezeichnung
 ```
+
+(Die bestehende Query verwendet aktuell keinen Tabellen-Alias — beim Einführen von `a` müssen alle Spaltenverweise im bestehenden `WHERE`/`ORDER BY` mit `a.` präfixiert werden, nicht nur die neue Subquery. Sonst schlägt SQLite mit einer mehrdeutigen oder unbekannten Spalte fehl.)
 
 - `create()`: neuer Artikel hat 0 Kundenpreise → `kundenpreise_anzahl: 0` im Rust-Struct-Literal.
 - `update()`: echot den Input unverändert zurück wie bisher (schreibt `kundenpreise_anzahl` nicht in die DB) — **Frontend-Falle, die vermieden werden muss:** `Artikel.tsx`s `speichern()`-Funktion baut beim Bearbeiten den `update()`-Payload aktuell als Literal von Hand zusammen (nicht durch Spreaden des bestehenden Objekts), genau wie bei `artikelnummer` schon gehandhabt:
