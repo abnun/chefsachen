@@ -251,7 +251,11 @@ export function Artikel({ zeigeFormularBeimStart, onFormularUebernommen, onZuKun
               {aufgeklappt === a.id && (
                 <tr>
                   <td colSpan={5}>
-                    <KundenpreiseBereich artikelId={a.id} kunden={kunden} />
+                    <KundenpreiseBereich
+                      artikelId={a.id}
+                      kunden={kunden}
+                      standardpreisCent={a.standardpreis_cent}
+                    />
                   </td>
                 </tr>
               )}
@@ -266,9 +270,10 @@ export function Artikel({ zeigeFormularBeimStart, onFormularUebernommen, onZuKun
 interface KundenpreiseBereichProps {
   artikelId: string;
   kunden: Kunde[];
+  standardpreisCent: number;
 }
 
-function KundenpreiseBereich({ artikelId, kunden }: KundenpreiseBereichProps) {
+function KundenpreiseBereich({ artikelId, kunden, standardpreisCent }: KundenpreiseBereichProps) {
   const [kundenpreise, setKundenpreise] = useState<Kundenpreis[]>([]);
   const [fehler, setFehler] = useState<AppFehler | null>(null);
   const [kundeId, setKundeId] = useState("");
@@ -318,27 +323,18 @@ function KundenpreiseBereich({ artikelId, kunden }: KundenpreiseBereichProps) {
   }
 
   return (
-    <div className="karte">
-      <h3>Kundenpreise</h3>
+    <div className="kundenpreis-panel">
+      <h4>Kundenpreise — Ausnahmen vom Standardpreis ({formatCent(standardpreisCent)})</h4>
       <Fehler fehler={fehler} />
-      <table className="tabelle">
-        <thead>
-          <tr>
-            <th>Kunde</th>
-            <th>Preis</th>
-            <th>Gültig ab</th>
-          </tr>
-        </thead>
-        <tbody>
-          {kundenpreise.map((kp) => (
-            <tr key={kp.id}>
-              <td>{kundeName(kp.kunde_id)}</td>
-              <td>{formatCent(kp.preis_cent)}</td>
-              <td>{kp.gueltig_ab ?? "–"}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      {kundenpreise.map((kp) => (
+        <div className="kundenpreis-zeile" key={kp.id}>
+          <span>
+            {kundeName(kp.kunde_id)}
+            {kp.gueltig_ab && <span className="kundenpreis-gueltig-ab">ab {kp.gueltig_ab}</span>}
+          </span>
+          <span className="kundenpreis-preis">{formatCent(kp.preis_cent)}</span>
+        </div>
+      ))}
       <form
         onSubmit={(e) => {
           e.preventDefault();

@@ -86,4 +86,52 @@ describe("Artikel", () => {
     await waitFor(() => expect(screen.getByText("Beratung")).toBeTruthy());
     expect(screen.getByRole("button", { name: "Kundenpreise (2)" })).toBeTruthy();
   });
+
+  it("zeigt im aufgeklappten Bereich den Standardpreis in der Überschrift sowie Kundenname und -preis", async () => {
+    const { api } = await import("../api");
+    vi.mocked(api.kunden.list).mockResolvedValueOnce([
+      {
+        id: "k1", typ: "firma", name: "ACME GmbH", kundennummer: "KD-0001",
+        zahlungsziel_tage: 14, notizen: "", ust_idnr: "", email: "",
+        leitweg_id: "", kaeuferreferenz: "", hat_adresse: true,
+      },
+    ]);
+    vi.mocked(api.artikel.kundenpreise).mockResolvedValueOnce([
+      { id: "kp1", artikel_id: "a1", kunde_id: "k1", preis_cent: 6500, gueltig_ab: null },
+    ]);
+    render(<Artikel />);
+    await waitFor(() => expect(screen.getByText("Beratung")).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Kundenpreise" }));
+    await waitFor(() =>
+      expect(screen.getByText("Kundenpreise — Ausnahmen vom Standardpreis (95,50 €)")).toBeTruthy(),
+    );
+    // Kundenname und -preis hängen von zwei unabhängig auflösenden Promises ab
+    // (api.kunden.list und api.artikel.kundenpreise) — deshalb eigenes waitFor je
+    // Assertion statt sich auf das Timing des obigen waitFor zu verlassen (das nur
+    // von standardpreisCent abhängt, einer synchron verfügbaren Prop, und daher
+    // schon vor dem Laden der beiden Listen erfüllt sein kann).
+    // { selector: "span" } grenzt außerdem gegen die gleichnamige <option> im
+    // Kunde-Dropdown desselben Panels ab — sonst meldet getByText "Found multiple
+    // elements", da <option>-Text ebenfalls zu getByText passt.
+    await waitFor(() => expect(screen.getByText("ACME GmbH", { selector: "span" })).toBeTruthy());
+    await waitFor(() => expect(screen.getByText("65,00 €")).toBeTruthy());
+  });
+
+  it("zeigt das Gültig-ab-Datum als Zusatz, wenn gesetzt", async () => {
+    const { api } = await import("../api");
+    vi.mocked(api.kunden.list).mockResolvedValueOnce([
+      {
+        id: "k1", typ: "firma", name: "ACME GmbH", kundennummer: "KD-0001",
+        zahlungsziel_tage: 14, notizen: "", ust_idnr: "", email: "",
+        leitweg_id: "", kaeuferreferenz: "", hat_adresse: true,
+      },
+    ]);
+    vi.mocked(api.artikel.kundenpreise).mockResolvedValueOnce([
+      { id: "kp1", artikel_id: "a1", kunde_id: "k1", preis_cent: 6500, gueltig_ab: "2026-01-01" },
+    ]);
+    render(<Artikel />);
+    await waitFor(() => expect(screen.getByText("Beratung")).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Kundenpreise" }));
+    await waitFor(() => expect(screen.getByText("ab 2026-01-01")).toBeTruthy());
+  });
 });
