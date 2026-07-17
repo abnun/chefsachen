@@ -356,11 +356,13 @@ function KundenpreiseBereich({ artikelId, kunden, standardpreisCent, onAenderung
         );
       })}
       <form
+        className="kundenpreis-formular"
         onSubmit={(e) => {
           e.preventDefault();
           speichern();
         }}
       >
+        <p className="kundenpreis-formular-titel">Neuen Kundenpreis anlegen</p>
         <label className="feld">
           Kunde
           <select value={kundeId} onChange={(e) => setKundeId(e.currentTarget.value)}>

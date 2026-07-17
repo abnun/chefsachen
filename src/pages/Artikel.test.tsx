@@ -237,4 +237,11 @@ describe("Artikel", () => {
       expect(screen.getByRole("button", { name: "Kundenpreise (1)" })).toBeTruthy(),
     );
   });
+
+  it("trennt das Formular zum Anlegen eines neuen Kundenpreises optisch von der Preisliste", async () => {
+    render(<Artikel />);
+    await waitFor(() => expect(screen.getByText("Beratung")).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Kundenpreise" }));
+    await waitFor(() => expect(screen.getByText("Neuen Kundenpreis anlegen")).toBeTruthy());
+  });
 });

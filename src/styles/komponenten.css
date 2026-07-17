@@ -406,3 +406,16 @@ label.feld textarea {
   background: var(--preis-teurer-bg);
   color: var(--preis-teurer-text);
 }
+
+.kundenpreis-formular {
+  margin-top: var(--abstand-m);
+  padding-top: var(--abstand-m);
+  border-top: 1px solid var(--rand);
+}
+
+.kundenpreis-formular-titel {
+  margin: 0 0 var(--abstand-s);
+  font-size: var(--text-s);
+  font-weight: 600;
+  color: var(--text-leise);
+}
