@@ -14,6 +14,7 @@ pub struct Artikel {
     pub beschreibung: String,
     pub einheit_id: String,
     pub standardpreis_cent: i64,
+    pub kundenpreise_anzahl: i64,
 }
 
 #[derive(Debug, Deserialize)]
@@ -59,6 +60,7 @@ pub async fn create(pool: &SqlitePool, d: ArtikelNeu) -> AppResult<Artikel> {
         beschreibung: d.beschreibung,
         einheit_id: d.einheit_id,
         standardpreis_cent: d.standardpreis_cent,
+        kundenpreise_anzahl: 0,
     };
     sqlx::query("INSERT INTO artikel (id, artikelnummer, bezeichnung, beschreibung, einheit_id, standardpreis_cent, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?)")
         .bind(&a.id).bind(&a.artikelnummer).bind(&a.bezeichnung).bind(&a.beschreibung)
@@ -70,8 +72,9 @@ pub async fn create(pool: &SqlitePool, d: ArtikelNeu) -> AppResult<Artikel> {
 pub async fn list(pool: &SqlitePool, suche: Option<String>) -> AppResult<Vec<Artikel>> {
     let muster = format!("%{}%", suche.unwrap_or_default().to_lowercase());
     Ok(sqlx::query_as(
-        "SELECT id, artikelnummer, bezeichnung, beschreibung, einheit_id, standardpreis_cent \
-         FROM artikel WHERE deleted_at IS NULL AND (lower(bezeichnung) LIKE ? OR lower(artikelnummer) LIKE ?) ORDER BY bezeichnung")
+        "SELECT a.id, a.artikelnummer, a.bezeichnung, a.beschreibung, a.einheit_id, a.standardpreis_cent, \
+                (SELECT COUNT(*) FROM kundenpreis kp WHERE kp.artikel_id = a.id AND kp.deleted_at IS NULL) AS kundenpreise_anzahl \
+         FROM artikel a WHERE a.deleted_at IS NULL AND (lower(a.bezeichnung) LIKE ? OR lower(a.artikelnummer) LIKE ?) ORDER BY a.bezeichnung")
         .bind(&muster).bind(&muster).fetch_all(pool).await?)
 }
 
@@ -294,5 +297,30 @@ mod tests {
         }).await.unwrap();
         assert_eq!(kp2.id, kp.id);
         assert_eq!(kp2.preis_cent, 8500);
+    }
+
+    #[tokio::test]
+    async fn list_liefert_kundenpreise_anzahl_korrekt() {
+        let (_dir, pool) = test_pool().await;
+        let a1 = create(&pool, neu("Beratung")).await.unwrap();
+        let a2 = create(&pool, neu("Konzeption")).await.unwrap();
+        let k = kunde(&pool, "ACME GmbH").await;
+        kundenpreis_speichern(&pool, Kundenpreis {
+            id: "".into(), artikel_id: a1.id.clone(), kunde_id: k.clone(),
+            preis_cent: 8000, gueltig_ab: None,
+        }).await.unwrap();
+        let kp2 = kundenpreis_speichern(&pool, Kundenpreis {
+            id: "".into(), artikel_id: a1.id.clone(), kunde_id: k.clone(),
+            preis_cent: 8500, gueltig_ab: Some("2026-01-01".into()),
+        }).await.unwrap();
+        kundenpreis_entfernen(&pool, kp2.id).await.unwrap();
+
+        let liste = list(&pool, None).await.unwrap();
+        let gefunden_a1 = liste.iter().find(|x| x.id == a1.id).unwrap();
+        let gefunden_a2 = liste.iter().find(|x| x.id == a2.id).unwrap();
+        // a1 hat zwei Kundenpreise angelegt, einer davon wieder gelöscht -> zählt nur der verbleibende.
+        assert_eq!(gefunden_a1.kundenpreise_anzahl, 1);
+        // a2 hat gar keine Kundenpreise.
+        assert_eq!(gefunden_a2.kundenpreise_anzahl, 0);
     }
 }
