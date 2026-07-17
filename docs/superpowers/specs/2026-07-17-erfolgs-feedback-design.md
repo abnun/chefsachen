@@ -17,14 +17,16 @@ Nur Frontend. Kein neuer Backend-Code nötig — alle betroffenen Aktionen rufen
 Neue Datei `src/hooks/useErfolgsHinweis.ts`:
 
 ```ts
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Hinweis } from "../components/Hinweis";
 
 export function useErfolgsHinweis() {
+  const zaehler = useRef(0);
   const [banner, setBanner] = useState<{ text: string; id: number } | null>(null);
 
   function zeigen(text: string) {
-    setBanner({ text, id: Date.now() });
+    zaehler.current += 1;
+    setBanner({ text, id: zaehler.current });
   }
 
   const hinweis = banner && (
@@ -37,9 +39,9 @@ export function useErfolgsHinweis() {
 }
 ```
 
-**Technisches Detail:** `key={banner.id}` ist notwendig, nicht optional. Ohne diesen Key würde ein zweiter `zeigen()`-Aufruf, während der erste Banner noch sichtbar ist (z. B. zwei schnell aufeinanderfolgende Speicherungen), den Auto-Dismiss-Timer der `Hinweis`-Komponente NICHT neu starten — deren `useEffect` hängt nur an der (konstanten) `autoDismissMs`-Prop, nicht am Textinhalt. Der Key erzwingt, dass React die `Hinweis`-Instanz bei jedem `zeigen()`-Aufruf neu mountet, wodurch der Timer sauber neu beginnt.
+**Technisches Detail 1:** `key={banner.id}` ist notwendig, nicht optional. Ohne diesen Key würde ein zweiter `zeigen()`-Aufruf, während der erste Banner noch sichtbar ist (z. B. zwei schnell aufeinanderfolgende Speicherungen), den Auto-Dismiss-Timer der `Hinweis`-Komponente NICHT neu starten — deren `useEffect` hängt nur an der (konstanten) `autoDismissMs`-Prop, nicht am Textinhalt. Der Key erzwingt, dass React die `Hinweis`-Instanz bei jedem `zeigen()`-Aufruf neu mountet, wodurch der Timer sauber neu beginnt.
 
-`banner.id` wird über `Date.now()` erzeugt — für diesen Zweck (Erzwingen eines Remounts bei jedem Aufruf) ausreichend eindeutig, kein UUID nötig.
+**Technisches Detail 2:** `banner.id` wird über einen einfachen `useRef`-Zähler erzeugt, NICHT über `Date.now()`. Grund: Der Hook-Test für den Retrigger-Fall (siehe Tests unten) läuft unter `vi.useFakeTimers()` — und Vitests Fake-Timer frieren standardmäßig auch `Date.now()` ein, bis die Uhr explizit vorgespult wird. Zwei `zeigen()`-Aufrufe kurz hintereinander (ohne dazwischenliegendes Vorspulen) würden mit `Date.now()` denselben Wert liefern → derselbe `key` → React würde NICHT neu mounten → genau der Mechanismus, den der Test beweisen soll, würde in diesem Test unbeabsichtigt nicht greifen. Ein einfacher, zeitunabhängiger Zähler vermeidet das.
 
 ## Verwendung
 
