@@ -370,12 +370,12 @@ label.feld textarea {
   align-items: center;
   justify-content: space-between;
   padding: var(--abstand-s) 0;
-  border-bottom: 1px solid var(--rand);
+  border-top: 1px solid var(--rand);
   font-size: var(--text-m);
 }
 
-.kundenpreis-zeile:last-of-type {
-  border-bottom: none;
+.kundenpreis-zeile:first-of-type {
+  border-top: none;
 }
 
 .kundenpreis-gueltig-ab {
