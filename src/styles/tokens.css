@@ -31,6 +31,11 @@
   --hinweis-text: #2c5a7c;
   --hinweis-rand: #c9dced;
 
+  --preis-guenstiger-bg: #e6f4ec;
+  --preis-guenstiger-text: #1f7a52;
+  --preis-teurer-bg: #fdecea;
+  --preis-teurer-text: #a3231f;
+
   /* Abstände */
   --abstand-xs: 4px;
   --abstand-s: 8px;
@@ -86,6 +91,11 @@
     --hinweis-bg: #1a2733;
     --hinweis-text: #8fc1e8;
     --hinweis-rand: #2d4358;
+
+    --preis-guenstiger-bg: #163a2a;
+    --preis-guenstiger-text: #6ed3a0;
+    --preis-teurer-bg: #3a1e1c;
+    --preis-teurer-text: #ef8f8a;
 
     --schatten: 0 1px 3px rgba(0, 0, 0, 0.4);
   }

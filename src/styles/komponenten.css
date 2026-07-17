@@ -346,3 +346,63 @@ label.feld textarea {
   color: var(--text-leise);
   margin: 0 0 var(--abstand-s);
 }
+
+/* Kundenpreise-Panel (Artikel-Seite) */
+.kundenpreis-panel {
+  margin: var(--abstand-s) 0;
+  padding: var(--abstand-m) var(--abstand-l);
+  background: var(--bg-gedaempft);
+  border-left: 3px solid var(--akzent);
+  border-radius: 0 var(--radius-m) var(--radius-m) 0;
+}
+
+.kundenpreis-panel h4 {
+  margin: 0 0 var(--abstand-s);
+  font-size: var(--text-s);
+  font-weight: 600;
+  color: var(--text-leise);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.kundenpreis-zeile {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--abstand-s) 0;
+  border-bottom: 1px solid var(--rand);
+  font-size: var(--text-m);
+}
+
+.kundenpreis-zeile:last-of-type {
+  border-bottom: none;
+}
+
+.kundenpreis-gueltig-ab {
+  display: block;
+  font-size: var(--text-s);
+  color: var(--text-leiser);
+}
+
+.kundenpreis-preis {
+  font-weight: 600;
+}
+
+.kundenpreis-badge {
+  display: inline-block;
+  margin-left: var(--abstand-s);
+  padding: 1px var(--abstand-s);
+  border-radius: var(--radius-pill);
+  font-size: var(--text-s);
+  font-weight: 600;
+}
+
+.kundenpreis-badge.guenstiger {
+  background: var(--preis-guenstiger-bg);
+  color: var(--preis-guenstiger-text);
+}
+
+.kundenpreis-badge.teurer {
+  background: var(--preis-teurer-bg);
+  color: var(--preis-teurer-text);
+}
