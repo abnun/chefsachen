@@ -14,9 +14,9 @@ Nur Frontend. Kein neuer Backend-Code nötig — alle betroffenen Aktionen rufen
 
 ## Der Hook: `useErfolgsHinweis`
 
-Neue Datei `src/hooks/useErfolgsHinweis.ts`:
+Neue Datei `src/hooks/useErfolgsHinweis.tsx` (`.tsx`, nicht `.ts` — die Datei enthält JSX):
 
-```ts
+```tsx
 import { useRef, useState } from "react";
 import { Hinweis } from "../components/Hinweis";
 

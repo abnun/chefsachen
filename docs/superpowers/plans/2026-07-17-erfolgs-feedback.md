@@ -15,8 +15,10 @@
 ### Task 1: Der Hook `useErfolgsHinweis`
 
 **Files:**
-- Create: `src/hooks/useErfolgsHinweis.ts`
+- Create: `src/hooks/useErfolgsHinweis.tsx`
 - Create: `src/hooks/useErfolgsHinweis.test.tsx`
+
+Wichtig: `.tsx`, nicht `.ts` — die Datei enthält JSX (`<Hinweis>...</Hinweis>`), das TypeScript in einer `.ts`-Datei nicht parsen kann.
 
 - [ ] **Step 1: Fehlschlagende Tests schreiben**
 
@@ -68,10 +70,16 @@ describe("useErfolgsHinweis", () => {
     vi.advanceTimersByTime(3000);
     fireEvent.click(screen.getByRole("button", { name: "Zweiter Text zeigen" }));
     expect(screen.getByText("Zweiter Text")).toBeTruthy();
-    // Wären die 3000ms des ersten Aufrufs weitergezählt worden, wäre der Banner
-    // nach diesen weiteren 999ms (zusammen 3999ms ab dem ERSTEN Aufruf) schon
-    // weg. Da der Timer aber ab dem ZWEITEN Aufruf neu zählt, ist er hier noch da.
-    vi.advanceTimersByTime(999);
+    // Der ERSTE Timer wäre spätestens 4000ms nach SEINEM Start verschwunden,
+    // also 1000ms nach diesem zweiten Klick (3000+1000=4000). Würde der Timer
+    // beim zweiten zeigen()-Aufruf NICHT neu starten, wäre der (jetzt zweite)
+    // Banner an dieser Stelle schon weg. Da der Timer aber neu zählt, ist er
+    // nach diesen 1000ms noch da.
+    vi.advanceTimersByTime(1000);
+    expect(screen.getByText("Zweiter Text")).toBeTruthy();
+    // Erst nach vollen 4000ms AB DEM ZWEITEN Aufruf (hier: 1000+2999+1=4000)
+    // verschwindet er.
+    vi.advanceTimersByTime(2999);
     expect(screen.getByText("Zweiter Text")).toBeTruthy();
     vi.advanceTimersByTime(1);
     expect(screen.queryByText("Zweiter Text")).toBeNull();
@@ -87,7 +95,7 @@ Erwartet: FAIL — Modul `./useErfolgsHinweis` existiert noch nicht.
 
 - [ ] **Step 3: Hook implementieren**
 
-```ts
+```tsx
 import { useRef, useState } from "react";
 import { Hinweis } from "../components/Hinweis";
 
@@ -125,7 +133,7 @@ Run: `npm run build` → PASS
 - [ ] **Step 6: Commit**
 
 ```bash
-git add src/hooks/useErfolgsHinweis.ts src/hooks/useErfolgsHinweis.test.tsx
+git add src/hooks/useErfolgsHinweis.tsx src/hooks/useErfolgsHinweis.test.tsx
 git commit -m "feat: useErfolgsHinweis-Hook für konsistentes Erfolgs-Feedback"
 ```
 
@@ -1047,7 +1055,7 @@ describe("BelegEditor – Erfolgs-Hinweis", () => {
 - [ ] **Step 3: Tests laufen nicht**
 
 Run: `npm test -- BelegEditor`
-Erwartet: FAIL — kein Erfolgs-Hinweis vorhanden (die vier neuen Tests schlagen fehl, die bestehenden bleiben grün).
+Erwartet: FAIL — kein Erfolgs-Hinweis vorhanden (die fünf neuen Tests schlagen fehl, die bestehenden bleiben grün).
 
 - [ ] **Step 4: Import und Hook-Aufruf ergänzen**
 
@@ -1255,7 +1263,7 @@ Run: `npm run build` → PASS
 
 ```bash
 git add src/pages/BelegEditor.tsx src/pages/BelegEditor.test.tsx
-git commit -m "feat: Erfolgs-Hinweis für Stammdaten speichern, Stellen, Angebot-Status, Stornieren"
+git commit -m "feat: Erfolgs-Hinweis für Stammdaten speichern, Stellen, Angebot-Status, Stornieren, Position löschen"
 ```
 
 ---
