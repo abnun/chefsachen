@@ -55,6 +55,7 @@ function App() {
     setKundeDetailStartReiter(null);
     setAusgewaehltesAngebot(null);
     setAusgewaehlteRechnung(null);
+    setFormularBeimStartZiel(null);
     setSeite(neueSeite);
   }
 

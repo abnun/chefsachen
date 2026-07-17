@@ -11,11 +11,11 @@ interface EinrichtungProps {
 type Schritt = 1 | 2 | 3 | 4 | 5;
 
 /**
- * Vier-Schritte-Assistent für die Ersteinrichtung: Firmendaten, Logo
- * (optional), Kleinunternehmer-Bestätigung, Nummernkreise. Läuft komplett im
- * Speicher (kein Save pro Schritt) — erst der Abschluss in Schritt 4 ruft
- * `firma.save`, damit ein Abbruch mittendrin keine halb ausgefüllte Firma
- * mit `eingerichtet=false` hinterlässt.
+ * Fünf-Schritte-Assistent für die Ersteinrichtung: Firmendaten, Logo
+ * (optional), Kleinunternehmer-Bestätigung, Nummernkreise, Abschluss. Läuft
+ * komplett im Speicher (kein Save pro Schritt) — erst der Abschluss in
+ * Schritt 4 ruft `firma.save`, damit ein Abbruch mittendrin keine halb
+ * ausgefüllte Firma mit `eingerichtet=false` hinterlässt.
  */
 export function Einrichtung({ onFertig }: EinrichtungProps) {
   const [schritt, setSchritt] = useState<Schritt>(1);
