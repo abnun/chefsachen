@@ -87,8 +87,13 @@ function StammdatenReiter({ kunde, onGespeichert }: StammdatenReiterProps) {
 | `Artikel.tsx` (Kundenpreise) | Anlegen | „Kundenpreis angelegt" — das Formular dort ist ausschließlich Neuanlage, es gibt keine Bearbeitung bestehender Kundenpreise |
 | `Angebote.tsx` | Neuanlage | **Ausgenommen** — siehe Hinweis unten |
 | `Rechnungen.tsx` | Neuanlage | **Ausgenommen** — siehe Hinweis unten |
-| `BelegEditor.tsx` | Position löschen | „Position gelöscht" |
+| `BelegEditor.tsx` (Stammdaten) | Speichern | „Angebot gespeichert" / „Rechnung gespeichert" (je nach `beleg.typ`) |
+| `BelegEditor.tsx` | Stellen | „Angebot versendet" / „Rechnung gestellt" (je nach `beleg.typ`) |
+| `BelegEditor.tsx` | Angebot-Status setzen | „Status aktualisiert" (generisch — drei mögliche Zielstatus, kein spezifischer Text pro Status nötig) |
+| `BelegEditor.tsx` | In Rechnung überführen | **Ausgenommen** — navigiert wie Angebote/Rechnungen-Neuanlage sofort weg (`onRechnungErstellt` wechselt in `App.tsx` unmittelbar zur neuen Rechnung), gleiche Begründung wie dort |
 | `BelegEditor.tsx` | Stornieren | „Rechnung storniert" |
+| `BelegEditor.tsx` (Positionen) | Hinzufügen / Löschen | „Position hinzugefügt" / „Position gelöscht" |
+| `BelegEditor.tsx` (Zahlungen) | Erfassen | „Zahlung erfasst" |
 | `Einstellungen.tsx` (Firma) | Speichern | „Firmendaten gespeichert" (ersetzt bestehendes ad-hoc `Gespeichert.`) |
 | `Einstellungen.tsx` (Einheiten) | Anlegen / Bearbeiten / Löschen | „Einheit 'Stunde' angelegt" / „Einheit 'Stunde' gespeichert" / „... gelöscht" — `speichern()` behandelt Anlegen UND Bearbeiten in einer Funktion (unterscheidbar über `bearbeiteId`), Text entsprechend wählen |
 | `Einstellungen.tsx` (Nummernkreise) | Speichern | „Nummernkreis gespeichert" |
@@ -105,6 +110,8 @@ if (kunden.length === 0) {
 ```
 
 **Wichtiger Sonderfall — Angebote/Rechnungen-Neuanlage:** `Angebote.tsx`s und `Rechnungen.tsx`s `anlegen()`-Funktionen rufen nach erfolgreichem `api.belege.create()` sofort `onOeffnen(beleg.id)` auf, was laut `App.tsx`s Routing unmittelbar von der Listen-Ansicht zum `BelegEditor` des neu angelegten Dokuments wechselt — die aufrufende Komponente wird dabei ausgehängt. Ein `zeigen()`-Aufruf davor wäre praktisch wirkungslos: Der Banner hätte keine Zeit, sichtbar zu werden, bevor die Seite wechselt. Ein Feedback-Mechanismus, der den „gerade angelegt"-Zustand über die Navigation hinweg zum `BelegEditor` durchreicht, wäre möglich, aber unverhältnismäßiger Mehraufwand für einen Fall, der ohnehin schon eine starke implizite Bestätigung hat: Der Nutzer landet direkt auf dem frisch erstellten Dokument mit eigener Nummer, in der Bearbeitungsansicht. Deshalb: **kein neuer Banner für diesen Fall**, `anlegen()` bleibt unverändert.
+
+**Wichtiger Sonderfall — In Rechnung überführen:** `BelegEditor.tsx`s `inRechnungUeberfuehren()` ruft nach Erfolg `onRechnungErstellt?.(rechnung.id)` auf. In `App.tsx` wechselt dieser Callback unmittelbar die Seite (`setSeite("rechnungen")`) und öffnet die neue Rechnung im `BelegEditor` — exakt dasselbe Navigations-Problem wie bei der Angebote/Rechnungen-Neuanlage. Aus demselben Grund: kein Banner hier, die Landung auf der neuen Rechnung ist Bestätigung genug.
 
 ## Textkonventionen
 
