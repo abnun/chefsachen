@@ -312,15 +312,6 @@ Vorher:
 
 Nachher:
 ```tsx
-  it("zeigt nach dem Löschen einer Einheit einen Erfolgs-Hinweis", async () => {
-    render(<Einstellungen />);
-    await waitFor(() => expect(screen.getByRole("button", { name: "Löschen" })).toBeTruthy());
-    fireEvent.click(screen.getByRole("button", { name: "Löschen" }));
-    await waitFor(() => expect(screen.getByText('Einheit „Stunde" löschen?')).toBeTruthy());
-    fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Löschen" }));
-    await waitFor(() => expect(screen.getByText("Einheit gelöscht")).toBeTruthy());
-  });
-
   it("löscht eine Einheit nicht, wenn im Dialog abgebrochen wird", async () => {
     const { api } = await import("../api");
     render(<Einstellungen />);
@@ -331,7 +322,18 @@ Nachher:
     expect(screen.queryByRole("dialog")).toBeNull();
     expect(vi.mocked(api.einheiten.delete)).not.toHaveBeenCalled();
   });
+
+  it("zeigt nach dem Löschen einer Einheit einen Erfolgs-Hinweis", async () => {
+    render(<Einstellungen />);
+    await waitFor(() => expect(screen.getByRole("button", { name: "Löschen" })).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Löschen" }));
+    await waitFor(() => expect(screen.getByText('Einheit „Stunde" löschen?')).toBeTruthy());
+    fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Löschen" }));
+    await waitFor(() => expect(screen.getByText("Einheit gelöscht")).toBeTruthy());
+  });
 ```
+
+**Wichtig — Reihenfolge**: Der Abbrechen-Test steht bewusst VOR dem Erfolgs-Test. Es gibt kein `clearMocks`/`resetMocks` in der Vitest-Konfiguration (`vite.config.ts`) und keinen `vi.clearAllMocks()`-Aufruf in dieser Testdatei — Mock-Aufrufhistorien bleiben also über Tests hinweg innerhalb derselben Datei erhalten. Stünde der Erfolgs-Test (der `api.einheiten.delete` einmal aufruft) zuerst, würde die Assertion `not.toHaveBeenCalled()` im Abbrechen-Test fälschlich fehlschlagen, da der Mock dann bereits einen Aufruf aus dem vorherigen Test trägt. Vitest führt Tests standardmäßig sequenziell in Deklarationsreihenfolge aus (kein Shuffle), die Reihenfolge im Code ist also verlässlich.
 
 Ergänze `within` im bestehenden Import von `@testing-library/react` (Datei-Kopf, Zeile 1):
 
@@ -500,18 +502,6 @@ Vorher:
 
 Nachher:
 ```tsx
-  it("zeigt nach dem Löschen einer Adresse einen Erfolgs-Hinweis", async () => {
-    render(<KundeDetail id="1" startReiter="adressen" onReiterUebernommen={() => {}} />);
-    await waitFor(() => expect(screen.getByRole("button", { name: "Adressen" })).toBeTruthy());
-    await waitFor(() => expect(screen.getByRole("button", { name: "Löschen" })).toBeTruthy());
-    fireEvent.click(screen.getByRole("button", { name: "Löschen" }));
-    await waitFor(() =>
-      expect(screen.getByText('Adresse „rechnung, Musterstr. 1, 12345 Musterstadt" löschen?')).toBeTruthy(),
-    );
-    fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Löschen" }));
-    await waitFor(() => expect(screen.getByText("Adresse gelöscht")).toBeTruthy());
-  });
-
   it("löscht eine Adresse nicht, wenn im Dialog abgebrochen wird", async () => {
     const { api } = await import("../api");
     render(<KundeDetail id="1" startReiter="adressen" onReiterUebernommen={() => {}} />);
@@ -523,7 +513,21 @@ Nachher:
     expect(screen.queryByRole("dialog")).toBeNull();
     expect(vi.mocked(api.kunden.adresseDelete)).not.toHaveBeenCalled();
   });
+
+  it("zeigt nach dem Löschen einer Adresse einen Erfolgs-Hinweis", async () => {
+    render(<KundeDetail id="1" startReiter="adressen" onReiterUebernommen={() => {}} />);
+    await waitFor(() => expect(screen.getByRole("button", { name: "Adressen" })).toBeTruthy());
+    await waitFor(() => expect(screen.getByRole("button", { name: "Löschen" })).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Löschen" }));
+    await waitFor(() =>
+      expect(screen.getByText('Adresse „rechnung, Musterstr. 1, 12345 Musterstadt" löschen?')).toBeTruthy(),
+    );
+    fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Löschen" }));
+    await waitFor(() => expect(screen.getByText("Adresse gelöscht")).toBeTruthy());
+  });
 ```
+
+**Wichtig — Reihenfolge**: Der Abbrechen-Test steht bewusst VOR dem Erfolgs-Test, aus demselben Grund wie in Task 3 (kein `clearMocks` in der Vitest-Konfiguration, Mock-Aufrufhistorie bleibt über Tests hinweg erhalten).
 
 - [ ] **Step 2: Tests laufen nicht**
 
@@ -675,18 +679,6 @@ Vorher:
 
 Nachher:
 ```tsx
-  it("zeigt nach dem Löschen eines Ansprechpartners einen Erfolgs-Hinweis", async () => {
-    render(<KundeDetail id="1" startReiter="ansprechpartner" onReiterUebernommen={() => {}} />);
-    await waitFor(() => expect(screen.getByRole("button", { name: "Ansprechpartner" })).toBeTruthy());
-    await waitFor(() => expect(screen.getByRole("button", { name: "Löschen" })).toBeTruthy());
-    fireEvent.click(screen.getByRole("button", { name: "Löschen" }));
-    await waitFor(() =>
-      expect(screen.getByText('Ansprechpartner „Erika Musterfrau" löschen?')).toBeTruthy(),
-    );
-    fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Löschen" }));
-    await waitFor(() => expect(screen.getByText("Ansprechpartner gelöscht")).toBeTruthy());
-  });
-
   it("löscht einen Ansprechpartner nicht, wenn im Dialog abgebrochen wird", async () => {
     const { api } = await import("../api");
     render(<KundeDetail id="1" startReiter="ansprechpartner" onReiterUebernommen={() => {}} />);
@@ -698,8 +690,22 @@ Nachher:
     expect(screen.queryByRole("dialog")).toBeNull();
     expect(vi.mocked(api.kunden.ansprechpartnerDelete)).not.toHaveBeenCalled();
   });
+
+  it("zeigt nach dem Löschen eines Ansprechpartners einen Erfolgs-Hinweis", async () => {
+    render(<KundeDetail id="1" startReiter="ansprechpartner" onReiterUebernommen={() => {}} />);
+    await waitFor(() => expect(screen.getByRole("button", { name: "Ansprechpartner" })).toBeTruthy());
+    await waitFor(() => expect(screen.getByRole("button", { name: "Löschen" })).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Löschen" }));
+    await waitFor(() =>
+      expect(screen.getByText('Ansprechpartner „Erika Musterfrau" löschen?')).toBeTruthy(),
+    );
+    fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Löschen" }));
+    await waitFor(() => expect(screen.getByText("Ansprechpartner gelöscht")).toBeTruthy());
+  });
 });
 ```
+
+**Wichtig — Reihenfolge**: Der Abbrechen-Test steht bewusst VOR dem Erfolgs-Test, aus demselben Grund wie in Task 3 (kein `clearMocks` in der Vitest-Konfiguration, Mock-Aufrufhistorie bleibt über Tests hinweg erhalten).
 
 - [ ] **Step 2: Tests laufen nicht**
 
@@ -865,31 +871,6 @@ Vorher:
 
 Nachher:
 ```tsx
-  it("zeigt nach dem Löschen einer Position einen Erfolgs-Hinweis", async () => {
-    vi.mocked(api.artikel.list).mockResolvedValue([]);
-    vi.mocked(api.belege.get).mockResolvedValue({
-      beleg: {
-        id: "b1", typ: "angebot", nummer: null, status: "entwurf", kunde_id: "k1",
-        datum: "2026-07-10", leistungsdatum: "2026-07-10", zahlungsziel_tage: 14,
-        kopftext: "", fusstext: "", summe_cent: 9550, ursprungsangebot_id: null, storno_von_id: null,
-      },
-      positionen: [
-        {
-          id: "p1", beleg_id: "b1", artikel_id: null, bezeichnung: "Beratung",
-          einheit_kuerzel: "Std", einzelpreis_cent: 9550, menge: 1000,
-          positionssumme_cent: 9550, reihenfolge: 0,
-        },
-      ],
-      zahlungen: [], bezahlt_cent: 0, offener_betrag_cent: 0,
-    });
-    render(<BelegEditor id="b1" />);
-    await waitFor(() => expect(screen.getByText("Beratung")).toBeTruthy());
-    fireEvent.click(screen.getByRole("button", { name: "Löschen" }));
-    await waitFor(() => expect(screen.getByText('Position „Beratung" löschen?')).toBeTruthy());
-    fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Löschen" }));
-    await waitFor(() => expect(screen.getByText("Position gelöscht")).toBeTruthy());
-  });
-
   it("löscht eine Position nicht, wenn im Dialog abgebrochen wird", async () => {
     vi.mocked(api.artikel.list).mockResolvedValue([]);
     vi.mocked(api.belege.get).mockResolvedValue({
@@ -915,8 +896,35 @@ Nachher:
     expect(screen.queryByRole("dialog")).toBeNull();
     expect(vi.mocked(api.belege.positionDelete)).not.toHaveBeenCalled();
   });
+
+  it("zeigt nach dem Löschen einer Position einen Erfolgs-Hinweis", async () => {
+    vi.mocked(api.artikel.list).mockResolvedValue([]);
+    vi.mocked(api.belege.get).mockResolvedValue({
+      beleg: {
+        id: "b1", typ: "angebot", nummer: null, status: "entwurf", kunde_id: "k1",
+        datum: "2026-07-10", leistungsdatum: "2026-07-10", zahlungsziel_tage: 14,
+        kopftext: "", fusstext: "", summe_cent: 9550, ursprungsangebot_id: null, storno_von_id: null,
+      },
+      positionen: [
+        {
+          id: "p1", beleg_id: "b1", artikel_id: null, bezeichnung: "Beratung",
+          einheit_kuerzel: "Std", einzelpreis_cent: 9550, menge: 1000,
+          positionssumme_cent: 9550, reihenfolge: 0,
+        },
+      ],
+      zahlungen: [], bezahlt_cent: 0, offener_betrag_cent: 0,
+    });
+    render(<BelegEditor id="b1" />);
+    await waitFor(() => expect(screen.getByText("Beratung")).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Löschen" }));
+    await waitFor(() => expect(screen.getByText('Position „Beratung" löschen?')).toBeTruthy());
+    fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Löschen" }));
+    await waitFor(() => expect(screen.getByText("Position gelöscht")).toBeTruthy());
+  });
 });
 ```
+
+**Wichtig — Reihenfolge**: Der Abbrechen-Test steht bewusst VOR dem Erfolgs-Test, aus demselben Grund wie in Task 3 (kein `clearMocks` in der Vitest-Konfiguration, Mock-Aufrufhistorie bleibt über Tests hinweg erhalten).
 
 - [ ] **Step 2: Tests laufen nicht**
 
