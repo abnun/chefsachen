@@ -106,4 +106,11 @@ describe("KundeDetail", () => {
     render(<KundeDetail id="1" startReiter="adressen" onReiterUebernommen={onReiterUebernommen} />);
     await waitFor(() => expect(onReiterUebernommen).toHaveBeenCalledTimes(1));
   });
+
+  it("zeigt nach dem Speichern der Stammdaten einen Erfolgs-Hinweis", async () => {
+    render(<KundeDetail id="1" />);
+    await waitFor(() => expect(screen.getByDisplayValue("ACME GmbH")).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Speichern" }));
+    await waitFor(() => expect(screen.getByText('Kunde „ACME GmbH" gespeichert')).toBeTruthy());
+  });
 });

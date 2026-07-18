@@ -10,6 +10,7 @@ import {
   type KundeDetail as KundeDetailTyp,
 } from "../api";
 import { Fehler } from "../components/Fehler";
+import { useErfolgsHinweis } from "../hooks/useErfolgsHinweis";
 import { formatCent } from "../geld";
 
 interface KundeDetailProps {
@@ -178,7 +179,7 @@ interface StammdatenReiterProps {
 function StammdatenReiter({ kunde, onGespeichert }: StammdatenReiterProps) {
   const [form, setForm] = useState<Kunde>(kunde);
   const [fehler, setFehler] = useState<AppFehler | null>(null);
-  const [gespeichert, setGespeichert] = useState(false);
+  const { zeigen, hinweis } = useErfolgsHinweis();
 
   useEffect(() => {
     setForm(kunde);
@@ -186,10 +187,9 @@ function StammdatenReiter({ kunde, onGespeichert }: StammdatenReiterProps) {
 
   async function speichern() {
     setFehler(null);
-    setGespeichert(false);
     try {
       await api.kunden.update(form);
-      setGespeichert(true);
+      zeigen(`Kunde „${form.name}" gespeichert`);
       onGespeichert();
     } catch (e) {
       setFehler(e as AppFehler);
@@ -202,7 +202,7 @@ function StammdatenReiter({ kunde, onGespeichert }: StammdatenReiterProps) {
   return (
     <section>
       {fehler && !istValidierungsfehler(fehler) && <Fehler fehler={fehler} />}
-      {gespeichert && <p>Gespeichert.</p>}
+      {hinweis}
       <form
         className="karte"
         onSubmit={(e) => {
