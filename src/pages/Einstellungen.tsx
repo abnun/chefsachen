@@ -8,6 +8,7 @@ import {
   type Nummernkreis,
 } from "../api";
 import { Fehler } from "../components/Fehler";
+import { useErfolgsHinweis } from "../hooks/useErfolgsHinweis";
 
 /**
  * Einstellungsseite mit vier unabhängigen Abschnitten: Firmendaten,
@@ -30,7 +31,7 @@ export function Einstellungen() {
 function FirmendatenAbschnitt() {
   const [firma, setFirma] = useState<Firma | null>(null);
   const [fehler, setFehler] = useState<AppFehler | null>(null);
-  const [gespeichert, setGespeichert] = useState(false);
+  const { zeigen, hinweis } = useErfolgsHinweis();
 
   useEffect(() => {
     api.firma.get().then(setFirma).catch((e) => setFehler(e as AppFehler));
@@ -39,11 +40,10 @@ function FirmendatenAbschnitt() {
   async function speichern() {
     if (!firma) return;
     setFehler(null);
-    setGespeichert(false);
     try {
       const gespeicherteFirma = await api.firma.save(firma);
       setFirma(gespeicherteFirma);
-      setGespeichert(true);
+      zeigen("Firmendaten gespeichert");
     } catch (e) {
       setFehler(e as AppFehler);
     }
@@ -65,7 +65,7 @@ function FirmendatenAbschnitt() {
     <section>
       <h2>Firmendaten</h2>
       {fehler && !istValidierungsfehler(fehler) && <Fehler fehler={fehler} />}
-      {gespeichert && <p>Gespeichert.</p>}
+      {hinweis}
       <form
         className="karte"
         onSubmit={(e) => {

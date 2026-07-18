@@ -1,4 +1,4 @@
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 afterEach(cleanup);
@@ -65,5 +65,20 @@ describe("Einstellungen", () => {
     expect(screen.getAllByText("Kleinunternehmer-Hinweis").length).toBeGreaterThan(0);
     expect(screen.getByDisplayValue("Vielen Dank für Ihren Auftrag.")).toBeTruthy();
     expect(screen.getByDisplayValue("Dieses Angebot ist 30 Tage gültig.")).toBeTruthy();
+  });
+
+  it("zeigt nach dem Speichern der Firmendaten einen Erfolgs-Hinweis", async () => {
+    const { api } = await import("../api");
+    vi.mocked(api.firma.save).mockResolvedValueOnce({
+      id: "1", name: "Musterfirma", strasse: "Musterstr. 1", plz: "12345", ort: "Musterstadt",
+      land: "DE", steuernummer: "123/456/789", ust_idnr: "", iban: "", bic: "",
+      kleinunternehmer: true, eingerichtet: true,
+    });
+    render(<Einstellungen />);
+    await waitFor(() => expect(screen.getByDisplayValue("Musterfirma")).toBeTruthy());
+    // Index 0: Firmendaten ist der erste Abschnitt auf der Seite, dessen
+    // "Speichern"-Button ist damit im DOM immer der erste unter diesem Namen.
+    fireEvent.click(screen.getAllByRole("button", { name: "Speichern" })[0]);
+    await waitFor(() => expect(screen.getByText("Firmendaten gespeichert")).toBeTruthy());
   });
 });
