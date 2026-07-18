@@ -362,7 +362,7 @@ An das `mod tests`-Modul in `src-tauri/src/commands/belege.rs` anhängen:
 
 ```rust
     #[tokio::test]
-    async fn list_liefert_kunde_snapshot_name_nur_fuer_gestellte_belege() {
+    async fn list_liefert_kunde_snapshot_name_erst_nach_dem_stellen() {
         let (_dir, pool) = test_pool().await;
         let kunde_id = kunde_anlegen(&pool).await;
         let artikel_id = artikel_anlegen(&pool, 5000).await;
@@ -568,7 +568,7 @@ Erwartet: PASS (beide Tests).
 
 - [ ] **Step 6: Volle Suite + Build**
 
-Run: `npm test` → 87/87
+Run: `npm test` → 86/86
 Run: `npm run build` → PASS
 
 - [ ] **Step 7: Commit**
@@ -690,7 +690,7 @@ Erwartet: PASS (beide Tests).
 
 - [ ] **Step 5: Volle Suite + Build**
 
-Run: `npm test` → 88/88
+Run: `npm test` → 87/87
 Run: `npm run build` → PASS
 
 - [ ] **Step 6: Commit**
@@ -755,7 +755,7 @@ Erwartet: PASS.
 
 - [ ] **Step 5: Volle Suite + Build**
 
-Run: `npm test` → 89/89
+Run: `npm test` → 88/88
 Run: `npm run build` → PASS
 
 - [ ] **Step 6: Commit**
@@ -774,7 +774,7 @@ git commit -m "feat: BelegEditor-Stammdaten zeigen Kunden-Snapshot-Namen statt L
 - [ ] **Step 1: Vollständige Frontend-Test-Suite**
 
 Run: `npm test`
-Erwartet: alle 89 Tests grün.
+Erwartet: alle 88 Tests grün.
 
 - [ ] **Step 2: Typecheck und Build**
 
