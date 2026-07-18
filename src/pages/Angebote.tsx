@@ -104,7 +104,7 @@ export function Angebote({ onOeffnen }: AngeboteProps) {
           {angebote.map((a) => (
             <tr key={a.id} onClick={() => onOeffnen(a.id)}>
               <td className="tabelle-num">{a.nummer ?? "Entwurf"}</td>
-              <td>{kunden.find((k) => k.id === a.kunde_id)?.name ?? a.kunde_id}</td>
+              <td>{a.kunde_snapshot_name ?? kunden.find((k) => k.id === a.kunde_id)?.name ?? a.kunde_id}</td>
               <td>{a.datum}</td>
               <td>
                 <span className={`status ${STATUS_KLASSE[a.status] ?? "status-entwurf"}`}>

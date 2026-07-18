@@ -142,6 +142,7 @@ pub(crate) mod tests {
                 leistungsdatum: "2026-07-11".into(), zahlungsziel_tage: 14,
                 kopftext: "".into(), fusstext: "Danke für Ihren Auftrag.".into(), summe_cent: 9500,
                 ursprungsangebot_id: None, storno_von_id: None,
+                kunde_snapshot: String::new(), kunde_snapshot_name: None,
             },
             positionen: vec![Belegposition {
                 id: "p1".into(), beleg_id: "b1".into(), artikel_id: None,

@@ -189,6 +189,7 @@ mod tests {
                 leistungsdatum: "2026-07-11".into(), zahlungsziel_tage: 14,
                 kopftext: "".into(), fusstext: "".into(), summe_cent,
                 ursprungsangebot_id: None, storno_von_id: storno_von.map(String::from),
+                kunde_snapshot: String::new(), kunde_snapshot_name: None,
             },
             positionen: vec![Belegposition {
                 id: "p1".into(), beleg_id: "b1".into(), artikel_id: None,

@@ -22,6 +22,17 @@ pub struct Beleg {
     pub summe_cent: i64,
     pub ursprungsangebot_id: Option<String>,
     pub storno_von_id: Option<String>,
+    /// Rohe Snapshot-Spalte — nie ans Frontend senden, nur zur Ableitung von
+    /// `kunde_snapshot_name` innerhalb dieser Datei verwendet.
+    #[serde(skip_serializing, default)]
+    pub kunde_snapshot: String,
+    /// Aus `kunde_snapshot` abgeleitet: `None` bei Entwürfen (noch kein
+    /// Snapshot geschrieben), sonst der zum Zeitpunkt des Stellens
+    /// eingefrorene Kundenname. Wird von `mit_snapshot_name()` befüllt,
+    /// NICHT direkt aus der DB-Spalte gemappt (siehe Task 2).
+    #[sqlx(default)]
+    #[serde(default)]
+    pub kunde_snapshot_name: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -88,7 +99,7 @@ pub struct Zahlung {
     pub notiz: String,
 }
 
-const BELEG_SPALTEN: &str = "id, typ, nummer, status, kunde_id, datum, leistungsdatum, zahlungsziel_tage, kopftext, fusstext, summe_cent, ursprungsangebot_id, storno_von_id";
+const BELEG_SPALTEN: &str = "id, typ, nummer, status, kunde_id, datum, leistungsdatum, zahlungsziel_tage, kopftext, fusstext, summe_cent, ursprungsangebot_id, storno_von_id, kunde_snapshot";
 
 fn pruefe_beleg_neu(typ: &str, datum: &str, leistungsdatum: &str, zahlungsziel_tage: i64) -> AppResult<()> {
     if !["angebot", "rechnung"].contains(&typ) {
@@ -108,7 +119,8 @@ fn pruefe_beleg_neu(typ: &str, datum: &str, leistungsdatum: &str, zahlungsziel_t
 
 async fn lade_beleg(pool: &SqlitePool, id: &str) -> AppResult<Beleg> {
     let sql = format!("SELECT {BELEG_SPALTEN} FROM beleg WHERE id = ? AND deleted_at IS NULL");
-    sqlx::query_as(&sql).bind(id).fetch_optional(pool).await?.ok_or(AppError::NichtGefunden)
+    let beleg: Beleg = sqlx::query_as(&sql).bind(id).fetch_optional(pool).await?.ok_or(AppError::NichtGefunden)?;
+    Ok(mit_snapshot_name(beleg))
 }
 
 fn pruefe_ist_entwurf(beleg: &Beleg) -> AppResult<()> {
@@ -133,6 +145,7 @@ pub async fn create(pool: &SqlitePool, d: BelegNeu) -> AppResult<Beleg> {
         kunde_id: d.kunde_id, datum: d.datum, leistungsdatum: d.leistungsdatum,
         zahlungsziel_tage: d.zahlungsziel_tage, kopftext: d.kopftext, fusstext: d.fusstext,
         summe_cent: 0, ursprungsangebot_id: None, storno_von_id: None,
+        kunde_snapshot: String::new(), kunde_snapshot_name: None,
     };
     sqlx::query("INSERT INTO beleg (id, typ, nummer, status, kunde_id, datum, leistungsdatum, zahlungsziel_tage, kopftext, fusstext, summe_cent, ursprungsangebot_id, storno_von_id, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
         .bind(&beleg.id).bind(&beleg.typ).bind(&beleg.nummer).bind(&beleg.status).bind(&beleg.kunde_id)
@@ -149,10 +162,11 @@ pub async fn list(pool: &SqlitePool, typ: Option<String>, status: Option<String>
          AND (? IS NULL OR typ = ?) AND (? IS NULL OR status = ?) \
          ORDER BY datum DESC, created_at DESC"
     );
-    Ok(sqlx::query_as(&sql)
+    let belege: Vec<Beleg> = sqlx::query_as(&sql)
         .bind(typ.clone()).bind(typ)
         .bind(status.clone()).bind(status)
-        .fetch_all(pool).await?)
+        .fetch_all(pool).await?;
+    Ok(belege.into_iter().map(mit_snapshot_name).collect())
 }
 
 pub async fn get(pool: &SqlitePool, id: String) -> AppResult<BelegDetail> {
@@ -302,6 +316,27 @@ fn kunde_snapshot_json(
     }).to_string()
 }
 
+/// Extrahiert den Kundennamen aus einer rohen `kunde_snapshot`-Spalte.
+/// Leerer String (Entwurf, noch kein Snapshot) oder nicht parsbares JSON
+/// liefern `None` statt eines Fehlers — die Anzeige fällt dann auf die
+/// Live-Suche in der aktuellen Kundenliste zurück (siehe Frontend-Tasks).
+fn kunde_snapshot_name(roh: &str) -> Option<String> {
+    if roh.is_empty() {
+        return None;
+    }
+    let wert: serde_json::Value = serde_json::from_str(roh).ok()?;
+    wert.get("kunde")?.get("name")?.as_str().map(String::from)
+}
+
+/// Befüllt `kunde_snapshot_name` aus der geladenen `kunde_snapshot`-Spalte.
+/// Wird nach jedem `query_as::<_, Beleg>`-Aufruf angewendet, der über
+/// `BELEG_SPALTEN` selektiert (die Spalte landet dank `#[sqlx(default)]`
+/// sonst ungenutzt im Struct).
+fn mit_snapshot_name(mut beleg: Beleg) -> Beleg {
+    beleg.kunde_snapshot_name = kunde_snapshot_name(&beleg.kunde_snapshot);
+    beleg
+}
+
 pub async fn stellen(pool: &SqlitePool, id: String) -> AppResult<Beleg> {
     let beleg = lade_beleg(pool, &id).await?;
     pruefe_ist_entwurf(&beleg)?;
@@ -365,6 +400,7 @@ pub async fn angebot_ueberfuehren(pool: &SqlitePool, angebot_id: String) -> AppR
         kunde_id: angebot.kunde_id.clone(), datum: heute, leistungsdatum: angebot.leistungsdatum.clone(),
         zahlungsziel_tage: angebot.zahlungsziel_tage, kopftext: angebot.kopftext.clone(), fusstext: angebot.fusstext.clone(),
         summe_cent: angebot.summe_cent, ursprungsangebot_id: Some(angebot.id.clone()), storno_von_id: None,
+        kunde_snapshot: String::new(), kunde_snapshot_name: None,
     };
 
     // Transaktion: das Beleg-INSERT und die Positions-INSERTs müssen atomar sein,
@@ -437,6 +473,7 @@ pub async fn storniere_rechnung(pool: &SqlitePool, id: String) -> AppResult<Bele
         zahlungsziel_tage: rechnung.zahlungsziel_tage, kopftext: rechnung.kopftext.clone(),
         fusstext: format!("Stornierung zu Rechnung {}", rechnung.nummer.clone().unwrap_or_default()),
         summe_cent: -rechnung.summe_cent, ursprungsangebot_id: None, storno_von_id: Some(rechnung.id.clone()),
+        kunde_snapshot: snapshot.0.clone(), kunde_snapshot_name: kunde_snapshot_name(&snapshot.0),
     };
 
     // Transaktion: das Storno-Beleg-INSERT, die negierten Positions-INSERTs und das
@@ -544,6 +581,7 @@ pub async fn zahlung_loeschen(pool: &SqlitePool, id: String) -> AppResult<()> {
 pub async fn offene_posten(pool: &SqlitePool) -> AppResult<Vec<OffenerPosten>> {
     let sql = format!("SELECT {BELEG_SPALTEN} FROM beleg WHERE deleted_at IS NULL AND typ = 'rechnung' AND status = 'gestellt' ORDER BY datum");
     let rechnungen: Vec<Beleg> = sqlx::query_as(&sql).fetch_all(pool).await?;
+    let rechnungen: Vec<Beleg> = rechnungen.into_iter().map(mit_snapshot_name).collect();
     let mut ergebnis = Vec::new();
     for rechnung in rechnungen {
         let bezahlt: (Option<i64>,) = sqlx::query_as(
@@ -1241,5 +1279,64 @@ mod tests {
         assert_eq!(posten.len(), 1);
         assert_eq!(posten[0].beleg.id, offen_gestellt.id);
         assert_eq!(posten[0].offener_betrag_cent, 10000);
+    }
+
+    #[test]
+    fn kunde_snapshot_name_liefert_none_bei_leerem_snapshot() {
+        assert_eq!(kunde_snapshot_name(""), None);
+    }
+
+    #[test]
+    fn kunde_snapshot_name_liefert_none_bei_kaputtem_json() {
+        assert_eq!(kunde_snapshot_name("kein json"), None);
+    }
+
+    #[test]
+    fn kunde_snapshot_name_extrahiert_namen_aus_gueltigem_snapshot() {
+        let roh = r#"{"kunde":{"name":"ACME GmbH","kundennummer":"KD-0001"},"adresse":null,"firma":{}}"#;
+        assert_eq!(kunde_snapshot_name(roh), Some("ACME GmbH".to_string()));
+    }
+
+    #[tokio::test]
+    async fn list_liefert_kunde_snapshot_name_erst_nach_dem_stellen() {
+        let (_dir, pool) = test_pool().await;
+        let kunde_id = kunde_anlegen(&pool).await;
+        let artikel_id = artikel_anlegen(&pool, 5000).await;
+        let entwurf = create(&pool, beleg_neu("angebot", &kunde_id)).await.unwrap();
+        position_speichern(&pool, BelegpositionNeu {
+            id: "".into(), beleg_id: entwurf.id.clone(), artikel_id: Some(artikel_id),
+            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000,
+        }).await.unwrap();
+
+        // WICHTIG: stellen() ändert dieselbe Zeile per UPDATE, erzeugt keine neue —
+        // entwurf.id und die spätere gestellt.id sind identisch. Deshalb braucht es
+        // ZWEI getrennte list()-Aufrufe (vor und nach dem Stellen), nicht einen
+        // einzigen Aufruf danach mit zwei "unterschiedlichen" find()-Treffern, die in
+        // Wahrheit dieselbe (dann schon gestellte) Zeile wären.
+        let vor_stellen = list(&pool, None, None).await.unwrap();
+        let entwurf_geladen = vor_stellen.iter().find(|b| b.id == entwurf.id).unwrap();
+        assert_eq!(entwurf_geladen.kunde_snapshot_name, None);
+
+        let gestellt = stellen(&pool, entwurf.id.clone()).await.unwrap();
+
+        let nach_stellen = list(&pool, None, None).await.unwrap();
+        let gestellt_geladen = nach_stellen.iter().find(|b| b.id == gestellt.id).unwrap();
+        assert_eq!(gestellt_geladen.kunde_snapshot_name, Some("ACME GmbH".to_string()));
+    }
+
+    #[tokio::test]
+    async fn get_liefert_kunde_snapshot_name() {
+        let (_dir, pool) = test_pool().await;
+        let kunde_id = kunde_anlegen(&pool).await;
+        let artikel_id = artikel_anlegen(&pool, 5000).await;
+        let entwurf = create(&pool, beleg_neu("angebot", &kunde_id)).await.unwrap();
+        position_speichern(&pool, BelegpositionNeu {
+            id: "".into(), beleg_id: entwurf.id.clone(), artikel_id: Some(artikel_id),
+            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000,
+        }).await.unwrap();
+        let gestellt = stellen(&pool, entwurf.id).await.unwrap();
+
+        let geladen = get(&pool, gestellt.id).await.unwrap();
+        assert_eq!(geladen.beleg.kunde_snapshot_name, Some("ACME GmbH".to_string()));
     }
 }

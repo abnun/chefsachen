@@ -87,6 +87,21 @@ describe("BelegEditor", () => {
     const stellenButton = screen.getByRole("button", { name: "Stellen" });
     expect(stellenButton).toBeDisabled();
   });
+
+  it("zeigt den Kunden-Snapshot-Namen in den Stammdaten, wenn vorhanden", async () => {
+    vi.mocked(api.artikel.list).mockResolvedValue([]);
+    vi.mocked(api.belege.get).mockResolvedValue({
+      beleg: {
+        id: "b1", typ: "rechnung", nummer: "RE-2026-0001", status: "gestellt", kunde_id: "k1",
+        datum: "2026-07-10", leistungsdatum: "2026-07-10", zahlungsziel_tage: 14,
+        kopftext: "", fusstext: "", summe_cent: 9550, ursprungsangebot_id: null, storno_von_id: null,
+        kunde_snapshot_name: "ACME GmbH (alter Name)",
+      },
+      positionen: [], zahlungen: [], bezahlt_cent: 0, offener_betrag_cent: 9550,
+    });
+    render(<BelegEditor id="b1" />);
+    await waitFor(() => expect(screen.getByText("Kunde: ACME GmbH (alter Name)")).toBeTruthy());
+  });
 });
 
 describe("BelegEditor – Position hinzufügen", () => {
