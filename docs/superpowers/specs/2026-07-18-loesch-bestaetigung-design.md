@@ -46,9 +46,19 @@ interface BestaetigungsdialogProps {
 ```
 
 Rendert einen Overlay-`div` (Klick darauf → `onAbbrechen`), darin eine Karte
-mit `text`, einem „Abbrechen"-Button (`btn`, Fokus beim Öffnen) und einem
-„Löschen"-Button (`btn btn-gefahr`, ruft `onBestaetigen`). `Escape`-Taste →
-`onAbbrechen`.
+mit `role="dialog"` und `aria-modal="true"`, `text`, einem „Abbrechen"-Button
+(`btn`, Fokus beim Öffnen) und einem „Löschen"-Button (`btn btn-gefahr`, ruft
+`onBestaetigen`). `Escape`-Taste → `onAbbrechen`.
+
+**Wichtig — Label-Kollision:** Solange der Dialog offen ist, bleibt die
+ursprüngliche Tabellenzeile mit ihrem eigenen „Löschen"-Button weiterhin im
+DOM (nur optisch durch das Overlay verdeckt). Der Dialog-Button trägt
+denselben Text „Löschen" — es gibt also zwei gleich beschriftete Buttons
+gleichzeitig im DOM. `role="dialog"` ist deshalb nicht nur aus
+Barrierefreiheits-Gründen sinnvoll, sondern zwingend nötig, damit Tests den
+Dialog-Button eindeutig ansprechen können (`within(screen.getByRole("dialog")).getByRole("button", { name: "Löschen" })`
+statt eines mehrdeutigen `screen.getByRole(...)`, das mit „multiple elements
+found" fehlschlagen würde).
 
 ### Hook `useLoeschBestaetigung`
 
@@ -156,4 +166,7 @@ lösen alle die Promise mit `false` auf — kein API-Call, keine sichtbare
   Position, Einheit): Klick auf „Löschen" öffnet den Dialog, kein API-Call
   vor Bestätigung; Klick auf „Löschen" im Dialog löst den bestehenden Ablauf
   aus (API-Call, `laden()`/`onGeaendert()`, Erfolgs-Banner); Klick auf
-  „Abbrechen" im Dialog löst keinen API-Call aus.
+  „Abbrechen" im Dialog löst keinen API-Call aus. Wegen der Label-Kollision
+  (siehe oben) muss der Dialog-Button über
+  `within(screen.getByRole("dialog")).getByRole("button", { name: "Löschen" })`
+  angesprochen werden, nicht über ein ungescoptes `screen.getByRole(...)`.
