@@ -371,13 +371,20 @@ An das `mod tests`-Modul in `src-tauri/src/commands/belege.rs` anhängen:
             id: "".into(), beleg_id: entwurf.id.clone(), artikel_id: Some(artikel_id),
             bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000,
         }).await.unwrap();
+
+        // WICHTIG: stellen() ändert dieselbe Zeile per UPDATE, erzeugt keine neue —
+        // entwurf.id und die spätere gestellt.id sind identisch. Deshalb braucht es
+        // ZWEI getrennte list()-Aufrufe (vor und nach dem Stellen), nicht einen
+        // einzigen Aufruf danach mit zwei "unterschiedlichen" find()-Treffern, die in
+        // Wahrheit dieselbe (dann schon gestellte) Zeile wären.
+        let vor_stellen = list(&pool, None, None).await.unwrap();
+        let entwurf_geladen = vor_stellen.iter().find(|b| b.id == entwurf.id).unwrap();
+        assert_eq!(entwurf_geladen.kunde_snapshot_name, None);
+
         let gestellt = stellen(&pool, entwurf.id.clone()).await.unwrap();
 
-        let alle = list(&pool, None, None).await.unwrap();
-        let entwurf_geladen = alle.iter().find(|b| b.id == entwurf.id).unwrap();
-        let gestellt_geladen = alle.iter().find(|b| b.id == gestellt.id).unwrap();
-
-        assert_eq!(entwurf_geladen.kunde_snapshot_name, None);
+        let nach_stellen = list(&pool, None, None).await.unwrap();
+        let gestellt_geladen = nach_stellen.iter().find(|b| b.id == gestellt.id).unwrap();
         assert_eq!(gestellt_geladen.kunde_snapshot_name, Some("ACME GmbH".to_string()));
     }
 
