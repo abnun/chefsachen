@@ -322,12 +322,15 @@ const ADRESSE_NEU = (kundeId: string): Omit<Adresse, "id"> => ({
 function AdressenReiter({ kundeId, adressen, onGeaendert }: AdressenReiterProps) {
   const [form, setForm] = useState<Omit<Adresse, "id"> & { id?: string }>(ADRESSE_NEU(kundeId));
   const [fehler, setFehler] = useState<AppFehler | null>(null);
+  const { zeigen, hinweis } = useErfolgsHinweis();
 
   async function speichern() {
     setFehler(null);
+    const warNeu = !form.id;
     try {
       await api.kunden.adresseSave({ id: form.id ?? "", ...form } as Adresse);
       setForm(ADRESSE_NEU(kundeId));
+      zeigen(warNeu ? "Adresse angelegt" : "Adresse gespeichert");
       onGeaendert();
     } catch (e) {
       setFehler(e as AppFehler);
@@ -338,6 +341,7 @@ function AdressenReiter({ kundeId, adressen, onGeaendert }: AdressenReiterProps)
     setFehler(null);
     try {
       await api.kunden.adresseDelete(id);
+      zeigen("Adresse gelöscht");
       onGeaendert();
     } catch (e) {
       setFehler(e as AppFehler);
@@ -347,6 +351,7 @@ function AdressenReiter({ kundeId, adressen, onGeaendert }: AdressenReiterProps)
   return (
     <section>
       {fehler && <Fehler fehler={fehler} />}
+      {hinweis}
       <table className="tabelle">
         <thead>
           <tr>
