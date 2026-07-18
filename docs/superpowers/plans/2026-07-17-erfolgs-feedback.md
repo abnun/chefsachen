@@ -25,6 +25,7 @@ Wichtig: `.tsx`, nicht `.ts` — die Datei enthält JSX (`<Hinweis>...</Hinweis>
 ```tsx
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { act } from "react";
 import { useErfolgsHinweis } from "./useErfolgsHinweis";
 
 afterEach(cleanup);
@@ -56,9 +57,18 @@ describe("useErfolgsHinweis", () => {
     render(<TestKomponente />);
     fireEvent.click(screen.getByRole("button", { name: "Erster Text zeigen" }));
     expect(screen.getByText("Erster Text")).toBeTruthy();
-    vi.advanceTimersByTime(3999);
+    // act() ist hier notwendig: der State-Update (setBanner(null)) passiert
+    // innerhalb eines echten setTimeout-Callbacks, außerhalb von Reacts
+    // kontrolliertem Event-System. Ohne act() wird der Re-Render von React 19
+    // nicht synchron genug geflusht, bevor die folgende Assertion läuft — die
+    // Prüfung würde fälschlich fehlschlagen, obwohl der Hook korrekt arbeitet.
+    act(() => {
+      vi.advanceTimersByTime(3999);
+    });
     expect(screen.getByText("Erster Text")).toBeTruthy();
-    vi.advanceTimersByTime(1);
+    act(() => {
+      vi.advanceTimersByTime(1);
+    });
     expect(screen.queryByText("Erster Text")).toBeNull();
     vi.useRealTimers();
   });
@@ -67,7 +77,9 @@ describe("useErfolgsHinweis", () => {
     vi.useFakeTimers();
     render(<TestKomponente />);
     fireEvent.click(screen.getByRole("button", { name: "Erster Text zeigen" }));
-    vi.advanceTimersByTime(3000);
+    act(() => {
+      vi.advanceTimersByTime(3000);
+    });
     fireEvent.click(screen.getByRole("button", { name: "Zweiter Text zeigen" }));
     expect(screen.getByText("Zweiter Text")).toBeTruthy();
     // Der ERSTE Timer wäre spätestens 4000ms nach SEINEM Start verschwunden,
@@ -75,13 +87,19 @@ describe("useErfolgsHinweis", () => {
     // beim zweiten zeigen()-Aufruf NICHT neu starten, wäre der (jetzt zweite)
     // Banner an dieser Stelle schon weg. Da der Timer aber neu zählt, ist er
     // nach diesen 1000ms noch da.
-    vi.advanceTimersByTime(1000);
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
     expect(screen.getByText("Zweiter Text")).toBeTruthy();
     // Erst nach vollen 4000ms AB DEM ZWEITEN Aufruf (hier: 1000+2999+1=4000)
     // verschwindet er.
-    vi.advanceTimersByTime(2999);
+    act(() => {
+      vi.advanceTimersByTime(2999);
+    });
     expect(screen.getByText("Zweiter Text")).toBeTruthy();
-    vi.advanceTimersByTime(1);
+    act(() => {
+      vi.advanceTimersByTime(1);
+    });
     expect(screen.queryByText("Zweiter Text")).toBeNull();
     vi.useRealTimers();
   });
