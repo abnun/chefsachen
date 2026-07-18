@@ -11,6 +11,10 @@ pub struct Kunde {
     pub zahlungsziel_tage: i64, pub notizen: String, pub ust_idnr: String,
     pub email: String, pub leitweg_id: String, pub kaeuferreferenz: String,
     pub hat_adresse: bool,
+    /// `true`, solange mindestens ein Angebot oder eine Rechnung im Status
+    /// "entwurf" diesen Kunden referenziert. Wird von `delete()` genutzt, um
+    /// das Löschen serverseitig abzulehnen — siehe Task 2.
+    pub hat_offene_entwuerfe: bool,
 }
 
 #[derive(Debug, Deserialize)]
@@ -54,7 +58,7 @@ pub async fn create(pool: &SqlitePool, d: KundeNeu) -> AppResult<Kunde> {
     let k = Kunde { id: Uuid::new_v4().to_string(), typ: d.typ, name: d.name.trim().into(),
         kundennummer, zahlungsziel_tage: d.zahlungsziel_tage, notizen: d.notizen,
         ust_idnr: d.ust_idnr, email: d.email, leitweg_id: d.leitweg_id,
-        kaeuferreferenz: d.kaeuferreferenz, hat_adresse: false };
+        kaeuferreferenz: d.kaeuferreferenz, hat_adresse: false, hat_offene_entwuerfe: false };
     sqlx::query("INSERT INTO kunde (id, typ, name, kundennummer, zahlungsziel_tage, notizen, ust_idnr, email, leitweg_id, kaeuferreferenz, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)")
         .bind(&k.id).bind(&k.typ).bind(&k.name).bind(&k.kundennummer)
         .bind(k.zahlungsziel_tage).bind(&k.notizen).bind(&k.ust_idnr).bind(&k.email)
@@ -68,7 +72,8 @@ pub async fn list(pool: &SqlitePool, suche: Option<String>) -> AppResult<Vec<Kun
     Ok(sqlx::query_as(
         "SELECT k.id, k.typ, k.name, k.kundennummer, k.zahlungsziel_tage, k.notizen, k.ust_idnr, \
                 k.email, k.leitweg_id, k.kaeuferreferenz, \
-                EXISTS(SELECT 1 FROM adresse a WHERE a.kunde_id = k.id AND a.deleted_at IS NULL) AS hat_adresse \
+                EXISTS(SELECT 1 FROM adresse a WHERE a.kunde_id = k.id AND a.deleted_at IS NULL) AS hat_adresse, \
+                EXISTS(SELECT 1 FROM beleg b WHERE b.kunde_id = k.id AND b.status = 'entwurf' AND b.deleted_at IS NULL) AS hat_offene_entwuerfe \
          FROM kunde k WHERE k.deleted_at IS NULL AND (lower(k.name) LIKE ? OR lower(k.kundennummer) LIKE ?) ORDER BY k.name")
         .bind(&muster).bind(&muster).fetch_all(pool).await?)
 }
@@ -77,7 +82,8 @@ pub async fn get(pool: &SqlitePool, id: String) -> AppResult<KundeDetail> {
     let kunde: Kunde = sqlx::query_as(
         "SELECT k.id, k.typ, k.name, k.kundennummer, k.zahlungsziel_tage, k.notizen, k.ust_idnr, \
                 k.email, k.leitweg_id, k.kaeuferreferenz, \
-                EXISTS(SELECT 1 FROM adresse a WHERE a.kunde_id = k.id AND a.deleted_at IS NULL) AS hat_adresse \
+                EXISTS(SELECT 1 FROM adresse a WHERE a.kunde_id = k.id AND a.deleted_at IS NULL) AS hat_adresse, \
+                EXISTS(SELECT 1 FROM beleg b WHERE b.kunde_id = k.id AND b.status = 'entwurf' AND b.deleted_at IS NULL) AS hat_offene_entwuerfe \
          FROM kunde k WHERE k.id = ? AND k.deleted_at IS NULL")
         .bind(&id).fetch_optional(pool).await?.ok_or(AppError::NichtGefunden)?;
     let adressen = sqlx::query_as(
@@ -275,5 +281,23 @@ mod tests {
         let treffer_ohne = liste.iter().find(|k| k.id == ohne_adresse.id).unwrap();
         assert!(treffer_mit.hat_adresse);
         assert!(!treffer_ohne.hat_adresse);
+    }
+
+    #[tokio::test]
+    async fn list_liefert_hat_offene_entwuerfe_korrekt() {
+        let (_dir, pool) = test_pool().await;
+        let kunde_id = create(&pool, neu("ACME GmbH")).await.unwrap().id;
+
+        let liste = list(&pool, None).await.unwrap();
+        assert!(!liste.iter().find(|k| k.id == kunde_id).unwrap().hat_offene_entwuerfe);
+
+        crate::commands::belege::create(&pool, crate::commands::belege::BelegNeu {
+            typ: "angebot".into(), kunde_id: kunde_id.clone(), datum: "2026-07-10".into(),
+            leistungsdatum: "2026-07-10".into(), zahlungsziel_tage: 14,
+            kopftext: "".into(), fusstext: "".into(),
+        }).await.unwrap();
+
+        let liste = list(&pool, None).await.unwrap();
+        assert!(liste.iter().find(|k| k.id == kunde_id).unwrap().hat_offene_entwuerfe);
     }
 }
