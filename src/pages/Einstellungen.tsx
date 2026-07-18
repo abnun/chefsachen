@@ -280,6 +280,7 @@ const NUMMERNKREIS_LABEL: Record<string, string> = {
 function NummernkreiseAbschnitt() {
   const [nummernkreise, setNummernkreise] = useState<Nummernkreis[]>([]);
   const [fehler, setFehler] = useState<AppFehler | null>(null);
+  const { zeigen, hinweis } = useErfolgsHinweis();
 
   function laden() {
     api.einstellungen
@@ -298,6 +299,7 @@ function NummernkreiseAbschnitt() {
     try {
       await api.einstellungen.nummernkreisUpdate(nk.art, nk.format, nk.jahres_reset);
       laden();
+      zeigen("Nummernkreis gespeichert");
     } catch (e) {
       setFehler(e as AppFehler);
     }
@@ -311,6 +313,7 @@ function NummernkreiseAbschnitt() {
     <section>
       <h2>Nummernkreise</h2>
       {fehler && !istValidierungsfehler(fehler) && <Fehler fehler={fehler} />}
+      {hinweis}
       {nummernkreise.map((nk) => (
         <form
           key={nk.art}

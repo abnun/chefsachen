@@ -98,4 +98,12 @@ describe("Einstellungen", () => {
     fireEvent.click(screen.getByRole("button", { name: "Löschen" }));
     await waitFor(() => expect(screen.getByText("Einheit gelöscht")).toBeTruthy());
   });
+
+  it("zeigt nach dem Speichern eines Nummernkreises einen Erfolgs-Hinweis", async () => {
+    render(<Einstellungen />);
+    await waitFor(() => expect(screen.getByDisplayValue("R-{jahr}-{nr}")).toBeTruthy());
+    // Index 1: Firmendaten (0) steht im DOM vor dem einzigen Nummernkreis-Eintrag (1).
+    fireEvent.click(screen.getAllByRole("button", { name: "Speichern" })[1]);
+    await waitFor(() => expect(screen.getByText("Nummernkreis gespeichert")).toBeTruthy());
+  });
 });
