@@ -243,6 +243,23 @@ describe("BelegEditor – Zahlungen", () => {
       ),
     );
   });
+
+  it("zeigt nach dem Erfassen einer Zahlung einen Erfolgs-Hinweis", async () => {
+    vi.mocked(api.artikel.list).mockResolvedValue([]);
+    vi.mocked(api.belege.get).mockResolvedValue({
+      beleg: {
+        id: "b1", typ: "rechnung", nummer: "R-2026-0001", status: "gestellt", kunde_id: "k1",
+        datum: "2026-07-10", leistungsdatum: "2026-07-10", zahlungsziel_tage: 14,
+        kopftext: "", fusstext: "", summe_cent: 5000, ursprungsangebot_id: null, storno_von_id: null,
+      },
+      positionen: [], zahlungen: [], bezahlt_cent: 0, offener_betrag_cent: 5000,
+    });
+    render(<BelegEditor id="b1" />);
+    await waitFor(() => expect(screen.getByText("gestellt", { selector: ".status" })).toBeTruthy());
+    fireEvent.change(screen.getByLabelText("Betrag"), { target: { value: "50,00" } });
+    fireEvent.click(screen.getByRole("button", { name: "Zahlung erfassen" }));
+    await waitFor(() => expect(screen.getByText("Zahlung erfasst")).toBeTruthy());
+  });
 });
 
 describe("BelegEditor – Export", () => {

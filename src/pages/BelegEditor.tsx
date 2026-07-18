@@ -522,6 +522,7 @@ function ZahlungenAbschnitt({ rechnungId, zahlungen, offenerBetragCent, onGeaend
   const [erstattung, setErstattung] = useState(false);
   const [notiz, setNotiz] = useState("");
   const [fehler, setFehler] = useState<AppFehler | null>(null);
+  const { zeigen, hinweis } = useErfolgsHinweis();
 
   async function erfassen() {
     setFehler(null);
@@ -540,6 +541,7 @@ function ZahlungenAbschnitt({ rechnungId, zahlungen, offenerBetragCent, onGeaend
       setBetrag("");
       setNotiz("");
       onGeaendert();
+      zeigen("Zahlung erfasst");
     } catch (e) {
       setFehler(e as AppFehler);
     }
@@ -549,6 +551,7 @@ function ZahlungenAbschnitt({ rechnungId, zahlungen, offenerBetragCent, onGeaend
     <section className="karte">
       <h2>Zahlungen</h2>
       {fehler && <Fehler fehler={fehler} />}
+      {hinweis}
       <p>Offener Betrag: {formatCent(offenerBetragCent)}</p>
       <table className="tabelle">
         <thead>
