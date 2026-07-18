@@ -100,7 +100,7 @@ export function Rechnungen({ onOeffnen }: RechnungenProps) {
           {rechnungen.map((r) => (
             <tr key={r.id} onClick={() => onOeffnen(r.id)}>
               <td className="tabelle-num">{r.nummer ?? "Entwurf"}</td>
-              <td>{kunden.find((k) => k.id === r.kunde_id)?.name ?? r.kunde_id}</td>
+              <td>{r.kunde_snapshot_name ?? kunden.find((k) => k.id === r.kunde_id)?.name ?? r.kunde_id}</td>
               <td>{r.datum}</td>
               <td>
                 <span className={`status ${STATUS_KLASSE[r.status] ?? "status-entwurf"}`}>
