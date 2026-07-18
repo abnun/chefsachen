@@ -1,5 +1,5 @@
 import "@testing-library/jest-dom/vitest";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../api", () => ({
@@ -443,6 +443,32 @@ describe("BelegEditor – Erfolgs-Hinweis", () => {
     await waitFor(() => expect(screen.getByText("Rechnung storniert")).toBeTruthy());
   });
 
+  it("löscht eine Position nicht, wenn im Dialog abgebrochen wird", async () => {
+    vi.mocked(api.artikel.list).mockResolvedValue([]);
+    vi.mocked(api.belege.get).mockResolvedValue({
+      beleg: {
+        id: "b1", typ: "angebot", nummer: null, status: "entwurf", kunde_id: "k1",
+        datum: "2026-07-10", leistungsdatum: "2026-07-10", zahlungsziel_tage: 14,
+        kopftext: "", fusstext: "", summe_cent: 9550, ursprungsangebot_id: null, storno_von_id: null,
+      },
+      positionen: [
+        {
+          id: "p1", beleg_id: "b1", artikel_id: null, bezeichnung: "Beratung",
+          einheit_kuerzel: "Std", einzelpreis_cent: 9550, menge: 1000,
+          positionssumme_cent: 9550, reihenfolge: 0,
+        },
+      ],
+      zahlungen: [], bezahlt_cent: 0, offener_betrag_cent: 0,
+    });
+    render(<BelegEditor id="b1" />);
+    await waitFor(() => expect(screen.getByText("Beratung")).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Löschen" }));
+    await waitFor(() => expect(screen.getByRole("dialog")).toBeTruthy());
+    fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Abbrechen" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(vi.mocked(api.belege.positionDelete)).not.toHaveBeenCalled();
+  });
+
   it("zeigt nach dem Löschen einer Position einen Erfolgs-Hinweis", async () => {
     vi.mocked(api.artikel.list).mockResolvedValue([]);
     vi.mocked(api.belege.get).mockResolvedValue({
@@ -463,6 +489,8 @@ describe("BelegEditor – Erfolgs-Hinweis", () => {
     render(<BelegEditor id="b1" />);
     await waitFor(() => expect(screen.getByText("Beratung")).toBeTruthy());
     fireEvent.click(screen.getByRole("button", { name: "Löschen" }));
+    await waitFor(() => expect(screen.getByText('Position „Beratung" löschen?')).toBeTruthy());
+    fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Löschen" }));
     await waitFor(() => expect(screen.getByText("Position gelöscht")).toBeTruthy());
   });
 });

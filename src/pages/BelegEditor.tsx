@@ -13,6 +13,7 @@ import {
 } from "../api";
 import { Fehler } from "../components/Fehler";
 import { useErfolgsHinweis } from "../hooks/useErfolgsHinweis";
+import { useLoeschBestaetigung } from "../hooks/useLoeschBestaetigung";
 import { formatCent, formatMenge, parseEuro, parseMenge } from "../geld";
 
 interface BelegEditorProps {
@@ -383,6 +384,7 @@ function PositionenAbschnitt({
   const [menge, setMenge] = useState("1");
   const [fehler, setFehler] = useState<AppFehler | null>(null);
   const { zeigen, hinweis } = useErfolgsHinweis();
+  const { bestaetigen, dialog } = useLoeschBestaetigung();
 
   async function hinzufuegen() {
     setFehler(null);
@@ -418,11 +420,17 @@ function PositionenAbschnitt({
     }
   }
 
+  async function loeschenBestaetigen(id: string, bezeichnung: string) {
+    if (!(await bestaetigen(`Position „${bezeichnung}" löschen?`))) return;
+    onLoeschen(id);
+  }
+
   return (
     <section className="karte">
       <h2>Positionen</h2>
       {fehler && <Fehler fehler={fehler} />}
       {hinweis}
+      {dialog}
       <table className="tabelle">
         <thead>
           <tr>
@@ -444,7 +452,11 @@ function PositionenAbschnitt({
               <td>{formatCent(p.positionssumme_cent)}</td>
               <td>
                 {bearbeitbar && (
-                  <button type="button" className="btn btn-gefahr" onClick={() => onLoeschen(p.id)}>
+                  <button
+                    type="button"
+                    className="btn btn-gefahr"
+                    onClick={() => loeschenBestaetigen(p.id, p.bezeichnung)}
+                  >
                     Löschen
                   </button>
                 )}
