@@ -299,6 +299,7 @@ function KundenpreiseBereich({ artikelId, kunden, standardpreisCent, onAenderung
   const [preisText, setPreisText] = useState("");
   const [preisFehlerText, setPreisFehlerText] = useState<string | null>(null);
   const [gueltigAb, setGueltigAb] = useState("");
+  const { zeigen, hinweis } = useErfolgsHinweis();
 
   function laden() {
     api.artikel
@@ -333,6 +334,7 @@ function KundenpreiseBereich({ artikelId, kunden, standardpreisCent, onAenderung
       setGueltigAb("");
       laden();
       onAenderung();
+      zeigen("Kundenpreis angelegt");
     } catch (e) {
       setFehler(e as AppFehler);
     }
@@ -344,6 +346,7 @@ function KundenpreiseBereich({ artikelId, kunden, standardpreisCent, onAenderung
 
   return (
     <div className="kundenpreis-bereich">
+      {hinweis}
       <div className="kundenpreis-liste-box">
         <h4>Kundenpreise — Ausnahmen vom Standardpreis ({formatCent(standardpreisCent)})</h4>
         <Fehler fehler={fehler} />

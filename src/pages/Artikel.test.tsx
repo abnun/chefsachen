@@ -270,4 +270,27 @@ describe("Artikel", () => {
     fireEvent.click(screen.getByRole("button", { name: "Speichern" }));
     await waitFor(() => expect(screen.getByText('Artikel „Beratung" gespeichert')).toBeTruthy());
   });
+
+  it("zeigt nach dem Anlegen eines Kundenpreises einen Erfolgs-Hinweis", async () => {
+    const { api } = await import("../api");
+    vi.mocked(api.kunden.list).mockResolvedValueOnce([
+      {
+        id: "k1", typ: "firma", name: "ACME GmbH", kundennummer: "KD-0001",
+        zahlungsziel_tage: 14, notizen: "", ust_idnr: "", email: "",
+        leitweg_id: "", kaeuferreferenz: "", hat_adresse: true,
+      },
+    ]);
+    vi.mocked(api.artikel.kundenpreise).mockResolvedValueOnce([]);
+    vi.mocked(api.artikel.kundenpreisSave).mockResolvedValueOnce({
+      id: "kp1", artikel_id: "a1", kunde_id: "k1", preis_cent: 6500, gueltig_ab: null,
+    });
+    render(<Artikel />);
+    await waitFor(() => expect(screen.getByText("Beratung")).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Kundenpreise" }));
+    await waitFor(() => expect(screen.getByRole("option", { name: "ACME GmbH" })).toBeTruthy());
+    fireEvent.change(screen.getByLabelText("Kunde"), { target: { value: "k1" } });
+    fireEvent.change(screen.getByLabelText("Preis (€)"), { target: { value: "65,00" } });
+    fireEvent.click(screen.getByRole("button", { name: "Speichern" }));
+    await waitFor(() => expect(screen.getByText("Kundenpreis angelegt")).toBeTruthy());
+  });
 });
