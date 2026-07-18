@@ -310,7 +310,7 @@ function StammdatenAbschnitt({ beleg, kunden, bearbeitbar, onSpeichern }: Stammd
     return (
       <section className="karte">
         <h2>Stammdaten</h2>
-        <p>Kunde: {kunde?.name ?? beleg.kunde_id}</p>
+        <p>Kunde: {beleg.kunde_snapshot_name ?? kunde?.name ?? beleg.kunde_id}</p>
         <p>Datum: {beleg.datum}</p>
         <p>Leistungsdatum: {beleg.leistungsdatum}</p>
         <p>Zahlungsziel: {beleg.zahlungsziel_tage} Tage</p>
@@ -321,7 +321,7 @@ function StammdatenAbschnitt({ beleg, kunden, bearbeitbar, onSpeichern }: Stammd
   return (
     <section className="karte">
       <h2>Stammdaten</h2>
-      <p>Kunde: {kunde?.name ?? beleg.kunde_id}</p>
+      <p>Kunde: {beleg.kunde_snapshot_name ?? kunde?.name ?? beleg.kunde_id}</p>
       <form
         onSubmit={(e) => {
           e.preventDefault();
