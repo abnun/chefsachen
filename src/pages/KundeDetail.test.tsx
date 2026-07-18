@@ -33,7 +33,17 @@ vi.mock("../api", () => ({
             ist_standard: true,
           },
         ],
-        ansprechpartner: [],
+        ansprechpartner: [
+          {
+            id: "ap1",
+            kunde_id: "1",
+            name: "Erika Musterfrau",
+            rolle: "Einkauf",
+            email: "",
+            telefon: "",
+            ist_standard: false,
+          },
+        ],
       }),
       update: vi.fn(),
       adresseSave: vi.fn(),
@@ -133,5 +143,25 @@ describe("KundeDetail", () => {
     await waitFor(() => expect(screen.getByRole("button", { name: "Löschen" })).toBeTruthy());
     fireEvent.click(screen.getByRole("button", { name: "Löschen" }));
     await waitFor(() => expect(screen.getByText("Adresse gelöscht")).toBeTruthy());
+  });
+
+  it("zeigt nach dem Anlegen eines neuen Ansprechpartners einen Erfolgs-Hinweis mit Namen", async () => {
+    const { api } = await import("../api");
+    vi.mocked(api.kunden.ansprechpartnerSave).mockResolvedValueOnce({
+      id: "ap2", kunde_id: "1", name: "Max Mustermann", rolle: "", email: "", telefon: "", ist_standard: false,
+    });
+    render(<KundeDetail id="1" startReiter="ansprechpartner" onReiterUebernommen={() => {}} />);
+    await waitFor(() => expect(screen.getByRole("button", { name: "Ansprechpartner" })).toBeTruthy());
+    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Max Mustermann" } });
+    fireEvent.click(screen.getByRole("button", { name: "Hinzufügen" }));
+    await waitFor(() => expect(screen.getByText('Ansprechpartner „Max Mustermann" angelegt')).toBeTruthy());
+  });
+
+  it("zeigt nach dem Löschen eines Ansprechpartners einen Erfolgs-Hinweis", async () => {
+    render(<KundeDetail id="1" startReiter="ansprechpartner" onReiterUebernommen={() => {}} />);
+    await waitFor(() => expect(screen.getByRole("button", { name: "Ansprechpartner" })).toBeTruthy());
+    await waitFor(() => expect(screen.getByRole("button", { name: "Löschen" })).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Löschen" }));
+    await waitFor(() => expect(screen.getByText("Ansprechpartner gelöscht")).toBeTruthy());
   });
 });

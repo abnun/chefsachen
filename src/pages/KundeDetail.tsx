@@ -454,15 +454,23 @@ function AnsprechpartnerReiter({ kundeId, ansprechpartner, onGeaendert }: Anspre
     ANSPRECHPARTNER_NEU(kundeId),
   );
   const [fehler, setFehler] = useState<AppFehler | null>(null);
+  const { zeigen, hinweis } = useErfolgsHinweis();
 
   async function speichern() {
     setFehler(null);
+    const warNeu = !form.id;
+    const gespeicherterName = form.name;
     try {
       await api.kunden.ansprechpartnerSave({
         id: form.id ?? "",
         ...form,
       } as Ansprechpartner);
       setForm(ANSPRECHPARTNER_NEU(kundeId));
+      zeigen(
+        warNeu
+          ? `Ansprechpartner „${gespeicherterName}" angelegt`
+          : `Ansprechpartner „${gespeicherterName}" gespeichert`,
+      );
       onGeaendert();
     } catch (e) {
       setFehler(e as AppFehler);
@@ -473,6 +481,7 @@ function AnsprechpartnerReiter({ kundeId, ansprechpartner, onGeaendert }: Anspre
     setFehler(null);
     try {
       await api.kunden.ansprechpartnerDelete(id);
+      zeigen("Ansprechpartner gelöscht");
       onGeaendert();
     } catch (e) {
       setFehler(e as AppFehler);
@@ -482,6 +491,7 @@ function AnsprechpartnerReiter({ kundeId, ansprechpartner, onGeaendert }: Anspre
   return (
     <section>
       {fehler && <Fehler fehler={fehler} />}
+      {hinweis}
       <table className="tabelle">
         <thead>
           <tr>
