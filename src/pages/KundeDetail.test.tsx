@@ -173,11 +173,27 @@ describe("KundeDetail", () => {
     await waitFor(() => expect(screen.getByText('Ansprechpartner „Max Mustermann" angelegt')).toBeTruthy());
   });
 
+  it("löscht einen Ansprechpartner nicht, wenn im Dialog abgebrochen wird", async () => {
+    const { api } = await import("../api");
+    render(<KundeDetail id="1" startReiter="ansprechpartner" onReiterUebernommen={() => {}} />);
+    await waitFor(() => expect(screen.getByRole("button", { name: "Ansprechpartner" })).toBeTruthy());
+    await waitFor(() => expect(screen.getByRole("button", { name: "Löschen" })).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Löschen" }));
+    await waitFor(() => expect(screen.getByRole("dialog")).toBeTruthy());
+    fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Abbrechen" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(vi.mocked(api.kunden.ansprechpartnerDelete)).not.toHaveBeenCalled();
+  });
+
   it("zeigt nach dem Löschen eines Ansprechpartners einen Erfolgs-Hinweis", async () => {
     render(<KundeDetail id="1" startReiter="ansprechpartner" onReiterUebernommen={() => {}} />);
     await waitFor(() => expect(screen.getByRole("button", { name: "Ansprechpartner" })).toBeTruthy());
     await waitFor(() => expect(screen.getByRole("button", { name: "Löschen" })).toBeTruthy());
     fireEvent.click(screen.getByRole("button", { name: "Löschen" }));
+    await waitFor(() =>
+      expect(screen.getByText('Ansprechpartner „Erika Musterfrau" löschen?')).toBeTruthy(),
+    );
+    fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Löschen" }));
     await waitFor(() => expect(screen.getByText("Ansprechpartner gelöscht")).toBeTruthy());
   });
 });
