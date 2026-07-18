@@ -466,8 +466,10 @@ describe("Angebote", () => {
 
 Nachher (kompletter Dateiinhalt):
 ```tsx
-import { render, screen, waitFor } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+afterEach(cleanup);
 
 vi.mock("../api", () => ({
   api: {
@@ -507,6 +509,8 @@ describe("Angebote", () => {
   });
 });
 ```
+
+(Die ursprüngliche Datei hatte kein `afterEach(cleanup)`, weil sie nur einen Test mit einem `render()`-Aufruf hatte. Mit dem zweiten Test/`render()`-Aufruf ist es zwingend nötig — sonst bleibt DOM vom ersten Test stehen und `getByText(...)` findet Treffer doppelt. Konsistent mit dem Muster in allen anderen mehrtestigen Dateien dieses Projekts.)
 
 - [ ] **Step 2: Test läuft nicht**
 
@@ -631,8 +635,10 @@ describe("Rechnungen", () => {
 
 Nachher (kompletter Dateiinhalt):
 ```tsx
-import { render, screen, waitFor } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+afterEach(cleanup);
 
 vi.mock("../api", () => ({
   api: {
@@ -672,6 +678,8 @@ describe("Rechnungen", () => {
   });
 });
 ```
+
+(Die ursprüngliche Datei hatte kein `afterEach(cleanup)`, weil sie nur einen Test mit einem `render()`-Aufruf hatte. Mit dem zweiten Test/`render()`-Aufruf ist es zwingend nötig — sonst bleibt DOM vom ersten Test stehen und `getByText(...)` findet Treffer doppelt. Gleiches Problem wurde bereits bei Task 3s `Angebote.test.tsx` gefunden und dort korrigiert.)
 
 - [ ] **Step 2: Test läuft nicht**
 
