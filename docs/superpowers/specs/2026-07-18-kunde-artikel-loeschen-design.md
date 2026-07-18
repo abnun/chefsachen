@@ -99,11 +99,35 @@ artikel: {
 
 ### Frontend — Kunden.tsx (Liste)
 
-Neuer „Löschen"-Button (`btn btn-gefahr`) pro Zeile, neben „Bearbeiten"/dem
-bestehenden Zeilen-Klick-Verhalten. `disabled={k.hat_offene_entwuerfe}`.
-Klick → `bestaetigen(\`Kunde „${k.name}" löschen?\`)` → bei Bestätigung
-`api.kunden.delete(k.id)`, danach `laden()` (Liste neu laden) und
-`zeigen(\`Kunde „${k.name}" gelöscht\`)`.
+**Wichtig — Zeilen-Klick-Konflikt:** Die gesamte Tabellenzeile hat bereits
+`onClick={() => onOeffnen(kunde.id)}` (öffnet die Detailseite; aktuell gibt
+es noch keinen einzigen Button innerhalb der Zeile, das ist die einzige
+Interaktion). Ein neuer „Löschen"-Button innerhalb dieser Zeile MUSS seinen
+Klick-Handler mit `e.stopPropagation()` versehen, sonst würde ein Klick auf
+„Löschen" zusätzlich zum Bestätigungsdialog auch die Detailseite öffnen
+(Event bubbelt zur Zeile hoch). Konkret:
+
+```tsx
+<button
+  type="button"
+  className="btn btn-gefahr"
+  disabled={kunde.hat_offene_entwuerfe}
+  onClick={(e) => {
+    e.stopPropagation();
+    loeschen(kunde.id, kunde.name);
+  }}
+>
+  Löschen
+</button>
+```
+
+(Artikel.tsx ist von diesem Problem NICHT betroffen — dessen Tabellenzeilen
+haben keinen Zeilen-Klick, siehe unten.)
+
+Klick auf „Löschen" (nach `stopPropagation`) → `loeschen(id, name)` ruft
+`bestaetigen(\`Kunde „${name}" löschen?\`)` → bei Bestätigung
+`api.kunden.delete(id)`, danach `laden()` (Liste neu laden) und
+`zeigen(\`Kunde „${name}" gelöscht\`)`.
 
 ### Frontend — KundeDetail.tsx (Stammdaten-Bereich)
 
