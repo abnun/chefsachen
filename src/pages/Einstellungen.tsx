@@ -9,6 +9,7 @@ import {
 } from "../api";
 import { Fehler } from "../components/Fehler";
 import { useErfolgsHinweis } from "../hooks/useErfolgsHinweis";
+import { useLoeschBestaetigung } from "../hooks/useLoeschBestaetigung";
 
 /**
  * Einstellungsseite mit vier unabhängigen Abschnitten: Firmendaten,
@@ -166,6 +167,7 @@ function EinheitenAbschnitt() {
   const [kuerzel, setKuerzel] = useState("");
   const [bearbeiteId, setBearbeiteId] = useState<string | null>(null);
   const { zeigen, hinweis } = useErfolgsHinweis();
+  const { bestaetigen, dialog } = useLoeschBestaetigung();
 
   function laden() {
     api.einheiten
@@ -201,7 +203,8 @@ function EinheitenAbschnitt() {
     }
   }
 
-  async function loeschen(id: string) {
+  async function loeschen(id: string, name: string) {
+    if (!(await bestaetigen(`Einheit „${name}" löschen?`))) return;
     setFehler(null);
     try {
       await api.einheiten.delete(id);
@@ -223,6 +226,7 @@ function EinheitenAbschnitt() {
       <h2>Einheiten</h2>
       {fehler && !istValidierungsfehler(fehler) && <Fehler fehler={fehler} />}
       {hinweis}
+      {dialog}
       <table className="tabelle">
         <thead>
           <tr>
@@ -240,7 +244,7 @@ function EinheitenAbschnitt() {
                 <button type="button" className="btn" onClick={() => bearbeiten(e)}>
                   Bearbeiten
                 </button>
-                <button type="button" className="btn btn-gefahr" onClick={() => loeschen(e.id)}>
+                <button type="button" className="btn btn-gefahr" onClick={() => loeschen(e.id, e.name)}>
                   Löschen
                 </button>
               </td>

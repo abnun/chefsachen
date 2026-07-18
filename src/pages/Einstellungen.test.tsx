@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 afterEach(cleanup);
@@ -92,10 +92,23 @@ describe("Einstellungen", () => {
     await waitFor(() => expect(screen.getByText('Einheit „Pauschale" angelegt')).toBeTruthy());
   });
 
+  it("löscht eine Einheit nicht, wenn im Dialog abgebrochen wird", async () => {
+    const { api } = await import("../api");
+    render(<Einstellungen />);
+    await waitFor(() => expect(screen.getByRole("button", { name: "Löschen" })).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Löschen" }));
+    await waitFor(() => expect(screen.getByRole("dialog")).toBeTruthy());
+    fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Abbrechen" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(vi.mocked(api.einheiten.delete)).not.toHaveBeenCalled();
+  });
+
   it("zeigt nach dem Löschen einer Einheit einen Erfolgs-Hinweis", async () => {
     render(<Einstellungen />);
     await waitFor(() => expect(screen.getByRole("button", { name: "Löschen" })).toBeTruthy());
     fireEvent.click(screen.getByRole("button", { name: "Löschen" }));
+    await waitFor(() => expect(screen.getByText('Einheit „Stunde" löschen?')).toBeTruthy());
+    fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Löschen" }));
     await waitFor(() => expect(screen.getByText("Einheit gelöscht")).toBeTruthy());
   });
 
