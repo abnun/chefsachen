@@ -382,6 +382,7 @@ function PositionenAbschnitt({
   const [einzelpreis, setEinzelpreis] = useState("");
   const [menge, setMenge] = useState("1");
   const [fehler, setFehler] = useState<AppFehler | null>(null);
+  const { zeigen, hinweis } = useErfolgsHinweis();
 
   async function hinzufuegen() {
     setFehler(null);
@@ -411,6 +412,7 @@ function PositionenAbschnitt({
       setMenge("1");
       setArtikelId("");
       onGeaendert();
+      zeigen("Position hinzugefügt");
     } catch (e) {
       setFehler(e as AppFehler);
     }
@@ -420,6 +422,7 @@ function PositionenAbschnitt({
     <section className="karte">
       <h2>Positionen</h2>
       {fehler && <Fehler fehler={fehler} />}
+      {hinweis}
       <table className="tabelle">
         <thead>
           <tr>

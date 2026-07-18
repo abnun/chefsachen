@@ -128,6 +128,28 @@ describe("BelegEditor – Position hinzufügen", () => {
     );
     await waitFor(() => expect(vi.mocked(api.belege.get).mock.calls.length).toBeGreaterThanOrEqual(2));
   });
+
+  it("zeigt nach dem Hinzufügen einer Position einen Erfolgs-Hinweis", async () => {
+    vi.mocked(api.belege.get).mockResolvedValue({
+      beleg: {
+        id: "b1", typ: "angebot", nummer: null, status: "entwurf", kunde_id: "k1",
+        datum: "2026-07-10", leistungsdatum: "2026-07-10", zahlungsziel_tage: 14,
+        kopftext: "", fusstext: "", summe_cent: 0, ursprungsangebot_id: null, storno_von_id: null,
+      },
+      positionen: [], zahlungen: [], bezahlt_cent: 0, offener_betrag_cent: 0,
+    });
+    vi.mocked(api.artikel.list).mockResolvedValue([
+      {
+        id: "a1", artikelnummer: "ART-0001", bezeichnung: "Beratung",
+        beschreibung: "", einheit_id: "e1", standardpreis_cent: 9550, kundenpreise_anzahl: 0,
+      },
+    ]);
+    render(<BelegEditor id="b1" />);
+    await waitFor(() => expect(screen.getByText("Beratung")).toBeTruthy());
+    fireEvent.change(screen.getByLabelText("Artikel"), { target: { value: "a1" } });
+    fireEvent.click(screen.getByRole("button", { name: "Position hinzufügen" }));
+    await waitFor(() => expect(screen.getByText("Position hinzugefügt")).toBeTruthy());
+  });
 });
 
 describe("BelegEditor – Stellen", () => {
