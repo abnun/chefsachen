@@ -33,7 +33,17 @@ vi.mock("../api", () => ({
             ist_standard: true,
           },
         ],
-        ansprechpartner: [],
+        ansprechpartner: [
+          {
+            id: "ap1",
+            kunde_id: "1",
+            name: "Erika Musterfrau",
+            rolle: "Einkauf",
+            email: "",
+            telefon: "",
+            ist_standard: false,
+          },
+        ],
       }),
       update: vi.fn(),
       adresseSave: vi.fn(),
@@ -105,5 +115,53 @@ describe("KundeDetail", () => {
     const onReiterUebernommen = vi.fn();
     render(<KundeDetail id="1" startReiter="adressen" onReiterUebernommen={onReiterUebernommen} />);
     await waitFor(() => expect(onReiterUebernommen).toHaveBeenCalledTimes(1));
+  });
+
+  it("zeigt nach dem Speichern der Stammdaten einen Erfolgs-Hinweis", async () => {
+    render(<KundeDetail id="1" />);
+    await waitFor(() => expect(screen.getByDisplayValue("ACME GmbH")).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Speichern" }));
+    await waitFor(() => expect(screen.getByText('Kunde „ACME GmbH" gespeichert')).toBeTruthy());
+  });
+
+  it("zeigt nach dem Anlegen einer neuen Adresse einen Erfolgs-Hinweis", async () => {
+    const { api } = await import("../api");
+    vi.mocked(api.kunden.adresseSave).mockResolvedValueOnce({
+      id: "adr2", kunde_id: "1", typ: "rechnung", strasse: "Neue Str. 5",
+      plz: "54321", ort: "Neustadt", land: "DE", ist_standard: false,
+    });
+    render(<KundeDetail id="1" startReiter="adressen" onReiterUebernommen={() => {}} />);
+    await waitFor(() => expect(screen.getByRole("button", { name: "Adressen" })).toBeTruthy());
+    fireEvent.change(screen.getByLabelText("Straße"), { target: { value: "Neue Str. 5" } });
+    fireEvent.click(screen.getByRole("button", { name: "Hinzufügen" }));
+    await waitFor(() => expect(screen.getByText("Adresse angelegt")).toBeTruthy());
+  });
+
+  it("zeigt nach dem Löschen einer Adresse einen Erfolgs-Hinweis", async () => {
+    render(<KundeDetail id="1" startReiter="adressen" onReiterUebernommen={() => {}} />);
+    await waitFor(() => expect(screen.getByRole("button", { name: "Adressen" })).toBeTruthy());
+    await waitFor(() => expect(screen.getByRole("button", { name: "Löschen" })).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Löschen" }));
+    await waitFor(() => expect(screen.getByText("Adresse gelöscht")).toBeTruthy());
+  });
+
+  it("zeigt nach dem Anlegen eines neuen Ansprechpartners einen Erfolgs-Hinweis mit Namen", async () => {
+    const { api } = await import("../api");
+    vi.mocked(api.kunden.ansprechpartnerSave).mockResolvedValueOnce({
+      id: "ap2", kunde_id: "1", name: "Max Mustermann", rolle: "", email: "", telefon: "", ist_standard: false,
+    });
+    render(<KundeDetail id="1" startReiter="ansprechpartner" onReiterUebernommen={() => {}} />);
+    await waitFor(() => expect(screen.getByRole("button", { name: "Ansprechpartner" })).toBeTruthy());
+    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Max Mustermann" } });
+    fireEvent.click(screen.getByRole("button", { name: "Hinzufügen" }));
+    await waitFor(() => expect(screen.getByText('Ansprechpartner „Max Mustermann" angelegt')).toBeTruthy());
+  });
+
+  it("zeigt nach dem Löschen eines Ansprechpartners einen Erfolgs-Hinweis", async () => {
+    render(<KundeDetail id="1" startReiter="ansprechpartner" onReiterUebernommen={() => {}} />);
+    await waitFor(() => expect(screen.getByRole("button", { name: "Ansprechpartner" })).toBeTruthy());
+    await waitFor(() => expect(screen.getByRole("button", { name: "Löschen" })).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Löschen" }));
+    await waitFor(() => expect(screen.getByText("Ansprechpartner gelöscht")).toBeTruthy());
   });
 });

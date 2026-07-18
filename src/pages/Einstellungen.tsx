@@ -8,6 +8,7 @@ import {
   type Nummernkreis,
 } from "../api";
 import { Fehler } from "../components/Fehler";
+import { useErfolgsHinweis } from "../hooks/useErfolgsHinweis";
 
 /**
  * Einstellungsseite mit vier unabhängigen Abschnitten: Firmendaten,
@@ -30,7 +31,7 @@ export function Einstellungen() {
 function FirmendatenAbschnitt() {
   const [firma, setFirma] = useState<Firma | null>(null);
   const [fehler, setFehler] = useState<AppFehler | null>(null);
-  const [gespeichert, setGespeichert] = useState(false);
+  const { zeigen, hinweis } = useErfolgsHinweis();
 
   useEffect(() => {
     api.firma.get().then(setFirma).catch((e) => setFehler(e as AppFehler));
@@ -39,11 +40,10 @@ function FirmendatenAbschnitt() {
   async function speichern() {
     if (!firma) return;
     setFehler(null);
-    setGespeichert(false);
     try {
       const gespeicherteFirma = await api.firma.save(firma);
       setFirma(gespeicherteFirma);
-      setGespeichert(true);
+      zeigen("Firmendaten gespeichert");
     } catch (e) {
       setFehler(e as AppFehler);
     }
@@ -65,7 +65,7 @@ function FirmendatenAbschnitt() {
     <section>
       <h2>Firmendaten</h2>
       {fehler && !istValidierungsfehler(fehler) && <Fehler fehler={fehler} />}
-      {gespeichert && <p>Gespeichert.</p>}
+      {hinweis}
       <form
         className="karte"
         onSubmit={(e) => {
@@ -165,6 +165,7 @@ function EinheitenAbschnitt() {
   const [name, setName] = useState("");
   const [kuerzel, setKuerzel] = useState("");
   const [bearbeiteId, setBearbeiteId] = useState<string | null>(null);
+  const { zeigen, hinweis } = useErfolgsHinweis();
 
   function laden() {
     api.einheiten
@@ -180,6 +181,8 @@ function EinheitenAbschnitt() {
 
   async function speichern() {
     setFehler(null);
+    const warNeu = !bearbeiteId;
+    const gespeicherterName = name;
     try {
       if (bearbeiteId) {
         await api.einheiten.update({ id: bearbeiteId, name, kuerzel });
@@ -190,6 +193,9 @@ function EinheitenAbschnitt() {
       setKuerzel("");
       setBearbeiteId(null);
       laden();
+      zeigen(
+        warNeu ? `Einheit „${gespeicherterName}" angelegt` : `Einheit „${gespeicherterName}" gespeichert`,
+      );
     } catch (e) {
       setFehler(e as AppFehler);
     }
@@ -200,6 +206,7 @@ function EinheitenAbschnitt() {
     try {
       await api.einheiten.delete(id);
       laden();
+      zeigen("Einheit gelöscht");
     } catch (e) {
       setFehler(e as AppFehler);
     }
@@ -215,6 +222,7 @@ function EinheitenAbschnitt() {
     <section className="karte">
       <h2>Einheiten</h2>
       {fehler && !istValidierungsfehler(fehler) && <Fehler fehler={fehler} />}
+      {hinweis}
       <table className="tabelle">
         <thead>
           <tr>
@@ -272,6 +280,7 @@ const NUMMERNKREIS_LABEL: Record<string, string> = {
 function NummernkreiseAbschnitt() {
   const [nummernkreise, setNummernkreise] = useState<Nummernkreis[]>([]);
   const [fehler, setFehler] = useState<AppFehler | null>(null);
+  const { zeigen, hinweis } = useErfolgsHinweis();
 
   function laden() {
     api.einstellungen
@@ -290,6 +299,7 @@ function NummernkreiseAbschnitt() {
     try {
       await api.einstellungen.nummernkreisUpdate(nk.art, nk.format, nk.jahres_reset);
       laden();
+      zeigen("Nummernkreis gespeichert");
     } catch (e) {
       setFehler(e as AppFehler);
     }
@@ -303,6 +313,7 @@ function NummernkreiseAbschnitt() {
     <section>
       <h2>Nummernkreise</h2>
       {fehler && !istValidierungsfehler(fehler) && <Fehler fehler={fehler} />}
+      {hinweis}
       {nummernkreise.map((nk) => (
         <form
           key={nk.art}
@@ -343,6 +354,7 @@ const TEXTBAUSTEIN_KEYS = Object.keys(TEXTBAUSTEIN_LABEL);
 function TextbausteineAbschnitt() {
   const [werte, setWerte] = useState<Record<string, string>>({});
   const [fehler, setFehler] = useState<AppFehler | null>(null);
+  const { zeigen, hinweis } = useErfolgsHinweis();
 
   useEffect(() => {
     Promise.all(TEXTBAUSTEIN_KEYS.map((key) => api.einstellungen.get(key)))
@@ -365,6 +377,7 @@ function TextbausteineAbschnitt() {
     setFehler(null);
     try {
       await api.einstellungen.set(key, werte[key] ?? "");
+      zeigen(`${TEXTBAUSTEIN_LABEL[key]} gespeichert`);
     } catch (e) {
       setFehler(e as AppFehler);
     }
@@ -374,6 +387,7 @@ function TextbausteineAbschnitt() {
     <section>
       <h2>Textbausteine</h2>
       {fehler && !istValidierungsfehler(fehler) && <Fehler fehler={fehler} />}
+      {hinweis}
       {TEXTBAUSTEIN_KEYS.map((key) => (
         <form
           key={key}

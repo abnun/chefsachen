@@ -10,6 +10,7 @@ import {
 } from "../api";
 import { Fehler } from "../components/Fehler";
 import { Hinweis } from "../components/Hinweis";
+import { useErfolgsHinweis } from "../hooks/useErfolgsHinweis";
 import { formatCent, parseEuro } from "../geld";
 
 const ARTIKEL_NEU_LEER = {
@@ -45,6 +46,7 @@ export function Artikel({ zeigeFormularBeimStart, onFormularUebernommen, onZuKun
   const [aufgeklappt, setAufgeklappt] = useState<string | null>(null);
   const [leerHinweisVersteckt, setLeerHinweisVersteckt] = useState(false);
   const [zeigtKundenHinweis, setZeigtKundenHinweis] = useState(false);
+  const { zeigen, hinweis } = useErfolgsHinweis();
 
   useEffect(() => {
     if (zeigeFormularBeimStart) {
@@ -115,6 +117,7 @@ export function Artikel({ zeigeFormularBeimStart, onFormularUebernommen, onZuKun
           einheit_id: form.einheit_id,
           standardpreis_cent: cent,
         });
+        zeigen(`Artikel „${form.bezeichnung}" gespeichert`);
       } else {
         await api.artikel.create({
           bezeichnung: form.bezeichnung,
@@ -124,6 +127,8 @@ export function Artikel({ zeigeFormularBeimStart, onFormularUebernommen, onZuKun
         });
         if (kunden.length === 0) {
           setZeigtKundenHinweis(true);
+        } else {
+          zeigen(`Artikel „${form.bezeichnung}" angelegt`);
         }
       }
       setZeigeFormular(false);
@@ -142,6 +147,7 @@ export function Artikel({ zeigeFormularBeimStart, onFormularUebernommen, onZuKun
     <div>
       <h1 className="seiten-kopf">Artikel &amp; Leistungen</h1>
       <Fehler fehler={fehler} />
+      {hinweis}
 
       {zeigtKundenHinweis && (
         <Hinweis autoDismissMs={4000} onSchliessen={() => setZeigtKundenHinweis(false)}>
@@ -293,6 +299,7 @@ function KundenpreiseBereich({ artikelId, kunden, standardpreisCent, onAenderung
   const [preisText, setPreisText] = useState("");
   const [preisFehlerText, setPreisFehlerText] = useState<string | null>(null);
   const [gueltigAb, setGueltigAb] = useState("");
+  const { zeigen, hinweis } = useErfolgsHinweis();
 
   function laden() {
     api.artikel
@@ -327,6 +334,7 @@ function KundenpreiseBereich({ artikelId, kunden, standardpreisCent, onAenderung
       setGueltigAb("");
       laden();
       onAenderung();
+      zeigen("Kundenpreis angelegt");
     } catch (e) {
       setFehler(e as AppFehler);
     }
@@ -338,6 +346,7 @@ function KundenpreiseBereich({ artikelId, kunden, standardpreisCent, onAenderung
 
   return (
     <div className="kundenpreis-bereich">
+      {hinweis}
       <div className="kundenpreis-liste-box">
         <h4>Kundenpreise — Ausnahmen vom Standardpreis ({formatCent(standardpreisCent)})</h4>
         <Fehler fehler={fehler} />

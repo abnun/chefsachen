@@ -10,6 +10,7 @@ import {
   type KundeDetail as KundeDetailTyp,
 } from "../api";
 import { Fehler } from "../components/Fehler";
+import { useErfolgsHinweis } from "../hooks/useErfolgsHinweis";
 import { formatCent } from "../geld";
 
 interface KundeDetailProps {
@@ -178,7 +179,7 @@ interface StammdatenReiterProps {
 function StammdatenReiter({ kunde, onGespeichert }: StammdatenReiterProps) {
   const [form, setForm] = useState<Kunde>(kunde);
   const [fehler, setFehler] = useState<AppFehler | null>(null);
-  const [gespeichert, setGespeichert] = useState(false);
+  const { zeigen, hinweis } = useErfolgsHinweis();
 
   useEffect(() => {
     setForm(kunde);
@@ -186,10 +187,9 @@ function StammdatenReiter({ kunde, onGespeichert }: StammdatenReiterProps) {
 
   async function speichern() {
     setFehler(null);
-    setGespeichert(false);
     try {
       await api.kunden.update(form);
-      setGespeichert(true);
+      zeigen(`Kunde „${form.name}" gespeichert`);
       onGespeichert();
     } catch (e) {
       setFehler(e as AppFehler);
@@ -202,7 +202,7 @@ function StammdatenReiter({ kunde, onGespeichert }: StammdatenReiterProps) {
   return (
     <section>
       {fehler && !istValidierungsfehler(fehler) && <Fehler fehler={fehler} />}
-      {gespeichert && <p>Gespeichert.</p>}
+      {hinweis}
       <form
         className="karte"
         onSubmit={(e) => {
@@ -322,12 +322,15 @@ const ADRESSE_NEU = (kundeId: string): Omit<Adresse, "id"> => ({
 function AdressenReiter({ kundeId, adressen, onGeaendert }: AdressenReiterProps) {
   const [form, setForm] = useState<Omit<Adresse, "id"> & { id?: string }>(ADRESSE_NEU(kundeId));
   const [fehler, setFehler] = useState<AppFehler | null>(null);
+  const { zeigen, hinweis } = useErfolgsHinweis();
 
   async function speichern() {
     setFehler(null);
+    const warNeu = !form.id;
     try {
       await api.kunden.adresseSave({ id: form.id ?? "", ...form } as Adresse);
       setForm(ADRESSE_NEU(kundeId));
+      zeigen(warNeu ? "Adresse angelegt" : "Adresse gespeichert");
       onGeaendert();
     } catch (e) {
       setFehler(e as AppFehler);
@@ -338,6 +341,7 @@ function AdressenReiter({ kundeId, adressen, onGeaendert }: AdressenReiterProps)
     setFehler(null);
     try {
       await api.kunden.adresseDelete(id);
+      zeigen("Adresse gelöscht");
       onGeaendert();
     } catch (e) {
       setFehler(e as AppFehler);
@@ -347,6 +351,7 @@ function AdressenReiter({ kundeId, adressen, onGeaendert }: AdressenReiterProps)
   return (
     <section>
       {fehler && <Fehler fehler={fehler} />}
+      {hinweis}
       <table className="tabelle">
         <thead>
           <tr>
@@ -449,15 +454,23 @@ function AnsprechpartnerReiter({ kundeId, ansprechpartner, onGeaendert }: Anspre
     ANSPRECHPARTNER_NEU(kundeId),
   );
   const [fehler, setFehler] = useState<AppFehler | null>(null);
+  const { zeigen, hinweis } = useErfolgsHinweis();
 
   async function speichern() {
     setFehler(null);
+    const warNeu = !form.id;
+    const gespeicherterName = form.name;
     try {
       await api.kunden.ansprechpartnerSave({
         id: form.id ?? "",
         ...form,
       } as Ansprechpartner);
       setForm(ANSPRECHPARTNER_NEU(kundeId));
+      zeigen(
+        warNeu
+          ? `Ansprechpartner „${gespeicherterName}" angelegt`
+          : `Ansprechpartner „${gespeicherterName}" gespeichert`,
+      );
       onGeaendert();
     } catch (e) {
       setFehler(e as AppFehler);
@@ -468,6 +481,7 @@ function AnsprechpartnerReiter({ kundeId, ansprechpartner, onGeaendert }: Anspre
     setFehler(null);
     try {
       await api.kunden.ansprechpartnerDelete(id);
+      zeigen("Ansprechpartner gelöscht");
       onGeaendert();
     } catch (e) {
       setFehler(e as AppFehler);
@@ -477,6 +491,7 @@ function AnsprechpartnerReiter({ kundeId, ansprechpartner, onGeaendert }: Anspre
   return (
     <section>
       {fehler && <Fehler fehler={fehler} />}
+      {hinweis}
       <table className="tabelle">
         <thead>
           <tr>

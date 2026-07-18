@@ -12,6 +12,7 @@ import {
   type Zahlung,
 } from "../api";
 import { Fehler } from "../components/Fehler";
+import { useErfolgsHinweis } from "../hooks/useErfolgsHinweis";
 import { formatCent, formatMenge, parseEuro, parseMenge } from "../geld";
 
 interface BelegEditorProps {
@@ -46,6 +47,7 @@ export function BelegEditor({ id, onGeaendert, onRechnungErstellt }: BelegEditor
   const [kunden, setKunden] = useState<Kunde[]>([]);
   const [artikelListe, setArtikelListe] = useState<Artikel[]>([]);
   const [fehler, setFehler] = useState<AppFehler | null>(null);
+  const { zeigen, hinweis } = useErfolgsHinweis();
 
   function laden() {
     api.belege
@@ -81,6 +83,7 @@ export function BelegEditor({ id, onGeaendert, onRechnungErstellt }: BelegEditor
     try {
       await api.belege.update({ id: beleg.id, kunde_id: beleg.kunde_id, ...felder });
       laden();
+      zeigen(beleg.typ === "angebot" ? "Angebot gespeichert" : "Rechnung gespeichert");
     } catch (e) {
       setFehler(e as AppFehler);
     }
@@ -92,6 +95,7 @@ export function BelegEditor({ id, onGeaendert, onRechnungErstellt }: BelegEditor
       await api.belege.stellen(beleg.id);
       laden();
       onGeaendert?.();
+      zeigen(beleg.typ === "angebot" ? "Angebot versendet" : "Rechnung gestellt");
     } catch (e) {
       setFehler(e as AppFehler);
     }
@@ -102,6 +106,7 @@ export function BelegEditor({ id, onGeaendert, onRechnungErstellt }: BelegEditor
     try {
       await api.belege.angebotStatusSetzen(beleg.id, status);
       laden();
+      zeigen("Status aktualisiert");
     } catch (e) {
       setFehler(e as AppFehler);
     }
@@ -125,6 +130,7 @@ export function BelegEditor({ id, onGeaendert, onRechnungErstellt }: BelegEditor
       await api.belege.rechnungStornieren(beleg.id);
       laden();
       onGeaendert?.();
+      zeigen("Rechnung storniert");
     } catch (e) {
       setFehler(e as AppFehler);
     }
@@ -135,6 +141,7 @@ export function BelegEditor({ id, onGeaendert, onRechnungErstellt }: BelegEditor
     try {
       await api.belege.positionDelete(positionId);
       laden();
+      zeigen("Position gelöscht");
     } catch (e) {
       setFehler(e as AppFehler);
     }
@@ -191,6 +198,7 @@ export function BelegEditor({ id, onGeaendert, onRechnungErstellt }: BelegEditor
         </span>
       </p>
       {fehler && <Fehler fehler={fehler} />}
+      {hinweis}
 
       <StammdatenAbschnitt
         beleg={beleg}
@@ -374,6 +382,7 @@ function PositionenAbschnitt({
   const [einzelpreis, setEinzelpreis] = useState("");
   const [menge, setMenge] = useState("1");
   const [fehler, setFehler] = useState<AppFehler | null>(null);
+  const { zeigen, hinweis } = useErfolgsHinweis();
 
   async function hinzufuegen() {
     setFehler(null);
@@ -403,6 +412,7 @@ function PositionenAbschnitt({
       setMenge("1");
       setArtikelId("");
       onGeaendert();
+      zeigen("Position hinzugefügt");
     } catch (e) {
       setFehler(e as AppFehler);
     }
@@ -412,6 +422,7 @@ function PositionenAbschnitt({
     <section className="karte">
       <h2>Positionen</h2>
       {fehler && <Fehler fehler={fehler} />}
+      {hinweis}
       <table className="tabelle">
         <thead>
           <tr>
@@ -511,6 +522,7 @@ function ZahlungenAbschnitt({ rechnungId, zahlungen, offenerBetragCent, onGeaend
   const [erstattung, setErstattung] = useState(false);
   const [notiz, setNotiz] = useState("");
   const [fehler, setFehler] = useState<AppFehler | null>(null);
+  const { zeigen, hinweis } = useErfolgsHinweis();
 
   async function erfassen() {
     setFehler(null);
@@ -529,6 +541,7 @@ function ZahlungenAbschnitt({ rechnungId, zahlungen, offenerBetragCent, onGeaend
       setBetrag("");
       setNotiz("");
       onGeaendert();
+      zeigen("Zahlung erfasst");
     } catch (e) {
       setFehler(e as AppFehler);
     }
@@ -538,6 +551,7 @@ function ZahlungenAbschnitt({ rechnungId, zahlungen, offenerBetragCent, onGeaend
     <section className="karte">
       <h2>Zahlungen</h2>
       {fehler && <Fehler fehler={fehler} />}
+      {hinweis}
       <p>Offener Betrag: {formatCent(offenerBetragCent)}</p>
       <table className="tabelle">
         <thead>

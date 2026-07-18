@@ -20,6 +20,22 @@ vi.mock("../api", () => ({
         id: "p1", beleg_id: "b1", artikel_id: null, bezeichnung: "", einheit_kuerzel: "",
         einzelpreis_cent: 0, menge: 1000, positionssumme_cent: 0, reihenfolge: 0,
       }),
+      positionDelete: vi.fn().mockResolvedValue(undefined),
+      update: vi.fn().mockResolvedValue({
+        id: "b1", typ: "angebot", nummer: null, status: "entwurf", kunde_id: "k1",
+        datum: "2026-07-10", leistungsdatum: "2026-07-10", zahlungsziel_tage: 14,
+        kopftext: "", fusstext: "", summe_cent: 0, ursprungsangebot_id: null, storno_von_id: null,
+      }),
+      angebotStatusSetzen: vi.fn().mockResolvedValue({
+        id: "b1", typ: "angebot", nummer: "A-2026-0001", status: "angenommen", kunde_id: "k1",
+        datum: "2026-07-10", leistungsdatum: "2026-07-10", zahlungsziel_tage: 14,
+        kopftext: "", fusstext: "", summe_cent: 9550, ursprungsangebot_id: null, storno_von_id: null,
+      }),
+      rechnungStornieren: vi.fn().mockResolvedValue({
+        id: "b1", typ: "rechnung", nummer: "R-2026-0001", status: "storniert", kunde_id: "k1",
+        datum: "2026-07-10", leistungsdatum: "2026-07-10", zahlungsziel_tage: 14,
+        kopftext: "", fusstext: "", summe_cent: 9550, ursprungsangebot_id: null, storno_von_id: null,
+      }),
       stellen: vi.fn().mockResolvedValue({
         id: "b1", typ: "angebot", nummer: "A-2026-0001", status: "versendet", kunde_id: "k1",
         datum: "2026-07-10", leistungsdatum: "2026-07-10", zahlungsziel_tage: 14,
@@ -111,6 +127,28 @@ describe("BelegEditor – Position hinzufügen", () => {
       }),
     );
     await waitFor(() => expect(vi.mocked(api.belege.get).mock.calls.length).toBeGreaterThanOrEqual(2));
+  });
+
+  it("zeigt nach dem Hinzufügen einer Position einen Erfolgs-Hinweis", async () => {
+    vi.mocked(api.belege.get).mockResolvedValue({
+      beleg: {
+        id: "b1", typ: "angebot", nummer: null, status: "entwurf", kunde_id: "k1",
+        datum: "2026-07-10", leistungsdatum: "2026-07-10", zahlungsziel_tage: 14,
+        kopftext: "", fusstext: "", summe_cent: 0, ursprungsangebot_id: null, storno_von_id: null,
+      },
+      positionen: [], zahlungen: [], bezahlt_cent: 0, offener_betrag_cent: 0,
+    });
+    vi.mocked(api.artikel.list).mockResolvedValue([
+      {
+        id: "a1", artikelnummer: "ART-0001", bezeichnung: "Beratung",
+        beschreibung: "", einheit_id: "e1", standardpreis_cent: 9550, kundenpreise_anzahl: 0,
+      },
+    ]);
+    render(<BelegEditor id="b1" />);
+    await waitFor(() => expect(screen.getByText("Beratung")).toBeTruthy());
+    fireEvent.change(screen.getByLabelText("Artikel"), { target: { value: "a1" } });
+    fireEvent.click(screen.getByRole("button", { name: "Position hinzufügen" }));
+    await waitFor(() => expect(screen.getByText("Position hinzugefügt")).toBeTruthy());
   });
 });
 
@@ -204,6 +242,23 @@ describe("BelegEditor – Zahlungen", () => {
         }),
       ),
     );
+  });
+
+  it("zeigt nach dem Erfassen einer Zahlung einen Erfolgs-Hinweis", async () => {
+    vi.mocked(api.artikel.list).mockResolvedValue([]);
+    vi.mocked(api.belege.get).mockResolvedValue({
+      beleg: {
+        id: "b1", typ: "rechnung", nummer: "R-2026-0001", status: "gestellt", kunde_id: "k1",
+        datum: "2026-07-10", leistungsdatum: "2026-07-10", zahlungsziel_tage: 14,
+        kopftext: "", fusstext: "", summe_cent: 5000, ursprungsangebot_id: null, storno_von_id: null,
+      },
+      positionen: [], zahlungen: [], bezahlt_cent: 0, offener_betrag_cent: 5000,
+    });
+    render(<BelegEditor id="b1" />);
+    await waitFor(() => expect(screen.getByText("gestellt", { selector: ".status" })).toBeTruthy());
+    fireEvent.change(screen.getByLabelText("Betrag"), { target: { value: "50,00" } });
+    fireEvent.click(screen.getByRole("button", { name: "Zahlung erfassen" }));
+    await waitFor(() => expect(screen.getByText("Zahlung erfasst")).toBeTruthy());
   });
 });
 
@@ -301,5 +356,98 @@ describe("BelegEditor – Export", () => {
     await waitFor(() => expect(screen.getByRole("button", { name: "Als PDF exportieren" })).toBeTruthy());
     expect(screen.queryByRole("button", { name: "Als XRechnung (XML) exportieren" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Als ZUGFeRD-Rechnung exportieren" })).toBeNull();
+  });
+});
+
+describe("BelegEditor – Erfolgs-Hinweis", () => {
+  it("zeigt nach dem Speichern der Stammdaten einen Erfolgs-Hinweis", async () => {
+    vi.mocked(api.belege.get).mockResolvedValue({
+      beleg: {
+        id: "b1", typ: "angebot", nummer: null, status: "entwurf", kunde_id: "k1",
+        datum: "2026-07-10", leistungsdatum: "2026-07-10", zahlungsziel_tage: 14,
+        kopftext: "", fusstext: "", summe_cent: 0, ursprungsangebot_id: null, storno_von_id: null,
+      },
+      positionen: [], zahlungen: [], bezahlt_cent: 0, offener_betrag_cent: 0,
+    });
+    render(<BelegEditor id="b1" />);
+    await waitFor(() => expect(screen.getByRole("button", { name: "Speichern" })).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Speichern" }));
+    await waitFor(() => expect(screen.getByText("Angebot gespeichert")).toBeTruthy());
+  });
+
+  it("zeigt nach dem Stellen einen Erfolgs-Hinweis", async () => {
+    vi.mocked(api.artikel.list).mockResolvedValue([]);
+    vi.mocked(api.belege.get).mockResolvedValue({
+      beleg: {
+        id: "b1", typ: "rechnung", nummer: null, status: "entwurf", kunde_id: "k1",
+        datum: "2026-07-10", leistungsdatum: "2026-07-10", zahlungsziel_tage: 14,
+        kopftext: "", fusstext: "", summe_cent: 9550, ursprungsangebot_id: null, storno_von_id: null,
+      },
+      positionen: [
+        {
+          id: "p1", beleg_id: "b1", artikel_id: null, bezeichnung: "Beratung",
+          einheit_kuerzel: "Std", einzelpreis_cent: 9550, menge: 1000,
+          positionssumme_cent: 9550, reihenfolge: 0,
+        },
+      ],
+      zahlungen: [], bezahlt_cent: 0, offener_betrag_cent: 0,
+    });
+    render(<BelegEditor id="b1" />);
+    await waitFor(() => expect(screen.getByText("Beratung")).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Stellen" }));
+    await waitFor(() => expect(screen.getByText("Rechnung gestellt")).toBeTruthy());
+  });
+
+  it("zeigt nach dem Setzen des Angebot-Status einen Erfolgs-Hinweis", async () => {
+    vi.mocked(api.belege.get).mockResolvedValue({
+      beleg: {
+        id: "b1", typ: "angebot", nummer: "A-2026-0001", status: "versendet", kunde_id: "k1",
+        datum: "2026-07-10", leistungsdatum: "2026-07-10", zahlungsziel_tage: 14,
+        kopftext: "", fusstext: "", summe_cent: 9550, ursprungsangebot_id: null, storno_von_id: null,
+      },
+      positionen: [], zahlungen: [], bezahlt_cent: 0, offener_betrag_cent: 0,
+    });
+    render(<BelegEditor id="b1" />);
+    await waitFor(() => expect(screen.getByRole("button", { name: "Angenommen" })).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Angenommen" }));
+    await waitFor(() => expect(screen.getByText("Status aktualisiert")).toBeTruthy());
+  });
+
+  it("zeigt nach dem Stornieren einen Erfolgs-Hinweis", async () => {
+    vi.mocked(api.belege.get).mockResolvedValue({
+      beleg: {
+        id: "b1", typ: "rechnung", nummer: "R-2026-0001", status: "gestellt", kunde_id: "k1",
+        datum: "2026-07-10", leistungsdatum: "2026-07-10", zahlungsziel_tage: 14,
+        kopftext: "", fusstext: "", summe_cent: 9550, ursprungsangebot_id: null, storno_von_id: null,
+      },
+      positionen: [], zahlungen: [], bezahlt_cent: 0, offener_betrag_cent: 9550,
+    });
+    render(<BelegEditor id="b1" />);
+    await waitFor(() => expect(screen.getByRole("button", { name: "Stornieren" })).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Stornieren" }));
+    await waitFor(() => expect(screen.getByText("Rechnung storniert")).toBeTruthy());
+  });
+
+  it("zeigt nach dem Löschen einer Position einen Erfolgs-Hinweis", async () => {
+    vi.mocked(api.artikel.list).mockResolvedValue([]);
+    vi.mocked(api.belege.get).mockResolvedValue({
+      beleg: {
+        id: "b1", typ: "angebot", nummer: null, status: "entwurf", kunde_id: "k1",
+        datum: "2026-07-10", leistungsdatum: "2026-07-10", zahlungsziel_tage: 14,
+        kopftext: "", fusstext: "", summe_cent: 9550, ursprungsangebot_id: null, storno_von_id: null,
+      },
+      positionen: [
+        {
+          id: "p1", beleg_id: "b1", artikel_id: null, bezeichnung: "Beratung",
+          einheit_kuerzel: "Std", einzelpreis_cent: 9550, menge: 1000,
+          positionssumme_cent: 9550, reihenfolge: 0,
+        },
+      ],
+      zahlungen: [], bezahlt_cent: 0, offener_betrag_cent: 0,
+    });
+    render(<BelegEditor id="b1" />);
+    await waitFor(() => expect(screen.getByText("Beratung")).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Löschen" }));
+    await waitFor(() => expect(screen.getByText("Position gelöscht")).toBeTruthy());
   });
 });

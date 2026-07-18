@@ -1,4 +1,4 @@
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 afterEach(cleanup);
@@ -65,5 +65,55 @@ describe("Einstellungen", () => {
     expect(screen.getAllByText("Kleinunternehmer-Hinweis").length).toBeGreaterThan(0);
     expect(screen.getByDisplayValue("Vielen Dank für Ihren Auftrag.")).toBeTruthy();
     expect(screen.getByDisplayValue("Dieses Angebot ist 30 Tage gültig.")).toBeTruthy();
+  });
+
+  it("zeigt nach dem Speichern der Firmendaten einen Erfolgs-Hinweis", async () => {
+    const { api } = await import("../api");
+    vi.mocked(api.firma.save).mockResolvedValueOnce({
+      id: "1", name: "Musterfirma", strasse: "Musterstr. 1", plz: "12345", ort: "Musterstadt",
+      land: "DE", steuernummer: "123/456/789", ust_idnr: "", iban: "", bic: "",
+      kleinunternehmer: true, eingerichtet: true,
+    });
+    render(<Einstellungen />);
+    await waitFor(() => expect(screen.getByDisplayValue("Musterfirma")).toBeTruthy());
+    // Index 0: Firmendaten ist der erste Abschnitt auf der Seite, dessen
+    // "Speichern"-Button ist damit im DOM immer der erste unter diesem Namen.
+    fireEvent.click(screen.getAllByRole("button", { name: "Speichern" })[0]);
+    await waitFor(() => expect(screen.getByText("Firmendaten gespeichert")).toBeTruthy());
+  });
+
+  it("zeigt nach dem Anlegen einer neuen Einheit einen Erfolgs-Hinweis", async () => {
+    render(<Einstellungen />);
+    await waitFor(() => expect(screen.getByText("Std")).toBeTruthy());
+    // Index 1: Firmendaten hat ebenfalls ein "Name"-Feld und steht davor im DOM.
+    fireEvent.change(screen.getAllByLabelText("Name")[1], { target: { value: "Pauschale" } });
+    fireEvent.change(screen.getByLabelText("Kürzel"), { target: { value: "Pausch" } });
+    fireEvent.click(screen.getByRole("button", { name: "Hinzufügen" }));
+    await waitFor(() => expect(screen.getByText('Einheit „Pauschale" angelegt')).toBeTruthy());
+  });
+
+  it("zeigt nach dem Löschen einer Einheit einen Erfolgs-Hinweis", async () => {
+    render(<Einstellungen />);
+    await waitFor(() => expect(screen.getByRole("button", { name: "Löschen" })).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Löschen" }));
+    await waitFor(() => expect(screen.getByText("Einheit gelöscht")).toBeTruthy());
+  });
+
+  it("zeigt nach dem Speichern eines Nummernkreises einen Erfolgs-Hinweis", async () => {
+    render(<Einstellungen />);
+    await waitFor(() => expect(screen.getByDisplayValue("R-{jahr}-{nr}")).toBeTruthy());
+    // Index 1: Firmendaten (0) steht im DOM vor dem einzigen Nummernkreis-Eintrag (1).
+    fireEvent.click(screen.getAllByRole("button", { name: "Speichern" })[1]);
+    await waitFor(() => expect(screen.getByText("Nummernkreis gespeichert")).toBeTruthy());
+  });
+
+  it("zeigt nach dem Speichern eines Textbausteins einen Erfolgs-Hinweis mit Feldname", async () => {
+    render(<Einstellungen />);
+    await waitFor(() => expect(screen.getByDisplayValue("Vielen Dank für Ihren Auftrag.")).toBeTruthy());
+    // Reihenfolge im DOM: Firmendaten (0), Nummernkreis (1), dann Textbausteine
+    // in TEXTBAUSTEIN_KEYS-Reihenfolge: Kleinunternehmer-Hinweis (2),
+    // Rechnungs-Fußtext (3), Angebots-Fußtext (4).
+    fireEvent.click(screen.getAllByRole("button", { name: "Speichern" })[3]);
+    await waitFor(() => expect(screen.getByText("Rechnungs-Fußtext gespeichert")).toBeTruthy());
   });
 });
