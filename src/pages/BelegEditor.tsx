@@ -12,6 +12,7 @@ import {
   type Zahlung,
 } from "../api";
 import { Fehler } from "../components/Fehler";
+import { useErfolgsHinweis } from "../hooks/useErfolgsHinweis";
 import { formatCent, formatMenge, parseEuro, parseMenge } from "../geld";
 
 interface BelegEditorProps {
@@ -46,6 +47,7 @@ export function BelegEditor({ id, onGeaendert, onRechnungErstellt }: BelegEditor
   const [kunden, setKunden] = useState<Kunde[]>([]);
   const [artikelListe, setArtikelListe] = useState<Artikel[]>([]);
   const [fehler, setFehler] = useState<AppFehler | null>(null);
+  const { zeigen, hinweis } = useErfolgsHinweis();
 
   function laden() {
     api.belege
@@ -81,6 +83,7 @@ export function BelegEditor({ id, onGeaendert, onRechnungErstellt }: BelegEditor
     try {
       await api.belege.update({ id: beleg.id, kunde_id: beleg.kunde_id, ...felder });
       laden();
+      zeigen(beleg.typ === "angebot" ? "Angebot gespeichert" : "Rechnung gespeichert");
     } catch (e) {
       setFehler(e as AppFehler);
     }
@@ -92,6 +95,7 @@ export function BelegEditor({ id, onGeaendert, onRechnungErstellt }: BelegEditor
       await api.belege.stellen(beleg.id);
       laden();
       onGeaendert?.();
+      zeigen(beleg.typ === "angebot" ? "Angebot versendet" : "Rechnung gestellt");
     } catch (e) {
       setFehler(e as AppFehler);
     }
@@ -102,6 +106,7 @@ export function BelegEditor({ id, onGeaendert, onRechnungErstellt }: BelegEditor
     try {
       await api.belege.angebotStatusSetzen(beleg.id, status);
       laden();
+      zeigen("Status aktualisiert");
     } catch (e) {
       setFehler(e as AppFehler);
     }
@@ -125,6 +130,7 @@ export function BelegEditor({ id, onGeaendert, onRechnungErstellt }: BelegEditor
       await api.belege.rechnungStornieren(beleg.id);
       laden();
       onGeaendert?.();
+      zeigen("Rechnung storniert");
     } catch (e) {
       setFehler(e as AppFehler);
     }
@@ -135,6 +141,7 @@ export function BelegEditor({ id, onGeaendert, onRechnungErstellt }: BelegEditor
     try {
       await api.belege.positionDelete(positionId);
       laden();
+      zeigen("Position gelöscht");
     } catch (e) {
       setFehler(e as AppFehler);
     }
@@ -191,6 +198,7 @@ export function BelegEditor({ id, onGeaendert, onRechnungErstellt }: BelegEditor
         </span>
       </p>
       {fehler && <Fehler fehler={fehler} />}
+      {hinweis}
 
       <StammdatenAbschnitt
         beleg={beleg}
