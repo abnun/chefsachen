@@ -428,3 +428,30 @@ label.feld textarea {
   text-transform: uppercase;
   letter-spacing: 0.02em;
 }
+
+/* Bestätigungsdialog */
+.bestaetigung-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(20, 24, 33, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.bestaetigung-karte {
+  background: var(--flaeche);
+  border-radius: var(--radius-m);
+  box-shadow: 0 8px 30px rgba(20, 24, 33, 0.25);
+  padding: var(--abstand-l);
+  max-width: 360px;
+  width: calc(100% - var(--abstand-xl));
+}
+
+.bestaetigung-aktionen {
+  display: flex;
+  gap: var(--abstand-s);
+  justify-content: flex-end;
+  margin-top: var(--abstand-l);
+}
