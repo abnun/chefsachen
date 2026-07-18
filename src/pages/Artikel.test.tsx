@@ -244,4 +244,30 @@ describe("Artikel", () => {
     fireEvent.click(screen.getByRole("button", { name: "Kundenpreise" }));
     await waitFor(() => expect(screen.getByText("Neuen Kundenpreis anlegen")).toBeTruthy());
   });
+
+  it("zeigt nach dem Anlegen eines Artikels einen Erfolgs-Hinweis, wenn bereits Kunden existieren", async () => {
+    const { api } = await import("../api");
+    vi.mocked(api.kunden.list).mockResolvedValueOnce([
+      {
+        id: "k1", typ: "firma", name: "ACME GmbH", kundennummer: "KD-0001",
+        zahlungsziel_tage: 14, notizen: "", ust_idnr: "", email: "",
+        leitweg_id: "", kaeuferreferenz: "", hat_adresse: true,
+      },
+    ]);
+    render(<Artikel />);
+    await waitFor(() => expect(screen.getByText("Beratung")).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Neuer Artikel" }));
+    fireEvent.change(screen.getByLabelText("Bezeichnung"), { target: { value: "Konzeption" } });
+    fireEvent.change(screen.getByLabelText("Standardpreis (€)"), { target: { value: "50,00" } });
+    fireEvent.click(screen.getByRole("button", { name: "Speichern" }));
+    await waitFor(() => expect(screen.getByText('Artikel „Konzeption" angelegt')).toBeTruthy());
+  });
+
+  it("zeigt nach dem Bearbeiten eines Artikels einen Erfolgs-Hinweis", async () => {
+    render(<Artikel />);
+    await waitFor(() => expect(screen.getByText("Beratung")).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Bearbeiten" }));
+    fireEvent.click(screen.getByRole("button", { name: "Speichern" }));
+    await waitFor(() => expect(screen.getByText('Artikel „Beratung" gespeichert')).toBeTruthy());
+  });
 });
