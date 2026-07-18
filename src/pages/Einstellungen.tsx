@@ -354,6 +354,7 @@ const TEXTBAUSTEIN_KEYS = Object.keys(TEXTBAUSTEIN_LABEL);
 function TextbausteineAbschnitt() {
   const [werte, setWerte] = useState<Record<string, string>>({});
   const [fehler, setFehler] = useState<AppFehler | null>(null);
+  const { zeigen, hinweis } = useErfolgsHinweis();
 
   useEffect(() => {
     Promise.all(TEXTBAUSTEIN_KEYS.map((key) => api.einstellungen.get(key)))
@@ -376,6 +377,7 @@ function TextbausteineAbschnitt() {
     setFehler(null);
     try {
       await api.einstellungen.set(key, werte[key] ?? "");
+      zeigen(`${TEXTBAUSTEIN_LABEL[key]} gespeichert`);
     } catch (e) {
       setFehler(e as AppFehler);
     }
@@ -385,6 +387,7 @@ function TextbausteineAbschnitt() {
     <section>
       <h2>Textbausteine</h2>
       {fehler && !istValidierungsfehler(fehler) && <Fehler fehler={fehler} />}
+      {hinweis}
       {TEXTBAUSTEIN_KEYS.map((key) => (
         <form
           key={key}

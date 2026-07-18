@@ -106,4 +106,14 @@ describe("Einstellungen", () => {
     fireEvent.click(screen.getAllByRole("button", { name: "Speichern" })[1]);
     await waitFor(() => expect(screen.getByText("Nummernkreis gespeichert")).toBeTruthy());
   });
+
+  it("zeigt nach dem Speichern eines Textbausteins einen Erfolgs-Hinweis mit Feldname", async () => {
+    render(<Einstellungen />);
+    await waitFor(() => expect(screen.getByDisplayValue("Vielen Dank für Ihren Auftrag.")).toBeTruthy());
+    // Reihenfolge im DOM: Firmendaten (0), Nummernkreis (1), dann Textbausteine
+    // in TEXTBAUSTEIN_KEYS-Reihenfolge: Kleinunternehmer-Hinweis (2),
+    // Rechnungs-Fußtext (3), Angebots-Fußtext (4).
+    fireEvent.click(screen.getAllByRole("button", { name: "Speichern" })[3]);
+    await waitFor(() => expect(screen.getByText("Rechnungs-Fußtext gespeichert")).toBeTruthy());
+  });
 });
