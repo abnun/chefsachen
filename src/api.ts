@@ -93,6 +93,7 @@ export interface Beleg {
   summe_cent: number;
   ursprungsangebot_id: string | null;
   storno_von_id: string | null;
+  kunde_snapshot_name?: string | null;
 }
 export type BelegNeu = Pick<
   Beleg,
