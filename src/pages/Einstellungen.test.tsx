@@ -81,4 +81,21 @@ describe("Einstellungen", () => {
     fireEvent.click(screen.getAllByRole("button", { name: "Speichern" })[0]);
     await waitFor(() => expect(screen.getByText("Firmendaten gespeichert")).toBeTruthy());
   });
+
+  it("zeigt nach dem Anlegen einer neuen Einheit einen Erfolgs-Hinweis", async () => {
+    render(<Einstellungen />);
+    await waitFor(() => expect(screen.getByText("Std")).toBeTruthy());
+    // Index 1: Firmendaten hat ebenfalls ein "Name"-Feld und steht davor im DOM.
+    fireEvent.change(screen.getAllByLabelText("Name")[1], { target: { value: "Pauschale" } });
+    fireEvent.change(screen.getByLabelText("Kürzel"), { target: { value: "Pausch" } });
+    fireEvent.click(screen.getByRole("button", { name: "Hinzufügen" }));
+    await waitFor(() => expect(screen.getByText('Einheit „Pauschale" angelegt')).toBeTruthy());
+  });
+
+  it("zeigt nach dem Löschen einer Einheit einen Erfolgs-Hinweis", async () => {
+    render(<Einstellungen />);
+    await waitFor(() => expect(screen.getByRole("button", { name: "Löschen" })).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Löschen" }));
+    await waitFor(() => expect(screen.getByText("Einheit gelöscht")).toBeTruthy());
+  });
 });

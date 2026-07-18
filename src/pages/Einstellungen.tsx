@@ -165,6 +165,7 @@ function EinheitenAbschnitt() {
   const [name, setName] = useState("");
   const [kuerzel, setKuerzel] = useState("");
   const [bearbeiteId, setBearbeiteId] = useState<string | null>(null);
+  const { zeigen, hinweis } = useErfolgsHinweis();
 
   function laden() {
     api.einheiten
@@ -180,6 +181,8 @@ function EinheitenAbschnitt() {
 
   async function speichern() {
     setFehler(null);
+    const warNeu = !bearbeiteId;
+    const gespeicherterName = name;
     try {
       if (bearbeiteId) {
         await api.einheiten.update({ id: bearbeiteId, name, kuerzel });
@@ -190,6 +193,9 @@ function EinheitenAbschnitt() {
       setKuerzel("");
       setBearbeiteId(null);
       laden();
+      zeigen(
+        warNeu ? `Einheit „${gespeicherterName}" angelegt` : `Einheit „${gespeicherterName}" gespeichert`,
+      );
     } catch (e) {
       setFehler(e as AppFehler);
     }
@@ -200,6 +206,7 @@ function EinheitenAbschnitt() {
     try {
       await api.einheiten.delete(id);
       laden();
+      zeigen("Einheit gelöscht");
     } catch (e) {
       setFehler(e as AppFehler);
     }
@@ -215,6 +222,7 @@ function EinheitenAbschnitt() {
     <section className="karte">
       <h2>Einheiten</h2>
       {fehler && !istValidierungsfehler(fehler) && <Fehler fehler={fehler} />}
+      {hinweis}
       <table className="tabelle">
         <thead>
           <tr>
