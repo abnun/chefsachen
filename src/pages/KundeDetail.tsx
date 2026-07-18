@@ -11,6 +11,7 @@ import {
 } from "../api";
 import { Fehler } from "../components/Fehler";
 import { useErfolgsHinweis } from "../hooks/useErfolgsHinweis";
+import { useLoeschBestaetigung } from "../hooks/useLoeschBestaetigung";
 import { formatCent } from "../geld";
 
 interface KundeDetailProps {
@@ -323,6 +324,7 @@ function AdressenReiter({ kundeId, adressen, onGeaendert }: AdressenReiterProps)
   const [form, setForm] = useState<Omit<Adresse, "id"> & { id?: string }>(ADRESSE_NEU(kundeId));
   const [fehler, setFehler] = useState<AppFehler | null>(null);
   const { zeigen, hinweis } = useErfolgsHinweis();
+  const { bestaetigen, dialog } = useLoeschBestaetigung();
 
   async function speichern() {
     setFehler(null);
@@ -337,7 +339,8 @@ function AdressenReiter({ kundeId, adressen, onGeaendert }: AdressenReiterProps)
     }
   }
 
-  async function loeschen(id: string) {
+  async function loeschen(id: string, typ: string, strasse: string, plz: string, ort: string) {
+    if (!(await bestaetigen(`Adresse „${typ}, ${strasse}, ${plz} ${ort}" löschen?`))) return;
     setFehler(null);
     try {
       await api.kunden.adresseDelete(id);
@@ -352,6 +355,7 @@ function AdressenReiter({ kundeId, adressen, onGeaendert }: AdressenReiterProps)
     <section>
       {fehler && <Fehler fehler={fehler} />}
       {hinweis}
+      {dialog}
       <table className="tabelle">
         <thead>
           <tr>
@@ -377,7 +381,11 @@ function AdressenReiter({ kundeId, adressen, onGeaendert }: AdressenReiterProps)
                 <button type="button" className="btn" onClick={() => setForm(a)}>
                   Bearbeiten
                 </button>
-                <button type="button" className="btn btn-gefahr" onClick={() => loeschen(a.id)}>
+                <button
+                  type="button"
+                  className="btn btn-gefahr"
+                  onClick={() => loeschen(a.id, a.typ, a.strasse, a.plz, a.ort)}
+                >
                   Löschen
                 </button>
               </td>

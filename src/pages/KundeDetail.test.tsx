@@ -1,5 +1,5 @@
 import "@testing-library/jest-dom/vitest";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 afterEach(cleanup);
@@ -137,11 +137,27 @@ describe("KundeDetail", () => {
     await waitFor(() => expect(screen.getByText("Adresse angelegt")).toBeTruthy());
   });
 
+  it("löscht eine Adresse nicht, wenn im Dialog abgebrochen wird", async () => {
+    const { api } = await import("../api");
+    render(<KundeDetail id="1" startReiter="adressen" onReiterUebernommen={() => {}} />);
+    await waitFor(() => expect(screen.getByRole("button", { name: "Adressen" })).toBeTruthy());
+    await waitFor(() => expect(screen.getByRole("button", { name: "Löschen" })).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Löschen" }));
+    await waitFor(() => expect(screen.getByRole("dialog")).toBeTruthy());
+    fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Abbrechen" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(vi.mocked(api.kunden.adresseDelete)).not.toHaveBeenCalled();
+  });
+
   it("zeigt nach dem Löschen einer Adresse einen Erfolgs-Hinweis", async () => {
     render(<KundeDetail id="1" startReiter="adressen" onReiterUebernommen={() => {}} />);
     await waitFor(() => expect(screen.getByRole("button", { name: "Adressen" })).toBeTruthy());
     await waitFor(() => expect(screen.getByRole("button", { name: "Löschen" })).toBeTruthy());
     fireEvent.click(screen.getByRole("button", { name: "Löschen" }));
+    await waitFor(() =>
+      expect(screen.getByText('Adresse „rechnung, Musterstr. 1, 12345 Musterstadt" löschen?')).toBeTruthy(),
+    );
+    fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Löschen" }));
     await waitFor(() => expect(screen.getByText("Adresse gelöscht")).toBeTruthy());
   });
 
