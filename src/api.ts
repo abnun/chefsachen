@@ -17,8 +17,9 @@ export interface Kunde {
   leitweg_id: string;
   kaeuferreferenz: string;
   hat_adresse: boolean;
+  hat_offene_entwuerfe?: boolean;
 }
-export type KundeNeu = Omit<Kunde, "id" | "kundennummer" | "hat_adresse">;
+export type KundeNeu = Omit<Kunde, "id" | "kundennummer" | "hat_adresse" | "hat_offene_entwuerfe">;
 export interface Adresse {
   id: string;
   kunde_id: string;
@@ -178,7 +179,8 @@ export const api = {
     list: (suche?: string) => invoke<Artikel[]>("artikel_list", { suche: suche ?? null }),
     create: (a: Omit<Artikel, "id" | "artikelnummer" | "kundenpreise_anzahl">) => invoke<Artikel>("artikel_create", { daten: a }),
     update: (a: Artikel) => invoke<Artikel>("artikel_update", { artikel: a }),
-    delete: (id: string) => invoke<void>("artikel_delete", { id }),
+    delete: (id: string, kundenpreiseMitloeschen: boolean) =>
+      invoke<void>("artikel_delete", { id, kundenpreiseMitloeschen }),
     kundenpreise: (artikelId: string) => invoke<Kundenpreis[]>("kundenpreis_list", { artikelId }),
     kundenpreisSave: (kp: Kundenpreis) => invoke<Kundenpreis>("kundenpreis_save", { kp }),
     kundenpreisDelete: (id: string) => invoke<void>("kundenpreis_delete", { id }),
