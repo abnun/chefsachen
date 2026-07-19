@@ -120,6 +120,84 @@ fn parse_cii(xml: &str) -> AppResult<GeparsteRechnung> {
     Ok(ergebnis)
 }
 
+fn parse_ubl(xml: &str) -> AppResult<GeparsteRechnung> {
+    let mut reader = Reader::from_str(xml);
+    let mut pfad: Vec<String> = Vec::new();
+    let mut zeilen_pfad: Vec<String> = Vec::new();
+    let mut ergebnis = GeparsteRechnung::default();
+    let mut steller_registrierungsname = String::new();
+    let mut steller_partyname = String::new();
+    let mut in_zeile = false;
+    let mut aktuelle_zeile = GeparstePosition::default();
+
+    loop {
+        match reader.read_event().map_err(|e| AppError::Technisch(format!("XML ist nicht wohlgeformt: {e}")))? {
+            Event::Eof => break,
+            Event::Start(e) => {
+                let name = String::from_utf8_lossy(e.name().as_ref()).into_owned();
+                if name == "cac:InvoiceLine" {
+                    in_zeile = true;
+                    aktuelle_zeile = GeparstePosition::default();
+                    zeilen_pfad.clear();
+                } else if in_zeile {
+                    zeilen_pfad.push(name.clone());
+                }
+                pfad.push(name);
+            }
+            Event::Text(t) => {
+                let text = t.unescape().map_err(|e| AppError::Technisch(format!("XML ist nicht wohlgeformt: {e}")))?.into_owned();
+                if in_zeile {
+                    match zeilen_pfad.join("/").as_str() {
+                        "cac:Item/cbc:Name" => aktuelle_zeile.bezeichnung = text,
+                        "cac:Price/cbc:PriceAmount" => aktuelle_zeile.einzelpreis_cent = dezimal_zu_festkomma(&text, 2, 100),
+                        "cbc:InvoicedQuantity" => aktuelle_zeile.menge = dezimal_zu_festkomma(&text, 3, 1000),
+                        "cbc:LineExtensionAmount" => aktuelle_zeile.positionssumme_cent = dezimal_zu_festkomma(&text, 2, 100),
+                        _ => {}
+                    }
+                } else {
+                    match pfad.join("/").as_str() {
+                        "Invoice/cbc:ID" => ergebnis.rechnungsnummer = text,
+                        "Invoice/cbc:IssueDate" => ergebnis.rechnungsdatum = text,
+                        "Invoice/cbc:DocumentCurrencyCode" => ergebnis.waehrung = text,
+                        "Invoice/cac:LegalMonetaryTotal/cbc:TaxInclusiveAmount" =>
+                            ergebnis.betrag_cent = dezimal_zu_festkomma(&text, 2, 100),
+                        "Invoice/cac:AccountingSupplierParty/cac:Party/cac:PartyLegalEntity/cbc:RegistrationName" =>
+                            steller_registrierungsname = text,
+                        "Invoice/cac:AccountingSupplierParty/cac:Party/cac:PartyName/cbc:Name" =>
+                            steller_partyname = text,
+                        _ => {}
+                    }
+                }
+            }
+            Event::End(_) => {
+                if let Some(name) = pfad.pop() {
+                    if name == "cac:InvoiceLine" {
+                        in_zeile = false;
+                        ergebnis.positionen.push(std::mem::take(&mut aktuelle_zeile));
+                    } else if in_zeile {
+                        zeilen_pfad.pop();
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+
+    ergebnis.rechnungssteller_name = if !steller_registrierungsname.is_empty() {
+        steller_registrierungsname
+    } else {
+        steller_partyname
+    };
+
+    if ergebnis.rechnungsnummer.is_empty() && ergebnis.rechnungssteller_name.is_empty() {
+        return Err(AppError::Technisch("Konnte keine Kernfelder aus der UBL-Rechnung extrahieren".into()));
+    }
+    if ergebnis.waehrung.is_empty() {
+        ergebnis.waehrung = "EUR".into();
+    }
+    Ok(ergebnis)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -148,5 +226,59 @@ mod tests {
     fn parse_cii_lehnt_xml_ohne_kernfelder_ab() {
         let err = parse_cii("<rsm:CrossIndustryInvoice></rsm:CrossIndustryInvoice>").unwrap_err();
         assert!(matches!(err, AppError::Technisch(_)));
+    }
+
+    const UBL_BEISPIEL: &str = r#"<?xml version="1.0" encoding="UTF-8"?>
+<Invoice xmlns="urn:oasis:names:specification:ubl:schema:xsd:Invoice-2"
+         xmlns:cac="urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2"
+         xmlns:cbc="urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2">
+  <cbc:ID>RE-2026-0042</cbc:ID>
+  <cbc:IssueDate>2026-07-15</cbc:IssueDate>
+  <cbc:DocumentCurrencyCode>EUR</cbc:DocumentCurrencyCode>
+  <cac:AccountingSupplierParty>
+    <cac:Party>
+      <cac:PartyLegalEntity>
+        <cbc:RegistrationName>Lieferant GmbH</cbc:RegistrationName>
+      </cac:PartyLegalEntity>
+    </cac:Party>
+  </cac:AccountingSupplierParty>
+  <cac:LegalMonetaryTotal>
+    <cbc:TaxInclusiveAmount>238.00</cbc:TaxInclusiveAmount>
+  </cac:LegalMonetaryTotal>
+  <cac:InvoiceLine>
+    <cbc:InvoicedQuantity>2</cbc:InvoicedQuantity>
+    <cbc:LineExtensionAmount>238.00</cbc:LineExtensionAmount>
+    <cac:Item>
+      <cbc:Name>Bürobedarf</cbc:Name>
+    </cac:Item>
+    <cac:Price>
+      <cbc:PriceAmount>119.00</cbc:PriceAmount>
+    </cac:Price>
+  </cac:InvoiceLine>
+</Invoice>"#;
+
+    #[test]
+    fn parse_ubl_extrahiert_kernfelder_und_position() {
+        let ergebnis = parse_ubl(UBL_BEISPIEL).unwrap();
+        assert_eq!(ergebnis.rechnungsnummer, "RE-2026-0042");
+        assert_eq!(ergebnis.rechnungsdatum, "2026-07-15");
+        assert_eq!(ergebnis.rechnungssteller_name, "Lieferant GmbH");
+        assert_eq!(ergebnis.waehrung, "EUR");
+        assert_eq!(ergebnis.betrag_cent, 23800);
+        assert_eq!(ergebnis.positionen.len(), 1);
+        assert_eq!(ergebnis.positionen[0].bezeichnung, "Bürobedarf");
+        assert_eq!(ergebnis.positionen[0].menge, 2000);
+        assert_eq!(ergebnis.positionen[0].einzelpreis_cent, 11900);
+        assert_eq!(ergebnis.positionen[0].positionssumme_cent, 23800);
+    }
+
+    #[test]
+    fn parse_ubl_faellt_auf_partyname_zurueck_ohne_registrationname() {
+        let xml = UBL_BEISPIEL.replace(
+            "<cac:PartyLegalEntity>\n        <cbc:RegistrationName>Lieferant GmbH</cbc:RegistrationName>\n      </cac:PartyLegalEntity>",
+            "<cac:PartyName>\n        <cbc:Name>Lieferant GmbH (PartyName)</cbc:Name>\n      </cac:PartyName>",
+        );
+        let ergebnis = parse_ubl(&xml).unwrap();
+        assert_eq!(ergebnis.rechnungssteller_name, "Lieferant GmbH (PartyName)");
     }
 }
