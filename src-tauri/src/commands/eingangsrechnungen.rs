@@ -101,6 +101,46 @@ pub async fn import_vorschau(pool: &SqlitePool, datei_bytes: Vec<u8>) -> AppResu
     Ok(EingangsrechnungVorschau { geparst: geparst_ok, felder, ist_duplikat })
 }
 
+pub async fn speichern(
+    pool: &SqlitePool,
+    datei_bytes: Vec<u8>,
+    dateiname: String,
+    felder: EingangsrechnungFelderNeu,
+) -> AppResult<Eingangsrechnung> {
+    // format und manuell_erfasst werden IMMER serverseitig aus den tatsächlichen
+    // Bytes neu abgeleitet — ein vom Frontend übergebener Wert wäre kein
+    // Vertrauensanker (Defense in Depth, analog hat_offene_entwuerfe/kunde_delete).
+    let format = crate::dokument::eingangsrechnung_parse::erkenne_format(&datei_bytes).to_string();
+    let (_, geparst) = crate::dokument::eingangsrechnung_parse::verarbeite_datei(&datei_bytes);
+    let manuell_erfasst = geparst.is_err();
+
+    let eingangsrechnung = Eingangsrechnung {
+        id: Uuid::new_v4().to_string(), dateiname, format,
+        rechnungssteller_name: felder.rechnungssteller_name, rechnungsnummer: felder.rechnungsnummer,
+        rechnungsdatum: felder.rechnungsdatum, betrag_cent: felder.betrag_cent, waehrung: felder.waehrung,
+        manuell_erfasst, importiert_am: jetzt(),
+    };
+
+    let mut tx = pool.begin().await?;
+    sqlx::query("INSERT INTO eingangsrechnung (id, dateiname, format, rohdatei, rechnungssteller_name, rechnungsnummer, rechnungsdatum, betrag_cent, waehrung, manuell_erfasst, importiert_am, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)")
+        .bind(&eingangsrechnung.id).bind(&eingangsrechnung.dateiname).bind(&eingangsrechnung.format)
+        .bind(&datei_bytes).bind(&eingangsrechnung.rechnungssteller_name).bind(&eingangsrechnung.rechnungsnummer)
+        .bind(&eingangsrechnung.rechnungsdatum).bind(eingangsrechnung.betrag_cent).bind(&eingangsrechnung.waehrung)
+        .bind(eingangsrechnung.manuell_erfasst).bind(&eingangsrechnung.importiert_am).bind(jetzt()).bind(jetzt())
+        .execute(&mut *tx).await?;
+
+    for (i, pos) in felder.positionen.iter().enumerate() {
+        sqlx::query("INSERT INTO eingangsrechnungposition (id, eingangsrechnung_id, bezeichnung, menge, einzelpreis_cent, positionssumme_cent, reihenfolge, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?)")
+            .bind(Uuid::new_v4().to_string()).bind(&eingangsrechnung.id).bind(&pos.bezeichnung)
+            .bind(pos.menge).bind(pos.einzelpreis_cent).bind(pos.positionssumme_cent).bind(i as i64)
+            .bind(jetzt()).bind(jetzt())
+            .execute(&mut *tx).await?;
+    }
+    tx.commit().await?;
+
+    Ok(eingangsrechnung)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -147,5 +187,51 @@ mod tests {
         let xml = crate::dokument::xrechnung::xml_erzeugen(&kontext).unwrap();
         let vorschau = import_vorschau(&pool, xml.into_bytes()).await.unwrap();
         assert!(vorschau.ist_duplikat);
+    }
+
+    #[tokio::test]
+    async fn speichern_persistiert_rohdatei_und_felder() {
+        let (_dir, pool) = test_pool().await;
+        let kontext = crate::dokument::xrechnung::tests::test_kontext(None, 9500);
+        let xml = crate::dokument::xrechnung::xml_erzeugen(&kontext).unwrap();
+        let felder = EingangsrechnungFelderNeu {
+            rechnungssteller_name: "Meine Firma".into(), rechnungsnummer: "RE-2026-0001".into(),
+            rechnungsdatum: "2026-07-11".into(), betrag_cent: 9500, waehrung: "EUR".into(),
+            positionen: vec![EingangsrechnungPositionNeu {
+                bezeichnung: "Beratung".into(), menge: 1000, einzelpreis_cent: 9500, positionssumme_cent: 9500,
+            }],
+        };
+        let gespeichert = speichern(&pool, xml.into_bytes(), "rechnung.xml".into(), felder).await.unwrap();
+        assert_eq!(gespeichert.format, "xrechnung");
+        assert!(!gespeichert.manuell_erfasst);
+
+        let liste = list(&pool).await.unwrap();
+        assert_eq!(liste.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn speichern_markiert_manuell_erfasst_bei_nicht_parsbarer_datei() {
+        let (_dir, pool) = test_pool().await;
+        let felder = EingangsrechnungFelderNeu {
+            rechnungssteller_name: "Von Hand eingetragen".into(), rechnungsnummer: "X-1".into(),
+            rechnungsdatum: "2026-07-11".into(), betrag_cent: 5000, waehrung: "EUR".into(), positionen: vec![],
+        };
+        let gespeichert = speichern(&pool, b"kein gueltiges XML".to_vec(), "unbekannt.xml".into(), felder).await.unwrap();
+        assert!(gespeichert.manuell_erfasst);
+        assert_eq!(gespeichert.rechnungssteller_name, "Von Hand eingetragen");
+    }
+
+    #[tokio::test]
+    async fn speichern_leitet_format_serverseitig_ab_unabhaengig_vom_dateinamen() {
+        // Kein `format`-Parameter im Command — auch bei einer .xml-benannten Datei
+        // mit PDF-Inhalt wird das tatsächliche Format aus den Bytes bestimmt.
+        let (_dir, pool) = test_pool().await;
+        let minimales_pdf = crate::dokument::pdf::rendern(&crate::dokument::pdf::tests::test_kontext(), None).unwrap();
+        let felder = EingangsrechnungFelderNeu {
+            rechnungssteller_name: "".into(), rechnungsnummer: "".into(),
+            rechnungsdatum: "".into(), betrag_cent: 0, waehrung: "EUR".into(), positionen: vec![],
+        };
+        let gespeichert = speichern(&pool, minimales_pdf, "täuschung.xml".into(), felder).await.unwrap();
+        assert_eq!(gespeichert.format, "zugferd");
     }
 }
