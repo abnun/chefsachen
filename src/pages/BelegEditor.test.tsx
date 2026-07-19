@@ -299,6 +299,26 @@ describe("BelegEditor – Export", () => {
     await waitFor(() =>
       expect(writeFile).toHaveBeenCalledWith("/pfad/rechnung.pdf", new Uint8Array([1, 2, 3])),
     );
+    await waitFor(() => expect(screen.getByText("PDF exportiert")).toBeTruthy());
+  });
+
+  it("zeigt keinen Erfolgs-Hinweis, wenn der Speichern-Dialog beim PDF-Export abgebrochen wird", async () => {
+    vi.mocked(api.belege.get).mockResolvedValue({
+      beleg: {
+        id: "b1", typ: "rechnung", nummer: "RE-2026-0001", status: "gestellt", kunde_id: "k1",
+        datum: "2026-07-11", leistungsdatum: "2026-07-11", zahlungsziel_tage: 14,
+        kopftext: "", fusstext: "", summe_cent: 9500, ursprungsangebot_id: null, storno_von_id: null,
+      },
+      positionen: [], zahlungen: [], bezahlt_cent: 0, offener_betrag_cent: 9500,
+    });
+    vi.mocked(save).mockResolvedValueOnce(null);
+    render(<BelegEditor id="b1" />);
+    await waitFor(() => expect(screen.getByRole("button", { name: "Als PDF exportieren" })).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Als PDF exportieren" }));
+    await waitFor(() => expect(api.belege.pdfExportieren).toHaveBeenCalledWith("b1"));
+    await waitFor(() => expect(save).toHaveBeenCalled());
+    expect(writeFile).not.toHaveBeenCalled();
+    expect(screen.queryByText("PDF exportiert")).toBeNull();
   });
 
   it("exportiert eine XRechnung (XML) über den Speichern-Dialog", async () => {
@@ -316,6 +336,7 @@ describe("BelegEditor – Export", () => {
     );
     fireEvent.click(screen.getByRole("button", { name: "Als XRechnung (XML) exportieren" }));
     await waitFor(() => expect(api.belege.xrechnungExportieren).toHaveBeenCalledWith("b1"));
+    await waitFor(() => expect(screen.getByText("XRechnung exportiert")).toBeTruthy());
   });
 
   it("exportiert eine ZUGFeRD-Rechnung über den Speichern-Dialog", async () => {
@@ -333,6 +354,7 @@ describe("BelegEditor – Export", () => {
     );
     fireEvent.click(screen.getByRole("button", { name: "Als ZUGFeRD-Rechnung exportieren" }));
     await waitFor(() => expect(api.belege.zugferdExportieren).toHaveBeenCalledWith("b1"));
+    await waitFor(() => expect(screen.getByText("ZUGFeRD-Rechnung exportiert")).toBeTruthy());
   });
 
   it("zeigt eine Fehlermeldung an, wenn der XRechnung-Export mit einem Validierungsfehler abgelehnt wird", async () => {

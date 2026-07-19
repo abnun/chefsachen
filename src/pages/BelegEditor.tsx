@@ -155,6 +155,7 @@ export function BelegEditor({ id, onGeaendert, onRechnungErstellt }: BelegEditor
       const ziel = await save({ defaultPath: `${beleg.nummer ?? beleg.id}.pdf`, filters: [{ name: "PDF", extensions: ["pdf"] }] });
       if (ziel) {
         await writeFile(ziel, new Uint8Array(bytes));
+        zeigen("PDF exportiert");
       }
     } catch (e) {
       setFehler(e as AppFehler);
@@ -168,6 +169,7 @@ export function BelegEditor({ id, onGeaendert, onRechnungErstellt }: BelegEditor
       const ziel = await save({ defaultPath: `${beleg.nummer ?? beleg.id}.xml`, filters: [{ name: "XML", extensions: ["xml"] }] });
       if (ziel) {
         await writeFile(ziel, new Uint8Array(bytes));
+        zeigen("XRechnung exportiert");
       }
     } catch (e) {
       setFehler(e as AppFehler);
@@ -181,6 +183,7 @@ export function BelegEditor({ id, onGeaendert, onRechnungErstellt }: BelegEditor
       const ziel = await save({ defaultPath: `${beleg.nummer ?? beleg.id}-zugferd.pdf`, filters: [{ name: "PDF", extensions: ["pdf"] }] });
       if (ziel) {
         await writeFile(ziel, new Uint8Array(bytes));
+        zeigen("ZUGFeRD-Rechnung exportiert");
       }
     } catch (e) {
       setFehler(e as AppFehler);
