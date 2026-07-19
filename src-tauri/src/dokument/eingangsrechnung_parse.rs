@@ -198,6 +198,77 @@ fn parse_ubl(xml: &str) -> AppResult<GeparsteRechnung> {
     Ok(ergebnis)
 }
 
+pub fn erkenne_format(datei_bytes: &[u8]) -> &'static str {
+    if datei_bytes.starts_with(b"%PDF") { "zugferd" } else { "xrechnung" }
+}
+
+pub fn parsen(xml: &str) -> AppResult<GeparsteRechnung> {
+    let mut reader = Reader::from_str(xml);
+    let wurzel = loop {
+        match reader.read_event().map_err(|e| AppError::Technisch(format!("XML ist nicht wohlgeformt: {e}")))? {
+            Event::Eof => return Err(AppError::Technisch("Leere oder ungültige XML-Datei".into())),
+            Event::Start(e) | Event::Empty(e) => {
+                break String::from_utf8_lossy(e.name().as_ref()).into_owned();
+            }
+            _ => continue,
+        }
+    };
+    match wurzel.as_str() {
+        "rsm:CrossIndustryInvoice" => parse_cii(xml),
+        "Invoice" | "ubl:Invoice" | "CreditNote" | "ubl:CreditNote" => parse_ubl(xml),
+        other => Err(AppError::Technisch(format!("Unbekanntes Rechnungsformat (Wurzelelement „{other}\")"))),
+    }
+}
+
+/// Extrahiert die eingebettete Factur-X/ZUGFeRD-XML-Datei aus einem
+/// PDF/A-3-Dokument (Umkehrung von `dokument::zugferd::einbetten`). Liest den
+/// ersten Eintrag im Katalog-Feld `AF` (Associated Files) — `einbetten()`
+/// hinterlegt dort genau eine Datei, daher kein Dateiname-Filter nötig.
+pub fn xml_extrahieren(pdf_bytes: &[u8]) -> AppResult<String> {
+    use lopdf::{Document, Object};
+
+    let doc = Document::load_mem(pdf_bytes)
+        .map_err(|e| AppError::Technisch(format!("PDF konnte nicht geladen werden: {e}")))?;
+
+    let katalog = doc.catalog()
+        .map_err(|e| AppError::Technisch(format!("PDF-Katalog nicht gefunden: {e}")))?;
+    let af = katalog.get(b"AF")
+        .and_then(Object::as_array)
+        .map_err(|_| AppError::Technisch("Keine eingebettete Datei im PDF gefunden (kein AF-Eintrag)".into()))?;
+    let filespec_ref = af.first()
+        .and_then(|o| o.as_reference().ok())
+        .ok_or_else(|| AppError::Technisch("AF-Eintrag ist leer".into()))?;
+    let filespec = doc.get_object(filespec_ref)
+        .and_then(Object::as_dict)
+        .map_err(|e| AppError::Technisch(format!("Filespec nicht lesbar: {e}")))?;
+    let ef = filespec.get(b"EF")
+        .and_then(Object::as_dict)
+        .map_err(|e| AppError::Technisch(format!("EF-Eintrag fehlt: {e}")))?;
+    let datei_ref = ef.get(b"F")
+        .and_then(Object::as_reference)
+        .map_err(|e| AppError::Technisch(format!("Ungültige Datei-Referenz: {e}")))?;
+    let stream = doc.get_object(datei_ref)
+        .and_then(Object::as_stream)
+        .map_err(|e| AppError::Technisch(format!("Anhang nicht lesbar: {e}")))?;
+    String::from_utf8(stream.content.clone())
+        .map_err(|e| AppError::Technisch(format!("Anhang ist kein gültiges UTF-8: {e}")))
+}
+
+/// Erkennt Format und versucht zu parsen. Liefert das erkannte Format immer
+/// (unabhängig vom Parse-Ergebnis) — Aufrufer nutzen dieses Format serverseitig,
+/// nie einen vom Frontend übergebenen Wert (Defense in Depth, siehe Commands).
+pub fn verarbeite_datei(datei_bytes: &[u8]) -> (String, AppResult<GeparsteRechnung>) {
+    let format = erkenne_format(datei_bytes);
+    let xml_ergebnis: AppResult<String> = if format == "zugferd" {
+        xml_extrahieren(datei_bytes)
+    } else {
+        String::from_utf8(datei_bytes.to_vec())
+            .map_err(|e| AppError::Technisch(format!("Datei ist kein gültiges UTF-8: {e}")))
+    };
+    let geparst = xml_ergebnis.and_then(|xml| parsen(&xml));
+    (format.to_string(), geparst)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -280,5 +351,61 @@ mod tests {
         );
         let ergebnis = parse_ubl(&xml).unwrap();
         assert_eq!(ergebnis.rechnungssteller_name, "Lieferant GmbH (PartyName)");
+    }
+
+    #[test]
+    fn erkenne_format_erkennt_pdf_an_magic_bytes() {
+        assert_eq!(erkenne_format(b"%PDF-1.7 ..."), "zugferd");
+        assert_eq!(erkenne_format(b"<rsm:CrossIndustryInvoice></rsm:CrossIndustryInvoice>"), "xrechnung");
+    }
+
+    #[test]
+    fn parsen_erkennt_wurzelelement_und_delegiert() {
+        let kontext = crate::dokument::xrechnung::tests::test_kontext(None, 9500);
+        let cii_xml = crate::dokument::xrechnung::xml_erzeugen(&kontext).unwrap();
+        assert_eq!(parsen(&cii_xml).unwrap().rechnungsnummer, "RE-2026-0001");
+        assert_eq!(parsen(UBL_BEISPIEL).unwrap().rechnungsnummer, "RE-2026-0042");
+    }
+
+    #[test]
+    fn parsen_lehnt_unbekanntes_wurzelelement_ab() {
+        let err = parsen("<EtwasAnderes></EtwasAnderes>").unwrap_err();
+        assert!(matches!(err, AppError::Technisch(_)));
+    }
+
+    #[test]
+    fn xml_extrahieren_liest_eingebettete_xml_wieder_aus() {
+        let minimales_pdf = crate::dokument::pdf::rendern(&crate::dokument::pdf::tests::test_kontext(), None).unwrap();
+        let xml = "<rsm:CrossIndustryInvoice><rsm:ExchangedDocument><ram:ID>RE-1</ram:ID></rsm:ExchangedDocument></rsm:CrossIndustryInvoice>";
+        let pdf_mit_anhang = crate::dokument::zugferd::einbetten(minimales_pdf, xml).unwrap();
+        let extrahiert = xml_extrahieren(&pdf_mit_anhang).unwrap();
+        assert_eq!(extrahiert, xml);
+    }
+
+    #[test]
+    fn verarbeite_datei_erkennt_xrechnung_und_parst() {
+        let kontext = crate::dokument::xrechnung::tests::test_kontext(None, 9500);
+        let cii_xml = crate::dokument::xrechnung::xml_erzeugen(&kontext).unwrap();
+        let (format, ergebnis) = verarbeite_datei(cii_xml.as_bytes());
+        assert_eq!(format, "xrechnung");
+        assert_eq!(ergebnis.unwrap().rechnungsnummer, "RE-2026-0001");
+    }
+
+    #[test]
+    fn verarbeite_datei_erkennt_zugferd_und_parst() {
+        let minimales_pdf = crate::dokument::pdf::rendern(&crate::dokument::pdf::tests::test_kontext(), None).unwrap();
+        let kontext = crate::dokument::xrechnung::tests::test_kontext(None, 9500);
+        let cii_xml = crate::dokument::xrechnung::xml_erzeugen(&kontext).unwrap();
+        let pdf_mit_anhang = crate::dokument::zugferd::einbetten(minimales_pdf, &cii_xml).unwrap();
+        let (format, ergebnis) = verarbeite_datei(&pdf_mit_anhang);
+        assert_eq!(format, "zugferd");
+        assert_eq!(ergebnis.unwrap().rechnungsnummer, "RE-2026-0001");
+    }
+
+    #[test]
+    fn verarbeite_datei_liefert_fehler_bei_unlesbarer_datei_aber_erkennt_format() {
+        let (format, ergebnis) = verarbeite_datei(b"nicht mal ansatzweise XML oder PDF");
+        assert_eq!(format, "xrechnung");
+        assert!(ergebnis.is_err());
     }
 }
