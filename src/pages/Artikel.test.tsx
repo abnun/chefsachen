@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 afterEach(cleanup);
@@ -292,5 +292,49 @@ describe("Artikel", () => {
     fireEvent.change(screen.getByLabelText("Preis (€)"), { target: { value: "65,00" } });
     fireEvent.click(screen.getByRole("button", { name: "Speichern" }));
     await waitFor(() => expect(screen.getByText("Kundenpreis angelegt")).toBeTruthy());
+  });
+
+  it("löscht einen Artikel nicht, wenn im Dialog abgebrochen wird", async () => {
+    const { api } = await import("../api");
+    render(<Artikel />);
+    await waitFor(() => expect(screen.getByText("Beratung")).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Löschen" }));
+    await waitFor(() => expect(screen.getByRole("dialog")).toBeTruthy());
+    fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Abbrechen" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(vi.mocked(api.artikel.delete)).not.toHaveBeenCalled();
+  });
+
+  it("löscht einen Artikel ohne Kundenpreise nach Bestätigung", async () => {
+    const { api } = await import("../api");
+    render(<Artikel />);
+    await waitFor(() => expect(screen.getByText("Beratung")).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Löschen" }));
+    await waitFor(() => expect(screen.getByText('Artikel „Beratung" löschen?')).toBeTruthy());
+    fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Löschen" }));
+    await waitFor(() => expect(screen.getByText('Artikel „Beratung" gelöscht')).toBeTruthy());
+    expect(vi.mocked(api.artikel.delete)).toHaveBeenCalledWith("a1", false);
+  });
+
+  it("zeigt einen Hinweis auf mitzulöschende Kundenpreise im Dialogtext und übergibt kundenpreiseMitloeschen", async () => {
+    const { api } = await import("../api");
+    vi.mocked(api.artikel.list).mockResolvedValueOnce([
+      {
+        id: "a1", artikelnummer: "ART-0001", bezeichnung: "Beratung", beschreibung: "",
+        einheit_id: "e1", standardpreis_cent: 9550, kundenpreise_anzahl: 2,
+      },
+    ]);
+    render(<Artikel />);
+    await waitFor(() => expect(screen.getByText("Beratung")).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Löschen" }));
+    await waitFor(() =>
+      expect(
+        screen.getByText(
+          'Artikel „Beratung" hat 2 Kundenpreis(e). Diese werden beim Löschen ebenfalls entfernt. Trotzdem löschen?',
+        ),
+      ).toBeTruthy(),
+    );
+    fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Löschen" }));
+    await waitFor(() => expect(vi.mocked(api.artikel.delete)).toHaveBeenCalledWith("a1", true));
   });
 });

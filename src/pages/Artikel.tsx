@@ -11,6 +11,7 @@ import {
 import { Fehler } from "../components/Fehler";
 import { Hinweis } from "../components/Hinweis";
 import { useErfolgsHinweis } from "../hooks/useErfolgsHinweis";
+import { useLoeschBestaetigung } from "../hooks/useLoeschBestaetigung";
 import { formatCent, parseEuro } from "../geld";
 
 const ARTIKEL_NEU_LEER = {
@@ -47,6 +48,7 @@ export function Artikel({ zeigeFormularBeimStart, onFormularUebernommen, onZuKun
   const [leerHinweisVersteckt, setLeerHinweisVersteckt] = useState(false);
   const [zeigtKundenHinweis, setZeigtKundenHinweis] = useState(false);
   const { zeigen, hinweis } = useErfolgsHinweis();
+  const { bestaetigen, dialog } = useLoeschBestaetigung();
 
   useEffect(() => {
     if (zeigeFormularBeimStart) {
@@ -63,6 +65,22 @@ export function Artikel({ zeigeFormularBeimStart, onFormularUebernommen, onZuKun
         setFehler(null);
       })
       .catch((e) => setFehler(e as AppFehler));
+  }
+
+  async function loeschen(a: ArtikelTyp) {
+    const text =
+      a.kundenpreise_anzahl === 0
+        ? `Artikel „${a.bezeichnung}" löschen?`
+        : `Artikel „${a.bezeichnung}" hat ${a.kundenpreise_anzahl} Kundenpreis(e). Diese werden beim Löschen ebenfalls entfernt. Trotzdem löschen?`;
+    if (!(await bestaetigen(text))) return;
+    setFehler(null);
+    try {
+      await api.artikel.delete(a.id, a.kundenpreise_anzahl > 0);
+      ladeArtikel();
+      zeigen(`Artikel „${a.bezeichnung}" gelöscht`);
+    } catch (e) {
+      setFehler(e as AppFehler);
+    }
   }
 
   useEffect(() => {
@@ -148,6 +166,7 @@ export function Artikel({ zeigeFormularBeimStart, onFormularUebernommen, onZuKun
       <h1 className="seiten-kopf">Artikel &amp; Leistungen</h1>
       <Fehler fehler={fehler} />
       {hinweis}
+      {dialog}
 
       {zeigtKundenHinweis && (
         <Hinweis autoDismissMs={4000} onSchliessen={() => setZeigtKundenHinweis(false)}>
@@ -251,6 +270,9 @@ export function Artikel({ zeigeFormularBeimStart, onFormularUebernommen, onZuKun
                     onClick={() => setAufgeklappt(aufgeklappt === a.id ? null : a.id)}
                   >
                     {a.kundenpreise_anzahl === 0 ? "Kundenpreise" : `Kundenpreise (${a.kundenpreise_anzahl})`}
+                  </button>
+                  <button type="button" className="btn btn-gefahr" onClick={() => loeschen(a)}>
+                    Löschen
                   </button>
                 </td>
               </tr>
