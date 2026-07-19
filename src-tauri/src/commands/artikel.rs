@@ -92,10 +92,28 @@ pub async fn update(pool: &SqlitePool, artikel: Artikel) -> AppResult<Artikel> {
     Ok(artikel)
 }
 
-pub async fn delete(pool: &SqlitePool, id: String) -> AppResult<()> {
+pub async fn delete(pool: &SqlitePool, id: String, kundenpreise_mitloeschen: bool) -> AppResult<()> {
+    let anzahl_kundenpreise: (i64,) = sqlx::query_as(
+        "SELECT COUNT(*) FROM kundenpreis WHERE artikel_id = ? AND deleted_at IS NULL")
+        .bind(&id).fetch_one(pool).await?;
+    if anzahl_kundenpreise.0 > 0 && !kundenpreise_mitloeschen {
+        return Err(AppError::Validation {
+            feld: "id".into(),
+            meldung: format!(
+                "Artikel hat {} Kundenpreise — zum Löschen bestätigen, dass sie mitgelöscht werden sollen",
+                anzahl_kundenpreise.0
+            ),
+        });
+    }
+    let mut tx = pool.begin().await?;
+    if anzahl_kundenpreise.0 > 0 {
+        sqlx::query("UPDATE kundenpreis SET deleted_at = ? WHERE artikel_id = ? AND deleted_at IS NULL")
+            .bind(jetzt()).bind(&id).execute(&mut *tx).await?;
+    }
     let r = sqlx::query("UPDATE artikel SET deleted_at = ? WHERE id = ? AND deleted_at IS NULL")
-        .bind(jetzt()).bind(&id).execute(pool).await?;
+        .bind(jetzt()).bind(&id).execute(&mut *tx).await?;
     if r.rows_affected() == 0 { return Err(AppError::NichtGefunden); }
+    tx.commit().await?;
     Ok(())
 }
 
@@ -153,8 +171,8 @@ pub async fn artikel_update(pool: tauri::State<'_, SqlitePool>, artikel: Artikel
     update(&pool, artikel).await
 }
 #[tauri::command]
-pub async fn artikel_delete(pool: tauri::State<'_, SqlitePool>, id: String) -> AppResult<()> {
-    delete(&pool, id).await
+pub async fn artikel_delete(pool: tauri::State<'_, SqlitePool>, id: String, kundenpreise_mitloeschen: bool) -> AppResult<()> {
+    delete(&pool, id, kundenpreise_mitloeschen).await
 }
 #[tauri::command]
 pub async fn kundenpreis_list(pool: tauri::State<'_, SqlitePool>, artikel_id: String) -> AppResult<Vec<Kundenpreis>> {
@@ -262,7 +280,7 @@ mod tests {
     async fn delete_entfernt_aus_liste() {
         let (_dir, pool) = test_pool().await;
         let a = create(&pool, neu("Beratung")).await.unwrap();
-        delete(&pool, a.id.clone()).await.unwrap();
+        delete(&pool, a.id.clone(), false).await.unwrap();
         assert!(!list(&pool, None).await.unwrap().iter().any(|x| x.id == a.id));
     }
 
@@ -322,5 +340,45 @@ mod tests {
         assert_eq!(gefunden_a1.kundenpreise_anzahl, 1);
         // a2 hat gar keine Kundenpreise.
         assert_eq!(gefunden_a2.kundenpreise_anzahl, 0);
+    }
+
+    #[tokio::test]
+    async fn delete_loescht_artikel_ohne_kundenpreise() {
+        let (_dir, pool) = test_pool().await;
+        let a = create(&pool, neu("Beratung")).await.unwrap();
+        delete(&pool, a.id, false).await.unwrap();
+        let liste = list(&pool, None).await.unwrap();
+        assert!(liste.is_empty());
+    }
+
+    #[tokio::test]
+    async fn delete_lehnt_ab_bei_kundenpreisen_ohne_bestaetigung() {
+        let (_dir, pool) = test_pool().await;
+        let a = create(&pool, neu("Beratung")).await.unwrap();
+        let k = kunde(&pool, "ACME GmbH").await;
+        kundenpreis_speichern(&pool, Kundenpreis {
+            id: "".into(), artikel_id: a.id.clone(), kunde_id: k, preis_cent: 4000, gueltig_ab: None,
+        }).await.unwrap();
+
+        let err = delete(&pool, a.id, false).await.unwrap_err();
+        assert!(matches!(err, AppError::Validation { .. }));
+    }
+
+    #[tokio::test]
+    async fn delete_loescht_artikel_und_kundenpreise_gemeinsam_bei_bestaetigung() {
+        let (_dir, pool) = test_pool().await;
+        let a = create(&pool, neu("Beratung")).await.unwrap();
+        let k = kunde(&pool, "ACME GmbH").await;
+        let kp = kundenpreis_speichern(&pool, Kundenpreis {
+            id: "".into(), artikel_id: a.id.clone(), kunde_id: k, preis_cent: 4000, gueltig_ab: None,
+        }).await.unwrap();
+
+        delete(&pool, a.id.clone(), true).await.unwrap();
+
+        let liste = list(&pool, None).await.unwrap();
+        assert!(liste.is_empty());
+        let roh: (Option<String>,) = sqlx::query_as("SELECT deleted_at FROM kundenpreis WHERE id = ?")
+            .bind(&kp.id).fetch_one(&pool).await.unwrap();
+        assert!(roh.0.is_some());
     }
 }
