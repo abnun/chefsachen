@@ -111,6 +111,15 @@ pub async fn update(pool: &SqlitePool, kunde: Kunde) -> AppResult<Kunde> {
 }
 
 pub async fn delete(pool: &SqlitePool, id: String) -> AppResult<()> {
+    let hat_entwurf: (i64,) = sqlx::query_as(
+        "SELECT COUNT(*) FROM beleg WHERE kunde_id = ? AND status = 'entwurf' AND deleted_at IS NULL")
+        .bind(&id).fetch_one(pool).await?;
+    if hat_entwurf.0 > 0 {
+        return Err(AppError::Validation {
+            feld: "id".into(),
+            meldung: "Kunde hat noch offene Entwürfe und kann nicht gelöscht werden".into(),
+        });
+    }
     let r = sqlx::query("UPDATE kunde SET deleted_at = ? WHERE id = ? AND deleted_at IS NULL")
         .bind(jetzt()).bind(&id).execute(pool).await?;
     if r.rows_affected() == 0 { return Err(AppError::NichtGefunden); }
@@ -299,5 +308,48 @@ mod tests {
 
         let liste = list(&pool, None).await.unwrap();
         assert!(liste.iter().find(|k| k.id == kunde_id).unwrap().hat_offene_entwuerfe);
+    }
+
+    #[tokio::test]
+    async fn delete_lehnt_ab_wenn_entwurf_existiert() {
+        let (_dir, pool) = test_pool().await;
+        let kunde_id = create(&pool, neu("ACME GmbH")).await.unwrap().id;
+        crate::commands::belege::create(&pool, crate::commands::belege::BelegNeu {
+            typ: "angebot".into(), kunde_id: kunde_id.clone(), datum: "2026-07-10".into(),
+            leistungsdatum: "2026-07-10".into(), zahlungsziel_tage: 14,
+            kopftext: "".into(), fusstext: "".into(),
+        }).await.unwrap();
+
+        let err = delete(&pool, kunde_id).await.unwrap_err();
+        assert!(matches!(err, AppError::Validation { .. }));
+    }
+
+    #[tokio::test]
+    async fn delete_erlaubt_wenn_keine_belege_existieren() {
+        let (_dir, pool) = test_pool().await;
+        let kunde_id = create(&pool, neu("ACME GmbH")).await.unwrap().id;
+        delete(&pool, kunde_id).await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn delete_erlaubt_wenn_nur_gestellte_belege_existieren() {
+        let (_dir, pool) = test_pool().await;
+        let kunde_id = create(&pool, neu("ACME GmbH")).await.unwrap().id;
+        let artikel_id = crate::commands::artikel::create(&pool, crate::commands::artikel::ArtikelNeu {
+            bezeichnung: "Beratung".into(), beschreibung: "".into(),
+            einheit_id: "e0000000-0000-0000-0000-000000000001".into(), standardpreis_cent: 5000,
+        }).await.unwrap().id;
+        let beleg = crate::commands::belege::create(&pool, crate::commands::belege::BelegNeu {
+            typ: "angebot".into(), kunde_id: kunde_id.clone(), datum: "2026-07-10".into(),
+            leistungsdatum: "2026-07-10".into(), zahlungsziel_tage: 14,
+            kopftext: "".into(), fusstext: "".into(),
+        }).await.unwrap();
+        crate::commands::belege::position_speichern(&pool, crate::commands::belege::BelegpositionNeu {
+            id: "".into(), beleg_id: beleg.id.clone(), artikel_id: Some(artikel_id),
+            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000,
+        }).await.unwrap();
+        crate::commands::belege::stellen(&pool, beleg.id).await.unwrap();
+
+        delete(&pool, kunde_id).await.unwrap();
     }
 }
