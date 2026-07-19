@@ -73,7 +73,13 @@ pub fn run() {
             commands::einstellungen::einstellung_set,
             commands::einstellungen::einstellung_list,
             commands::einstellungen::nummernkreis_list,
-            commands::einstellungen::nummernkreis_update
+            commands::einstellungen::nummernkreis_update,
+            commands::eingangsrechnungen::eingangsrechnung_import_vorschau,
+            commands::eingangsrechnungen::eingangsrechnung_speichern,
+            commands::eingangsrechnungen::eingangsrechnung_list,
+            commands::eingangsrechnungen::eingangsrechnung_get,
+            commands::eingangsrechnungen::eingangsrechnung_update,
+            commands::eingangsrechnungen::eingangsrechnung_original_exportieren
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

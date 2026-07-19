@@ -60,6 +60,22 @@ pub struct EingangsrechnungVorschau {
     pub ist_duplikat: bool,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct EingangsrechnungUpdate {
+    pub id: String,
+    pub rechnungssteller_name: String,
+    pub rechnungsnummer: String,
+    pub rechnungsdatum: String,
+    pub betrag_cent: i64,
+    pub waehrung: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct EingangsrechnungOriginal {
+    pub dateiname: String,
+    pub bytes: Vec<u8>,
+}
+
 const EINGANGSRECHNUNG_SPALTEN: &str = "id, dateiname, format, rechnungssteller_name, rechnungsnummer, rechnungsdatum, betrag_cent, waehrung, manuell_erfasst, importiert_am";
 
 pub async fn list(pool: &SqlitePool) -> AppResult<Vec<Eingangsrechnung>> {
@@ -139,6 +155,59 @@ pub async fn speichern(
     tx.commit().await?;
 
     Ok(eingangsrechnung)
+}
+
+pub async fn get(pool: &SqlitePool, id: String) -> AppResult<EingangsrechnungDetail> {
+    let sql = format!("SELECT {EINGANGSRECHNUNG_SPALTEN} FROM eingangsrechnung WHERE id = ?");
+    let eingangsrechnung: Eingangsrechnung = sqlx::query_as(&sql).bind(&id).fetch_optional(pool).await?.ok_or(AppError::NichtGefunden)?;
+    let positionen: Vec<EingangsrechnungPosition> = sqlx::query_as(
+        "SELECT id, eingangsrechnung_id, bezeichnung, menge, einzelpreis_cent, positionssumme_cent, reihenfolge \
+         FROM eingangsrechnungposition WHERE eingangsrechnung_id = ? ORDER BY reihenfolge")
+        .bind(&id).fetch_all(pool).await?;
+    Ok(EingangsrechnungDetail { eingangsrechnung, positionen })
+}
+
+pub async fn update(pool: &SqlitePool, d: EingangsrechnungUpdate) -> AppResult<Eingangsrechnung> {
+    let r = sqlx::query("UPDATE eingangsrechnung SET rechnungssteller_name=?, rechnungsnummer=?, rechnungsdatum=?, betrag_cent=?, waehrung=?, updated_at=? WHERE id=?")
+        .bind(&d.rechnungssteller_name).bind(&d.rechnungsnummer).bind(&d.rechnungsdatum)
+        .bind(d.betrag_cent).bind(&d.waehrung).bind(jetzt()).bind(&d.id)
+        .execute(pool).await?;
+    if r.rows_affected() == 0 { return Err(AppError::NichtGefunden); }
+    let sql = format!("SELECT {EINGANGSRECHNUNG_SPALTEN} FROM eingangsrechnung WHERE id = ?");
+    Ok(sqlx::query_as(&sql).bind(&d.id).fetch_optional(pool).await?.ok_or(AppError::NichtGefunden)?)
+}
+
+pub async fn original_exportieren(pool: &SqlitePool, id: String) -> AppResult<EingangsrechnungOriginal> {
+    let row: Option<(String, Vec<u8>)> = sqlx::query_as("SELECT dateiname, rohdatei FROM eingangsrechnung WHERE id = ?")
+        .bind(&id).fetch_optional(pool).await?;
+    let (dateiname, bytes) = row.ok_or(AppError::NichtGefunden)?;
+    Ok(EingangsrechnungOriginal { dateiname, bytes })
+}
+
+// Dünne Tauri-Wrapper
+#[tauri::command]
+pub async fn eingangsrechnung_import_vorschau(pool: tauri::State<'_, SqlitePool>, datei_bytes: Vec<u8>) -> AppResult<EingangsrechnungVorschau> {
+    import_vorschau(&pool, datei_bytes).await
+}
+#[tauri::command]
+pub async fn eingangsrechnung_speichern(pool: tauri::State<'_, SqlitePool>, datei_bytes: Vec<u8>, dateiname: String, felder: EingangsrechnungFelderNeu) -> AppResult<Eingangsrechnung> {
+    speichern(&pool, datei_bytes, dateiname, felder).await
+}
+#[tauri::command]
+pub async fn eingangsrechnung_list(pool: tauri::State<'_, SqlitePool>) -> AppResult<Vec<Eingangsrechnung>> {
+    list(&pool).await
+}
+#[tauri::command]
+pub async fn eingangsrechnung_get(pool: tauri::State<'_, SqlitePool>, id: String) -> AppResult<EingangsrechnungDetail> {
+    get(&pool, id).await
+}
+#[tauri::command]
+pub async fn eingangsrechnung_update(pool: tauri::State<'_, SqlitePool>, daten: EingangsrechnungUpdate) -> AppResult<Eingangsrechnung> {
+    update(&pool, daten).await
+}
+#[tauri::command]
+pub async fn eingangsrechnung_original_exportieren(pool: tauri::State<'_, SqlitePool>, id: String) -> AppResult<EingangsrechnungOriginal> {
+    original_exportieren(&pool, id).await
 }
 
 #[cfg(test)]
@@ -233,5 +302,62 @@ mod tests {
         };
         let gespeichert = speichern(&pool, minimales_pdf, "täuschung.xml".into(), felder).await.unwrap();
         assert_eq!(gespeichert.format, "zugferd");
+    }
+
+    async fn beispiel_speichern(pool: &sqlx::SqlitePool) -> Eingangsrechnung {
+        let kontext = crate::dokument::xrechnung::tests::test_kontext(None, 9500);
+        let xml = crate::dokument::xrechnung::xml_erzeugen(&kontext).unwrap();
+        let felder = EingangsrechnungFelderNeu {
+            rechnungssteller_name: "Meine Firma".into(), rechnungsnummer: "RE-2026-0001".into(),
+            rechnungsdatum: "2026-07-11".into(), betrag_cent: 9500, waehrung: "EUR".into(),
+            positionen: vec![EingangsrechnungPositionNeu {
+                bezeichnung: "Beratung".into(), menge: 1000, einzelpreis_cent: 9500, positionssumme_cent: 9500,
+            }],
+        };
+        speichern(pool, xml.into_bytes(), "rechnung.xml".into(), felder).await.unwrap()
+    }
+
+    #[tokio::test]
+    async fn get_liefert_detail_mit_positionen() {
+        let (_dir, pool) = test_pool().await;
+        let gespeichert = beispiel_speichern(&pool).await;
+        let detail = get(&pool, gespeichert.id).await.unwrap();
+        assert_eq!(detail.positionen.len(), 1);
+        assert_eq!(detail.positionen[0].bezeichnung, "Beratung");
+    }
+
+    #[tokio::test]
+    async fn get_liefert_nicht_gefunden_bei_unbekannter_id() {
+        let (_dir, pool) = test_pool().await;
+        let err = get(&pool, "unbekannt".into()).await.unwrap_err();
+        assert!(matches!(err, AppError::NichtGefunden));
+    }
+
+    #[tokio::test]
+    async fn update_korrigiert_kernfelder_aber_nicht_manuell_erfasst() {
+        let (_dir, pool) = test_pool().await;
+        let gespeichert = beispiel_speichern(&pool).await;
+        let aktualisiert = update(&pool, EingangsrechnungUpdate {
+            id: gespeichert.id.clone(), rechnungssteller_name: "Korrigierte Firma".into(),
+            rechnungsnummer: "RE-2026-0001".into(), rechnungsdatum: "2026-07-11".into(),
+            betrag_cent: 9500, waehrung: "EUR".into(),
+        }).await.unwrap();
+        assert_eq!(aktualisiert.rechnungssteller_name, "Korrigierte Firma");
+        assert!(!aktualisiert.manuell_erfasst);
+    }
+
+    #[tokio::test]
+    async fn original_exportieren_liefert_unveraenderte_rohdatei() {
+        let (_dir, pool) = test_pool().await;
+        let kontext = crate::dokument::xrechnung::tests::test_kontext(None, 9500);
+        let xml = crate::dokument::xrechnung::xml_erzeugen(&kontext).unwrap();
+        let felder = EingangsrechnungFelderNeu {
+            rechnungssteller_name: "Meine Firma".into(), rechnungsnummer: "RE-2026-0001".into(),
+            rechnungsdatum: "2026-07-11".into(), betrag_cent: 9500, waehrung: "EUR".into(), positionen: vec![],
+        };
+        let gespeichert = speichern(&pool, xml.clone().into_bytes(), "rechnung.xml".into(), felder).await.unwrap();
+        let original = original_exportieren(&pool, gespeichert.id).await.unwrap();
+        assert_eq!(original.dateiname, "rechnung.xml");
+        assert_eq!(String::from_utf8(original.bytes).unwrap(), xml);
     }
 }
