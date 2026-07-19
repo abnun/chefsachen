@@ -128,11 +128,19 @@ zusätzlich `SELECT COUNT(*) FROM eingangsrechnung WHERE rechnungssteller_name
 = ? AND rechnungsnummer = ?` (nur wenn beide Felder nicht leer sind) →
 `ist_duplikat: bool`. **Persistiert nichts.**
 
-**`eingangsrechnung_speichern(datei_bytes, dateiname, format, felder…,
+**`eingangsrechnung_speichern(datei_bytes, dateiname, felder…,
 positionen…)`** — speichert Rohdatei + (ggf. vom Nutzer korrigierte) Felder +
 Positionen. Duplikat-Prüfung ist hier nur eine UI-Vorstufe (siehe Frontend),
 kein DB-Constraint — ein Duplikat kann legitim sein (z. B. eine
 Rechnungskorrektur/Gutschrift mit gleicher Nummer).
+
+**Wichtig — `format` wird NICHT vom Frontend übernommen.** Genau wie bei
+`hat_offene_entwuerfe`/`kunde_delete` in Teilprojekt 3 gilt: ein
+Frontend-Wert ist kein Vertrauensanker. `eingangsrechnung_speichern` leitet
+`format` selbst aus denselben Magic-Bytes ab wie `import_vorschau` (kein
+`format`-Parameter im Command), statt einen vom Aufrufer übergebenen Wert zu
+übernehmen. Verhindert, dass ein Frontend-Bug oder ein direkter Command-Aufruf
+ein falsches Format-Label in die DB schreibt.
 
 **`eingangsrechnung_list()`** — Liste sortiert nach `rechnungsdatum DESC`.
 
@@ -141,7 +149,11 @@ Rechnungskorrektur/Gutschrift mit gleicher Nummer).
 **`eingangsrechnung_update(id, felder…)`** — korrigiert nur die extrahierten
 Kernfelder (Rechnungssteller, Nummer, Datum, Betrag, Währung), nie
 `rohdatei` oder die Positionen. Positions-Korrektur nach dem Import ist ein
-Randfall, den dieser erste Schritt bewusst nicht abdeckt.
+Randfall, den dieser erste Schritt bewusst nicht abdeckt. **Ändert nie
+`manuell_erfasst`** — das Flag spiegelt ausschließlich das Parse-Ergebnis zum
+Importzeitpunkt wider (`import_vorschau`/`speichern`) und bleibt auch dann
+unverändert, wenn ein ursprünglich erfolgreich geparster Datensatz später per
+`update` korrigiert wird.
 
 **`eingangsrechnung_original_exportieren(id)`** — liefert die rohen Bytes
 zurück; Frontend speichert sie über denselben Speichern-Dialog-Mechanismus
@@ -190,6 +202,17 @@ Löschen-Button. "Importieren"-Button öffnet den nativen Datei-Dialog
 Positionstabelle (analog zur bestehenden Beleg-Detailansicht),
 "Bearbeiten"-Button (gleiches Text/Bearbeiten-Klick-Muster wie oben) und
 "Original-Datei exportieren"-Button.
+
+**Wichtig — Label-Kollision beim Speichern-Button:** Das Import-Vorschau-
+Formular erscheint inline unterhalb der Liste (analog zu `Kunden.tsx`s
+"Neuer Kunde"-Formular) — der Listen-Button "Importieren" bleibt dabei im
+DOM sichtbar. Der Submit-Button des Vorschau-Formulars MUSS daher anders
+heißen, sonst gäbe es zwei gleichzeitig sichtbare, gleichnamige Buttons
+("Importieren" vs. "Importieren") — exakt das Label-Kollisions-Problem, das
+beim Spec-Review von Teilprojekt 2 gefunden wurde. Der Submit-Button heißt
+**"Speichern"**, konsistent mit dem bereits etablierten Muster in
+`Kunden.tsx` (Trigger-Button "Neuer Kunde" öffnet das Formular, dessen
+eigener Submit-Button heißt "Speichern", nicht "Neuer Kunde").
 
 ## Nicht im Umfang
 
