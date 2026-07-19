@@ -11,6 +11,7 @@ import { Angebote } from "./pages/Angebote";
 import { Rechnungen } from "./pages/Rechnungen";
 import { BelegEditor } from "./pages/BelegEditor";
 import { Eingangsrechnungen } from "./pages/Eingangsrechnungen";
+import { EingangsrechnungDetail } from "./pages/EingangsrechnungDetail";
 import "./styles/tokens.css";
 import "./styles/basis.css";
 import "./styles/komponenten.css";
@@ -24,6 +25,7 @@ function App() {
   const [ausgewaehltesAngebot, setAusgewaehltesAngebot] = useState<string | null>(null);
   const [ausgewaehlteRechnung, setAusgewaehlteRechnung] = useState<string | null>(null);
   const [formularBeimStartZiel, setFormularBeimStartZiel] = useState<"kunden" | "artikel" | null>(null);
+  const [ausgewaehlteEingangsrechnung, setAusgewaehlteEingangsrechnung] = useState<string | null>(null);
 
   useEffect(() => {
     api.firma.get().then(setFirma).catch((e) => setFehler(e as AppFehler));
@@ -56,6 +58,7 @@ function App() {
     setKundeDetailStartReiter(null);
     setAusgewaehltesAngebot(null);
     setAusgewaehlteRechnung(null);
+    setAusgewaehlteEingangsrechnung(null);
     setFormularBeimStartZiel(null);
     setSeite(neueSeite);
   }
@@ -112,7 +115,12 @@ function App() {
         ) : (
           <Rechnungen onOeffnen={setAusgewaehlteRechnung} />
         ))}
-      {seite === "eingangsrechnungen" && <Eingangsrechnungen />}
+      {seite === "eingangsrechnungen" &&
+        (ausgewaehlteEingangsrechnung ? (
+          <EingangsrechnungDetail id={ausgewaehlteEingangsrechnung} />
+        ) : (
+          <Eingangsrechnungen onOeffnen={setAusgewaehlteEingangsrechnung} />
+        ))}
       {seite === "einstellungen" && <Einstellungen />}
     </Layout>
   );

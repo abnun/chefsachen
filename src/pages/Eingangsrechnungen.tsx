@@ -11,7 +11,11 @@ const FORMAT_LABEL: Record<string, string> = {
   zugferd: "ZUGFeRD",
 };
 
-export function Eingangsrechnungen() {
+interface EingangsrechnungenProps {
+  onOeffnen: (id: string) => void;
+}
+
+export function Eingangsrechnungen({ onOeffnen }: EingangsrechnungenProps) {
   const [liste, setListe] = useState<Eingangsrechnung[]>([]);
   const [fehler, setFehler] = useState<AppFehler | null>(null);
   const [vorschau, setVorschau] = useState<EingangsrechnungVorschau | null>(null);
@@ -181,7 +185,7 @@ export function Eingangsrechnungen() {
         </form>
       )}
 
-      <table className="tabelle">
+      <table className="tabelle tabelle-klickbar">
         <thead>
           <tr>
             <th>Rechnungssteller</th>
@@ -193,7 +197,7 @@ export function Eingangsrechnungen() {
         </thead>
         <tbody>
           {liste.map((e) => (
-            <tr key={e.id}>
+            <tr key={e.id} onClick={() => onOeffnen(e.id)}>
               <td>{e.rechnungssteller_name}</td>
               <td className="tabelle-num">{e.rechnungsnummer}</td>
               <td>{e.rechnungsdatum}</td>

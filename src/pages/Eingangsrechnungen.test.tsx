@@ -39,20 +39,20 @@ import { Eingangsrechnungen } from "./Eingangsrechnungen";
 
 describe("Eingangsrechnungen", () => {
   it("zeigt die Liste importierter Eingangsrechnungen", async () => {
-    render(<Eingangsrechnungen />);
+    render(<Eingangsrechnungen onOeffnen={() => {}} />);
     await waitFor(() => expect(screen.getByText("Lieferant GmbH")).toBeTruthy());
     expect(screen.getByText("RE-2026-0042")).toBeTruthy();
     expect(screen.getByText("238,00 €")).toBeTruthy();
   });
 
   it("zeigt keinen Löschen-Button", async () => {
-    render(<Eingangsrechnungen />);
+    render(<Eingangsrechnungen onOeffnen={() => {}} />);
     await waitFor(() => expect(screen.getByText("Lieferant GmbH")).toBeTruthy());
     expect(screen.queryByRole("button", { name: "Löschen" })).toBeNull();
   });
 
   it("zeigt nach Dateiauswahl die geparsten Felder nur als Text, mit Bearbeiten-Button", async () => {
-    render(<Eingangsrechnungen />);
+    render(<Eingangsrechnungen onOeffnen={() => {}} />);
     await waitFor(() => expect(screen.getByText("Lieferant GmbH")).toBeTruthy());
     fireEvent.click(screen.getByRole("button", { name: "Importieren" }));
     await waitFor(() => expect(screen.getByText("Neuer Lieferant")).toBeTruthy());
@@ -61,7 +61,7 @@ describe("Eingangsrechnungen", () => {
   });
 
   it("wechselt nach Klick auf Bearbeiten in editierbare Felder", async () => {
-    render(<Eingangsrechnungen />);
+    render(<Eingangsrechnungen onOeffnen={() => {}} />);
     await waitFor(() => expect(screen.getByText("Lieferant GmbH")).toBeTruthy());
     fireEvent.click(screen.getByRole("button", { name: "Importieren" }));
     await waitFor(() => expect(screen.getByText("Neuer Lieferant")).toBeTruthy());
@@ -76,7 +76,7 @@ describe("Eingangsrechnungen", () => {
       felder: { rechnungssteller_name: "", rechnungsnummer: "", rechnungsdatum: "", betrag_cent: 0, waehrung: "EUR", positionen: [] },
       ist_duplikat: false,
     });
-    render(<Eingangsrechnungen />);
+    render(<Eingangsrechnungen onOeffnen={() => {}} />);
     await waitFor(() => expect(screen.getByText("Lieferant GmbH")).toBeTruthy());
     fireEvent.click(screen.getByRole("button", { name: "Importieren" }));
     await waitFor(() => expect(screen.getByText(/Konnte nicht automatisch gelesen werden/)).toBeTruthy());
@@ -94,7 +94,7 @@ describe("Eingangsrechnungen", () => {
       },
       ist_duplikat: true,
     });
-    render(<Eingangsrechnungen />);
+    render(<Eingangsrechnungen onOeffnen={() => {}} />);
     await waitFor(() => expect(screen.getByText("Lieferant GmbH")).toBeTruthy());
     fireEvent.click(screen.getByRole("button", { name: "Importieren" }));
     await waitFor(() => expect(screen.getByText(/bereits importiert/)).toBeTruthy());
@@ -107,7 +107,7 @@ describe("Eingangsrechnungen", () => {
 
   it("speichert nach Bestätigung und zeigt die Liste ohne Vorschau", async () => {
     const { api } = await import("../api");
-    render(<Eingangsrechnungen />);
+    render(<Eingangsrechnungen onOeffnen={() => {}} />);
     await waitFor(() => expect(screen.getByText("Lieferant GmbH")).toBeTruthy());
     fireEvent.click(screen.getByRole("button", { name: "Importieren" }));
     await waitFor(() => expect(screen.getByText("Neuer Lieferant")).toBeTruthy());
@@ -117,7 +117,7 @@ describe("Eingangsrechnungen", () => {
   });
 
   it("öffnet den Datei-Dialog mit XML/PDF-Filter beim Klick auf Importieren", async () => {
-    render(<Eingangsrechnungen />);
+    render(<Eingangsrechnungen onOeffnen={() => {}} />);
     await waitFor(() => expect(screen.getByText("Lieferant GmbH")).toBeTruthy());
     fireEvent.click(screen.getByRole("button", { name: "Importieren" }));
     await waitFor(() =>
