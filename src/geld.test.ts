@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatCent, formatMenge, parseEuro, parseMenge } from "./geld";
+import { formatCent, formatCentMitWaehrung, formatMenge, parseEuro, parseMenge } from "./geld";
 
 describe("parseEuro", () => {
   it("parst zwei Nachkommastellen", () => {
@@ -28,6 +28,16 @@ describe("parseEuro", () => {
 describe("formatCent", () => {
   it("formatiert Cent als deutschen Euro-Betrag", () => {
     expect(formatCent(9550)).toBe("95,50 €");
+  });
+});
+
+describe("formatCentMitWaehrung", () => {
+  it("zeigt bei EUR das €-Zeichen wie formatCent", () => {
+    expect(formatCentMitWaehrung(9550, "EUR")).toBe("95,50 €");
+  });
+  it("hängt bei anderen Währungen den ISO-Code statt € an", () => {
+    expect(formatCentMitWaehrung(9550, "USD")).toBe("95,50 USD");
+    expect(formatCentMitWaehrung(9550, "CHF")).toBe("95,50 CHF");
   });
 });
 

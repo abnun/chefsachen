@@ -3,7 +3,7 @@ import { save } from "@tauri-apps/plugin-dialog";
 import { writeFile } from "@tauri-apps/plugin-fs";
 import { api, type AppFehler, type EingangsrechnungDetail as EingangsrechnungDetailTyp } from "../api";
 import { Fehler } from "../components/Fehler";
-import { formatCent, formatMenge, parseEuro } from "../geld";
+import { formatCentMitWaehrung, formatMenge, parseEuro } from "../geld";
 
 interface EingangsrechnungDetailProps {
   id: string;
@@ -24,7 +24,7 @@ export function EingangsrechnungDetail({ id, onZurueck }: EingangsrechnungDetail
     setRechnungsstellerName(d.eingangsrechnung.rechnungssteller_name);
     setRechnungsnummer(d.eingangsrechnung.rechnungsnummer);
     setRechnungsdatum(d.eingangsrechnung.rechnungsdatum);
-    setBetrag(formatCent(d.eingangsrechnung.betrag_cent).replace(" €", ""));
+    setBetrag((d.eingangsrechnung.betrag_cent / 100).toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
     setWaehrung(d.eingangsrechnung.waehrung);
   }
 
@@ -115,7 +115,7 @@ export function EingangsrechnungDetail({ id, onZurueck }: EingangsrechnungDetail
             <input type="date" value={rechnungsdatum} onChange={(e) => setRechnungsdatum(e.currentTarget.value)} />
           </label>
           <label className="feld">
-            Betrag
+            Betrag ({waehrung})
             <input value={betrag} onChange={(e) => setBetrag(e.currentTarget.value)} placeholder="95,00" />
           </label>
           <button type="submit" className="btn btn-primaer">Speichern</button>
@@ -126,7 +126,7 @@ export function EingangsrechnungDetail({ id, onZurueck }: EingangsrechnungDetail
           <p>Rechnungssteller: <span>{detail.eingangsrechnung.rechnungssteller_name}</span></p>
           <p>Nummer: <span>{detail.eingangsrechnung.rechnungsnummer}</span></p>
           <p>Datum: <span>{detail.eingangsrechnung.rechnungsdatum}</span></p>
-          <p>Betrag: <span>{formatCent(detail.eingangsrechnung.betrag_cent)}</span></p>
+          <p>Betrag: <span>{formatCentMitWaehrung(detail.eingangsrechnung.betrag_cent, detail.eingangsrechnung.waehrung)}</span></p>
           <button type="button" className="btn" onClick={() => setBearbeitenModus(true)}>
             Bearbeiten
           </button>
@@ -150,8 +150,8 @@ export function EingangsrechnungDetail({ id, onZurueck }: EingangsrechnungDetail
             <tr key={i}>
               <td>{p.bezeichnung}</td>
               <td>{formatMenge(p.menge)}</td>
-              <td>{formatCent(p.einzelpreis_cent)}</td>
-              <td>{formatCent(p.positionssumme_cent)}</td>
+              <td>{formatCentMitWaehrung(p.einzelpreis_cent, detail.eingangsrechnung.waehrung)}</td>
+              <td>{formatCentMitWaehrung(p.positionssumme_cent, detail.eingangsrechnung.waehrung)}</td>
             </tr>
           ))}
         </tbody>

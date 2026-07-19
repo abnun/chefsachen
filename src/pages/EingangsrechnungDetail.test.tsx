@@ -84,7 +84,7 @@ describe("EingangsrechnungDetail", () => {
     render(<EingangsrechnungDetail id="e1" />);
     await waitFor(() => expect(screen.getByText("Lieferant GmbH")).toBeTruthy());
     fireEvent.click(screen.getByRole("button", { name: "Bearbeiten" }));
-    expect(screen.getByLabelText("Betrag")).toHaveValue("238,00");
+    expect(screen.getByLabelText("Betrag (EUR)")).toHaveValue("238,00");
   });
 
   it("übernimmt einen geänderten Euro-Betrag korrekt in Cent beim Speichern", async () => {
@@ -92,7 +92,7 @@ describe("EingangsrechnungDetail", () => {
     render(<EingangsrechnungDetail id="e1" />);
     await waitFor(() => expect(screen.getByText("Lieferant GmbH")).toBeTruthy());
     fireEvent.click(screen.getByRole("button", { name: "Bearbeiten" }));
-    fireEvent.change(screen.getByLabelText("Betrag"), { target: { value: "99,50" } });
+    fireEvent.change(screen.getByLabelText("Betrag (EUR)"), { target: { value: "99,50" } });
     fireEvent.click(screen.getByRole("button", { name: "Speichern" }));
     await waitFor(() =>
       expect(api.eingangsrechnungen.update).toHaveBeenCalledWith(expect.objectContaining({ betrag_cent: 9950 })),

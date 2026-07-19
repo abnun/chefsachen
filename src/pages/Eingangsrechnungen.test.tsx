@@ -45,6 +45,21 @@ describe("Eingangsrechnungen", () => {
     expect(screen.getByText("238,00 €")).toBeTruthy();
   });
 
+  it("zeigt den Betrag mit der tatsächlichen Rechnungswährung, nicht fest mit €", async () => {
+    const { api } = await import("../api");
+    vi.mocked(api.eingangsrechnungen.list).mockResolvedValueOnce([
+      {
+        id: "e2", dateiname: "us-rechnung.xml", format: "xrechnung",
+        rechnungssteller_name: "US Supplier Inc.", rechnungsnummer: "INV-1",
+        rechnungsdatum: "2026-07-10", betrag_cent: 5000, waehrung: "USD",
+        manuell_erfasst: false, importiert_am: "2026-07-19T10:00:00Z",
+      },
+    ]);
+    render(<Eingangsrechnungen onOeffnen={() => {}} />);
+    await waitFor(() => expect(screen.getByText("US Supplier Inc.")).toBeTruthy());
+    expect(screen.getByText("50,00 USD")).toBeTruthy();
+  });
+
   it("zeigt keinen Löschen-Button", async () => {
     render(<Eingangsrechnungen onOeffnen={() => {}} />);
     await waitFor(() => expect(screen.getByText("Lieferant GmbH")).toBeTruthy());
@@ -137,7 +152,7 @@ describe("Eingangsrechnungen", () => {
     fireEvent.click(screen.getByRole("button", { name: "Importieren" }));
     await waitFor(() => expect(screen.getByText("Neuer Lieferant")).toBeTruthy());
     fireEvent.click(screen.getByRole("button", { name: "Bearbeiten" }));
-    expect(screen.getByLabelText("Betrag")).toHaveValue("100,00");
+    expect(screen.getByLabelText("Betrag (EUR)")).toHaveValue("100,00");
   });
 
   it("wechselt bei Klick auf Abbrechen zurück in die Lesesicht", async () => {
@@ -158,7 +173,7 @@ describe("Eingangsrechnungen", () => {
     fireEvent.click(screen.getByRole("button", { name: "Importieren" }));
     await waitFor(() => expect(screen.getByText("Neuer Lieferant")).toBeTruthy());
     fireEvent.click(screen.getByRole("button", { name: "Bearbeiten" }));
-    fireEvent.change(screen.getByLabelText("Betrag"), { target: { value: "12,34" } });
+    fireEvent.change(screen.getByLabelText("Betrag (EUR)"), { target: { value: "12,34" } });
     fireEvent.click(screen.getByRole("button", { name: "Speichern" }));
     await waitFor(() =>
       expect(api.eingangsrechnungen.speichern).toHaveBeenCalledWith(

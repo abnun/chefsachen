@@ -75,3 +75,14 @@ export function parseMenge(input: string): number | null {
 export function formatMenge(mengeX1000: number): string {
   return (mengeX1000 / 1000).toLocaleString("de-DE", { maximumFractionDigits: 3 });
 }
+
+/**
+ * Wie `formatCent`, aber mit der tatsächlichen Währung statt fest verdrahtetem
+ * "€" — für Eingangsrechnungen, die (selten, aber möglich) nicht in EUR
+ * gestellt sein können. Bei "EUR" identisch zu `formatCent`, sonst wird der
+ * ISO-Währungscode angehängt (z. B. "95,50 USD").
+ */
+export function formatCentMitWaehrung(cents: number, waehrung: string): string {
+  const zahl = (cents / 100).toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return waehrung === "EUR" ? `${zahl} €` : `${zahl} ${waehrung}`;
+}

@@ -4,7 +4,7 @@ import { readFile } from "@tauri-apps/plugin-fs";
 import { api, type AppFehler, type Eingangsrechnung, type EingangsrechnungFelderNeu, type EingangsrechnungVorschau } from "../api";
 import { Bestaetigungsdialog } from "../components/Bestaetigungsdialog";
 import { Fehler } from "../components/Fehler";
-import { formatCent, formatMenge, parseEuro } from "../geld";
+import { formatCentMitWaehrung, formatMenge, parseEuro } from "../geld";
 
 const FORMAT_LABEL: Record<string, string> = {
   xrechnung: "XRechnung",
@@ -48,7 +48,7 @@ export function Eingangsrechnungen({ onOeffnen }: EingangsrechnungenProps) {
       const v = await api.eingangsrechnungen.importVorschau(bytes);
       setVorschau(v);
       setBearbeitenModus(false);
-      setBetragText(formatCent(v.felder.betrag_cent).replace(" €", ""));
+      setBetragText((v.felder.betrag_cent / 100).toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
     } catch (e) {
       setFehler(e as AppFehler);
     }
@@ -126,7 +126,7 @@ export function Eingangsrechnungen({ onOeffnen }: EingangsrechnungenProps) {
               <p>Rechnungssteller: <span>{vorschau.felder.rechnungssteller_name}</span></p>
               <p>Nummer: <span>{vorschau.felder.rechnungsnummer}</span></p>
               <p>Datum: <span>{vorschau.felder.rechnungsdatum}</span></p>
-              <p>Betrag: <span>{formatCent(vorschau.felder.betrag_cent)}</span></p>
+              <p>Betrag: <span>{formatCentMitWaehrung(vorschau.felder.betrag_cent, vorschau.felder.waehrung)}</span></p>
               <button type="button" className="btn" onClick={() => setBearbeitenModus(true)}>
                 Bearbeiten
               </button>
@@ -156,7 +156,7 @@ export function Eingangsrechnungen({ onOeffnen }: EingangsrechnungenProps) {
                 />
               </label>
               <label className="feld">
-                Betrag
+                Betrag ({vorschau.felder.waehrung})
                 <input value={betragText} onChange={(e) => setBetragText(e.currentTarget.value)} placeholder="95,00" />
               </label>
               {vorschau.geparst && (
@@ -182,8 +182,8 @@ export function Eingangsrechnungen({ onOeffnen }: EingangsrechnungenProps) {
                   <tr key={i}>
                     <td>{p.bezeichnung}</td>
                     <td>{formatMenge(p.menge)}</td>
-                    <td>{formatCent(p.einzelpreis_cent)}</td>
-                    <td>{formatCent(p.positionssumme_cent)}</td>
+                    <td>{formatCentMitWaehrung(p.einzelpreis_cent, vorschau.felder.waehrung)}</td>
+                    <td>{formatCentMitWaehrung(p.positionssumme_cent, vorschau.felder.waehrung)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -210,7 +210,7 @@ export function Eingangsrechnungen({ onOeffnen }: EingangsrechnungenProps) {
               <td>{e.rechnungssteller_name}</td>
               <td className="tabelle-num">{e.rechnungsnummer}</td>
               <td>{e.rechnungsdatum}</td>
-              <td>{formatCent(e.betrag_cent)}</td>
+              <td>{formatCentMitWaehrung(e.betrag_cent, e.waehrung)}</td>
               <td>{FORMAT_LABEL[e.format] ?? e.format}</td>
             </tr>
           ))}
