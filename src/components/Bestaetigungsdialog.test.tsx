@@ -39,4 +39,24 @@ describe("Bestaetigungsdialog", () => {
     fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Löschen" }));
     expect(onBestaetigen).toHaveBeenCalledTimes(1);
   });
+
+  it("zeigt ein eigenes Bestätigen-Label, wenn übergeben", () => {
+    render(
+      <Bestaetigungsdialog
+        text="Trotzdem importieren?"
+        bestaetigenLabel="Trotzdem importieren"
+        onAbbrechen={() => {}}
+        onBestaetigen={() => {}}
+      />,
+    );
+    expect(
+      within(screen.getByRole("dialog")).getByRole("button", { name: "Trotzdem importieren" }),
+    ).toBeTruthy();
+    expect(within(screen.getByRole("dialog")).queryByRole("button", { name: "Löschen" })).toBeNull();
+  });
+
+  it('zeigt weiterhin „Löschen" als Standard-Label ohne bestaetigenLabel', () => {
+    render(<Bestaetigungsdialog text="Löschen?" onAbbrechen={() => {}} onBestaetigen={() => {}} />);
+    expect(within(screen.getByRole("dialog")).getByRole("button", { name: "Löschen" })).toBeTruthy();
+  });
 });

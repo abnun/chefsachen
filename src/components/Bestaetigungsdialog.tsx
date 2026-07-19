@@ -2,6 +2,7 @@ import { useEffect } from "react";
 
 interface BestaetigungsdialogProps {
   text: string;
+  bestaetigenLabel?: string;
   onAbbrechen: () => void;
   onBestaetigen: () => void;
 }
@@ -13,7 +14,7 @@ interface BestaetigungsdialogProps {
  * (über useLoeschBestaetigung) steuert die Sichtbarkeit per bedingtem
  * Rendering, diese Komponente merkt sich nichts.
  */
-export function Bestaetigungsdialog({ text, onAbbrechen, onBestaetigen }: BestaetigungsdialogProps) {
+export function Bestaetigungsdialog({ text, bestaetigenLabel, onAbbrechen, onBestaetigen }: BestaetigungsdialogProps) {
   useEffect(() => {
     function aufTaste(e: KeyboardEvent) {
       if (e.key === "Escape") onAbbrechen();
@@ -31,7 +32,7 @@ export function Bestaetigungsdialog({ text, onAbbrechen, onBestaetigen }: Bestae
             Abbrechen
           </button>
           <button type="button" className="btn btn-gefahr" onClick={onBestaetigen}>
-            Löschen
+            {bestaetigenLabel ?? "Löschen"}
           </button>
         </div>
       </div>
