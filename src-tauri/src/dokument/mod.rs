@@ -1,3 +1,4 @@
+pub mod eingangsrechnung_parse;
 pub mod export;
 pub mod kontext;
 pub mod pdf;

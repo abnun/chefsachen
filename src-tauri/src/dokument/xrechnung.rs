@@ -176,12 +176,12 @@ pub fn pruefe_exportierbarkeit(kontext: &BelegKontext) -> AppResult<()> {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
     use crate::commands::belege::{Beleg, Belegposition};
     use crate::commands::firma::Firma;
 
-    fn test_kontext(storno_von: Option<&str>, summe_cent: i64) -> BelegKontext {
+    pub(crate) fn test_kontext(storno_von: Option<&str>, summe_cent: i64) -> BelegKontext {
         crate::dokument::kontext::BelegKontext {
             beleg: Beleg {
                 id: "b1".into(), typ: "rechnung".into(), nummer: Some("RE-2026-0001".into()),
