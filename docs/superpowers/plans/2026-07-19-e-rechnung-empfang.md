@@ -711,11 +711,11 @@ pub fn verarbeite_datei(datei_bytes: &[u8]) -> (String, AppResult<GeparsteRechnu
 - [ ] **Step 4: Tests laufen**
 
 Run: `cd src-tauri && cargo test eingangsrechnung_parse`
-Erwartet: PASS (alle Tests in diesem Modul, aktuell 8 Tests).
+Erwartet: PASS (alle Tests in diesem Modul, aktuell 11 Tests).
 
 - [ ] **Step 5: Volle Rust-Suite + Build**
 
-Run: `cd src-tauri && cargo test` → 122/122
+Run: `cd src-tauri && cargo test` → 123/123
 Run: `cd src-tauri && cargo build` → PASS
 
 - [ ] **Step 6: Commit**
@@ -852,7 +852,7 @@ Erwartet: PASS (3/3).
 
 - [ ] **Step 5: Volle Rust-Suite + Build**
 
-Run: `cd src-tauri && cargo test` → 125/125
+Run: `cd src-tauri && cargo test` → 126/126
 Run: `cd src-tauri && cargo build` → PASS
 
 - [ ] **Step 6: Commit**
@@ -979,7 +979,7 @@ Erwartet: PASS (3/3).
 
 - [ ] **Step 5: Volle Rust-Suite + Build**
 
-Run: `cd src-tauri && cargo test` → 128/128
+Run: `cd src-tauri && cargo test` → 129/129
 Run: `cd src-tauri && cargo build` → PASS
 
 - [ ] **Step 6: Commit**
@@ -1119,12 +1119,12 @@ pub async fn original_exportieren(pool: &SqlitePool, id: String) -> AppResult<Ei
 
 // Dünne Tauri-Wrapper
 #[tauri::command]
-pub async fn eingangsrechnung_import_vorschau(pool: tauri::State<'_, SqlitePool>, dateiBytes: Vec<u8>) -> AppResult<EingangsrechnungVorschau> {
-    import_vorschau(&pool, dateiBytes).await
+pub async fn eingangsrechnung_import_vorschau(pool: tauri::State<'_, SqlitePool>, datei_bytes: Vec<u8>) -> AppResult<EingangsrechnungVorschau> {
+    import_vorschau(&pool, datei_bytes).await
 }
 #[tauri::command]
-pub async fn eingangsrechnung_speichern(pool: tauri::State<'_, SqlitePool>, dateiBytes: Vec<u8>, dateiname: String, felder: EingangsrechnungFelderNeu) -> AppResult<Eingangsrechnung> {
-    speichern(&pool, dateiBytes, dateiname, felder).await
+pub async fn eingangsrechnung_speichern(pool: tauri::State<'_, SqlitePool>, datei_bytes: Vec<u8>, dateiname: String, felder: EingangsrechnungFelderNeu) -> AppResult<Eingangsrechnung> {
+    speichern(&pool, datei_bytes, dateiname, felder).await
 }
 #[tauri::command]
 pub async fn eingangsrechnung_list(pool: tauri::State<'_, SqlitePool>) -> AppResult<Vec<Eingangsrechnung>> {
@@ -1144,7 +1144,7 @@ pub async fn eingangsrechnung_original_exportieren(pool: tauri::State<'_, Sqlite
 }
 ```
 
-**Hinweis:** Der Parameter heißt hier bewusst `dateiBytes` (camelCase) im Rust-Signatur-Text, weil Tauri v2 Frontend-Aufrufe per Konvention mit camelCase-Keys schickt und diese 1:1 auf die Rust-Parameternamen mappt (siehe bereits etabliertes Muster `kundenpreiseMitloeschen` in `artikel_delete`). `cargo fmt`/Clippy könnte hier ggf. `dateiBytes` als unüblichen Rust-Stil anmerken (Snake-Case ist Konvention) — falls das zu einem Clippy-Fehler statt nur einer Warnung führt, stattdessen `daten_bytes: Vec<u8>` im Rust-Code verwenden und im Frontend (Task 8) mit `datenBytes` aufrufen; wichtig ist nur, dass Rust- und Frontend-Seite exakt zusammenpassen.
+**Hinweis:** Der Parameter heißt hier bewusst `datei_bytes` (snake_case) im Rust-Code — Tauri v2 konvertiert Rust-Parameternamen automatisch zu camelCase für die JS-Seite (siehe bereits etabliertes Muster `kundenpreise_mitloeschen` in `artikel_delete`, das im Frontend als `kundenpreiseMitloeschen` aufgerufen wird). Das Frontend (Task 8) ruft entsprechend mit dem camelCase-Key `dateiBytes` auf — Rust bleibt snake_case, nur der JS-seitige Aufruf verwendet camelCase.
 
 - [ ] **Step 4: In `lib.rs` registrieren**
 
@@ -1177,7 +1177,7 @@ Erwartet: PASS (alle Tests in `commands::eingangsrechnungen`, aktuell 11 Tests).
 
 - [ ] **Step 6: Volle Rust-Suite + Build**
 
-Run: `cd src-tauri && cargo test` → 132/132
+Run: `cd src-tauri && cargo test` → 133/133
 Run: `cd src-tauri && cargo build` → PASS
 
 - [ ] **Step 7: Commit**
@@ -2040,8 +2040,6 @@ nachher:
 
 **Wichtig — Label-Kollision vermieden:** Der Submit-Button im Formular heißt bewusst "Speichern", nicht "Importieren" — der Listen-Trigger-Button "Importieren" bleibt im DOM sichtbar, solange die Vorschau eingeblendet ist. Zwei gleichnamige Buttons würden `getByRole("button", { name: "Importieren" })` in Tests mehrdeutig machen (siehe Spec-Review-Fund).
 
-**Wichtig — Label-Kollision vermieden:** Der Submit-Button im Formular heißt bewusst "Speichern", nicht "Importieren" — der Listen-Trigger-Button "Importieren" bleibt im DOM sichtbar, solange die Vorschau eingeblendet ist. Zwei gleichnamige Buttons würden `getByRole("button", { name: "Importieren" })` in Tests mehrdeutig machen (siehe Spec-Review-Fund).
-
 - [ ] **Step 6: Tests laufen**
 
 Run: `npm test -- Eingangsrechnungen`
@@ -2049,7 +2047,7 @@ Erwartet: PASS (alle Tests dieser Datei).
 
 - [ ] **Step 7: Volle Suite + Build**
 
-Run: `npm test` → 119/119
+Run: `npm test` → 118/118
 Run: `npm run build` → PASS
 
 - [ ] **Step 8: Commit**
@@ -2441,7 +2439,7 @@ nachher:
 
 - [ ] **Step 7: Volle Suite + Build**
 
-Run: `npm test` → 123/123
+Run: `npm test` → 122/122
 Run: `npm run build` → PASS
 
 - [ ] **Step 8: Commit**
@@ -2460,7 +2458,7 @@ git commit -m "feat: Detailansicht für Eingangsrechnungen mit Bearbeiten und Or
 - [ ] **Step 1: Vollständige Frontend-Test-Suite**
 
 Run: `npm test`
-Erwartet: alle 123 Tests grün.
+Erwartet: alle 122 Tests grün.
 
 - [ ] **Step 2: Typecheck und Build**
 
@@ -2470,7 +2468,7 @@ Erwartet: `tsc && vite build` erfolgreich, keine Typfehler.
 - [ ] **Step 3: Rust-Tests**
 
 Run: `cd src-tauri && cargo test`
-Erwartet: alle 132 Tests grün.
+Erwartet: alle 133 Tests grün.
 
 - [ ] **Step 4: Manuelle Abnahme (durch Auftraggeber)**
 
