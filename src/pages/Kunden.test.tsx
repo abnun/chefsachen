@@ -1,4 +1,5 @@
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import "@testing-library/jest-dom/vitest";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 afterEach(cleanup);
@@ -30,6 +31,7 @@ vi.mock("../api", () => ({
         zahlungsziel_tage: 14, notizen: "", ust_idnr: "", email: "",
         leitweg_id: "", kaeuferreferenz: "", hat_adresse: false,
       }),
+      delete: vi.fn().mockResolvedValue(undefined),
     },
     artikel: { list: vi.fn().mockResolvedValue([{ id: "a1" }]) },
   },
@@ -103,5 +105,39 @@ describe("Kunden", () => {
     );
     await waitFor(() => expect(screen.getByRole("button", { name: "Speichern" })).toBeTruthy());
     expect(onFormularUebernommen).toHaveBeenCalledTimes(1);
+  });
+
+  it("löscht einen Kunden nicht, wenn im Dialog abgebrochen wird", async () => {
+    const { api } = await import("../api");
+    render(<Kunden onOeffnen={() => {}} />);
+    await waitFor(() => expect(screen.getByText("ACME GmbH")).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Löschen" }));
+    await waitFor(() => expect(screen.getByRole("dialog")).toBeTruthy());
+    fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Abbrechen" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(vi.mocked(api.kunden.delete)).not.toHaveBeenCalled();
+  });
+
+  it("Löschen-Button ist deaktiviert, wenn der Kunde offene Entwürfe hat", async () => {
+    const { api } = await import("../api");
+    vi.mocked(api.kunden.list).mockResolvedValueOnce([
+      { id: "1", typ: "firma", name: "ACME GmbH", kundennummer: "KD-0001",
+        zahlungsziel_tage: 14, notizen: "", ust_idnr: "", email: "",
+        leitweg_id: "", kaeuferreferenz: "", hat_adresse: true, hat_offene_entwuerfe: true },
+    ]);
+    render(<Kunden onOeffnen={() => {}} />);
+    await waitFor(() => expect(screen.getByText("ACME GmbH")).toBeTruthy());
+    expect(screen.getByRole("button", { name: "Löschen" })).toBeDisabled();
+  });
+
+  it("zeigt nach dem Löschen eines Kunden einen Erfolgs-Hinweis und öffnet nicht versehentlich die Detailseite", async () => {
+    const onOeffnen = vi.fn();
+    render(<Kunden onOeffnen={onOeffnen} />);
+    await waitFor(() => expect(screen.getByText("ACME GmbH")).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Löschen" }));
+    await waitFor(() => expect(screen.getByText('Kunde „ACME GmbH" löschen?')).toBeTruthy());
+    fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Löschen" }));
+    await waitFor(() => expect(screen.getByText('Kunde „ACME GmbH" gelöscht')).toBeTruthy());
+    expect(onOeffnen).not.toHaveBeenCalled();
   });
 });

@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { api, istValidierungsfehler, type AppFehler, type Kunde, type KundeNeu } from "../api";
 import { Fehler } from "../components/Fehler";
 import { Hinweis } from "../components/Hinweis";
+import { useErfolgsHinweis } from "../hooks/useErfolgsHinweis";
+import { useLoeschBestaetigung } from "../hooks/useLoeschBestaetigung";
 import type { Reiter } from "./KundeDetail";
 
 interface KundenProps {
@@ -57,6 +59,8 @@ export function Kunden({
   const [formFehler, setFormFehler] = useState<AppFehler | null>(null);
   const [artikelLeer, setArtikelLeer] = useState(false);
   const [zeigtArtikelHinweis, setZeigtArtikelHinweis] = useState(false);
+  const { zeigen, hinweis } = useErfolgsHinweis();
+  const { bestaetigen, dialog } = useLoeschBestaetigung();
 
   useEffect(() => {
     if (zeigeFormularBeimStart) {
@@ -100,6 +104,19 @@ export function Kunden({
     }
   }
 
+  async function loeschen(id: string, name: string) {
+    if (!(await bestaetigen(`Kunde „${name}" löschen?`))) return;
+    setFehler(null);
+    try {
+      await api.kunden.delete(id);
+      const liste = await api.kunden.list(suche || undefined);
+      setKunden(liste);
+      zeigen(`Kunde „${name}" gelöscht`);
+    } catch (e) {
+      setFehler(e as AppFehler);
+    }
+  }
+
   const feldFehler = (feld: string) =>
     formFehler && istValidierungsfehler(formFehler) && formFehler.feld === feld
       ? formFehler.meldung
@@ -109,6 +126,8 @@ export function Kunden({
     <div>
       <h1 className="seiten-kopf">Kunden</h1>
       <Fehler fehler={fehler} />
+      {hinweis}
+      {dialog}
 
       {zeigtAdressHinweis && neuerKundeId && (
         <Hinweis autoDismissMs={4000} onSchliessen={() => setZeigtAdressHinweis(false)}>
@@ -256,6 +275,7 @@ export function Kunden({
             <th>Nummer</th>
             <th>Name</th>
             <th>Typ</th>
+            <th />
           </tr>
         </thead>
         <tbody>
@@ -269,6 +289,19 @@ export function Kunden({
                 )}
               </td>
               <td>{KUNDE_TYP_LABEL[kunde.typ] ?? kunde.typ}</td>
+              <td>
+                <button
+                  type="button"
+                  className="btn btn-gefahr"
+                  disabled={kunde.hat_offene_entwuerfe}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    loeschen(kunde.id, kunde.name);
+                  }}
+                >
+                  Löschen
+                </button>
+              </td>
             </tr>
           ))}
         </tbody>
