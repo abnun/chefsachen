@@ -4,7 +4,7 @@ import { readFile } from "@tauri-apps/plugin-fs";
 import { api, type AppFehler, type Eingangsrechnung, type EingangsrechnungFelderNeu, type EingangsrechnungVorschau } from "../api";
 import { Bestaetigungsdialog } from "../components/Bestaetigungsdialog";
 import { Fehler } from "../components/Fehler";
-import { formatCent, formatMenge } from "../geld";
+import { formatCent, formatMenge, parseEuro } from "../geld";
 
 const FORMAT_LABEL: Record<string, string> = {
   xrechnung: "XRechnung",
@@ -23,6 +23,7 @@ export function Eingangsrechnungen({ onOeffnen }: EingangsrechnungenProps) {
   const [dateiname, setDateiname] = useState("");
   const [bearbeitenModus, setBearbeitenModus] = useState(false);
   const [zeigeDuplikatWarnung, setZeigeDuplikatWarnung] = useState(false);
+  const [betragText, setBetragText] = useState("");
 
   function laden() {
     api.eingangsrechnungen
@@ -47,6 +48,7 @@ export function Eingangsrechnungen({ onOeffnen }: EingangsrechnungenProps) {
       const v = await api.eingangsrechnungen.importVorschau(bytes);
       setVorschau(v);
       setBearbeitenModus(false);
+      setBetragText(formatCent(v.felder.betrag_cent).replace(" €", ""));
     } catch (e) {
       setFehler(e as AppFehler);
     }
@@ -59,9 +61,15 @@ export function Eingangsrechnungen({ onOeffnen }: EingangsrechnungenProps) {
 
   async function speichernAusfuehren() {
     if (!vorschau) return;
+    const betragCent = parseEuro(betragText);
+    if (betragCent === null) {
+      setFehler({ typ: "validation", feld: "betrag", meldung: "Bitte einen gültigen Betrag eingeben" });
+      setZeigeDuplikatWarnung(false);
+      return;
+    }
     setFehler(null);
     try {
-      await api.eingangsrechnungen.speichern(dateiBytes, dateiname, vorschau.felder);
+      await api.eingangsrechnungen.speichern(dateiBytes, dateiname, { ...vorschau.felder, betrag_cent: betragCent });
       setVorschau(null);
       setZeigeDuplikatWarnung(false);
       laden();
@@ -148,13 +156,14 @@ export function Eingangsrechnungen({ onOeffnen }: EingangsrechnungenProps) {
                 />
               </label>
               <label className="feld">
-                Betrag (Cent)
-                <input
-                  type="number"
-                  value={vorschau.felder.betrag_cent}
-                  onChange={(e) => feldAendern("betrag_cent", Number(e.currentTarget.value))}
-                />
+                Betrag
+                <input value={betragText} onChange={(e) => setBetragText(e.currentTarget.value)} placeholder="95,00" />
               </label>
+              {vorschau.geparst && (
+                <button type="button" className="btn" onClick={() => setBearbeitenModus(false)}>
+                  Abbrechen
+                </button>
+              )}
             </>
           )}
 

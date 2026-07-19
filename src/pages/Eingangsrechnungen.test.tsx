@@ -126,4 +126,44 @@ describe("Eingangsrechnungen", () => {
       ),
     );
   });
+
+  // Ab hier: Tests, die speichern() aufrufen, stehen bewusst am Dateiende — kein
+  // clearMocks in der Vitest-Konfiguration, weitere Call-Count-Assertions auf
+  // demselben Mock würden sonst mit den obigen Tests kollidieren (siehe Task 11).
+
+  it("zeigt den Betrag im Bearbeiten-Modus als Euro-Eingabe, nicht als Cent-Zahl", async () => {
+    render(<Eingangsrechnungen onOeffnen={() => {}} />);
+    await waitFor(() => expect(screen.getByText("Lieferant GmbH")).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Importieren" }));
+    await waitFor(() => expect(screen.getByText("Neuer Lieferant")).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Bearbeiten" }));
+    expect(screen.getByLabelText("Betrag")).toHaveValue("100,00");
+  });
+
+  it("wechselt bei Klick auf Abbrechen zurück in die Lesesicht", async () => {
+    render(<Eingangsrechnungen onOeffnen={() => {}} />);
+    await waitFor(() => expect(screen.getByText("Lieferant GmbH")).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Importieren" }));
+    await waitFor(() => expect(screen.getByText("Neuer Lieferant")).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Bearbeiten" }));
+    fireEvent.click(screen.getByRole("button", { name: "Abbrechen" }));
+    expect(screen.queryByLabelText("Rechnungssteller")).toBeNull();
+    expect(screen.getByRole("button", { name: "Bearbeiten" })).toBeTruthy();
+  });
+
+  it("übernimmt einen geänderten Euro-Betrag korrekt in Cent beim Speichern", async () => {
+    const { api } = await import("../api");
+    render(<Eingangsrechnungen onOeffnen={() => {}} />);
+    await waitFor(() => expect(screen.getByText("Lieferant GmbH")).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Importieren" }));
+    await waitFor(() => expect(screen.getByText("Neuer Lieferant")).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Bearbeiten" }));
+    fireEvent.change(screen.getByLabelText("Betrag"), { target: { value: "12,34" } });
+    fireEvent.click(screen.getByRole("button", { name: "Speichern" }));
+    await waitFor(() =>
+      expect(api.eingangsrechnungen.speichern).toHaveBeenCalledWith(
+        expect.anything(), expect.anything(), expect.objectContaining({ betrag_cent: 1234 }),
+      ),
+    );
+  });
 });

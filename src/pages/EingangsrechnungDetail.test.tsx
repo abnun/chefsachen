@@ -79,4 +79,41 @@ describe("EingangsrechnungDetail", () => {
       expect(writeFile).toHaveBeenCalledWith("/pfad/rechnung.xml", new Uint8Array([1, 2, 3])),
     );
   });
+
+  it("zeigt den Betrag im Bearbeiten-Modus als Euro-Eingabe, nicht als Cent-Zahl", async () => {
+    render(<EingangsrechnungDetail id="e1" />);
+    await waitFor(() => expect(screen.getByText("Lieferant GmbH")).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Bearbeiten" }));
+    expect(screen.getByLabelText("Betrag")).toHaveValue("238,00");
+  });
+
+  it("übernimmt einen geänderten Euro-Betrag korrekt in Cent beim Speichern", async () => {
+    const { api } = await import("../api");
+    render(<EingangsrechnungDetail id="e1" />);
+    await waitFor(() => expect(screen.getByText("Lieferant GmbH")).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Bearbeiten" }));
+    fireEvent.change(screen.getByLabelText("Betrag"), { target: { value: "99,50" } });
+    fireEvent.click(screen.getByRole("button", { name: "Speichern" }));
+    await waitFor(() =>
+      expect(api.eingangsrechnungen.update).toHaveBeenCalledWith(expect.objectContaining({ betrag_cent: 9950 })),
+    );
+  });
+
+  it("verwirft Änderungen bei Klick auf Abbrechen und zeigt wieder die Lesesicht", async () => {
+    render(<EingangsrechnungDetail id="e1" />);
+    await waitFor(() => expect(screen.getByText("Lieferant GmbH")).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Bearbeiten" }));
+    fireEvent.change(screen.getByLabelText("Rechnungssteller"), { target: { value: "Verworfen GmbH" } });
+    fireEvent.click(screen.getByRole("button", { name: "Abbrechen" }));
+    expect(screen.queryByLabelText("Rechnungssteller")).toBeNull();
+    expect(screen.getByText("Lieferant GmbH")).toBeTruthy();
+  });
+
+  it('ruft onZurueck bei Klick auf „Zurück zur Liste" auf', async () => {
+    const onZurueck = vi.fn();
+    render(<EingangsrechnungDetail id="e1" onZurueck={onZurueck} />);
+    await waitFor(() => expect(screen.getByText("Lieferant GmbH")).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "← Zurück zur Liste" }));
+    expect(onZurueck).toHaveBeenCalledTimes(1);
+  });
 });

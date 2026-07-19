@@ -117,7 +117,10 @@ function App() {
         ))}
       {seite === "eingangsrechnungen" &&
         (ausgewaehlteEingangsrechnung ? (
-          <EingangsrechnungDetail id={ausgewaehlteEingangsrechnung} />
+          <EingangsrechnungDetail
+            id={ausgewaehlteEingangsrechnung}
+            onZurueck={() => setAusgewaehlteEingangsrechnung(null)}
+          />
         ) : (
           <Eingangsrechnungen onOeffnen={setAusgewaehlteEingangsrechnung} />
         ))}
