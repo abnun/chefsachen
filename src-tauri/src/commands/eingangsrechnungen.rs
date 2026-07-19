@@ -174,7 +174,7 @@ pub async fn update(pool: &SqlitePool, d: EingangsrechnungUpdate) -> AppResult<E
         .execute(pool).await?;
     if r.rows_affected() == 0 { return Err(AppError::NichtGefunden); }
     let sql = format!("SELECT {EINGANGSRECHNUNG_SPALTEN} FROM eingangsrechnung WHERE id = ?");
-    Ok(sqlx::query_as(&sql).bind(&d.id).fetch_optional(pool).await?.ok_or(AppError::NichtGefunden)?)
+    sqlx::query_as(&sql).bind(&d.id).fetch_optional(pool).await?.ok_or(AppError::NichtGefunden)
 }
 
 pub async fn original_exportieren(pool: &SqlitePool, id: String) -> AppResult<EingangsrechnungOriginal> {
