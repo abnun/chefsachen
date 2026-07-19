@@ -72,6 +72,7 @@ function App() {
             id={ausgewaehlterKunde}
             startReiter={kundeDetailStartReiter}
             onReiterUebernommen={() => setKundeDetailStartReiter(null)}
+            onGeloescht={() => setAusgewaehlterKunde(null)}
           />
         ) : (
           <Kunden

@@ -18,6 +18,7 @@ interface KundeDetailProps {
   id: string;
   startReiter?: Reiter | null;
   onReiterUebernommen?: () => void;
+  onGeloescht?: () => void;
 }
 
 export type Reiter = "stammdaten" | "adressen" | "ansprechpartner" | "sonderpreise" | "belege";
@@ -35,7 +36,7 @@ const REITER: { id: Reiter; label: string; aktiv: boolean }[] = [
  * Artikel-Seite gepflegt (Kundenpreise je Artikel, s. Plan 1) und bleibt
  * hier bewusst ein deaktivierter Platzhalter-Reiter.
  */
-export function KundeDetail({ id, startReiter, onReiterUebernommen }: KundeDetailProps) {
+export function KundeDetail({ id, startReiter, onReiterUebernommen, onGeloescht }: KundeDetailProps) {
   const [detail, setDetail] = useState<KundeDetailTyp | null>(null);
   const [fehler, setFehler] = useState<AppFehler | null>(null);
   const [reiter, setReiter] = useState<Reiter>(startReiter ?? "stammdaten");
@@ -91,7 +92,7 @@ export function KundeDetail({ id, startReiter, onReiterUebernommen }: KundeDetai
       </nav>
 
       {reiter === "stammdaten" && (
-        <StammdatenReiter kunde={detail.kunde} onGespeichert={laden} />
+        <StammdatenReiter kunde={detail.kunde} onGespeichert={laden} onGeloescht={onGeloescht} />
       )}
       {reiter === "adressen" && (
         <AdressenReiter kundeId={id} adressen={detail.adressen} onGeaendert={laden} />
@@ -175,12 +176,14 @@ const STATUS_BADGE_KLASSE: Record<string, string> = {
 interface StammdatenReiterProps {
   kunde: Kunde;
   onGespeichert: () => void;
+  onGeloescht?: () => void;
 }
 
-function StammdatenReiter({ kunde, onGespeichert }: StammdatenReiterProps) {
+function StammdatenReiter({ kunde, onGespeichert, onGeloescht }: StammdatenReiterProps) {
   const [form, setForm] = useState<Kunde>(kunde);
   const [fehler, setFehler] = useState<AppFehler | null>(null);
   const { zeigen, hinweis } = useErfolgsHinweis();
+  const { bestaetigen, dialog } = useLoeschBestaetigung();
 
   useEffect(() => {
     setForm(kunde);
@@ -197,6 +200,17 @@ function StammdatenReiter({ kunde, onGespeichert }: StammdatenReiterProps) {
     }
   }
 
+  async function loeschen() {
+    if (!(await bestaetigen(`Kunde „${kunde.name}" löschen?`))) return;
+    setFehler(null);
+    try {
+      await api.kunden.delete(kunde.id);
+      onGeloescht?.();
+    } catch (e) {
+      setFehler(e as AppFehler);
+    }
+  }
+
   const feldFehler = (feld: string) =>
     fehler && istValidierungsfehler(fehler) && fehler.feld === feld ? fehler.meldung : null;
 
@@ -204,6 +218,7 @@ function StammdatenReiter({ kunde, onGespeichert }: StammdatenReiterProps) {
     <section>
       {fehler && !istValidierungsfehler(fehler) && <Fehler fehler={fehler} />}
       {hinweis}
+      {dialog}
       <form
         className="karte"
         onSubmit={(e) => {
@@ -300,6 +315,14 @@ function StammdatenReiter({ kunde, onGespeichert }: StammdatenReiterProps) {
           Speichern
         </button>
       </form>
+      <button
+        type="button"
+        className="btn btn-gefahr"
+        disabled={kunde.hat_offene_entwuerfe}
+        onClick={loeschen}
+      >
+        Löschen
+      </button>
     </section>
   );
 }

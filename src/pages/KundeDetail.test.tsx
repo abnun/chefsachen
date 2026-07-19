@@ -46,6 +46,7 @@ vi.mock("../api", () => ({
         ],
       }),
       update: vi.fn(),
+      delete: vi.fn(),
       adresseSave: vi.fn(),
       adresseDelete: vi.fn(),
       ansprechpartnerSave: vi.fn(),
@@ -195,5 +196,30 @@ describe("KundeDetail", () => {
     );
     fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Löschen" }));
     await waitFor(() => expect(screen.getByText("Ansprechpartner gelöscht")).toBeTruthy());
+  });
+
+  it("Löschen-Button in den Stammdaten ist deaktiviert, wenn der Kunde offene Entwürfe hat", async () => {
+    const { api } = await import("../api");
+    vi.mocked(api.kunden.get).mockResolvedValueOnce({
+      kunde: {
+        id: "1", typ: "firma", name: "ACME GmbH", kundennummer: "KD-0001",
+        zahlungsziel_tage: 14, notizen: "", ust_idnr: "", email: "",
+        leitweg_id: "", kaeuferreferenz: "", hat_adresse: true, hat_offene_entwuerfe: true,
+      },
+      adressen: [], ansprechpartner: [],
+    });
+    render(<KundeDetail id="1" />);
+    await waitFor(() => expect(screen.getByDisplayValue("ACME GmbH")).toBeTruthy());
+    expect(screen.getByRole("button", { name: "Löschen" })).toBeDisabled();
+  });
+
+  it("ruft onGeloescht nach dem Löschen des Kunden auf", async () => {
+    const onGeloescht = vi.fn();
+    render(<KundeDetail id="1" onGeloescht={onGeloescht} />);
+    await waitFor(() => expect(screen.getByDisplayValue("ACME GmbH")).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Löschen" }));
+    await waitFor(() => expect(screen.getByText('Kunde „ACME GmbH" löschen?')).toBeTruthy());
+    fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Löschen" }));
+    await waitFor(() => expect(onGeloescht).toHaveBeenCalledTimes(1));
   });
 });
