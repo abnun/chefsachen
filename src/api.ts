@@ -148,6 +148,53 @@ export interface OffenerPosten {
   beleg: Beleg;
   offener_betrag_cent: number;
 }
+export interface EingangsrechnungPosition {
+  bezeichnung: string;
+  menge: number;
+  einzelpreis_cent: number;
+  positionssumme_cent: number;
+}
+export interface EingangsrechnungFelderNeu {
+  rechnungssteller_name: string;
+  rechnungsnummer: string;
+  rechnungsdatum: string;
+  betrag_cent: number;
+  waehrung: string;
+  positionen: EingangsrechnungPosition[];
+}
+export interface EingangsrechnungVorschau {
+  geparst: boolean;
+  felder: EingangsrechnungFelderNeu;
+  ist_duplikat: boolean;
+}
+export interface Eingangsrechnung {
+  id: string;
+  dateiname: string;
+  format: "xrechnung" | "zugferd";
+  rechnungssteller_name: string;
+  rechnungsnummer: string;
+  rechnungsdatum: string;
+  betrag_cent: number;
+  waehrung: string;
+  manuell_erfasst: boolean;
+  importiert_am: string;
+}
+export interface EingangsrechnungUpdate {
+  id: string;
+  rechnungssteller_name: string;
+  rechnungsnummer: string;
+  rechnungsdatum: string;
+  betrag_cent: number;
+  waehrung: string;
+}
+export interface EingangsrechnungDetail {
+  eingangsrechnung: Eingangsrechnung;
+  positionen: EingangsrechnungPosition[];
+}
+export interface EingangsrechnungOriginal {
+  dateiname: string;
+  bytes: number[];
+}
 export type AppFehler =
   | { typ: "validation"; feld: string; meldung: string }
   | { typ: "nicht_gefunden"; meldung: string }
@@ -220,5 +267,15 @@ export const api = {
     pdfExportieren: (id: string) => invoke<number[]>("beleg_pdf_exportieren", { id }),
     xrechnungExportieren: (id: string) => invoke<number[]>("rechnung_xrechnung_exportieren", { id }),
     zugferdExportieren: (id: string) => invoke<number[]>("rechnung_zugferd_exportieren", { id }),
+  },
+  eingangsrechnungen: {
+    importVorschau: (dateiBytes: number[]) =>
+      invoke<EingangsrechnungVorschau>("eingangsrechnung_import_vorschau", { dateiBytes }),
+    speichern: (dateiBytes: number[], dateiname: string, felder: EingangsrechnungFelderNeu) =>
+      invoke<Eingangsrechnung>("eingangsrechnung_speichern", { dateiBytes, dateiname, felder }),
+    list: () => invoke<Eingangsrechnung[]>("eingangsrechnung_list"),
+    get: (id: string) => invoke<EingangsrechnungDetail>("eingangsrechnung_get", { id }),
+    update: (daten: EingangsrechnungUpdate) => invoke<Eingangsrechnung>("eingangsrechnung_update", { daten }),
+    originalExportieren: (id: string) => invoke<EingangsrechnungOriginal>("eingangsrechnung_original_exportieren", { id }),
   },
 };
