@@ -4,6 +4,7 @@ export const translations: Record<string, string> = {
   "nav.einstellungen": "Einstellungen",
   "nav.angebote": "Angebote",
   "nav.rechnungen": "Rechnungen",
+  "nav.eingangsrechnungen": "Eingangsrechnungen",
 };
 
 /**

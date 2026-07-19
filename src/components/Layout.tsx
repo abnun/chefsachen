@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { t } from "../i18n";
 
-export type Seite = "kunden" | "artikel" | "angebote" | "rechnungen" | "einstellungen";
+export type Seite = "kunden" | "artikel" | "angebote" | "rechnungen" | "eingangsrechnungen" | "einstellungen";
 
 interface NavEintrag {
   seite: Seite;
@@ -40,6 +40,14 @@ const ICON_RECHNUNGEN = (
   </svg>
 );
 
+const ICON_EINGANGSRECHNUNGEN = (
+  <svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6">
+    <path d="M5 3h7l3 3v11H5z" strokeLinejoin="round" />
+    <path d="M12 3v3h3" strokeLinejoin="round" />
+    <path d="M7 12.5 8.5 14 13 9.5" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
 const ICON_EINSTELLUNGEN = (
   <svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6">
     <circle cx="10" cy="10" r="2.6" />
@@ -52,6 +60,7 @@ const NAV_EINTRAEGE: NavEintrag[] = [
   { seite: "artikel", label: t("nav.artikel"), icon: ICON_ARTIKEL },
   { seite: "angebote", label: t("nav.angebote"), icon: ICON_ANGEBOTE },
   { seite: "rechnungen", label: t("nav.rechnungen"), icon: ICON_RECHNUNGEN },
+  { seite: "eingangsrechnungen", label: t("nav.eingangsrechnungen"), icon: ICON_EINGANGSRECHNUNGEN },
   { seite: "einstellungen", label: t("nav.einstellungen"), icon: ICON_EINSTELLUNGEN },
 ];
 

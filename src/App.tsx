@@ -10,6 +10,7 @@ import { Artikel } from "./pages/Artikel";
 import { Angebote } from "./pages/Angebote";
 import { Rechnungen } from "./pages/Rechnungen";
 import { BelegEditor } from "./pages/BelegEditor";
+import { Eingangsrechnungen } from "./pages/Eingangsrechnungen";
 import "./styles/tokens.css";
 import "./styles/basis.css";
 import "./styles/komponenten.css";
@@ -111,6 +112,7 @@ function App() {
         ) : (
           <Rechnungen onOeffnen={setAusgewaehlteRechnung} />
         ))}
+      {seite === "eingangsrechnungen" && <Eingangsrechnungen />}
       {seite === "einstellungen" && <Einstellungen />}
     </Layout>
   );
