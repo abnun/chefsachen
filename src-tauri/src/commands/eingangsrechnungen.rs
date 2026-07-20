@@ -16,6 +16,26 @@ pub struct Eingangsrechnung {
     pub waehrung: String,
     pub manuell_erfasst: bool,
     pub importiert_am: String,
+    pub kaeufer_name: String,
+    pub kaeufer_strasse: String,
+    pub kaeufer_plz: String,
+    pub kaeufer_ort: String,
+    pub kaeufer_land: String,
+    pub verkaeufer_strasse: String,
+    pub verkaeufer_plz: String,
+    pub verkaeufer_ort: String,
+    pub verkaeufer_land: String,
+    pub verkaeufer_steuernummer: String,
+    pub verkaeufer_email: String,
+    pub zahlungsbedingungen: String,
+    pub faelligkeitsdatum: String,
+    pub iban: String,
+    pub bic: String,
+    pub bankname: String,
+    pub bestellnummer: String,
+    pub leitweg_id: String,
+    pub lieferantennummer: String,
+    pub leistungsdatum: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
@@ -29,10 +49,21 @@ pub struct EingangsrechnungPosition {
     pub reihenfolge: i64,
 }
 
+#[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
+pub struct EingangsrechnungSteuerzeile {
+    pub id: String,
+    pub eingangsrechnung_id: String,
+    pub nettobetrag_cent: i64,
+    pub steuersatz_promille: i64,
+    pub steuerbetrag_cent: i64,
+    pub reihenfolge: i64,
+}
+
 #[derive(Debug, Serialize)]
 pub struct EingangsrechnungDetail {
     pub eingangsrechnung: Eingangsrechnung,
     pub positionen: Vec<EingangsrechnungPosition>,
+    pub steuerzeilen: Vec<EingangsrechnungSteuerzeile>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -44,6 +75,13 @@ pub struct EingangsrechnungPositionNeu {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+pub struct EingangsrechnungSteuerzeileNeu {
+    pub nettobetrag_cent: i64,
+    pub steuersatz_promille: i64,
+    pub steuerbetrag_cent: i64,
+}
+
+#[derive(Debug, Serialize, Deserialize, Default)]
 pub struct EingangsrechnungFelderNeu {
     pub rechnungssteller_name: String,
     pub rechnungsnummer: String,
@@ -51,6 +89,27 @@ pub struct EingangsrechnungFelderNeu {
     pub betrag_cent: i64,
     pub waehrung: String,
     pub positionen: Vec<EingangsrechnungPositionNeu>,
+    pub kaeufer_name: String,
+    pub kaeufer_strasse: String,
+    pub kaeufer_plz: String,
+    pub kaeufer_ort: String,
+    pub kaeufer_land: String,
+    pub verkaeufer_strasse: String,
+    pub verkaeufer_plz: String,
+    pub verkaeufer_ort: String,
+    pub verkaeufer_land: String,
+    pub verkaeufer_steuernummer: String,
+    pub verkaeufer_email: String,
+    pub zahlungsbedingungen: String,
+    pub faelligkeitsdatum: String,
+    pub iban: String,
+    pub bic: String,
+    pub bankname: String,
+    pub bestellnummer: String,
+    pub leitweg_id: String,
+    pub lieferantennummer: String,
+    pub leistungsdatum: String,
+    pub steuerzeilen: Vec<EingangsrechnungSteuerzeileNeu>,
 }
 
 #[derive(Debug, Serialize)]
@@ -76,7 +135,7 @@ pub struct EingangsrechnungOriginal {
     pub bytes: Vec<u8>,
 }
 
-const EINGANGSRECHNUNG_SPALTEN: &str = "id, dateiname, format, rechnungssteller_name, rechnungsnummer, rechnungsdatum, betrag_cent, waehrung, manuell_erfasst, importiert_am";
+const EINGANGSRECHNUNG_SPALTEN: &str = "id, dateiname, format, rechnungssteller_name, rechnungsnummer, rechnungsdatum, betrag_cent, waehrung, manuell_erfasst, importiert_am, kaeufer_name, kaeufer_strasse, kaeufer_plz, kaeufer_ort, kaeufer_land, verkaeufer_strasse, verkaeufer_plz, verkaeufer_ort, verkaeufer_land, verkaeufer_steuernummer, verkaeufer_email, zahlungsbedingungen, faelligkeitsdatum, iban, bic, bankname, bestellnummer, leitweg_id, lieferantennummer, leistungsdatum";
 
 pub async fn list(pool: &SqlitePool) -> AppResult<Vec<Eingangsrechnung>> {
     let sql = format!("SELECT {EINGANGSRECHNUNG_SPALTEN} FROM eingangsrechnung ORDER BY rechnungsdatum DESC");
@@ -96,11 +155,23 @@ pub async fn import_vorschau(pool: &SqlitePool, datei_bytes: Vec<u8>) -> AppResu
                 bezeichnung: p.bezeichnung, menge: p.menge,
                 einzelpreis_cent: p.einzelpreis_cent, positionssumme_cent: p.positionssumme_cent,
             }).collect(),
+            kaeufer_name: g.kaeufer_name, kaeufer_strasse: g.kaeufer_strasse, kaeufer_plz: g.kaeufer_plz,
+            kaeufer_ort: g.kaeufer_ort, kaeufer_land: g.kaeufer_land,
+            verkaeufer_strasse: g.verkaeufer_strasse, verkaeufer_plz: g.verkaeufer_plz,
+            verkaeufer_ort: g.verkaeufer_ort, verkaeufer_land: g.verkaeufer_land,
+            verkaeufer_steuernummer: g.verkaeufer_steuernummer, verkaeufer_email: g.verkaeufer_email,
+            zahlungsbedingungen: g.zahlungsbedingungen, faelligkeitsdatum: g.faelligkeitsdatum,
+            iban: g.iban, bic: g.bic, bankname: g.bankname,
+            bestellnummer: g.bestellnummer, leitweg_id: g.leitweg_id,
+            lieferantennummer: g.lieferantennummer, leistungsdatum: g.leistungsdatum,
+            steuerzeilen: g.steuerzeilen.into_iter().map(|s| EingangsrechnungSteuerzeileNeu {
+                nettobetrag_cent: s.nettobetrag_cent, steuersatz_promille: s.steuersatz_promille,
+                steuerbetrag_cent: s.steuerbetrag_cent,
+            }).collect(),
         }),
         Err(_) => (false, EingangsrechnungFelderNeu {
-            rechnungssteller_name: String::new(), rechnungsnummer: String::new(),
-            rechnungsdatum: String::new(), betrag_cent: 0, waehrung: "EUR".into(),
-            positionen: vec![],
+            waehrung: "EUR".into(),
+            ..Default::default()
         }),
     };
 
@@ -135,20 +206,48 @@ pub async fn speichern(
         rechnungssteller_name: felder.rechnungssteller_name, rechnungsnummer: felder.rechnungsnummer,
         rechnungsdatum: felder.rechnungsdatum, betrag_cent: felder.betrag_cent, waehrung: felder.waehrung,
         manuell_erfasst, importiert_am: jetzt(),
+        kaeufer_name: felder.kaeufer_name, kaeufer_strasse: felder.kaeufer_strasse,
+        kaeufer_plz: felder.kaeufer_plz, kaeufer_ort: felder.kaeufer_ort, kaeufer_land: felder.kaeufer_land,
+        verkaeufer_strasse: felder.verkaeufer_strasse, verkaeufer_plz: felder.verkaeufer_plz,
+        verkaeufer_ort: felder.verkaeufer_ort, verkaeufer_land: felder.verkaeufer_land,
+        verkaeufer_steuernummer: felder.verkaeufer_steuernummer, verkaeufer_email: felder.verkaeufer_email,
+        zahlungsbedingungen: felder.zahlungsbedingungen, faelligkeitsdatum: felder.faelligkeitsdatum,
+        iban: felder.iban, bic: felder.bic, bankname: felder.bankname,
+        bestellnummer: felder.bestellnummer, leitweg_id: felder.leitweg_id,
+        lieferantennummer: felder.lieferantennummer, leistungsdatum: felder.leistungsdatum,
     };
 
     let mut tx = pool.begin().await?;
-    sqlx::query("INSERT INTO eingangsrechnung (id, dateiname, format, rohdatei, rechnungssteller_name, rechnungsnummer, rechnungsdatum, betrag_cent, waehrung, manuell_erfasst, importiert_am, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)")
+    sqlx::query(
+        "INSERT INTO eingangsrechnung (id, dateiname, format, rohdatei, rechnungssteller_name, rechnungsnummer, rechnungsdatum, betrag_cent, waehrung, manuell_erfasst, importiert_am, kaeufer_name, kaeufer_strasse, kaeufer_plz, kaeufer_ort, kaeufer_land, verkaeufer_strasse, verkaeufer_plz, verkaeufer_ort, verkaeufer_land, verkaeufer_steuernummer, verkaeufer_email, zahlungsbedingungen, faelligkeitsdatum, iban, bic, bankname, bestellnummer, leitweg_id, lieferantennummer, leistungsdatum, created_at, updated_at) \
+         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
         .bind(&eingangsrechnung.id).bind(&eingangsrechnung.dateiname).bind(&eingangsrechnung.format)
         .bind(&datei_bytes).bind(&eingangsrechnung.rechnungssteller_name).bind(&eingangsrechnung.rechnungsnummer)
         .bind(&eingangsrechnung.rechnungsdatum).bind(eingangsrechnung.betrag_cent).bind(&eingangsrechnung.waehrung)
-        .bind(eingangsrechnung.manuell_erfasst).bind(&eingangsrechnung.importiert_am).bind(jetzt()).bind(jetzt())
+        .bind(eingangsrechnung.manuell_erfasst).bind(&eingangsrechnung.importiert_am)
+        .bind(&eingangsrechnung.kaeufer_name).bind(&eingangsrechnung.kaeufer_strasse)
+        .bind(&eingangsrechnung.kaeufer_plz).bind(&eingangsrechnung.kaeufer_ort).bind(&eingangsrechnung.kaeufer_land)
+        .bind(&eingangsrechnung.verkaeufer_strasse).bind(&eingangsrechnung.verkaeufer_plz)
+        .bind(&eingangsrechnung.verkaeufer_ort).bind(&eingangsrechnung.verkaeufer_land)
+        .bind(&eingangsrechnung.verkaeufer_steuernummer).bind(&eingangsrechnung.verkaeufer_email)
+        .bind(&eingangsrechnung.zahlungsbedingungen).bind(&eingangsrechnung.faelligkeitsdatum)
+        .bind(&eingangsrechnung.iban).bind(&eingangsrechnung.bic).bind(&eingangsrechnung.bankname)
+        .bind(&eingangsrechnung.bestellnummer).bind(&eingangsrechnung.leitweg_id)
+        .bind(&eingangsrechnung.lieferantennummer).bind(&eingangsrechnung.leistungsdatum)
+        .bind(jetzt()).bind(jetzt())
         .execute(&mut *tx).await?;
 
     for (i, pos) in felder.positionen.iter().enumerate() {
         sqlx::query("INSERT INTO eingangsrechnungposition (id, eingangsrechnung_id, bezeichnung, menge, einzelpreis_cent, positionssumme_cent, reihenfolge, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?)")
             .bind(Uuid::new_v4().to_string()).bind(&eingangsrechnung.id).bind(&pos.bezeichnung)
             .bind(pos.menge).bind(pos.einzelpreis_cent).bind(pos.positionssumme_cent).bind(i as i64)
+            .bind(jetzt()).bind(jetzt())
+            .execute(&mut *tx).await?;
+    }
+    for (i, s) in felder.steuerzeilen.iter().enumerate() {
+        sqlx::query("INSERT INTO eingangsrechnungsteuer (id, eingangsrechnung_id, nettobetrag_cent, steuersatz_promille, steuerbetrag_cent, reihenfolge, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?)")
+            .bind(Uuid::new_v4().to_string()).bind(&eingangsrechnung.id)
+            .bind(s.nettobetrag_cent).bind(s.steuersatz_promille).bind(s.steuerbetrag_cent).bind(i as i64)
             .bind(jetzt()).bind(jetzt())
             .execute(&mut *tx).await?;
     }
@@ -164,7 +263,11 @@ pub async fn get(pool: &SqlitePool, id: String) -> AppResult<EingangsrechnungDet
         "SELECT id, eingangsrechnung_id, bezeichnung, menge, einzelpreis_cent, positionssumme_cent, reihenfolge \
          FROM eingangsrechnungposition WHERE eingangsrechnung_id = ? ORDER BY reihenfolge")
         .bind(&id).fetch_all(pool).await?;
-    Ok(EingangsrechnungDetail { eingangsrechnung, positionen })
+    let steuerzeilen: Vec<EingangsrechnungSteuerzeile> = sqlx::query_as(
+        "SELECT id, eingangsrechnung_id, nettobetrag_cent, steuersatz_promille, steuerbetrag_cent, reihenfolge \
+         FROM eingangsrechnungsteuer WHERE eingangsrechnung_id = ? ORDER BY reihenfolge")
+        .bind(&id).fetch_all(pool).await?;
+    Ok(EingangsrechnungDetail { eingangsrechnung, positionen, steuerzeilen })
 }
 
 pub async fn update(pool: &SqlitePool, d: EingangsrechnungUpdate) -> AppResult<Eingangsrechnung> {
@@ -236,6 +339,9 @@ mod tests {
         assert!(vorschau.geparst);
         assert_eq!(vorschau.felder.rechnungsnummer, "RE-2026-0001");
         assert!(!vorschau.ist_duplikat);
+        assert_eq!(vorschau.felder.kaeufer_name, "ACME GmbH");
+        assert_eq!(vorschau.felder.verkaeufer_steuernummer, "DE123456789");
+        assert_eq!(vorschau.felder.iban, "DE00 1234 5678");
     }
 
     #[tokio::test]
@@ -269,6 +375,7 @@ mod tests {
             positionen: vec![EingangsrechnungPositionNeu {
                 bezeichnung: "Beratung".into(), menge: 1000, einzelpreis_cent: 9500, positionssumme_cent: 9500,
             }],
+            ..Default::default()
         };
         let gespeichert = speichern(&pool, xml.into_bytes(), "rechnung.xml".into(), felder).await.unwrap();
         assert_eq!(gespeichert.format, "xrechnung");
@@ -278,12 +385,49 @@ mod tests {
         assert_eq!(liste.len(), 1);
     }
 
+    fn felder_mit_zusatzdaten() -> EingangsrechnungFelderNeu {
+        EingangsrechnungFelderNeu {
+            rechnungssteller_name: "Gemischt GmbH".into(), rechnungsnummer: "RE-2026-9000".into(),
+            rechnungsdatum: "2026-07-01".into(), betrag_cent: 22600, waehrung: "EUR".into(),
+            positionen: vec![],
+            kaeufer_name: "Käufer GmbH".into(), kaeufer_strasse: "Käuferweg 2".into(),
+            kaeufer_plz: "10115".into(), kaeufer_ort: "Berlin".into(), kaeufer_land: "DE".into(),
+            verkaeufer_strasse: "Verkäuferweg 1".into(), verkaeufer_plz: "50667".into(),
+            verkaeufer_ort: "Köln".into(), verkaeufer_land: "DE".into(),
+            verkaeufer_steuernummer: "DE999888777".into(), verkaeufer_email: "info@lieferant-beispiel.de".into(),
+            zahlungsbedingungen: "Zahlbar innerhalb von 14 Tagen".into(), faelligkeitsdatum: "2026-07-15".into(),
+            iban: "DE11 2222 3333".into(), bic: "TESTDE81XXX".into(), bankname: "Testbank AG".into(),
+            bestellnummer: "BEST-1".into(), leitweg_id: "991-1".into(),
+            lieferantennummer: "LFT-777".into(), leistungsdatum: "2026-06-28".into(),
+            steuerzeilen: vec![
+                EingangsrechnungSteuerzeileNeu { nettobetrag_cent: 10000, steuersatz_promille: 190, steuerbetrag_cent: 1900 },
+                EingangsrechnungSteuerzeileNeu { nettobetrag_cent: 10000, steuersatz_promille: 70, steuerbetrag_cent: 700 },
+            ],
+        }
+    }
+
+    #[tokio::test]
+    async fn speichern_persistiert_zusatzfelder_und_steuerzeilen_in_einer_transaktion() {
+        let (_dir, pool) = test_pool().await;
+        let gespeichert = speichern(&pool, b"kein gueltiges XML".to_vec(), "gemischt.xml".into(), felder_mit_zusatzdaten()).await.unwrap();
+        assert_eq!(gespeichert.kaeufer_name, "Käufer GmbH");
+        assert_eq!(gespeichert.verkaeufer_steuernummer, "DE999888777");
+        assert_eq!(gespeichert.iban, "DE11 2222 3333");
+
+        let detail = get(&pool, gespeichert.id).await.unwrap();
+        assert_eq!(detail.steuerzeilen.len(), 2);
+        assert_eq!(detail.steuerzeilen[0].steuersatz_promille, 190);
+        assert_eq!(detail.steuerzeilen[0].nettobetrag_cent, 10000);
+        assert_eq!(detail.steuerzeilen[1].steuersatz_promille, 70);
+    }
+
     #[tokio::test]
     async fn speichern_markiert_manuell_erfasst_bei_nicht_parsbarer_datei() {
         let (_dir, pool) = test_pool().await;
         let felder = EingangsrechnungFelderNeu {
             rechnungssteller_name: "Von Hand eingetragen".into(), rechnungsnummer: "X-1".into(),
-            rechnungsdatum: "2026-07-11".into(), betrag_cent: 5000, waehrung: "EUR".into(), positionen: vec![],
+            rechnungsdatum: "2026-07-11".into(), betrag_cent: 5000, waehrung: "EUR".into(),
+            ..Default::default()
         };
         let gespeichert = speichern(&pool, b"kein gueltiges XML".to_vec(), "unbekannt.xml".into(), felder).await.unwrap();
         assert!(gespeichert.manuell_erfasst);
@@ -296,10 +440,7 @@ mod tests {
         // mit PDF-Inhalt wird das tatsächliche Format aus den Bytes bestimmt.
         let (_dir, pool) = test_pool().await;
         let minimales_pdf = crate::dokument::pdf::rendern(&crate::dokument::pdf::tests::test_kontext(), None).unwrap();
-        let felder = EingangsrechnungFelderNeu {
-            rechnungssteller_name: "".into(), rechnungsnummer: "".into(),
-            rechnungsdatum: "".into(), betrag_cent: 0, waehrung: "EUR".into(), positionen: vec![],
-        };
+        let felder = EingangsrechnungFelderNeu { waehrung: "EUR".into(), ..Default::default() };
         let gespeichert = speichern(&pool, minimales_pdf, "täuschung.xml".into(), felder).await.unwrap();
         assert_eq!(gespeichert.format, "zugferd");
     }
@@ -313,6 +454,7 @@ mod tests {
             positionen: vec![EingangsrechnungPositionNeu {
                 bezeichnung: "Beratung".into(), menge: 1000, einzelpreis_cent: 9500, positionssumme_cent: 9500,
             }],
+            ..Default::default()
         };
         speichern(pool, xml.into_bytes(), "rechnung.xml".into(), felder).await.unwrap()
     }
@@ -334,16 +476,29 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn update_korrigiert_kernfelder_aber_nicht_manuell_erfasst() {
+    async fn update_korrigiert_kernfelder_aber_nicht_neue_spalten() {
         let (_dir, pool) = test_pool().await;
-        let gespeichert = beispiel_speichern(&pool).await;
+        let mut felder = felder_mit_zusatzdaten();
+        felder.rechnungsnummer = "RE-2026-0001".into();
+        felder.rechnungsdatum = "2026-07-11".into();
+        felder.betrag_cent = 9500;
+        felder.rechnungssteller_name = "Meine Firma".into();
+        let gespeichert = speichern(&pool, b"kein gueltiges XML".to_vec(), "gemischt.xml".into(), felder).await.unwrap();
+
         let aktualisiert = update(&pool, EingangsrechnungUpdate {
             id: gespeichert.id.clone(), rechnungssteller_name: "Korrigierte Firma".into(),
             rechnungsnummer: "RE-2026-0001".into(), rechnungsdatum: "2026-07-11".into(),
             betrag_cent: 9500, waehrung: "EUR".into(),
         }).await.unwrap();
+
         assert_eq!(aktualisiert.rechnungssteller_name, "Korrigierte Firma");
-        assert!(!aktualisiert.manuell_erfasst);
+        // "kein gueltiges XML" lässt sich nicht parsen, daher war der Datensatz von
+        // Anfang an manuell_erfasst = true; update() rührt diese Spalte nicht an,
+        // der Wert bleibt also unverändert true.
+        assert!(aktualisiert.manuell_erfasst);
+        // Die neuen Spalten bleiben unverändert, da eingangsrechnung_update sie nicht anfasst.
+        assert_eq!(aktualisiert.kaeufer_name, "Käufer GmbH");
+        assert_eq!(aktualisiert.verkaeufer_steuernummer, "DE999888777");
     }
 
     #[tokio::test]
@@ -353,7 +508,8 @@ mod tests {
         let xml = crate::dokument::xrechnung::xml_erzeugen(&kontext).unwrap();
         let felder = EingangsrechnungFelderNeu {
             rechnungssteller_name: "Meine Firma".into(), rechnungsnummer: "RE-2026-0001".into(),
-            rechnungsdatum: "2026-07-11".into(), betrag_cent: 9500, waehrung: "EUR".into(), positionen: vec![],
+            rechnungsdatum: "2026-07-11".into(), betrag_cent: 9500, waehrung: "EUR".into(),
+            ..Default::default()
         };
         let gespeichert = speichern(&pool, xml.clone().into_bytes(), "rechnung.xml".into(), felder).await.unwrap();
         let original = original_exportieren(&pool, gespeichert.id).await.unwrap();
