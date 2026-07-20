@@ -1,0 +1,76 @@
+name: Release
+
+# Löst aus, sobald ein Tag wie "v0.1.0" gepusht wird:
+#   git tag v0.1.0 && git push origin v0.1.0
+# Baut unsignierte Installer für macOS (.dmg) und Windows (.msi/.exe) und
+# hängt sie an einen neuen GitHub-Release-Entwurf an.
+#
+# Signing/Notarization ist noch nicht eingerichtet (kein Apple-Developer-Konto,
+# kein Windows-Zertifikat vorhanden) — Nutzer müssen die Sicherheitswarnung beim
+# ersten Start einmalig manuell bestätigen (siehe docs/installation-freunde.md).
+# Sobald Zertifikate vorliegen, können die entsprechenden Secrets ergänzt werden;
+# tauri-action nutzt sie automatisch, ohne dass dieser Workflow geändert werden muss.
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch: {}
+
+jobs:
+  release:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: macos-latest
+            args: "--target universal-apple-darwin"
+            rust-targets: "aarch64-apple-darwin,x86_64-apple-darwin"
+          - platform: windows-latest
+            args: ""
+            rust-targets: ""
+
+    runs-on: ${{ matrix.platform }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Node.js einrichten
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Rust einrichten
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.rust-targets }}
+
+      - name: Rust-Build-Cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: "./src-tauri -> target"
+
+      - name: Frontend-Abhängigkeiten installieren
+        run: npm ci
+
+      - name: Tauri-App bauen und Release erstellen
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # macOS-Signing (optional, sobald vorhanden):
+          # APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          # APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          # APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          # APPLE_ID: ${{ secrets.APPLE_ID }}
+          # APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          # APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          # Windows-Signing (optional, sobald vorhanden):
+          # WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
+          # WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: "Kleinunternehmer-Verwaltung ${{ github.ref_name }}"
+          releaseBody: "Installationsanleitung: siehe docs/installation-freunde.md"
+          releaseDraft: true
+          prerelease: false
+          args: ${{ matrix.args }}
