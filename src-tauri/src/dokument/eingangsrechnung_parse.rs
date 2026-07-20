@@ -10,6 +10,34 @@ pub struct GeparsteRechnung {
     pub betrag_cent: i64,
     pub waehrung: String,
     pub positionen: Vec<GeparstePosition>,
+    pub kaeufer_name: String,
+    pub kaeufer_strasse: String,
+    pub kaeufer_plz: String,
+    pub kaeufer_ort: String,
+    pub kaeufer_land: String,
+    pub verkaeufer_strasse: String,
+    pub verkaeufer_plz: String,
+    pub verkaeufer_ort: String,
+    pub verkaeufer_land: String,
+    pub verkaeufer_steuernummer: String,
+    pub verkaeufer_email: String,
+    pub zahlungsbedingungen: String,
+    pub faelligkeitsdatum: String,
+    pub iban: String,
+    pub bic: String,
+    pub bankname: String,
+    pub bestellnummer: String,
+    pub leitweg_id: String,
+    pub lieferantennummer: String,
+    pub leistungsdatum: String,
+    pub steuerzeilen: Vec<GeparsteSteuerzeile>,
+}
+
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct GeparsteSteuerzeile {
+    pub nettobetrag_cent: i64,
+    pub steuersatz_promille: i64,
+    pub steuerbetrag_cent: i64,
 }
 
 #[derive(Debug, Clone, Default, PartialEq)]
@@ -51,9 +79,12 @@ fn parse_cii(xml: &str) -> AppResult<GeparsteRechnung> {
     let mut reader = Reader::from_str(xml);
     let mut pfad: Vec<String> = Vec::new();
     let mut zeilen_pfad: Vec<String> = Vec::new();
+    let mut steuerzeilen_pfad: Vec<String> = Vec::new();
     let mut ergebnis = GeparsteRechnung::default();
     let mut in_zeile = false;
+    let mut in_steuerzeile = false;
     let mut aktuelle_zeile = GeparstePosition::default();
+    let mut aktuelle_steuerzeile = GeparsteSteuerzeile::default();
 
     loop {
         match reader.read_event().map_err(|e| AppError::Technisch(format!("XML ist nicht wohlgeformt: {e}")))? {
@@ -64,8 +95,18 @@ fn parse_cii(xml: &str) -> AppResult<GeparsteRechnung> {
                     in_zeile = true;
                     aktuelle_zeile = GeparstePosition::default();
                     zeilen_pfad.clear();
+                } else if name == "ram:ApplicableTradeTax" && !in_zeile {
+                    // Kopfebenen-Steuerzeile — siehe Spec-Abschnitt zur Kollision mit der
+                    // positionsinternen ApplicableTradeTax. Die Bedingung `&& !in_zeile` ist
+                    // entscheidend: ohne sie würde die positionsinterne ApplicableTradeTax
+                    // fälschlich eine Kopf-Steuerzeile eröffnen.
+                    in_steuerzeile = true;
+                    aktuelle_steuerzeile = GeparsteSteuerzeile::default();
+                    steuerzeilen_pfad.clear();
                 } else if in_zeile {
                     zeilen_pfad.push(name.clone());
+                } else if in_steuerzeile {
+                    steuerzeilen_pfad.push(name.clone());
                 }
                 pfad.push(name);
             }
@@ -82,6 +123,13 @@ fn parse_cii(xml: &str) -> AppResult<GeparsteRechnung> {
                             aktuelle_zeile.positionssumme_cent = dezimal_zu_festkomma(&text, 2, 100),
                         _ => {}
                     }
+                } else if in_steuerzeile {
+                    match steuerzeilen_pfad.join("/").as_str() {
+                        "ram:BasisAmount" => aktuelle_steuerzeile.nettobetrag_cent = dezimal_zu_festkomma(&text, 2, 100),
+                        "ram:CalculatedAmount" => aktuelle_steuerzeile.steuerbetrag_cent = dezimal_zu_festkomma(&text, 2, 100),
+                        "ram:RateApplicablePercent" => aktuelle_steuerzeile.steuersatz_promille = dezimal_zu_festkomma(&text, 1, 10),
+                        _ => {}
+                    }
                 } else {
                     match pfad.join("/").as_str() {
                         "rsm:CrossIndustryInvoice/rsm:ExchangedDocument/ram:ID" => ergebnis.rechnungsnummer = text,
@@ -93,6 +141,46 @@ fn parse_cii(xml: &str) -> AppResult<GeparsteRechnung> {
                             ergebnis.waehrung = text,
                         "rsm:CrossIndustryInvoice/rsm:SupplyChainTradeTransaction/ram:ApplicableHeaderTradeSettlement/ram:SpecifiedTradeSettlementHeaderMonetarySummation/ram:GrandTotalAmount" =>
                             ergebnis.betrag_cent = dezimal_zu_festkomma(&text, 2, 100),
+                        "rsm:CrossIndustryInvoice/rsm:SupplyChainTradeTransaction/ram:ApplicableHeaderTradeAgreement/ram:BuyerTradeParty/ram:Name" =>
+                            ergebnis.kaeufer_name = text,
+                        "rsm:CrossIndustryInvoice/rsm:SupplyChainTradeTransaction/ram:ApplicableHeaderTradeAgreement/ram:BuyerTradeParty/ram:PostalTradeAddress/ram:LineOne" =>
+                            ergebnis.kaeufer_strasse = text,
+                        "rsm:CrossIndustryInvoice/rsm:SupplyChainTradeTransaction/ram:ApplicableHeaderTradeAgreement/ram:BuyerTradeParty/ram:PostalTradeAddress/ram:PostcodeCode" =>
+                            ergebnis.kaeufer_plz = text,
+                        "rsm:CrossIndustryInvoice/rsm:SupplyChainTradeTransaction/ram:ApplicableHeaderTradeAgreement/ram:BuyerTradeParty/ram:PostalTradeAddress/ram:CityName" =>
+                            ergebnis.kaeufer_ort = text,
+                        "rsm:CrossIndustryInvoice/rsm:SupplyChainTradeTransaction/ram:ApplicableHeaderTradeAgreement/ram:BuyerTradeParty/ram:PostalTradeAddress/ram:CountryID" =>
+                            ergebnis.kaeufer_land = text,
+                        "rsm:CrossIndustryInvoice/rsm:SupplyChainTradeTransaction/ram:ApplicableHeaderTradeAgreement/ram:SellerTradeParty/ram:PostalTradeAddress/ram:LineOne" =>
+                            ergebnis.verkaeufer_strasse = text,
+                        "rsm:CrossIndustryInvoice/rsm:SupplyChainTradeTransaction/ram:ApplicableHeaderTradeAgreement/ram:SellerTradeParty/ram:PostalTradeAddress/ram:PostcodeCode" =>
+                            ergebnis.verkaeufer_plz = text,
+                        "rsm:CrossIndustryInvoice/rsm:SupplyChainTradeTransaction/ram:ApplicableHeaderTradeAgreement/ram:SellerTradeParty/ram:PostalTradeAddress/ram:CityName" =>
+                            ergebnis.verkaeufer_ort = text,
+                        "rsm:CrossIndustryInvoice/rsm:SupplyChainTradeTransaction/ram:ApplicableHeaderTradeAgreement/ram:SellerTradeParty/ram:PostalTradeAddress/ram:CountryID" =>
+                            ergebnis.verkaeufer_land = text,
+                        "rsm:CrossIndustryInvoice/rsm:SupplyChainTradeTransaction/ram:ApplicableHeaderTradeAgreement/ram:SellerTradeParty/ram:SpecifiedTaxRegistration/ram:ID" =>
+                            ergebnis.verkaeufer_steuernummer = text,
+                        "rsm:CrossIndustryInvoice/rsm:SupplyChainTradeTransaction/ram:ApplicableHeaderTradeAgreement/ram:SellerTradeParty/ram:URIUniversalCommunication/ram:URIID" =>
+                            ergebnis.verkaeufer_email = text,
+                        "rsm:CrossIndustryInvoice/rsm:SupplyChainTradeTransaction/ram:ApplicableHeaderTradeAgreement/ram:SellerTradeParty/ram:ID" =>
+                            ergebnis.lieferantennummer = text,
+                        "rsm:CrossIndustryInvoice/rsm:SupplyChainTradeTransaction/ram:ApplicableHeaderTradeAgreement/ram:BuyerOrderReferencedDocument/ram:IssuerAssignedID" =>
+                            ergebnis.bestellnummer = text,
+                        "rsm:CrossIndustryInvoice/rsm:SupplyChainTradeTransaction/ram:ApplicableHeaderTradeAgreement/ram:BuyerReference" =>
+                            ergebnis.leitweg_id = text,
+                        "rsm:CrossIndustryInvoice/rsm:SupplyChainTradeTransaction/ram:ApplicableHeaderTradeDelivery/ram:ActualDeliverySupplyChainEvent/ram:OccurrenceDateTime/udt:DateTimeString" =>
+                            ergebnis.leistungsdatum = formatiere_cii_datum(&text),
+                        "rsm:CrossIndustryInvoice/rsm:SupplyChainTradeTransaction/ram:ApplicableHeaderTradeSettlement/ram:SpecifiedTradePaymentTerms/ram:Description" =>
+                            ergebnis.zahlungsbedingungen = text,
+                        "rsm:CrossIndustryInvoice/rsm:SupplyChainTradeTransaction/ram:ApplicableHeaderTradeSettlement/ram:SpecifiedTradePaymentTerms/ram:DueDateDateTime/udt:DateTimeString" =>
+                            ergebnis.faelligkeitsdatum = formatiere_cii_datum(&text),
+                        "rsm:CrossIndustryInvoice/rsm:SupplyChainTradeTransaction/ram:ApplicableHeaderTradeSettlement/ram:SpecifiedTradeSettlementPaymentMeans/ram:PayeePartyCreditorFinancialAccount/ram:IBANID" =>
+                            ergebnis.iban = text,
+                        "rsm:CrossIndustryInvoice/rsm:SupplyChainTradeTransaction/ram:ApplicableHeaderTradeSettlement/ram:SpecifiedTradeSettlementPaymentMeans/ram:PayeeSpecifiedCreditorFinancialInstitution/ram:BICID" =>
+                            ergebnis.bic = text,
+                        "rsm:CrossIndustryInvoice/rsm:SupplyChainTradeTransaction/ram:ApplicableHeaderTradeSettlement/ram:SpecifiedTradeSettlementPaymentMeans/ram:PayeeSpecifiedCreditorFinancialInstitution/ram:Name" =>
+                            ergebnis.bankname = text,
                         _ => {}
                     }
                 }
@@ -102,8 +190,13 @@ fn parse_cii(xml: &str) -> AppResult<GeparsteRechnung> {
                     if name == "ram:IncludedSupplyChainTradeLineItem" {
                         in_zeile = false;
                         ergebnis.positionen.push(std::mem::take(&mut aktuelle_zeile));
+                    } else if name == "ram:ApplicableTradeTax" && in_steuerzeile {
+                        in_steuerzeile = false;
+                        ergebnis.steuerzeilen.push(std::mem::take(&mut aktuelle_steuerzeile));
                     } else if in_zeile {
                         zeilen_pfad.pop();
+                    } else if in_steuerzeile {
+                        steuerzeilen_pfad.pop();
                     }
                 }
             }
@@ -291,12 +384,125 @@ mod tests {
         assert_eq!(ergebnis.positionen[0].einzelpreis_cent, 9500);
         assert_eq!(ergebnis.positionen[0].menge, 1000);
         assert_eq!(ergebnis.positionen[0].positionssumme_cent, 9500);
+
+        // Zusatzfelder, die der eigene Generator bereits schreibt (Round-Trip-testbar).
+        assert_eq!(ergebnis.kaeufer_name, "ACME GmbH");
+        assert_eq!(ergebnis.kaeufer_strasse, "Kundenweg 5");
+        assert_eq!(ergebnis.kaeufer_plz, "10117");
+        assert_eq!(ergebnis.kaeufer_ort, "Berlin");
+        assert_eq!(ergebnis.kaeufer_land, "DE");
+        assert_eq!(ergebnis.verkaeufer_strasse, "Weg 1");
+        assert_eq!(ergebnis.verkaeufer_plz, "10115");
+        assert_eq!(ergebnis.verkaeufer_ort, "Berlin");
+        assert_eq!(ergebnis.verkaeufer_land, "DE");
+        assert_eq!(ergebnis.verkaeufer_steuernummer, "DE123456789");
+        assert_eq!(ergebnis.bestellnummer, "PO-42");
+        assert_eq!(ergebnis.leitweg_id, "991-12345-67");
+        assert_eq!(ergebnis.zahlungsbedingungen, "Zahlbar innerhalb von 14 Tagen");
+        assert_eq!(ergebnis.iban, "DE00 1234 5678");
+        assert_eq!(ergebnis.bic, "ABCDDEFF");
+
+        // Regressionstest für die Kopf-/Positions-Steuerzeilen-Kollision: der eigene
+        // Generator schreibt pro Position eine ApplicableTradeTax (CategoryCode "E",
+        // 0 %), aber KEINE Kopf-Steuerzeile. Würde die Prüfreihenfolge im Parser die
+        // positionsinterne ApplicableTradeTax fälschlich als Kopf-Steuerzeile werten,
+        // wäre steuerzeilen hier nicht leer.
+        assert!(ergebnis.steuerzeilen.is_empty());
     }
 
     #[test]
     fn parse_cii_lehnt_xml_ohne_kernfelder_ab() {
         let err = parse_cii("<rsm:CrossIndustryInvoice></rsm:CrossIndustryInvoice>").unwrap_err();
         assert!(matches!(err, AppError::Technisch(_)));
+    }
+
+    const CII_ZUSATZFELDER_BEISPIEL: &str = r#"<?xml version="1.0" encoding="UTF-8"?>
+<rsm:CrossIndustryInvoice xmlns:rsm="urn:un:unece:uncefact:data:standard:CrossIndustryInvoice:100" xmlns:ram="urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100" xmlns:udt="urn:un:unece:uncefact:data:standard:UnqualifiedDataType:100">
+  <rsm:ExchangedDocument>
+    <ram:ID>RE-2026-9000</ram:ID>
+    <ram:TypeCode>380</ram:TypeCode>
+    <ram:IssueDateTime><udt:DateTimeString format="102">20260701</udt:DateTimeString></ram:IssueDateTime>
+  </rsm:ExchangedDocument>
+  <rsm:SupplyChainTradeTransaction>
+    <ram:IncludedSupplyChainTradeLineItem>
+      <ram:SpecifiedTradeProduct><ram:Name>Testposition</ram:Name></ram:SpecifiedTradeProduct>
+      <ram:SpecifiedLineTradeAgreement>
+        <ram:NetPriceProductTradePrice><ram:ChargeAmount>50.00</ram:ChargeAmount></ram:NetPriceProductTradePrice>
+      </ram:SpecifiedLineTradeAgreement>
+      <ram:SpecifiedLineTradeDelivery><ram:BilledQuantity unitCode="C62">2.000</ram:BilledQuantity></ram:SpecifiedLineTradeDelivery>
+      <ram:SpecifiedLineTradeSettlement>
+        <ram:ApplicableTradeTax>
+          <ram:TypeCode>VAT</ram:TypeCode>
+          <ram:CategoryCode>E</ram:CategoryCode>
+          <ram:RateApplicablePercent>0</ram:RateApplicablePercent>
+        </ram:ApplicableTradeTax>
+        <ram:SpecifiedTradeSettlementLineMonetarySummation><ram:LineTotalAmount>100.00</ram:LineTotalAmount></ram:SpecifiedTradeSettlementLineMonetarySummation>
+      </ram:SpecifiedLineTradeSettlement>
+    </ram:IncludedSupplyChainTradeLineItem>
+    <ram:ApplicableHeaderTradeAgreement>
+      <ram:SellerTradeParty>
+        <ram:ID>LFT-777</ram:ID>
+        <ram:Name>Gemischt GmbH</ram:Name>
+        <ram:URIUniversalCommunication>
+          <ram:URIID schemeID="EM">kontakt@gemischt-beispiel.de</ram:URIID>
+        </ram:URIUniversalCommunication>
+      </ram:SellerTradeParty>
+      <ram:BuyerTradeParty><ram:Name>Käufer GmbH</ram:Name></ram:BuyerTradeParty>
+    </ram:ApplicableHeaderTradeAgreement>
+    <ram:ApplicableHeaderTradeDelivery>
+      <ram:ActualDeliverySupplyChainEvent>
+        <ram:OccurrenceDateTime><udt:DateTimeString format="102">20260628</udt:DateTimeString></ram:OccurrenceDateTime>
+      </ram:ActualDeliverySupplyChainEvent>
+    </ram:ApplicableHeaderTradeDelivery>
+    <ram:ApplicableHeaderTradeSettlement>
+      <ram:InvoiceCurrencyCode>EUR</ram:InvoiceCurrencyCode>
+      <ram:SpecifiedTradeSettlementPaymentMeans>
+        <ram:PayeePartyCreditorFinancialAccount><ram:IBANID>DE11 2222 3333</ram:IBANID></ram:PayeePartyCreditorFinancialAccount>
+        <ram:PayeeSpecifiedCreditorFinancialInstitution>
+          <ram:BICID>TESTDE81XXX</ram:BICID>
+          <ram:Name>Testbank AG</ram:Name>
+        </ram:PayeeSpecifiedCreditorFinancialInstitution>
+      </ram:SpecifiedTradeSettlementPaymentMeans>
+      <ram:ApplicableTradeTax>
+        <ram:CalculatedAmount>19.00</ram:CalculatedAmount>
+        <ram:BasisAmount>100.00</ram:BasisAmount>
+        <ram:RateApplicablePercent>19</ram:RateApplicablePercent>
+      </ram:ApplicableTradeTax>
+      <ram:ApplicableTradeTax>
+        <ram:CalculatedAmount>7.00</ram:CalculatedAmount>
+        <ram:BasisAmount>100.00</ram:BasisAmount>
+        <ram:RateApplicablePercent>7</ram:RateApplicablePercent>
+      </ram:ApplicableTradeTax>
+      <ram:SpecifiedTradePaymentTerms>
+        <ram:DueDateDateTime><udt:DateTimeString format="102">20260715</udt:DateTimeString></ram:DueDateDateTime>
+      </ram:SpecifiedTradePaymentTerms>
+      <ram:SpecifiedTradeSettlementHeaderMonetarySummation>
+        <ram:GrandTotalAmount>226.00</ram:GrandTotalAmount>
+      </ram:SpecifiedTradeSettlementHeaderMonetarySummation>
+    </ram:ApplicableHeaderTradeSettlement>
+  </rsm:SupplyChainTradeTransaction>
+</rsm:CrossIndustryInvoice>"#;
+
+    #[test]
+    fn parse_cii_extrahiert_nicht_generierbare_zusatzfelder_und_mehrere_steuersaetze() {
+        let ergebnis = parse_cii(CII_ZUSATZFELDER_BEISPIEL).unwrap();
+
+        assert_eq!(ergebnis.verkaeufer_email, "kontakt@gemischt-beispiel.de");
+        assert_eq!(ergebnis.lieferantennummer, "LFT-777");
+        assert_eq!(ergebnis.bankname, "Testbank AG");
+        assert_eq!(ergebnis.leistungsdatum, "2026-06-28");
+        assert_eq!(ergebnis.faelligkeitsdatum, "2026-07-15");
+
+        // Genau eine Position — ihre eigene ApplicableTradeTax darf NICHT zusätzlich
+        // als dritte Kopf-Steuerzeile landen (Kollisions-Regressionstest).
+        assert_eq!(ergebnis.positionen.len(), 1);
+        assert_eq!(ergebnis.steuerzeilen.len(), 2);
+        assert_eq!(ergebnis.steuerzeilen[0].nettobetrag_cent, 10000);
+        assert_eq!(ergebnis.steuerzeilen[0].steuersatz_promille, 190);
+        assert_eq!(ergebnis.steuerzeilen[0].steuerbetrag_cent, 1900);
+        assert_eq!(ergebnis.steuerzeilen[1].nettobetrag_cent, 10000);
+        assert_eq!(ergebnis.steuerzeilen[1].steuersatz_promille, 70);
+        assert_eq!(ergebnis.steuerzeilen[1].steuerbetrag_cent, 700);
     }
 
     const UBL_BEISPIEL: &str = r#"<?xml version="1.0" encoding="UTF-8"?>
