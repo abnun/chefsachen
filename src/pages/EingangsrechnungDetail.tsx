@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { save } from "@tauri-apps/plugin-dialog";
 import { writeFile } from "@tauri-apps/plugin-fs";
 import { api, type AppFehler, type EingangsrechnungDetail as EingangsrechnungDetailTyp } from "../api";
+import { EingangsrechnungZusatzfelder } from "../components/EingangsrechnungZusatzfelder";
 import { Fehler } from "../components/Fehler";
 import { formatCentMitWaehrung, formatMenge, parseEuro } from "../geld";
 
@@ -156,6 +157,31 @@ export function EingangsrechnungDetail({ id, onZurueck }: EingangsrechnungDetail
           ))}
         </tbody>
       </table>
+
+      <EingangsrechnungZusatzfelder
+        kaeufer_name={detail.eingangsrechnung.kaeufer_name}
+        kaeufer_strasse={detail.eingangsrechnung.kaeufer_strasse}
+        kaeufer_plz={detail.eingangsrechnung.kaeufer_plz}
+        kaeufer_ort={detail.eingangsrechnung.kaeufer_ort}
+        kaeufer_land={detail.eingangsrechnung.kaeufer_land}
+        verkaeufer_strasse={detail.eingangsrechnung.verkaeufer_strasse}
+        verkaeufer_plz={detail.eingangsrechnung.verkaeufer_plz}
+        verkaeufer_ort={detail.eingangsrechnung.verkaeufer_ort}
+        verkaeufer_land={detail.eingangsrechnung.verkaeufer_land}
+        verkaeufer_steuernummer={detail.eingangsrechnung.verkaeufer_steuernummer}
+        verkaeufer_email={detail.eingangsrechnung.verkaeufer_email}
+        zahlungsbedingungen={detail.eingangsrechnung.zahlungsbedingungen}
+        faelligkeitsdatum={detail.eingangsrechnung.faelligkeitsdatum}
+        iban={detail.eingangsrechnung.iban}
+        bic={detail.eingangsrechnung.bic}
+        bankname={detail.eingangsrechnung.bankname}
+        bestellnummer={detail.eingangsrechnung.bestellnummer}
+        leitweg_id={detail.eingangsrechnung.leitweg_id}
+        lieferantennummer={detail.eingangsrechnung.lieferantennummer}
+        leistungsdatum={detail.eingangsrechnung.leistungsdatum}
+        waehrung={detail.eingangsrechnung.waehrung}
+        steuerzeilen={detail.steuerzeilen}
+      />
     </div>
   );
 }

@@ -18,10 +18,16 @@ vi.mock("../api", () => ({
           rechnungssteller_name: "Lieferant GmbH", rechnungsnummer: "RE-2026-0042",
           rechnungsdatum: "2026-07-15", betrag_cent: 23800, waehrung: "EUR",
           manuell_erfasst: false, importiert_am: "2026-07-19T10:00:00Z",
+          kaeufer_name: "", kaeufer_strasse: "", kaeufer_plz: "", kaeufer_ort: "", kaeufer_land: "",
+          verkaeufer_strasse: "Lieferantenweg 9", verkaeufer_plz: "50667", verkaeufer_ort: "Köln", verkaeufer_land: "DE",
+          verkaeufer_steuernummer: "DE123456789", verkaeufer_email: "",
+          zahlungsbedingungen: "", faelligkeitsdatum: "", iban: "", bic: "", bankname: "",
+          bestellnummer: "", leitweg_id: "", lieferantennummer: "", leistungsdatum: "",
         },
         positionen: [
           { bezeichnung: "Bürobedarf", menge: 2000, einzelpreis_cent: 11900, positionssumme_cent: 23800 },
         ],
+        steuerzeilen: [{ nettobetrag_cent: 20000, steuersatz_promille: 190, steuerbetrag_cent: 3800 }],
       }),
       update: vi.fn().mockResolvedValue({
         id: "e1", dateiname: "rechnung.xml", format: "xrechnung",
@@ -115,5 +121,12 @@ describe("EingangsrechnungDetail", () => {
     await waitFor(() => expect(screen.getByText("Lieferant GmbH")).toBeTruthy());
     fireEvent.click(screen.getByRole("button", { name: "← Zurück zur Liste" }));
     expect(onZurueck).toHaveBeenCalledTimes(1);
+  });
+
+  it("zeigt Zusatzfelder und Steuerzeilen in der Detailansicht", async () => {
+    render(<EingangsrechnungDetail id="e1" />);
+    await waitFor(() => expect(screen.getByText("Lieferant GmbH")).toBeTruthy());
+    expect(screen.getByText("DE123456789")).toBeTruthy();
+    expect(screen.getByText("19,0 %")).toBeTruthy();
   });
 });
