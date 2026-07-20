@@ -3,6 +3,7 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { readFile } from "@tauri-apps/plugin-fs";
 import { api, type AppFehler, type Eingangsrechnung, type EingangsrechnungFelderNeu, type EingangsrechnungVorschau } from "../api";
 import { Bestaetigungsdialog } from "../components/Bestaetigungsdialog";
+import { EingangsrechnungZusatzfelder } from "../components/EingangsrechnungZusatzfelder";
 import { Fehler } from "../components/Fehler";
 import { formatCentMitWaehrung, formatMenge, parseEuro } from "../geld";
 
@@ -188,6 +189,33 @@ export function Eingangsrechnungen({ onOeffnen }: EingangsrechnungenProps) {
                 ))}
               </tbody>
             </table>
+          )}
+
+          {vorschau.geparst && (
+            <EingangsrechnungZusatzfelder
+              kaeufer_name={vorschau.felder.kaeufer_name}
+              kaeufer_strasse={vorschau.felder.kaeufer_strasse}
+              kaeufer_plz={vorschau.felder.kaeufer_plz}
+              kaeufer_ort={vorschau.felder.kaeufer_ort}
+              kaeufer_land={vorschau.felder.kaeufer_land}
+              verkaeufer_strasse={vorschau.felder.verkaeufer_strasse}
+              verkaeufer_plz={vorschau.felder.verkaeufer_plz}
+              verkaeufer_ort={vorschau.felder.verkaeufer_ort}
+              verkaeufer_land={vorschau.felder.verkaeufer_land}
+              verkaeufer_steuernummer={vorschau.felder.verkaeufer_steuernummer}
+              verkaeufer_email={vorschau.felder.verkaeufer_email}
+              zahlungsbedingungen={vorschau.felder.zahlungsbedingungen}
+              faelligkeitsdatum={vorschau.felder.faelligkeitsdatum}
+              iban={vorschau.felder.iban}
+              bic={vorschau.felder.bic}
+              bankname={vorschau.felder.bankname}
+              bestellnummer={vorschau.felder.bestellnummer}
+              leitweg_id={vorschau.felder.leitweg_id}
+              lieferantennummer={vorschau.felder.lieferantennummer}
+              leistungsdatum={vorschau.felder.leistungsdatum}
+              waehrung={vorschau.felder.waehrung}
+              steuerzeilen={vorschau.felder.steuerzeilen}
+            />
           )}
 
           <button type="submit" className="btn btn-primaer">Speichern</button>

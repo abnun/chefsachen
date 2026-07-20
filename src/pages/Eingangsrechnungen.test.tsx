@@ -13,6 +13,11 @@ vi.mock("../api", () => ({
           rechnungssteller_name: "Lieferant GmbH", rechnungsnummer: "RE-2026-0042",
           rechnungsdatum: "2026-07-15", betrag_cent: 23800, waehrung: "EUR",
           manuell_erfasst: false, importiert_am: "2026-07-19T10:00:00Z",
+          kaeufer_name: "", kaeufer_strasse: "", kaeufer_plz: "", kaeufer_ort: "", kaeufer_land: "",
+          verkaeufer_strasse: "", verkaeufer_plz: "", verkaeufer_ort: "", verkaeufer_land: "",
+          verkaeufer_steuernummer: "", verkaeufer_email: "",
+          zahlungsbedingungen: "", faelligkeitsdatum: "", iban: "", bic: "", bankname: "",
+          bestellnummer: "", leitweg_id: "", lieferantennummer: "", leistungsdatum: "",
         },
       ]),
       importVorschau: vi.fn().mockResolvedValue({
@@ -20,6 +25,12 @@ vi.mock("../api", () => ({
         felder: {
           rechnungssteller_name: "Neuer Lieferant", rechnungsnummer: "RE-9999",
           rechnungsdatum: "2026-07-19", betrag_cent: 10000, waehrung: "EUR", positionen: [],
+          kaeufer_name: "", kaeufer_strasse: "", kaeufer_plz: "", kaeufer_ort: "", kaeufer_land: "",
+          verkaeufer_strasse: "", verkaeufer_plz: "", verkaeufer_ort: "", verkaeufer_land: "",
+          verkaeufer_steuernummer: "", verkaeufer_email: "",
+          zahlungsbedingungen: "", faelligkeitsdatum: "", iban: "", bic: "", bankname: "",
+          bestellnummer: "", leitweg_id: "", lieferantennummer: "", leistungsdatum: "",
+          steuerzeilen: [],
         },
         ist_duplikat: false,
       }),
@@ -28,6 +39,11 @@ vi.mock("../api", () => ({
         rechnungssteller_name: "Neuer Lieferant", rechnungsnummer: "RE-9999",
         rechnungsdatum: "2026-07-19", betrag_cent: 10000, waehrung: "EUR",
         manuell_erfasst: false, importiert_am: "2026-07-19T11:00:00Z",
+        kaeufer_name: "", kaeufer_strasse: "", kaeufer_plz: "", kaeufer_ort: "", kaeufer_land: "",
+        verkaeufer_strasse: "", verkaeufer_plz: "", verkaeufer_ort: "", verkaeufer_land: "",
+        verkaeufer_steuernummer: "", verkaeufer_email: "",
+        zahlungsbedingungen: "", faelligkeitsdatum: "", iban: "", bic: "", bankname: "",
+        bestellnummer: "", leitweg_id: "", lieferantennummer: "", leistungsdatum: "",
       }),
     },
   },
@@ -53,6 +69,11 @@ describe("Eingangsrechnungen", () => {
         rechnungssteller_name: "US Supplier Inc.", rechnungsnummer: "INV-1",
         rechnungsdatum: "2026-07-10", betrag_cent: 5000, waehrung: "USD",
         manuell_erfasst: false, importiert_am: "2026-07-19T10:00:00Z",
+        kaeufer_name: "", kaeufer_strasse: "", kaeufer_plz: "", kaeufer_ort: "", kaeufer_land: "",
+        verkaeufer_strasse: "", verkaeufer_plz: "", verkaeufer_ort: "", verkaeufer_land: "",
+        verkaeufer_steuernummer: "", verkaeufer_email: "",
+        zahlungsbedingungen: "", faelligkeitsdatum: "", iban: "", bic: "", bankname: "",
+        bestellnummer: "", leitweg_id: "", lieferantennummer: "", leistungsdatum: "",
       },
     ]);
     render(<Eingangsrechnungen onOeffnen={() => {}} />);
@@ -88,7 +109,15 @@ describe("Eingangsrechnungen", () => {
     const { api } = await import("../api");
     vi.mocked(api.eingangsrechnungen.importVorschau).mockResolvedValueOnce({
       geparst: false,
-      felder: { rechnungssteller_name: "", rechnungsnummer: "", rechnungsdatum: "", betrag_cent: 0, waehrung: "EUR", positionen: [] },
+      felder: {
+        rechnungssteller_name: "", rechnungsnummer: "", rechnungsdatum: "", betrag_cent: 0, waehrung: "EUR", positionen: [],
+        kaeufer_name: "", kaeufer_strasse: "", kaeufer_plz: "", kaeufer_ort: "", kaeufer_land: "",
+        verkaeufer_strasse: "", verkaeufer_plz: "", verkaeufer_ort: "", verkaeufer_land: "",
+        verkaeufer_steuernummer: "", verkaeufer_email: "",
+        zahlungsbedingungen: "", faelligkeitsdatum: "", iban: "", bic: "", bankname: "",
+        bestellnummer: "", leitweg_id: "", lieferantennummer: "", leistungsdatum: "",
+        steuerzeilen: [],
+      },
       ist_duplikat: false,
     });
     render(<Eingangsrechnungen onOeffnen={() => {}} />);
@@ -106,6 +135,12 @@ describe("Eingangsrechnungen", () => {
       felder: {
         rechnungssteller_name: "Lieferant GmbH", rechnungsnummer: "RE-2026-0042",
         rechnungsdatum: "2026-07-15", betrag_cent: 23800, waehrung: "EUR", positionen: [],
+        kaeufer_name: "", kaeufer_strasse: "", kaeufer_plz: "", kaeufer_ort: "", kaeufer_land: "",
+        verkaeufer_strasse: "", verkaeufer_plz: "", verkaeufer_ort: "", verkaeufer_land: "",
+        verkaeufer_steuernummer: "", verkaeufer_email: "",
+        zahlungsbedingungen: "", faelligkeitsdatum: "", iban: "", bic: "", bankname: "",
+        bestellnummer: "", leitweg_id: "", lieferantennummer: "", leistungsdatum: "",
+        steuerzeilen: [],
       },
       ist_duplikat: true,
     });
@@ -140,6 +175,29 @@ describe("Eingangsrechnungen", () => {
         expect.objectContaining({ filters: [{ name: "E-Rechnung", extensions: ["xml", "pdf"] }] }),
       ),
     );
+  });
+
+  it("zeigt Zusatzfelder in der Vorschau, sobald sie geparst wurden", async () => {
+    const { api } = await import("../api");
+    vi.mocked(api.eingangsrechnungen.importVorschau).mockResolvedValueOnce({
+      geparst: true,
+      felder: {
+        rechnungssteller_name: "Neuer Lieferant", rechnungsnummer: "RE-9999",
+        rechnungsdatum: "2026-07-19", betrag_cent: 10000, waehrung: "EUR", positionen: [],
+        kaeufer_name: "", kaeufer_strasse: "", kaeufer_plz: "", kaeufer_ort: "", kaeufer_land: "",
+        verkaeufer_strasse: "Lieferantenweg 9", verkaeufer_plz: "50667", verkaeufer_ort: "Köln", verkaeufer_land: "DE",
+        verkaeufer_steuernummer: "DE123456789", verkaeufer_email: "",
+        zahlungsbedingungen: "", faelligkeitsdatum: "", iban: "", bic: "", bankname: "",
+        bestellnummer: "", leitweg_id: "", lieferantennummer: "", leistungsdatum: "",
+        steuerzeilen: [],
+      },
+      ist_duplikat: false,
+    });
+    render(<Eingangsrechnungen onOeffnen={() => {}} />);
+    await waitFor(() => expect(screen.getByText("Lieferant GmbH")).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Importieren" }));
+    await waitFor(() => expect(screen.getByText("Neuer Lieferant")).toBeTruthy());
+    expect(screen.getByText("DE123456789")).toBeTruthy();
   });
 
   // Ab hier: Tests, die speichern() aufrufen, stehen bewusst am Dateiende — kein
