@@ -110,7 +110,35 @@ erfasst) und einmal auf Kopfebene
 Steuerzeilen). Die Unterscheidung erfolgt über die sich gegenseitig
 ausschließenden Flags `in_zeile` und `in_steuerzeile` — der Kopfebenen-Fall
 tritt nur auf, wenn `in_zeile == false` ist (Positionen und
-Kopf-Steuerzeilen liegen nie ineinander verschachtelt).
+Kopf-Steuerzeilen liegen nie ineinander verschachtelt, da
+`ApplicableHeaderTradeSettlement` immer ein Geschwisterelement der
+`IncludedSupplyChainTradeLineItem`-Elemente ist, nie darin verschachtelt).
+
+**Konkret für die Implementierung:** im `Event::Start`-Handler muss die
+Prüfreihenfolge stimmen, sonst wird die positionsinterne
+`ram:ApplicableTradeTax` fälschlich als Kopf-Steuerzeile erfasst:
+
+```rust
+if name == "ram:IncludedSupplyChainTradeLineItem" {
+    in_zeile = true; /* ... */
+} else if name == "ram:ApplicableTradeTax" && !in_zeile {
+    in_steuerzeile = true; /* ... */
+} else if in_zeile {
+    zeilen_pfad.push(name.clone());
+} else if in_steuerzeile {
+    steuerzeilen_pfad.push(name.clone());
+}
+pfad.push(name);
+```
+
+Die zweite Bedingung (`&& !in_zeile`) ist entscheidend: ohne sie würde die
+positionsinterne `ram:ApplicableTradeTax` (die bisher einfach unbeachtet
+auf `zeilen_pfad` landet, da sie keinem Positions-Zielpfad entspricht)
+fälschlich eine Kopf-Steuerzeile eröffnen, obwohl wir uns noch innerhalb
+einer Position befinden. Für UBL besteht dieses Kollisionsrisiko nicht —
+XRechnung-UBL-Rechnungen (PEPPOL-BIS-Billing-Profil) führen Steuerdaten nur
+auf Dokumentebene (`cac:TaxTotal/cac:TaxSubtotal`), nicht zusätzlich pro
+Position.
 
 **Feld-Zuordnung CII / UBL:**
 
@@ -210,11 +238,29 @@ Rust-Structs, plus ein neues `EingangsrechnungSteuerzeile`-Interface.
 
 ## Tests
 
-- Rust: `parse_cii`/`parse_ubl` — je ein Test, der alle neuen Felder aus
-  einer erweiterten Test-Fixture korrekt extrahiert (CII-Fixture per
-  Round-Trip-Erweiterung des bestehenden `xrechnung::xml_erzeugen`, sofern
-  praktikabel, sonst handgeschriebene Fixture wie beim UBL-Parser bereits
-  etabliert).
+- Rust CII: **nicht** alle neuen Felder lassen sich per Round-Trip gegen den
+  bestehenden `xrechnung::xml_erzeugen` testen — geprüft, welche Felder der
+  eigene Generator tatsächlich schreibt:
+  - **Round-Trip-testbar** (Generator schreibt es bereits):
+    `kaeufer_name`, `kaeufer_strasse/plz/ort/land`,
+    `verkaeufer_strasse/plz/ort/land`, `verkaeufer_steuernummer`,
+    `bestellnummer`, `leitweg_id`, `zahlungsbedingungen`, `iban`, `bic`.
+  - **Nicht round-trip-testbar, handgeschriebene CII-Fixture nötig**
+    (Generator schreibt es nicht — verifiziert per Grep, kein einziges
+    Vorkommen außerhalb der Testhilfsfunktion): `verkaeufer_email`,
+    `lieferantennummer`, `bankname`, `leistungsdatum`, `faelligkeitsdatum`,
+    Steuerzeilen (der Generator schreibt für Kleinunternehmer-Rechnungen nur
+    0 %/Kategorie "E" auf Positionsebene, keine Kopf-Steuerzeilen — ohnehin
+    kein sinnvoller Testfall für „mehrere unterschiedliche Sätze").
+  - Für die Fixture-Ergänzung also zwei separate Tests: einen Round-Trip-Test
+    (erweitert den bestehenden CII-Round-Trip-Test aus Plan 8 um die
+    zusätzlichen Assertions) und einen zweiten Test mit einer handgeschriebenen
+    CII-Fixture nach dem Vorbild von `UBL_BEISPIEL`, der gezielt die 6 oben
+    genannten, nicht generierbaren Felder abdeckt.
+- Rust UBL: eine erweiterte `UBL_BEISPIEL`-Fixture (oder eine zweite,
+  reichhaltigere Fixture) mit allen neuen Feldern — hier gibt es keinen
+  eigenen UBL-Generator zum Round-Trippen, war schon bei den bisherigen
+  UBL-Tests handgeschrieben.
 - Rust: mehrere Steuerzeilen (unterschiedliche Sätze) werden korrekt als
   Liste erfasst, nicht nur die letzte/erste überschreibt die anderen.
 - Rust: fehlende optionale Felder (z. B. keine Leitweg-ID) führen zu leeren
