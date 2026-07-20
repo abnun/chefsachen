@@ -415,6 +415,28 @@ mod tests {
         assert_eq!(gespeichert.iban, "DE11 2222 3333");
 
         let detail = get(&pool, gespeichert.id).await.unwrap();
+        // Vollständiger DB-Rundlauf (Insert -> Read-back via get()) für alle neuen
+        // Skalarfelder, nicht nur die drei oben am direkt zurückgegebenen Struct.
+        assert_eq!(detail.eingangsrechnung.kaeufer_name, "Käufer GmbH");
+        assert_eq!(detail.eingangsrechnung.kaeufer_strasse, "Käuferweg 2");
+        assert_eq!(detail.eingangsrechnung.kaeufer_plz, "10115");
+        assert_eq!(detail.eingangsrechnung.kaeufer_ort, "Berlin");
+        assert_eq!(detail.eingangsrechnung.kaeufer_land, "DE");
+        assert_eq!(detail.eingangsrechnung.verkaeufer_strasse, "Verkäuferweg 1");
+        assert_eq!(detail.eingangsrechnung.verkaeufer_plz, "50667");
+        assert_eq!(detail.eingangsrechnung.verkaeufer_ort, "Köln");
+        assert_eq!(detail.eingangsrechnung.verkaeufer_land, "DE");
+        assert_eq!(detail.eingangsrechnung.verkaeufer_steuernummer, "DE999888777");
+        assert_eq!(detail.eingangsrechnung.verkaeufer_email, "info@lieferant-beispiel.de");
+        assert_eq!(detail.eingangsrechnung.zahlungsbedingungen, "Zahlbar innerhalb von 14 Tagen");
+        assert_eq!(detail.eingangsrechnung.faelligkeitsdatum, "2026-07-15");
+        assert_eq!(detail.eingangsrechnung.iban, "DE11 2222 3333");
+        assert_eq!(detail.eingangsrechnung.bic, "TESTDE81XXX");
+        assert_eq!(detail.eingangsrechnung.bankname, "Testbank AG");
+        assert_eq!(detail.eingangsrechnung.bestellnummer, "BEST-1");
+        assert_eq!(detail.eingangsrechnung.leitweg_id, "991-1");
+        assert_eq!(detail.eingangsrechnung.lieferantennummer, "LFT-777");
+        assert_eq!(detail.eingangsrechnung.leistungsdatum, "2026-06-28");
         assert_eq!(detail.steuerzeilen.len(), 2);
         assert_eq!(detail.steuerzeilen[0].steuersatz_promille, 190);
         assert_eq!(detail.steuerzeilen[0].nettobetrag_cent, 10000);
