@@ -14,7 +14,7 @@ beforeEach(async () => {
   vi.mocked(api.kunden.list).mockResolvedValue([
     { id: "1", typ: "firma", name: "ACME GmbH", kundennummer: "KD-0001",
       zahlungsziel_tage: 14, notizen: "", ust_idnr: "", email: "",
-      leitweg_id: "", kaeuferreferenz: "", hat_adresse: false },
+      leitweg_id: "", kaeuferreferenz: "", hat_adresse: false, kundenpreise_anzahl: 0 },
   ]);
 });
 
@@ -24,12 +24,12 @@ vi.mock("../api", () => ({
       list: vi.fn().mockResolvedValue([
         { id: "1", typ: "firma", name: "ACME GmbH", kundennummer: "KD-0001",
           zahlungsziel_tage: 14, notizen: "", ust_idnr: "", email: "",
-          leitweg_id: "", kaeuferreferenz: "", hat_adresse: false },
+          leitweg_id: "", kaeuferreferenz: "", hat_adresse: false, kundenpreise_anzahl: 0 },
       ]),
       create: vi.fn().mockResolvedValue({
         id: "neu1", typ: "firma", name: "Neu GmbH", kundennummer: "KD-0002",
         zahlungsziel_tage: 14, notizen: "", ust_idnr: "", email: "",
-        leitweg_id: "", kaeuferreferenz: "", hat_adresse: false,
+        leitweg_id: "", kaeuferreferenz: "", hat_adresse: false, kundenpreise_anzahl: 0,
       }),
       delete: vi.fn().mockResolvedValue(undefined),
     },
@@ -123,7 +123,8 @@ describe("Kunden", () => {
     vi.mocked(api.kunden.list).mockResolvedValueOnce([
       { id: "1", typ: "firma", name: "ACME GmbH", kundennummer: "KD-0001",
         zahlungsziel_tage: 14, notizen: "", ust_idnr: "", email: "",
-        leitweg_id: "", kaeuferreferenz: "", hat_adresse: true, hat_offene_entwuerfe: true },
+        leitweg_id: "", kaeuferreferenz: "", hat_adresse: true, hat_offene_entwuerfe: true,
+        kundenpreise_anzahl: 0 },
     ]);
     render(<Kunden onOeffnen={() => {}} />);
     await waitFor(() => expect(screen.getByText("ACME GmbH")).toBeTruthy());
@@ -139,5 +140,26 @@ describe("Kunden", () => {
     fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Löschen" }));
     await waitFor(() => expect(screen.getByText('Kunde „ACME GmbH" gelöscht')).toBeTruthy());
     expect(onOeffnen).not.toHaveBeenCalled();
+  });
+
+  it("zeigt einen Hinweis auf mitzulöschende Kundenpreise im Dialogtext und übergibt kundenpreiseMitloeschen", async () => {
+    const { api } = await import("../api");
+    vi.mocked(api.kunden.list).mockResolvedValueOnce([
+      { id: "1", typ: "firma", name: "ACME GmbH", kundennummer: "KD-0001",
+        zahlungsziel_tage: 14, notizen: "", ust_idnr: "", email: "",
+        leitweg_id: "", kaeuferreferenz: "", hat_adresse: true, kundenpreise_anzahl: 2 },
+    ]);
+    render(<Kunden onOeffnen={() => {}} />);
+    await waitFor(() => expect(screen.getByText("ACME GmbH")).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Löschen" }));
+    await waitFor(() =>
+      expect(
+        screen.getByText(
+          'Kunde „ACME GmbH" hat 2 Kundenpreis(e). Diese werden beim Löschen ebenfalls entfernt. Trotzdem löschen?',
+        ),
+      ).toBeTruthy(),
+    );
+    fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Löschen" }));
+    await waitFor(() => expect(vi.mocked(api.kunden.delete)).toHaveBeenCalledWith("1", true));
   });
 });

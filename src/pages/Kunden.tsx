@@ -104,14 +104,18 @@ export function Kunden({
     }
   }
 
-  async function loeschen(id: string, name: string) {
-    if (!(await bestaetigen(`Kunde „${name}" löschen?`))) return;
+  async function loeschen(kunde: Kunde) {
+    const text =
+      kunde.kundenpreise_anzahl === 0
+        ? `Kunde „${kunde.name}" löschen?`
+        : `Kunde „${kunde.name}" hat ${kunde.kundenpreise_anzahl} Kundenpreis(e). Diese werden beim Löschen ebenfalls entfernt. Trotzdem löschen?`;
+    if (!(await bestaetigen(text))) return;
     setFehler(null);
     try {
-      await api.kunden.delete(id);
+      await api.kunden.delete(kunde.id, kunde.kundenpreise_anzahl > 0);
       const liste = await api.kunden.list(suche || undefined);
       setKunden(liste);
-      zeigen(`Kunde „${name}" gelöscht`);
+      zeigen(`Kunde „${kunde.name}" gelöscht`);
     } catch (e) {
       setFehler(e as AppFehler);
     }
@@ -296,7 +300,7 @@ export function Kunden({
                   disabled={kunde.hat_offene_entwuerfe}
                   onClick={(e) => {
                     e.stopPropagation();
-                    loeschen(kunde.id, kunde.name);
+                    loeschen(kunde);
                   }}
                 >
                   Löschen

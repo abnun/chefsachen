@@ -201,10 +201,14 @@ function StammdatenReiter({ kunde, onGespeichert, onGeloescht }: StammdatenReite
   }
 
   async function loeschen() {
-    if (!(await bestaetigen(`Kunde „${kunde.name}" löschen?`))) return;
+    const text =
+      kunde.kundenpreise_anzahl === 0
+        ? `Kunde „${kunde.name}" löschen?`
+        : `Kunde „${kunde.name}" hat ${kunde.kundenpreise_anzahl} Kundenpreis(e). Diese werden beim Löschen ebenfalls entfernt. Trotzdem löschen?`;
+    if (!(await bestaetigen(text))) return;
     setFehler(null);
     try {
-      await api.kunden.delete(kunde.id);
+      await api.kunden.delete(kunde.id, kunde.kundenpreise_anzahl > 0);
       onGeloescht?.();
     } catch (e) {
       setFehler(e as AppFehler);

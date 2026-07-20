@@ -18,8 +18,9 @@ export interface Kunde {
   kaeuferreferenz: string;
   hat_adresse: boolean;
   hat_offene_entwuerfe?: boolean;
+  kundenpreise_anzahl: number;
 }
-export type KundeNeu = Omit<Kunde, "id" | "kundennummer" | "hat_adresse" | "hat_offene_entwuerfe">;
+export type KundeNeu = Omit<Kunde, "id" | "kundennummer" | "hat_adresse" | "hat_offene_entwuerfe" | "kundenpreise_anzahl">;
 export interface Adresse {
   id: string;
   kunde_id: string;
@@ -263,7 +264,8 @@ export const api = {
     get: (id: string) => invoke<KundeDetail>("kunde_get", { id }),
     create: (daten: KundeNeu) => invoke<Kunde>("kunde_create", { daten }),
     update: (kunde: Kunde) => invoke<Kunde>("kunde_update", { kunde }),
-    delete: (id: string) => invoke<void>("kunde_delete", { id }),
+    delete: (id: string, kundenpreiseMitloeschen: boolean) =>
+      invoke<void>("kunde_delete", { id, kundenpreiseMitloeschen }),
     adresseSave: (adresse: Adresse) => invoke<Adresse>("adresse_save", { adresse }),
     adresseDelete: (id: string) => invoke<void>("adresse_delete", { id }),
     ansprechpartnerSave: (ap: Ansprechpartner) => invoke<Ansprechpartner>("ansprechpartner_save", { ap }),

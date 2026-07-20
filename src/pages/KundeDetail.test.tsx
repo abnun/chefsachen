@@ -20,6 +20,7 @@ vi.mock("../api", () => ({
           leitweg_id: "",
           kaeuferreferenz: "",
           hat_adresse: true,
+          kundenpreise_anzahl: 0,
         },
         adressen: [
           {
@@ -205,6 +206,7 @@ describe("KundeDetail", () => {
         id: "1", typ: "firma", name: "ACME GmbH", kundennummer: "KD-0001",
         zahlungsziel_tage: 14, notizen: "", ust_idnr: "", email: "",
         leitweg_id: "", kaeuferreferenz: "", hat_adresse: true, hat_offene_entwuerfe: true,
+        kundenpreise_anzahl: 0,
       },
       adressen: [], ansprechpartner: [],
     });
@@ -221,5 +223,29 @@ describe("KundeDetail", () => {
     await waitFor(() => expect(screen.getByText('Kunde „ACME GmbH" löschen?')).toBeTruthy());
     fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Löschen" }));
     await waitFor(() => expect(onGeloescht).toHaveBeenCalledTimes(1));
+  });
+
+  it("zeigt einen Hinweis auf mitzulöschende Kundenpreise im Dialogtext und übergibt kundenpreiseMitloeschen", async () => {
+    const { api } = await import("../api");
+    vi.mocked(api.kunden.get).mockResolvedValueOnce({
+      kunde: {
+        id: "1", typ: "firma", name: "ACME GmbH", kundennummer: "KD-0001",
+        zahlungsziel_tage: 14, notizen: "", ust_idnr: "", email: "",
+        leitweg_id: "", kaeuferreferenz: "", hat_adresse: true, kundenpreise_anzahl: 2,
+      },
+      adressen: [], ansprechpartner: [],
+    });
+    render(<KundeDetail id="1" />);
+    await waitFor(() => expect(screen.getByDisplayValue("ACME GmbH")).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Löschen" }));
+    await waitFor(() =>
+      expect(
+        screen.getByText(
+          'Kunde „ACME GmbH" hat 2 Kundenpreis(e). Diese werden beim Löschen ebenfalls entfernt. Trotzdem löschen?',
+        ),
+      ).toBeTruthy(),
+    );
+    fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Löschen" }));
+    await waitFor(() => expect(vi.mocked(api.kunden.delete)).toHaveBeenCalledWith("1", true));
   });
 });

@@ -93,7 +93,7 @@ describe("Artikel", () => {
       {
         id: "k1", typ: "firma", name: "ACME GmbH", kundennummer: "KD-0001",
         zahlungsziel_tage: 14, notizen: "", ust_idnr: "", email: "",
-        leitweg_id: "", kaeuferreferenz: "", hat_adresse: true,
+        leitweg_id: "", kaeuferreferenz: "", hat_adresse: true, kundenpreise_anzahl: 0,
       },
     ]);
     vi.mocked(api.artikel.kundenpreise).mockResolvedValueOnce([
@@ -123,7 +123,7 @@ describe("Artikel", () => {
       {
         id: "k1", typ: "firma", name: "ACME GmbH", kundennummer: "KD-0001",
         zahlungsziel_tage: 14, notizen: "", ust_idnr: "", email: "",
-        leitweg_id: "", kaeuferreferenz: "", hat_adresse: true,
+        leitweg_id: "", kaeuferreferenz: "", hat_adresse: true, kundenpreise_anzahl: 0,
       },
     ]);
     vi.mocked(api.artikel.kundenpreise).mockResolvedValueOnce([
@@ -141,7 +141,7 @@ describe("Artikel", () => {
       {
         id: "k1", typ: "firma", name: "ACME GmbH", kundennummer: "KD-0001",
         zahlungsziel_tage: 14, notizen: "", ust_idnr: "", email: "",
-        leitweg_id: "", kaeuferreferenz: "", hat_adresse: true,
+        leitweg_id: "", kaeuferreferenz: "", hat_adresse: true, kundenpreise_anzahl: 0,
       },
     ]);
     vi.mocked(api.artikel.kundenpreise).mockResolvedValueOnce([
@@ -160,7 +160,7 @@ describe("Artikel", () => {
       {
         id: "k1", typ: "firma", name: "ACME GmbH", kundennummer: "KD-0001",
         zahlungsziel_tage: 14, notizen: "", ust_idnr: "", email: "",
-        leitweg_id: "", kaeuferreferenz: "", hat_adresse: true,
+        leitweg_id: "", kaeuferreferenz: "", hat_adresse: true, kundenpreise_anzahl: 0,
       },
     ]);
     vi.mocked(api.artikel.kundenpreise).mockResolvedValueOnce([
@@ -185,7 +185,7 @@ describe("Artikel", () => {
       {
         id: "k1", typ: "firma", name: "ACME GmbH", kundennummer: "KD-0001",
         zahlungsziel_tage: 14, notizen: "", ust_idnr: "", email: "",
-        leitweg_id: "", kaeuferreferenz: "", hat_adresse: true,
+        leitweg_id: "", kaeuferreferenz: "", hat_adresse: true, kundenpreise_anzahl: 0,
       },
     ]);
     vi.mocked(api.artikel.kundenpreise).mockResolvedValueOnce([
@@ -204,7 +204,7 @@ describe("Artikel", () => {
       {
         id: "k1", typ: "firma", name: "ACME GmbH", kundennummer: "KD-0001",
         zahlungsziel_tage: 14, notizen: "", ust_idnr: "", email: "",
-        leitweg_id: "", kaeuferreferenz: "", hat_adresse: true,
+        leitweg_id: "", kaeuferreferenz: "", hat_adresse: true, kundenpreise_anzahl: 0,
       },
     ]);
     vi.mocked(api.artikel.kundenpreise).mockResolvedValueOnce([]);
@@ -251,7 +251,7 @@ describe("Artikel", () => {
       {
         id: "k1", typ: "firma", name: "ACME GmbH", kundennummer: "KD-0001",
         zahlungsziel_tage: 14, notizen: "", ust_idnr: "", email: "",
-        leitweg_id: "", kaeuferreferenz: "", hat_adresse: true,
+        leitweg_id: "", kaeuferreferenz: "", hat_adresse: true, kundenpreise_anzahl: 0,
       },
     ]);
     render(<Artikel />);
@@ -277,7 +277,7 @@ describe("Artikel", () => {
       {
         id: "k1", typ: "firma", name: "ACME GmbH", kundennummer: "KD-0001",
         zahlungsziel_tage: 14, notizen: "", ust_idnr: "", email: "",
-        leitweg_id: "", kaeuferreferenz: "", hat_adresse: true,
+        leitweg_id: "", kaeuferreferenz: "", hat_adresse: true, kundenpreise_anzahl: 0,
       },
     ]);
     vi.mocked(api.artikel.kundenpreise).mockResolvedValueOnce([]);

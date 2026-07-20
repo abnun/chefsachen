@@ -15,6 +15,11 @@ pub struct Kunde {
     /// "entwurf" diesen Kunden referenziert. Wird von `delete()` genutzt, um
     /// das Löschen serverseitig abzulehnen — siehe Task 2.
     pub hat_offene_entwuerfe: bool,
+    /// Anzahl aktiver Kundenpreis-Ausnahmen (über alle Artikel hinweg), die
+    /// diesen Kunden referenzieren. Wird von `delete()` genutzt, um vor dem
+    /// Löschen eine Bestätigung zu verlangen und die Kundenpreise im gleichen
+    /// Zug mitzulöschen — analog zu `Artikel::kundenpreise_anzahl`.
+    pub kundenpreise_anzahl: i64,
 }
 
 #[derive(Debug, Deserialize)]
@@ -58,7 +63,8 @@ pub async fn create(pool: &SqlitePool, d: KundeNeu) -> AppResult<Kunde> {
     let k = Kunde { id: Uuid::new_v4().to_string(), typ: d.typ, name: d.name.trim().into(),
         kundennummer, zahlungsziel_tage: d.zahlungsziel_tage, notizen: d.notizen,
         ust_idnr: d.ust_idnr, email: d.email, leitweg_id: d.leitweg_id,
-        kaeuferreferenz: d.kaeuferreferenz, hat_adresse: false, hat_offene_entwuerfe: false };
+        kaeuferreferenz: d.kaeuferreferenz, hat_adresse: false, hat_offene_entwuerfe: false,
+        kundenpreise_anzahl: 0 };
     sqlx::query("INSERT INTO kunde (id, typ, name, kundennummer, zahlungsziel_tage, notizen, ust_idnr, email, leitweg_id, kaeuferreferenz, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)")
         .bind(&k.id).bind(&k.typ).bind(&k.name).bind(&k.kundennummer)
         .bind(k.zahlungsziel_tage).bind(&k.notizen).bind(&k.ust_idnr).bind(&k.email)
@@ -73,7 +79,8 @@ pub async fn list(pool: &SqlitePool, suche: Option<String>) -> AppResult<Vec<Kun
         "SELECT k.id, k.typ, k.name, k.kundennummer, k.zahlungsziel_tage, k.notizen, k.ust_idnr, \
                 k.email, k.leitweg_id, k.kaeuferreferenz, \
                 EXISTS(SELECT 1 FROM adresse a WHERE a.kunde_id = k.id AND a.deleted_at IS NULL) AS hat_adresse, \
-                EXISTS(SELECT 1 FROM beleg b WHERE b.kunde_id = k.id AND b.status = 'entwurf' AND b.deleted_at IS NULL) AS hat_offene_entwuerfe \
+                EXISTS(SELECT 1 FROM beleg b WHERE b.kunde_id = k.id AND b.status = 'entwurf' AND b.deleted_at IS NULL) AS hat_offene_entwuerfe, \
+                (SELECT COUNT(*) FROM kundenpreis kp WHERE kp.kunde_id = k.id AND kp.deleted_at IS NULL) AS kundenpreise_anzahl \
          FROM kunde k WHERE k.deleted_at IS NULL AND (lower(k.name) LIKE ? OR lower(k.kundennummer) LIKE ?) ORDER BY k.name")
         .bind(&muster).bind(&muster).fetch_all(pool).await?)
 }
@@ -83,7 +90,8 @@ pub async fn get(pool: &SqlitePool, id: String) -> AppResult<KundeDetail> {
         "SELECT k.id, k.typ, k.name, k.kundennummer, k.zahlungsziel_tage, k.notizen, k.ust_idnr, \
                 k.email, k.leitweg_id, k.kaeuferreferenz, \
                 EXISTS(SELECT 1 FROM adresse a WHERE a.kunde_id = k.id AND a.deleted_at IS NULL) AS hat_adresse, \
-                EXISTS(SELECT 1 FROM beleg b WHERE b.kunde_id = k.id AND b.status = 'entwurf' AND b.deleted_at IS NULL) AS hat_offene_entwuerfe \
+                EXISTS(SELECT 1 FROM beleg b WHERE b.kunde_id = k.id AND b.status = 'entwurf' AND b.deleted_at IS NULL) AS hat_offene_entwuerfe, \
+                (SELECT COUNT(*) FROM kundenpreis kp WHERE kp.kunde_id = k.id AND kp.deleted_at IS NULL) AS kundenpreise_anzahl \
          FROM kunde k WHERE k.id = ? AND k.deleted_at IS NULL")
         .bind(&id).fetch_optional(pool).await?.ok_or(AppError::NichtGefunden)?;
     let adressen = sqlx::query_as(
@@ -110,7 +118,7 @@ pub async fn update(pool: &SqlitePool, kunde: Kunde) -> AppResult<Kunde> {
     Ok(kunde)
 }
 
-pub async fn delete(pool: &SqlitePool, id: String) -> AppResult<()> {
+pub async fn delete(pool: &SqlitePool, id: String, kundenpreise_mitloeschen: bool) -> AppResult<()> {
     let hat_entwurf: (i64,) = sqlx::query_as(
         "SELECT COUNT(*) FROM beleg WHERE kunde_id = ? AND status = 'entwurf' AND deleted_at IS NULL")
         .bind(&id).fetch_one(pool).await?;
@@ -120,9 +128,30 @@ pub async fn delete(pool: &SqlitePool, id: String) -> AppResult<()> {
             meldung: "Kunde hat noch offene Entwürfe und kann nicht gelöscht werden".into(),
         });
     }
+    // Kundenpreise dieses Kunden (über alle Artikel hinweg) müssen mitgelöscht
+    // werden, sonst bleiben sie als Karteileichen bestehen — analog zur
+    // Artikel::delete-Kaskade, nur in die andere Richtung der Beziehung.
+    let anzahl_kundenpreise: (i64,) = sqlx::query_as(
+        "SELECT COUNT(*) FROM kundenpreis WHERE kunde_id = ? AND deleted_at IS NULL")
+        .bind(&id).fetch_one(pool).await?;
+    if anzahl_kundenpreise.0 > 0 && !kundenpreise_mitloeschen {
+        return Err(AppError::Validation {
+            feld: "id".into(),
+            meldung: format!(
+                "Kunde hat {} Kundenpreis(e) — zum Löschen bestätigen, dass sie mitgelöscht werden sollen",
+                anzahl_kundenpreise.0
+            ),
+        });
+    }
+    let mut tx = pool.begin().await?;
+    if anzahl_kundenpreise.0 > 0 {
+        sqlx::query("UPDATE kundenpreis SET deleted_at = ? WHERE kunde_id = ? AND deleted_at IS NULL")
+            .bind(jetzt()).bind(&id).execute(&mut *tx).await?;
+    }
     let r = sqlx::query("UPDATE kunde SET deleted_at = ? WHERE id = ? AND deleted_at IS NULL")
-        .bind(jetzt()).bind(&id).execute(pool).await?;
+        .bind(jetzt()).bind(&id).execute(&mut *tx).await?;
     if r.rows_affected() == 0 { return Err(AppError::NichtGefunden); }
+    tx.commit().await?;
     Ok(())
 }
 
@@ -202,8 +231,8 @@ pub async fn kunde_update(pool: tauri::State<'_, SqlitePool>, kunde: Kunde) -> A
     update(&pool, kunde).await
 }
 #[tauri::command]
-pub async fn kunde_delete(pool: tauri::State<'_, SqlitePool>, id: String) -> AppResult<()> {
-    delete(&pool, id).await
+pub async fn kunde_delete(pool: tauri::State<'_, SqlitePool>, id: String, kundenpreise_mitloeschen: bool) -> AppResult<()> {
+    delete(&pool, id, kundenpreise_mitloeschen).await
 }
 #[tauri::command]
 pub async fn adresse_save(pool: tauri::State<'_, SqlitePool>, adresse: Adresse) -> AppResult<Adresse> {
@@ -320,7 +349,7 @@ mod tests {
             kopftext: "".into(), fusstext: "".into(),
         }).await.unwrap();
 
-        let err = delete(&pool, kunde_id).await.unwrap_err();
+        let err = delete(&pool, kunde_id, false).await.unwrap_err();
         assert!(matches!(err, AppError::Validation { .. }));
     }
 
@@ -328,7 +357,7 @@ mod tests {
     async fn delete_erlaubt_wenn_keine_belege_existieren() {
         let (_dir, pool) = test_pool().await;
         let kunde_id = create(&pool, neu("ACME GmbH")).await.unwrap().id;
-        delete(&pool, kunde_id).await.unwrap();
+        delete(&pool, kunde_id, false).await.unwrap();
     }
 
     #[tokio::test]
@@ -350,6 +379,90 @@ mod tests {
         }).await.unwrap();
         crate::commands::belege::stellen(&pool, beleg.id).await.unwrap();
 
-        delete(&pool, kunde_id).await.unwrap();
+        delete(&pool, kunde_id, false).await.unwrap();
+    }
+
+    async fn artikel_mit_kundenpreis(pool: &SqlitePool, kunde_id: &str) {
+        let artikel_id = crate::commands::artikel::create(pool, crate::commands::artikel::ArtikelNeu {
+            bezeichnung: "Beratung".into(), beschreibung: "".into(),
+            einheit_id: "e0000000-0000-0000-0000-000000000001".into(), standardpreis_cent: 5000,
+        }).await.unwrap().id;
+        crate::commands::artikel::kundenpreis_speichern(pool, crate::commands::artikel::Kundenpreis {
+            id: "".into(), artikel_id, kunde_id: kunde_id.into(), preis_cent: 4000, gueltig_ab: None,
+        }).await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn list_liefert_kundenpreise_anzahl_korrekt() {
+        let (_dir, pool) = test_pool().await;
+        let mit_preis = create(&pool, neu("Mit Kundenpreis GmbH")).await.unwrap();
+        let ohne_preis = create(&pool, neu("Ohne Kundenpreis GmbH")).await.unwrap();
+        artikel_mit_kundenpreis(&pool, &mit_preis.id).await;
+
+        let liste = list(&pool, None).await.unwrap();
+        let gefunden_mit = liste.iter().find(|k| k.id == mit_preis.id).unwrap();
+        let gefunden_ohne = liste.iter().find(|k| k.id == ohne_preis.id).unwrap();
+        assert_eq!(gefunden_mit.kundenpreise_anzahl, 1);
+        assert_eq!(gefunden_ohne.kundenpreise_anzahl, 0);
+    }
+
+    #[tokio::test]
+    async fn delete_lehnt_ab_bei_kundenpreisen_ohne_bestaetigung() {
+        let (_dir, pool) = test_pool().await;
+        let kunde_id = create(&pool, neu("ACME GmbH")).await.unwrap().id;
+        artikel_mit_kundenpreis(&pool, &kunde_id).await;
+
+        let err = delete(&pool, kunde_id, false).await.unwrap_err();
+        assert!(matches!(err, AppError::Validation { .. }));
+    }
+
+    #[tokio::test]
+    async fn delete_loescht_kunde_und_kundenpreise_gemeinsam_bei_bestaetigung() {
+        let (_dir, pool) = test_pool().await;
+        let kunde_id = create(&pool, neu("ACME GmbH")).await.unwrap().id;
+        artikel_mit_kundenpreis(&pool, &kunde_id).await;
+
+        delete(&pool, kunde_id.clone(), true).await.unwrap();
+
+        assert!(!list(&pool, None).await.unwrap().iter().any(|k| k.id == kunde_id));
+        let verbleibende_kundenpreise: (i64,) = sqlx::query_as(
+            "SELECT COUNT(*) FROM kundenpreis WHERE kunde_id = ? AND deleted_at IS NULL")
+            .bind(&kunde_id).fetch_one(&pool).await.unwrap();
+        assert_eq!(verbleibende_kundenpreise.0, 0);
+    }
+
+    /// Verifiziert die Bereinigungslogik aus Migration 0005 (bereits verwaiste
+    /// Kundenpreise aus vor dem Fix bestehenden Installationen). Da
+    /// `sqlx::migrate!` beim Testaufbau immer den kompletten, aktuellen
+    /// Migrationssatz gegen eine leere DB fährt, lässt sich der "Altbestand
+    /// vor Migration 0005"-Zustand nicht direkt nachstellen — stattdessen wird
+    /// hier die exakte UPDATE-Anweisung aus der Migrationsdatei gegen einen
+    /// manuell nachgebauten Karteileichen-Zustand ausgeführt.
+    #[tokio::test]
+    async fn migration_0005_bereinigt_nur_kundenpreise_verwaister_kunden() {
+        let (_dir, pool) = test_pool().await;
+        let geloeschter_kunde = create(&pool, neu("Gelöscht GmbH")).await.unwrap();
+        let aktiver_kunde = create(&pool, neu("Aktiv GmbH")).await.unwrap();
+        artikel_mit_kundenpreis(&pool, &geloeschter_kunde.id).await;
+        artikel_mit_kundenpreis(&pool, &aktiver_kunde.id).await;
+        // Kunde direkt per SQL als gelöscht markieren, ohne die (bereits reparierte)
+        // Kaskade über delete() auszulösen — simuliert den Altbestand.
+        sqlx::query("UPDATE kunde SET deleted_at = ? WHERE id = ?")
+            .bind(jetzt()).bind(&geloeschter_kunde.id).execute(&pool).await.unwrap();
+
+        sqlx::query(
+            "UPDATE kundenpreis SET deleted_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now') \
+             WHERE deleted_at IS NULL \
+               AND kunde_id IN (SELECT id FROM kunde WHERE deleted_at IS NOT NULL)")
+            .execute(&pool).await.unwrap();
+
+        let verwaist: (i64,) = sqlx::query_as(
+            "SELECT COUNT(*) FROM kundenpreis WHERE kunde_id = ? AND deleted_at IS NULL")
+            .bind(&geloeschter_kunde.id).fetch_one(&pool).await.unwrap();
+        let aktiv: (i64,) = sqlx::query_as(
+            "SELECT COUNT(*) FROM kundenpreis WHERE kunde_id = ? AND deleted_at IS NULL")
+            .bind(&aktiver_kunde.id).fetch_one(&pool).await.unwrap();
+        assert_eq!(verwaist.0, 0, "Kundenpreis des gelöschten Kunden hätte bereinigt werden müssen");
+        assert_eq!(aktiv.0, 1, "Kundenpreis des aktiven Kunden darf nicht angefasst werden");
     }
 }
