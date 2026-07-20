@@ -217,11 +217,16 @@ fn parse_ubl(xml: &str) -> AppResult<GeparsteRechnung> {
     let mut reader = Reader::from_str(xml);
     let mut pfad: Vec<String> = Vec::new();
     let mut zeilen_pfad: Vec<String> = Vec::new();
+    let mut steuerzeilen_pfad: Vec<String> = Vec::new();
     let mut ergebnis = GeparsteRechnung::default();
     let mut steller_registrierungsname = String::new();
     let mut steller_partyname = String::new();
+    let mut kaeufer_registrierungsname = String::new();
+    let mut kaeufer_partyname = String::new();
     let mut in_zeile = false;
+    let mut in_steuerzeile = false;
     let mut aktuelle_zeile = GeparstePosition::default();
+    let mut aktuelle_steuerzeile = GeparsteSteuerzeile::default();
 
     loop {
         match reader.read_event().map_err(|e| AppError::Technisch(format!("XML ist nicht wohlgeformt: {e}")))? {
@@ -232,8 +237,16 @@ fn parse_ubl(xml: &str) -> AppResult<GeparsteRechnung> {
                     in_zeile = true;
                     aktuelle_zeile = GeparstePosition::default();
                     zeilen_pfad.clear();
+                } else if name == "cac:TaxSubtotal" {
+                    // UBL führt Steuerdaten nur dokumentweit (kein Kollisionsrisiko wie bei
+                    // CII, siehe Spec) — daher kein zusätzlicher Guard nötig.
+                    in_steuerzeile = true;
+                    aktuelle_steuerzeile = GeparsteSteuerzeile::default();
+                    steuerzeilen_pfad.clear();
                 } else if in_zeile {
                     zeilen_pfad.push(name.clone());
+                } else if in_steuerzeile {
+                    steuerzeilen_pfad.push(name.clone());
                 }
                 pfad.push(name);
             }
@@ -247,17 +260,60 @@ fn parse_ubl(xml: &str) -> AppResult<GeparsteRechnung> {
                         "cbc:LineExtensionAmount" => aktuelle_zeile.positionssumme_cent = dezimal_zu_festkomma(&text, 2, 100),
                         _ => {}
                     }
+                } else if in_steuerzeile {
+                    match steuerzeilen_pfad.join("/").as_str() {
+                        "cbc:TaxableAmount" => aktuelle_steuerzeile.nettobetrag_cent = dezimal_zu_festkomma(&text, 2, 100),
+                        "cbc:TaxAmount" => aktuelle_steuerzeile.steuerbetrag_cent = dezimal_zu_festkomma(&text, 2, 100),
+                        "cac:TaxCategory/cbc:Percent" => aktuelle_steuerzeile.steuersatz_promille = dezimal_zu_festkomma(&text, 1, 10),
+                        _ => {}
+                    }
                 } else {
                     match pfad.join("/").as_str() {
                         "Invoice/cbc:ID" => ergebnis.rechnungsnummer = text,
                         "Invoice/cbc:IssueDate" => ergebnis.rechnungsdatum = text,
+                        "Invoice/cbc:DueDate" => ergebnis.faelligkeitsdatum = text,
                         "Invoice/cbc:DocumentCurrencyCode" => ergebnis.waehrung = text,
+                        "Invoice/cbc:BuyerReference" => ergebnis.leitweg_id = text,
+                        "Invoice/cac:OrderReference/cbc:ID" => ergebnis.bestellnummer = text,
                         "Invoice/cac:LegalMonetaryTotal/cbc:TaxInclusiveAmount" =>
                             ergebnis.betrag_cent = dezimal_zu_festkomma(&text, 2, 100),
                         "Invoice/cac:AccountingSupplierParty/cac:Party/cac:PartyLegalEntity/cbc:RegistrationName" =>
                             steller_registrierungsname = text,
                         "Invoice/cac:AccountingSupplierParty/cac:Party/cac:PartyName/cbc:Name" =>
                             steller_partyname = text,
+                        "Invoice/cac:AccountingSupplierParty/cac:Party/cac:PostalAddress/cbc:StreetName" =>
+                            ergebnis.verkaeufer_strasse = text,
+                        "Invoice/cac:AccountingSupplierParty/cac:Party/cac:PostalAddress/cbc:PostalZone" =>
+                            ergebnis.verkaeufer_plz = text,
+                        "Invoice/cac:AccountingSupplierParty/cac:Party/cac:PostalAddress/cbc:CityName" =>
+                            ergebnis.verkaeufer_ort = text,
+                        "Invoice/cac:AccountingSupplierParty/cac:Party/cac:PostalAddress/cac:Country/cbc:IdentificationCode" =>
+                            ergebnis.verkaeufer_land = text,
+                        "Invoice/cac:AccountingSupplierParty/cac:Party/cac:PartyTaxScheme/cbc:CompanyID" =>
+                            ergebnis.verkaeufer_steuernummer = text,
+                        "Invoice/cac:AccountingSupplierParty/cac:Party/cac:Contact/cbc:ElectronicMail" =>
+                            ergebnis.verkaeufer_email = text,
+                        "Invoice/cac:AccountingSupplierParty/cac:Party/cac:PartyIdentification/cbc:ID" =>
+                            ergebnis.lieferantennummer = text,
+                        "Invoice/cac:AccountingCustomerParty/cac:Party/cac:PartyLegalEntity/cbc:RegistrationName" =>
+                            kaeufer_registrierungsname = text,
+                        "Invoice/cac:AccountingCustomerParty/cac:Party/cac:PartyName/cbc:Name" =>
+                            kaeufer_partyname = text,
+                        "Invoice/cac:AccountingCustomerParty/cac:Party/cac:PostalAddress/cbc:StreetName" =>
+                            ergebnis.kaeufer_strasse = text,
+                        "Invoice/cac:AccountingCustomerParty/cac:Party/cac:PostalAddress/cbc:PostalZone" =>
+                            ergebnis.kaeufer_plz = text,
+                        "Invoice/cac:AccountingCustomerParty/cac:Party/cac:PostalAddress/cbc:CityName" =>
+                            ergebnis.kaeufer_ort = text,
+                        "Invoice/cac:AccountingCustomerParty/cac:Party/cac:PostalAddress/cac:Country/cbc:IdentificationCode" =>
+                            ergebnis.kaeufer_land = text,
+                        "Invoice/cac:Delivery/cbc:ActualDeliveryDate" => ergebnis.leistungsdatum = text,
+                        "Invoice/cac:PaymentTerms/cbc:Note" => ergebnis.zahlungsbedingungen = text,
+                        "Invoice/cac:PaymentMeans/cac:PayeeFinancialAccount/cbc:ID" => ergebnis.iban = text,
+                        "Invoice/cac:PaymentMeans/cac:PayeeFinancialAccount/cac:FinancialInstitutionBranch/cbc:ID" =>
+                            ergebnis.bic = text,
+                        "Invoice/cac:PaymentMeans/cac:PayeeFinancialAccount/cac:FinancialInstitutionBranch/cac:FinancialInstitution/cbc:Name" =>
+                            ergebnis.bankname = text,
                         _ => {}
                     }
                 }
@@ -267,8 +323,13 @@ fn parse_ubl(xml: &str) -> AppResult<GeparsteRechnung> {
                     if name == "cac:InvoiceLine" {
                         in_zeile = false;
                         ergebnis.positionen.push(std::mem::take(&mut aktuelle_zeile));
+                    } else if name == "cac:TaxSubtotal" {
+                        in_steuerzeile = false;
+                        ergebnis.steuerzeilen.push(std::mem::take(&mut aktuelle_steuerzeile));
                     } else if in_zeile {
                         zeilen_pfad.pop();
+                    } else if in_steuerzeile {
+                        steuerzeilen_pfad.pop();
                     }
                 }
             }
@@ -280,6 +341,11 @@ fn parse_ubl(xml: &str) -> AppResult<GeparsteRechnung> {
         steller_registrierungsname
     } else {
         steller_partyname
+    };
+    ergebnis.kaeufer_name = if !kaeufer_registrierungsname.is_empty() {
+        kaeufer_registrierungsname
+    } else {
+        kaeufer_partyname
     };
 
     if ergebnis.rechnungsnummer.is_empty() && ergebnis.rechnungssteller_name.is_empty() {
@@ -557,6 +623,111 @@ mod tests {
         );
         let ergebnis = parse_ubl(&xml).unwrap();
         assert_eq!(ergebnis.rechnungssteller_name, "Lieferant GmbH (PartyName)");
+    }
+
+    const UBL_BEISPIEL_VOLLSTAENDIG: &str = r#"<?xml version="1.0" encoding="UTF-8"?>
+<Invoice xmlns="urn:oasis:names:specification:ubl:schema:xsd:Invoice-2"
+         xmlns:cac="urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2"
+         xmlns:cbc="urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2">
+  <cbc:ID>RE-2026-5000</cbc:ID>
+  <cbc:IssueDate>2026-07-01</cbc:IssueDate>
+  <cbc:DueDate>2026-07-20</cbc:DueDate>
+  <cbc:DocumentCurrencyCode>EUR</cbc:DocumentCurrencyCode>
+  <cbc:BuyerReference>04011000-1234512345-06</cbc:BuyerReference>
+  <cac:OrderReference><cbc:ID>BEST-2026-1</cbc:ID></cac:OrderReference>
+  <cac:AccountingSupplierParty>
+    <cac:Party>
+      <cac:PartyName><cbc:Name>Lieferant GmbH (PartyName)</cbc:Name></cac:PartyName>
+      <cac:PartyLegalEntity><cbc:RegistrationName>Lieferant GmbH</cbc:RegistrationName></cac:PartyLegalEntity>
+      <cac:PostalAddress>
+        <cbc:StreetName>Verkäuferweg 1</cbc:StreetName>
+        <cbc:PostalZone>50667</cbc:PostalZone>
+        <cbc:CityName>Köln</cbc:CityName>
+        <cac:Country><cbc:IdentificationCode>DE</cbc:IdentificationCode></cac:Country>
+      </cac:PostalAddress>
+      <cac:PartyTaxScheme><cbc:CompanyID>DE999888777</cbc:CompanyID></cac:PartyTaxScheme>
+      <cac:PartyIdentification><cbc:ID>LFT-321</cbc:ID></cac:PartyIdentification>
+      <cac:Contact><cbc:ElectronicMail>info@lieferant-beispiel.de</cbc:ElectronicMail></cac:Contact>
+    </cac:Party>
+  </cac:AccountingSupplierParty>
+  <cac:AccountingCustomerParty>
+    <cac:Party>
+      <cac:PartyLegalEntity><cbc:RegistrationName>Käufer GmbH</cbc:RegistrationName></cac:PartyLegalEntity>
+      <cac:PostalAddress>
+        <cbc:StreetName>Käuferweg 2</cbc:StreetName>
+        <cbc:PostalZone>10115</cbc:PostalZone>
+        <cbc:CityName>Berlin</cbc:CityName>
+        <cac:Country><cbc:IdentificationCode>DE</cbc:IdentificationCode></cac:Country>
+      </cac:PostalAddress>
+    </cac:Party>
+  </cac:AccountingCustomerParty>
+  <cac:Delivery><cbc:ActualDeliveryDate>2026-06-29</cbc:ActualDeliveryDate></cac:Delivery>
+  <cac:PaymentMeans>
+    <cac:PayeeFinancialAccount>
+      <cbc:ID>DE89 3704 0044 0532 0130 00</cbc:ID>
+      <cac:FinancialInstitutionBranch>
+        <cbc:ID>TESTDE81XXX</cbc:ID>
+        <cac:FinancialInstitution><cbc:Name>Testbank UBL AG</cbc:Name></cac:FinancialInstitution>
+      </cac:FinancialInstitutionBranch>
+    </cac:PayeeFinancialAccount>
+  </cac:PaymentMeans>
+  <cac:PaymentTerms><cbc:Note>Zahlbar innerhalb von 14 Tagen</cbc:Note></cac:PaymentTerms>
+  <cac:TaxTotal>
+    <cac:TaxSubtotal>
+      <cbc:TaxableAmount>100.00</cbc:TaxableAmount>
+      <cbc:TaxAmount>19.00</cbc:TaxAmount>
+      <cac:TaxCategory><cbc:Percent>19</cbc:Percent></cac:TaxCategory>
+    </cac:TaxSubtotal>
+    <cac:TaxSubtotal>
+      <cbc:TaxableAmount>50.00</cbc:TaxableAmount>
+      <cbc:TaxAmount>3.50</cbc:TaxAmount>
+      <cac:TaxCategory><cbc:Percent>7</cbc:Percent></cac:TaxCategory>
+    </cac:TaxSubtotal>
+  </cac:TaxTotal>
+  <cac:LegalMonetaryTotal>
+    <cbc:TaxInclusiveAmount>172.50</cbc:TaxInclusiveAmount>
+  </cac:LegalMonetaryTotal>
+  <cac:InvoiceLine>
+    <cbc:InvoicedQuantity>1</cbc:InvoicedQuantity>
+    <cbc:LineExtensionAmount>150.00</cbc:LineExtensionAmount>
+    <cac:Item><cbc:Name>Testposition</cbc:Name></cac:Item>
+    <cac:Price><cbc:PriceAmount>150.00</cbc:PriceAmount></cac:Price>
+  </cac:InvoiceLine>
+</Invoice>"#;
+
+    #[test]
+    fn parse_ubl_extrahiert_alle_zusatzfelder_und_mehrere_steuersaetze() {
+        let ergebnis = parse_ubl(UBL_BEISPIEL_VOLLSTAENDIG).unwrap();
+
+        assert_eq!(ergebnis.kaeufer_name, "Käufer GmbH");
+        assert_eq!(ergebnis.kaeufer_strasse, "Käuferweg 2");
+        assert_eq!(ergebnis.kaeufer_plz, "10115");
+        assert_eq!(ergebnis.kaeufer_ort, "Berlin");
+        assert_eq!(ergebnis.kaeufer_land, "DE");
+        assert_eq!(ergebnis.verkaeufer_strasse, "Verkäuferweg 1");
+        assert_eq!(ergebnis.verkaeufer_plz, "50667");
+        assert_eq!(ergebnis.verkaeufer_ort, "Köln");
+        assert_eq!(ergebnis.verkaeufer_land, "DE");
+        assert_eq!(ergebnis.verkaeufer_steuernummer, "DE999888777");
+        assert_eq!(ergebnis.verkaeufer_email, "info@lieferant-beispiel.de");
+        assert_eq!(ergebnis.lieferantennummer, "LFT-321");
+        assert_eq!(ergebnis.bestellnummer, "BEST-2026-1");
+        assert_eq!(ergebnis.leitweg_id, "04011000-1234512345-06");
+        assert_eq!(ergebnis.leistungsdatum, "2026-06-29");
+        assert_eq!(ergebnis.zahlungsbedingungen, "Zahlbar innerhalb von 14 Tagen");
+        assert_eq!(ergebnis.faelligkeitsdatum, "2026-07-20");
+        assert_eq!(ergebnis.iban, "DE89 3704 0044 0532 0130 00");
+        assert_eq!(ergebnis.bic, "TESTDE81XXX");
+        assert_eq!(ergebnis.bankname, "Testbank UBL AG");
+
+        assert_eq!(ergebnis.positionen.len(), 1);
+        assert_eq!(ergebnis.steuerzeilen.len(), 2);
+        assert_eq!(ergebnis.steuerzeilen[0].nettobetrag_cent, 10000);
+        assert_eq!(ergebnis.steuerzeilen[0].steuersatz_promille, 190);
+        assert_eq!(ergebnis.steuerzeilen[0].steuerbetrag_cent, 1900);
+        assert_eq!(ergebnis.steuerzeilen[1].nettobetrag_cent, 5000);
+        assert_eq!(ergebnis.steuerzeilen[1].steuersatz_promille, 70);
+        assert_eq!(ergebnis.steuerzeilen[1].steuerbetrag_cent, 350);
     }
 
     #[test]
