@@ -154,6 +154,11 @@ export interface EingangsrechnungPosition {
   einzelpreis_cent: number;
   positionssumme_cent: number;
 }
+export interface EingangsrechnungSteuerzeile {
+  nettobetrag_cent: number;
+  steuersatz_promille: number;
+  steuerbetrag_cent: number;
+}
 export interface EingangsrechnungFelderNeu {
   rechnungssteller_name: string;
   rechnungsnummer: string;
@@ -161,6 +166,27 @@ export interface EingangsrechnungFelderNeu {
   betrag_cent: number;
   waehrung: string;
   positionen: EingangsrechnungPosition[];
+  kaeufer_name: string;
+  kaeufer_strasse: string;
+  kaeufer_plz: string;
+  kaeufer_ort: string;
+  kaeufer_land: string;
+  verkaeufer_strasse: string;
+  verkaeufer_plz: string;
+  verkaeufer_ort: string;
+  verkaeufer_land: string;
+  verkaeufer_steuernummer: string;
+  verkaeufer_email: string;
+  zahlungsbedingungen: string;
+  faelligkeitsdatum: string;
+  iban: string;
+  bic: string;
+  bankname: string;
+  bestellnummer: string;
+  leitweg_id: string;
+  lieferantennummer: string;
+  leistungsdatum: string;
+  steuerzeilen: EingangsrechnungSteuerzeile[];
 }
 export interface EingangsrechnungVorschau {
   geparst: boolean;
@@ -178,6 +204,26 @@ export interface Eingangsrechnung {
   waehrung: string;
   manuell_erfasst: boolean;
   importiert_am: string;
+  kaeufer_name: string;
+  kaeufer_strasse: string;
+  kaeufer_plz: string;
+  kaeufer_ort: string;
+  kaeufer_land: string;
+  verkaeufer_strasse: string;
+  verkaeufer_plz: string;
+  verkaeufer_ort: string;
+  verkaeufer_land: string;
+  verkaeufer_steuernummer: string;
+  verkaeufer_email: string;
+  zahlungsbedingungen: string;
+  faelligkeitsdatum: string;
+  iban: string;
+  bic: string;
+  bankname: string;
+  bestellnummer: string;
+  leitweg_id: string;
+  lieferantennummer: string;
+  leistungsdatum: string;
 }
 export interface EingangsrechnungUpdate {
   id: string;
@@ -190,6 +236,7 @@ export interface EingangsrechnungUpdate {
 export interface EingangsrechnungDetail {
   eingangsrechnung: Eingangsrechnung;
   positionen: EingangsrechnungPosition[];
+  steuerzeilen: EingangsrechnungSteuerzeile[];
 }
 export interface EingangsrechnungOriginal {
   dateiname: string;
