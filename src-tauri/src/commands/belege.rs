@@ -676,6 +676,53 @@ mod tests {
             kopftext: "".into(), fusstext: "".into() }
     }
 
+    /// Belegnummern müssen datenbankseitig eindeutig sein — auch über soft-gelöschte
+    /// Zeilen hinweg, damit eine Nummer nie ein zweites Mal vergeben wird (GoBD).
+    /// Der Export legt Dateien als `<Nummer>.pdf` ohne Typ ab, deshalb gilt die
+    /// Eindeutigkeit global und nicht je Belegart.
+    #[tokio::test]
+    async fn belegnummer_ist_eindeutig() {
+        let (_dir, pool) = test_pool().await;
+        let kunde_id = kunde_anlegen(&pool).await;
+
+        let a = create(&pool, beleg_neu("rechnung", &kunde_id)).await.unwrap();
+        let b = create(&pool, beleg_neu("rechnung", &kunde_id)).await.unwrap();
+        sqlx::query("UPDATE beleg SET nummer = 'RE-2026-0001' WHERE id = ?")
+            .bind(&a.id).execute(&pool).await.unwrap();
+
+        let fehler = sqlx::query("UPDATE beleg SET nummer = 'RE-2026-0001' WHERE id = ?")
+            .bind(&b.id).execute(&pool).await;
+        assert!(fehler.is_err(), "doppelte Belegnummer haette abgelehnt werden muessen");
+
+        // Auch nach dem Soft-Delete bleibt die Nummer belegt.
+        sqlx::query("UPDATE beleg SET deleted_at = ? WHERE id = ?")
+            .bind(jetzt()).bind(&a.id).execute(&pool).await.unwrap();
+        let fehler = sqlx::query("UPDATE beleg SET nummer = 'RE-2026-0001' WHERE id = ?")
+            .bind(&b.id).execute(&pool).await;
+        assert!(fehler.is_err(), "Nummer eines geloeschten Belegs darf nicht neu vergeben werden");
+
+        // Ein Angebot darf die Nummer einer Rechnung ebenfalls nicht belegen.
+        let c = create(&pool, beleg_neu("angebot", &kunde_id)).await.unwrap();
+        let fehler = sqlx::query("UPDATE beleg SET nummer = 'RE-2026-0001' WHERE id = ?")
+            .bind(&c.id).execute(&pool).await;
+        assert!(fehler.is_err(), "Belegnummern muessen typuebergreifend eindeutig sein");
+    }
+
+    /// Entwürfe haben noch keine Nummer (NULL). SQLite behandelt NULLs in einem
+    /// Unique-Index als verschieden — beliebig viele Entwürfe müssen koexistieren.
+    #[tokio::test]
+    async fn mehrere_entwuerfe_ohne_nummer_sind_erlaubt() {
+        let (_dir, pool) = test_pool().await;
+        let kunde_id = kunde_anlegen(&pool).await;
+        for _ in 0..3 {
+            let b = create(&pool, beleg_neu("rechnung", &kunde_id)).await.unwrap();
+            assert_eq!(b.nummer, None);
+        }
+        let anzahl: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM beleg WHERE nummer IS NULL")
+            .fetch_one(&pool).await.unwrap();
+        assert_eq!(anzahl.0, 3);
+    }
+
     #[tokio::test]
     async fn create_erzeugt_entwurf_ohne_nummer() {
         let (_dir, pool) = test_pool().await;

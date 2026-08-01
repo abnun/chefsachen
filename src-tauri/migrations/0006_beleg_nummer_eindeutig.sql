@@ -1,0 +1,15 @@
+-- Belegnummern müssen eindeutig sein (GoBD: eine Nummer wird nie ein zweites Mal
+-- vergeben). Ohne diesen Index entstanden doppelte Rechnungsnummern ohne jede
+-- Fehlermeldung — etwa bei Jahres-Reset mit verstellter Systemuhr oder beim
+-- Wechsel auf ein bereits verwendetes Nummernformat.
+--
+-- Bewusst OHNE Filter auf deleted_at: die Eindeutigkeit schließt soft-gelöschte
+-- Belege ein, damit deren Nummern nicht erneut vergeben werden.
+--
+-- Bewusst global statt je Belegart: der Export legt Dateien als `<Nummer>.pdf`
+-- ohne Typ ab (dokument/export.rs), ein Angebot und eine Rechnung mit gleicher
+-- Nummer würden sich also gegenseitig die archivierte Datei überschreiben.
+--
+-- Entwürfe haben nummer = NULL; SQLite behandelt NULLs in einem Unique-Index als
+-- verschieden, beliebig viele Entwürfe koexistieren daher problemlos.
+CREATE UNIQUE INDEX idx_beleg_nummer_eindeutig ON beleg(nummer);

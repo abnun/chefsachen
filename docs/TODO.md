@@ -21,9 +21,14 @@ Ohne diese Punkte tut die App nicht, wofür sie gebaut wurde.
   Beim Testschreiben zusätzlich gefunden: `{lfd:999999999}` paniced mit „Formatting argument out of range" —
   daher `MAX_BREITE = 20` als Obergrenze eingeführt und in der Validierung mitgeprüft.
 
-- [ ] **P1.3 — UNIQUE-Constraint auf `beleg.nummer`** `[A5]`
+- [x] **P1.3 — UNIQUE-Constraint auf `beleg.nummer`** `[A5]` ✅ 2026-08-02
   Aktuell sind doppelte Rechnungsnummern ohne Fehlermeldung möglich. GoBD-relevant.
-  → neue Migration; Constraint muss soft-gelöschte Zeilen einschließen (analog `kunde.kundennummer`)
+  → Migration `0006_beleg_nummer_eindeutig.sql`, global (nicht je Belegart, weil der
+  Export Dateien als `<Nummer>.pdf` ohne Typ ablegt) und ohne Filter auf `deleted_at`.
+  Nebenbei behoben: `sqlx::migrate!` ist ein Proc-Macro und meldet Cargo auf stable
+  keine Änderung am `migrations`-Verzeichnis — eine neue Migration wurde bei
+  inkrementellen Builds stillschweigend ignoriert. `build.rs` gibt jetzt
+  `cargo:rerun-if-changed=migrations` aus; Wirkung mit einer Wegwerf-Migration verifiziert.
 
 - [ ] **P1.4 — Stumme Formularfehler sichtbar machen** `[A14]`
   Artikel ohne Einheit speichern → Button tut sichtbar nichts. Backend liefert Fehler für `einheit_id` und `standardpreis_cent`, das Formular rendert nur `bezeichnung`.
