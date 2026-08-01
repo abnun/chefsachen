@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
-import { api, istValidierungsfehler, type AppFehler, type Kunde, type KundeNeu } from "../api";
+import { api, type AppFehler, type Kunde, type KundeNeu } from "../api";
+import { formularFehler } from "../formularFehler";
 import { Fehler } from "../components/Fehler";
 import { Hinweis } from "../components/Hinweis";
 import { useErfolgsHinweis } from "../hooks/useErfolgsHinweis";
-import { useLoeschBestaetigung } from "../hooks/useLoeschBestaetigung";
+import { useBestaetigung } from "../hooks/useBestaetigung";
 import type { Reiter } from "./KundeDetail";
 
 interface KundenProps {
@@ -60,7 +61,7 @@ export function Kunden({
   const [artikelLeer, setArtikelLeer] = useState(false);
   const [zeigtArtikelHinweis, setZeigtArtikelHinweis] = useState(false);
   const { zeigen, hinweis } = useErfolgsHinweis();
-  const { bestaetigen, dialog } = useLoeschBestaetigung();
+  const { bestaetigen, dialog } = useBestaetigung();
 
   useEffect(() => {
     if (zeigeFormularBeimStart) {
@@ -121,10 +122,7 @@ export function Kunden({
     }
   }
 
-  const feldFehler = (feld: string) =>
-    formFehler && istValidierungsfehler(formFehler) && formFehler.feld === feld
-      ? formFehler.meldung
-      : null;
+  const { feldFehler, bannerFehler } = formularFehler(formFehler, ["name", "email"]);
 
   return (
     <div>
@@ -176,7 +174,7 @@ export function Kunden({
             anlegen();
           }}
         >
-          {formFehler && !istValidierungsfehler(formFehler) && <Fehler fehler={formFehler} />}
+          <Fehler fehler={bannerFehler} />
           <div className="feld">
             <label>
               Typ

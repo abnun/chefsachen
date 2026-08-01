@@ -13,7 +13,7 @@ import {
 } from "../api";
 import { Fehler } from "../components/Fehler";
 import { useErfolgsHinweis } from "../hooks/useErfolgsHinweis";
-import { useLoeschBestaetigung } from "../hooks/useLoeschBestaetigung";
+import { useBestaetigung } from "../hooks/useBestaetigung";
 import { formatCent, formatMenge, parseEuro, parseMenge } from "../geld";
 
 interface BelegEditorProps {
@@ -48,7 +48,11 @@ export function BelegEditor({ id, onGeaendert, onRechnungErstellt }: BelegEditor
   const [kunden, setKunden] = useState<Kunde[]>([]);
   const [artikelListe, setArtikelListe] = useState<Artikel[]>([]);
   const [fehler, setFehler] = useState<AppFehler | null>(null);
+  // Sperrt die nicht umkehrbaren Aktionen, solange eine davon läuft. Ohne das
+  // erzeugt ein Doppelklick zwei Vorgänge und verbraucht zwei Belegnummern.
+  const [laeuft, setLaeuft] = useState(false);
   const { zeigen, hinweis } = useErfolgsHinweis();
+  const { bestaetigen, dialog } = useBestaetigung();
 
   function laden() {
     api.belege
@@ -91,30 +95,50 @@ export function BelegEditor({ id, onGeaendert, onRechnungErstellt }: BelegEditor
   }
 
   async function stellen() {
+    const istAngebot = beleg.typ === "angebot";
+    const frage = istAngebot
+      ? "Angebot versenden? Danach ist es nicht mehr änderbar."
+      : "Rechnung stellen? Sie erhält eine feste Nummer und ist danach nicht mehr änderbar — eine Korrektur ist nur noch per Storno möglich.";
+    if (!(await bestaetigen(frage, istAngebot ? "Versenden" : "Stellen"))) return;
     setFehler(null);
+    setLaeuft(true);
     try {
       await api.belege.stellen(beleg.id);
       laden();
       onGeaendert?.();
-      zeigen(beleg.typ === "angebot" ? "Angebot versendet" : "Rechnung gestellt");
+      zeigen(istAngebot ? "Angebot versendet" : "Rechnung gestellt");
     } catch (e) {
       setFehler(e as AppFehler);
+    } finally {
+      setLaeuft(false);
     }
   }
 
   async function angebotStatus(status: string) {
+    // „Angenommen" führt den Normalweg fort und bleibt ohne Rückfrage.
+    // „Abgelehnt"/„Abgelaufen" versperren dagegen dauerhaft die Überführung in
+    // eine Rechnung — das Backend lässt einen Statuswechsel nur aus „versendet" zu.
+    if (status !== "angenommen") {
+      const label = status === "abgelehnt" ? "Abgelehnt" : "Abgelaufen";
+      const frage = `Angebot als „${label}" markieren? Es lässt sich danach nicht mehr in eine Rechnung überführen.`;
+      if (!(await bestaetigen(frage, label))) return;
+    }
     setFehler(null);
+    setLaeuft(true);
     try {
       await api.belege.angebotStatusSetzen(beleg.id, status);
       laden();
       zeigen("Status aktualisiert");
     } catch (e) {
       setFehler(e as AppFehler);
+    } finally {
+      setLaeuft(false);
     }
   }
 
   async function inRechnungUeberfuehren() {
     setFehler(null);
+    setLaeuft(true);
     try {
       const rechnung = await api.belege.angebotInRechnungUeberfuehren(beleg.id);
       laden();
@@ -122,11 +146,18 @@ export function BelegEditor({ id, onGeaendert, onRechnungErstellt }: BelegEditor
       onRechnungErstellt?.(rechnung.id);
     } catch (e) {
       setFehler(e as AppFehler);
+    } finally {
+      setLaeuft(false);
     }
   }
 
   async function stornieren() {
+    const frage =
+      "Rechnung stornieren? Es entsteht ein eigener Stornobeleg mit neuer Nummer. " +
+      "Das lässt sich nicht rückgängig machen.";
+    if (!(await bestaetigen(frage, "Stornieren"))) return;
     setFehler(null);
+    setLaeuft(true);
     try {
       await api.belege.rechnungStornieren(beleg.id);
       laden();
@@ -134,6 +165,8 @@ export function BelegEditor({ id, onGeaendert, onRechnungErstellt }: BelegEditor
       zeigen("Rechnung storniert");
     } catch (e) {
       setFehler(e as AppFehler);
+    } finally {
+      setLaeuft(false);
     }
   }
 
@@ -203,6 +236,7 @@ export function BelegEditor({ id, onGeaendert, onRechnungErstellt }: BelegEditor
       </p>
       {fehler && <Fehler fehler={fehler} />}
       {hinweis}
+      {dialog}
 
       <StammdatenAbschnitt
         beleg={beleg}
@@ -239,7 +273,12 @@ export function BelegEditor({ id, onGeaendert, onRechnungErstellt }: BelegEditor
       )}
 
       {istEntwurf && (
-        <button type="button" className="btn btn-primaer" disabled={positionen.length === 0} onClick={stellen}>
+        <button
+          type="button"
+          className="btn btn-primaer"
+          disabled={positionen.length === 0 || laeuft}
+          onClick={stellen}
+        >
           Stellen
         </button>
       )}
@@ -248,7 +287,13 @@ export function BelegEditor({ id, onGeaendert, onRechnungErstellt }: BelegEditor
         <section>
           <h2>Abschluss</h2>
           {ANGEBOT_ABSCHLUSS_STATUS.map((s) => (
-            <button key={s.wert} type="button" className="btn" onClick={() => angebotStatus(s.wert)}>
+            <button
+              key={s.wert}
+              type="button"
+              className="btn"
+              disabled={laeuft}
+              onClick={() => angebotStatus(s.wert)}
+            >
               {s.label}
             </button>
           ))}
@@ -256,15 +301,21 @@ export function BelegEditor({ id, onGeaendert, onRechnungErstellt }: BelegEditor
       )}
 
       {beleg.typ === "angebot" && ["versendet", "angenommen"].includes(beleg.status) && (
-        <button type="button" className="btn btn-primaer" onClick={inRechnungUeberfuehren}>
+        <button type="button" className="btn btn-primaer" disabled={laeuft} onClick={inRechnungUeberfuehren}>
           In Rechnung überführen
         </button>
       )}
 
-      {beleg.typ === "rechnung" && beleg.status === "gestellt" && (
-        <button type="button" className="btn btn-gefahr" onClick={stornieren}>
+      {/* Ein Stornobeleg ist selbst eine gestellte Rechnung. Ohne die Prüfung auf
+          storno_von_id ließe er sich erneut stornieren — das erzeugt eine Kaskade
+          aus Gegenbelegen und verbraucht bei jedem Schritt eine Rechnungsnummer. */}
+      {beleg.typ === "rechnung" && beleg.status === "gestellt" && beleg.storno_von_id === null && (
+        <button type="button" className="btn btn-gefahr" disabled={laeuft} onClick={stornieren}>
           Stornieren
         </button>
+      )}
+      {beleg.typ === "rechnung" && beleg.storno_von_id !== null && (
+        <p>Dies ist ein Stornobeleg.</p>
       )}
       {beleg.typ === "rechnung" && beleg.status === "storniert" && <p>Diese Rechnung wurde storniert.</p>}
 
@@ -387,7 +438,7 @@ function PositionenAbschnitt({
   const [menge, setMenge] = useState("1");
   const [fehler, setFehler] = useState<AppFehler | null>(null);
   const { zeigen, hinweis } = useErfolgsHinweis();
-  const { bestaetigen, dialog } = useLoeschBestaetigung();
+  const { bestaetigen, dialog } = useBestaetigung();
 
   async function hinzufuegen() {
     setFehler(null);
@@ -537,15 +588,20 @@ function ZahlungenAbschnitt({ rechnungId, zahlungen, offenerBetragCent, onGeaend
   const [erstattung, setErstattung] = useState(false);
   const [notiz, setNotiz] = useState("");
   const [fehler, setFehler] = useState<AppFehler | null>(null);
+  // Eine doppelt erfasste Zahlung ließe sich derzeit nicht wieder löschen
+  // (siehe P3.5), deshalb muss der Doppelklick hier zuverlässig ins Leere laufen.
+  const [laeuft, setLaeuft] = useState(false);
   const { zeigen, hinweis } = useErfolgsHinweis();
 
   async function erfassen() {
+    if (laeuft) return;
     setFehler(null);
     const betragCent = parseEuro(betrag);
     if (betragCent === null) {
       setFehler({ typ: "validation", feld: "betrag_cent", meldung: "Ungültiger Betrag" });
       return;
     }
+    setLaeuft(true);
     try {
       await api.belege.zahlungErfassen({
         rechnung_id: rechnungId,
@@ -559,6 +615,8 @@ function ZahlungenAbschnitt({ rechnungId, zahlungen, offenerBetragCent, onGeaend
       zeigen("Zahlung erfasst");
     } catch (e) {
       setFehler(e as AppFehler);
+    } finally {
+      setLaeuft(false);
     }
   }
 
@@ -608,7 +666,7 @@ function ZahlungenAbschnitt({ rechnungId, zahlungen, offenerBetragCent, onGeaend
           Notiz
           <input value={notiz} onChange={(e) => setNotiz(e.currentTarget.value)} />
         </label>
-        <button type="submit" className="btn btn-primaer">Zahlung erfassen</button>
+        <button type="submit" className="btn btn-primaer" disabled={laeuft}>Zahlung erfassen</button>
       </form>
     </section>
   );

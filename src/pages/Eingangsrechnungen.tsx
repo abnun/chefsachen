@@ -42,11 +42,15 @@ export function Eingangsrechnungen({ onOeffnen }: EingangsrechnungenProps) {
     const pfad = await open({ multiple: false, filters: [{ name: "E-Rechnung", extensions: ["xml", "pdf"] }] });
     if (!pfad || typeof pfad !== "string") return;
     const bytes = Array.from(await readFile(pfad));
-    setDateiBytes(bytes);
-    setDateiname(pfad.split(/[/\\]/).pop() ?? pfad);
     setFehler(null);
     try {
       const v = await api.eingangsrechnungen.importVorschau(bytes);
+      // Datei und Vorschau werden erst nach erfolgreichem Parsen gemeinsam
+      // übernommen. Würden die Bytes vorher gesetzt, bliebe bei einem
+      // Parse-Fehler die Vorschau der vorigen Datei stehen — "Speichern" legte
+      // dann die neue Datei unter den alten Metadaten ab.
+      setDateiBytes(bytes);
+      setDateiname(pfad.split(/[/\\]/).pop() ?? pfad);
       setVorschau(v);
       setBearbeitenModus(false);
       setBetragText((v.felder.betrag_cent / 100).toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 }));

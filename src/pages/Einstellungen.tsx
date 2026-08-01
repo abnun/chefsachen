@@ -1,15 +1,15 @@
 import { useEffect, useState } from "react";
 import {
   api,
-  istValidierungsfehler,
   type AppFehler,
   type Einheit,
   type Firma,
   type Nummernkreis,
 } from "../api";
+import { formularFehler } from "../formularFehler";
 import { Fehler } from "../components/Fehler";
 import { useErfolgsHinweis } from "../hooks/useErfolgsHinweis";
-import { useLoeschBestaetigung } from "../hooks/useLoeschBestaetigung";
+import { useBestaetigung } from "../hooks/useBestaetigung";
 
 /**
  * Einstellungsseite mit vier unabhängigen Abschnitten: Firmendaten,
@@ -50,14 +50,23 @@ function FirmendatenAbschnitt() {
     }
   }
 
-  const feldFehler = (feld: string) =>
-    fehler && istValidierungsfehler(fehler) && fehler.feld === feld ? fehler.meldung : null;
+  const { feldFehler, bannerFehler } = formularFehler(fehler, [
+    "name",
+    "strasse",
+    "plz",
+    "ort",
+    "land",
+    "steuernummer",
+    "ust_idnr",
+    "iban",
+    "bic",
+  ]);
 
   if (!firma) {
     return (
       <section>
         <h2>Firmendaten</h2>
-        {fehler && !istValidierungsfehler(fehler) && <Fehler fehler={fehler} />}
+        <Fehler fehler={bannerFehler} />
       </section>
     );
   }
@@ -65,7 +74,7 @@ function FirmendatenAbschnitt() {
   return (
     <section>
       <h2>Firmendaten</h2>
-      {fehler && !istValidierungsfehler(fehler) && <Fehler fehler={fehler} />}
+      <Fehler fehler={bannerFehler} />
       {hinweis}
       <form
         className="karte"
@@ -167,7 +176,7 @@ function EinheitenAbschnitt() {
   const [kuerzel, setKuerzel] = useState("");
   const [bearbeiteId, setBearbeiteId] = useState<string | null>(null);
   const { zeigen, hinweis } = useErfolgsHinweis();
-  const { bestaetigen, dialog } = useLoeschBestaetigung();
+  const { bestaetigen, dialog } = useBestaetigung();
 
   function laden() {
     api.einheiten
@@ -224,7 +233,7 @@ function EinheitenAbschnitt() {
   return (
     <section className="karte">
       <h2>Einheiten</h2>
-      {fehler && !istValidierungsfehler(fehler) && <Fehler fehler={fehler} />}
+      <Fehler fehler={fehler} />
       {hinweis}
       {dialog}
       <table className="tabelle">
@@ -316,7 +325,7 @@ function NummernkreiseAbschnitt() {
   return (
     <section>
       <h2>Nummernkreise</h2>
-      {fehler && !istValidierungsfehler(fehler) && <Fehler fehler={fehler} />}
+      <Fehler fehler={fehler} />
       {hinweis}
       {nummernkreise.map((nk) => (
         <form
@@ -390,7 +399,7 @@ function TextbausteineAbschnitt() {
   return (
     <section>
       <h2>Textbausteine</h2>
-      {fehler && !istValidierungsfehler(fehler) && <Fehler fehler={fehler} />}
+      <Fehler fehler={fehler} />
       {hinweis}
       {TEXTBAUSTEIN_KEYS.map((key) => (
         <form

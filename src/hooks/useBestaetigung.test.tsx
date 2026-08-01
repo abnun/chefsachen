@@ -1,11 +1,11 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { useLoeschBestaetigung } from "./useLoeschBestaetigung";
+import { useBestaetigung } from "./useBestaetigung";
 
 afterEach(cleanup);
 
 function TestKomponente({ onErgebnis }: { onErgebnis: (ergebnis: boolean) => void }) {
-  const { bestaetigen, dialog } = useLoeschBestaetigung();
+  const { bestaetigen, dialog } = useBestaetigung();
   return (
     <div>
       {dialog}
@@ -16,7 +16,7 @@ function TestKomponente({ onErgebnis }: { onErgebnis: (ergebnis: boolean) => voi
   );
 }
 
-describe("useLoeschBestaetigung", () => {
+describe("useBestaetigung", () => {
   it("zeigt den Dialog mit dem übergebenen Text und löst die Promise mit true auf, wenn im Dialog bestätigt wird", async () => {
     const onErgebnis = vi.fn();
     render(<TestKomponente onErgebnis={onErgebnis} />);

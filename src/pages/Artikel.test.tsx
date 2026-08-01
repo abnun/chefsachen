@@ -31,7 +31,10 @@ vi.mock("../api", () => ({
       list: vi.fn().mockResolvedValue([]),
     },
   },
-  istValidierungsfehler: () => false,
+  // Echte Logik statt eines pauschalen false — sonst kann in Tests grundsätzlich
+  // kein Feldfehler sichtbar werden und genau die Regression bliebe unentdeckt.
+  istValidierungsfehler: (e: unknown) =>
+    typeof e === "object" && e !== null && (e as { typ?: string }).typ === "validation",
 }));
 import { Artikel } from "./Artikel";
 
@@ -261,6 +264,25 @@ describe("Artikel", () => {
     fireEvent.change(screen.getByLabelText("Standardpreis (€)"), { target: { value: "50,00" } });
     fireEvent.click(screen.getByRole("button", { name: "Speichern" }));
     await waitFor(() => expect(screen.getByText('Artikel „Konzeption" angelegt')).toBeTruthy());
+  });
+
+  // Regression: Das Backend meldet Validierungsfehler auch für Felder, die das
+  // Formular nicht einzeln ausweist (einheit_id, standardpreis_cent). Vorher
+  // wurden die stumm verschluckt — der Speichern-Knopf tat sichtbar nichts.
+  it.each([
+    ["einheit_id", "Einheit existiert nicht"],
+    ["standardpreis_cent", "Standardpreis darf nicht negativ sein"],
+    ["voellig_unbekanntes_feld", "Irgendein neuer Backend-Fehler"],
+  ])("zeigt den Validierungsfehler für das Feld %s an", async (feld, meldung) => {
+    const { api } = await import("../api");
+    vi.mocked(api.artikel.create).mockRejectedValueOnce({ typ: "validation", feld, meldung });
+    render(<Artikel />);
+    await waitFor(() => expect(screen.getByRole("button", { name: "Neuer Artikel" })).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Neuer Artikel" }));
+    fireEvent.change(screen.getByLabelText("Bezeichnung"), { target: { value: "Konzeption" } });
+    fireEvent.change(screen.getByLabelText("Standardpreis (€)"), { target: { value: "50,00" } });
+    fireEvent.click(screen.getByRole("button", { name: "Speichern" }));
+    await waitFor(() => expect(screen.getByText(meldung)).toBeTruthy());
   });
 
   it("zeigt nach dem Bearbeiten eines Artikels einen Erfolgs-Hinweis", async () => {

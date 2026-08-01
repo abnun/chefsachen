@@ -457,6 +457,15 @@ pub async fn storniere_rechnung(pool: &SqlitePool, id: String) -> AppResult<Bele
     if rechnung.status != "gestellt" {
         return Err(AppError::Validation { feld: "status".into(), meldung: "Nur gestellte Rechnungen können storniert werden".into() });
     }
+    // Ein Stornobeleg ist selbst eine gestellte Rechnung und käme sonst durch die
+    // Prüfungen oben. Jeder Durchlauf erzeugte einen weiteren Gegenbeleg und
+    // verbrauchte eine Rechnungsnummer — eine Kaskade ohne fachlichen Sinn.
+    if rechnung.storno_von_id.is_some() {
+        return Err(AppError::Validation {
+            feld: "storno_von_id".into(),
+            meldung: "Ein Stornobeleg kann nicht selbst storniert werden".into(),
+        });
+    }
 
     let heute = jetzt()[..10].to_string();
     // naechste_nummer nimmt &SqlitePool entgegen und öffnet intern eine eigene
@@ -1160,6 +1169,29 @@ mod tests {
 
         let storno_detail = get(&pool, storno.id).await.unwrap();
         assert_eq!(storno_detail.positionen[0].positionssumme_cent, -5000);
+    }
+
+    /// Der Stornobeleg ist selbst eine gestellte Rechnung und käme sonst durch
+    /// die Typ- und Statusprüfung. Ohne Guard entstünde bei jedem Klick ein
+    /// weiterer Gegenbeleg samt verbrauchter Rechnungsnummer.
+    #[tokio::test]
+    async fn storno_eines_stornobelegs_wird_abgelehnt() {
+        let (_dir, pool) = test_pool().await;
+        let kunde_id = kunde_anlegen(&pool).await;
+        let artikel_id = artikel_anlegen(&pool, 5000).await;
+        let rechnung = create(&pool, beleg_neu("rechnung", &kunde_id)).await.unwrap();
+        position_speichern(&pool, BelegpositionNeu {
+            id: "".into(), beleg_id: rechnung.id.clone(), artikel_id: Some(artikel_id),
+            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000,
+        }).await.unwrap();
+        let gestellt = stellen(&pool, rechnung.id).await.unwrap();
+        let storno = storniere_rechnung(&pool, gestellt.id).await.unwrap();
+
+        let err = storniere_rechnung(&pool, storno.id).await.unwrap_err();
+        assert!(
+            matches!(&err, AppError::Validation { feld, .. } if feld == "storno_von_id"),
+            "erwartet wurde ein Validierungsfehler zu storno_von_id, war: {err:?}"
+        );
     }
 
     #[tokio::test]

@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import {
   api,
-  istValidierungsfehler,
   type Adresse,
   type Ansprechpartner,
   type AppFehler,
@@ -9,9 +8,10 @@ import {
   type Kunde,
   type KundeDetail as KundeDetailTyp,
 } from "../api";
+import { formularFehler } from "../formularFehler";
 import { Fehler } from "../components/Fehler";
 import { useErfolgsHinweis } from "../hooks/useErfolgsHinweis";
-import { useLoeschBestaetigung } from "../hooks/useLoeschBestaetigung";
+import { useBestaetigung } from "../hooks/useBestaetigung";
 import { formatCent } from "../geld";
 
 interface KundeDetailProps {
@@ -183,7 +183,7 @@ function StammdatenReiter({ kunde, onGespeichert, onGeloescht }: StammdatenReite
   const [form, setForm] = useState<Kunde>(kunde);
   const [fehler, setFehler] = useState<AppFehler | null>(null);
   const { zeigen, hinweis } = useErfolgsHinweis();
-  const { bestaetigen, dialog } = useLoeschBestaetigung();
+  const { bestaetigen, dialog } = useBestaetigung();
 
   useEffect(() => {
     setForm(kunde);
@@ -215,12 +215,11 @@ function StammdatenReiter({ kunde, onGespeichert, onGeloescht }: StammdatenReite
     }
   }
 
-  const feldFehler = (feld: string) =>
-    fehler && istValidierungsfehler(fehler) && fehler.feld === feld ? fehler.meldung : null;
+  const { feldFehler, bannerFehler } = formularFehler(fehler, ["name", "ust_idnr", "email"]);
 
   return (
     <section>
-      {fehler && !istValidierungsfehler(fehler) && <Fehler fehler={fehler} />}
+      <Fehler fehler={bannerFehler} />
       {hinweis}
       {dialog}
       <form
@@ -351,7 +350,7 @@ function AdressenReiter({ kundeId, adressen, onGeaendert }: AdressenReiterProps)
   const [form, setForm] = useState<Omit<Adresse, "id"> & { id?: string }>(ADRESSE_NEU(kundeId));
   const [fehler, setFehler] = useState<AppFehler | null>(null);
   const { zeigen, hinweis } = useErfolgsHinweis();
-  const { bestaetigen, dialog } = useLoeschBestaetigung();
+  const { bestaetigen, dialog } = useBestaetigung();
 
   async function speichern() {
     setFehler(null);
@@ -490,7 +489,7 @@ function AnsprechpartnerReiter({ kundeId, ansprechpartner, onGeaendert }: Anspre
   );
   const [fehler, setFehler] = useState<AppFehler | null>(null);
   const { zeigen, hinweis } = useErfolgsHinweis();
-  const { bestaetigen, dialog } = useLoeschBestaetigung();
+  const { bestaetigen, dialog } = useBestaetigung();
 
   async function speichern() {
     setFehler(null);

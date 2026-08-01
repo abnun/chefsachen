@@ -30,25 +30,25 @@ Ohne diese Punkte tut die App nicht, wofür sie gebaut wurde.
   inkrementellen Builds stillschweigend ignoriert. `build.rs` gibt jetzt
   `cargo:rerun-if-changed=migrations` aus; Wirkung mit einer Wegwerf-Migration verifiziert.
 
-- [ ] **P1.4 — Stumme Formularfehler sichtbar machen** `[A14]`
+- [x] **P1.4 — Stumme Formularfehler sichtbar machen** `[A14]` ✅ 2026-08-02
   Artikel ohne Einheit speichern → Button tut sichtbar nichts. Backend liefert Fehler für `einheit_id` und `standardpreis_cent`, das Formular rendert nur `bezeichnung`.
   → `src/pages/Artikel.tsx:159-162`
   Gleiches Muster prüfen in `Kunden.tsx`, `KundeDetail.tsx`, `Einstellungen.tsx`, `Einrichtung.tsx`
   Besser: gemeinsamen `feldFehler`-Helper extrahieren, der *alle* Validierungsfehler anzeigt (behebt zugleich `[C]` 5-fach-Duplizierung)
 
-- [ ] **P1.5 — Bestätigung vor irreversiblen Aktionen** `[A12]`
+- [x] **P1.5 — Bestätigung vor irreversiblen Aktionen** `[A12]` ✅ 2026-08-02
   „Stellen", „Stornieren", „Abgelehnt", „Abgelaufen" sind Ein-Klick-Einbahnstraßen. `useLoeschBestaetigung` existiert bereits und wird anderswo genutzt.
   → `src/pages/BelegEditor.tsx:241-268`
 
-- [ ] **P1.6 — Storno eines Stornobelegs verhindern** `[A12]`
+- [x] **P1.6 — Storno eines Stornobelegs verhindern** `[A12]` ✅ 2026-08-02
   Weder Frontend noch Backend prüfen `storno_von_id` → Kaskade von Storno-auf-Storno, Nummernkreis-Verbrauch, verfälschte Summen.
   → `src/pages/BelegEditor.tsx:264` und `src-tauri/src/commands/belege.rs:452-459` (beide Ebenen)
 
-- [ ] **P1.7 — Doppelklick-Sperre für alle Submit-Aktionen** `[A13]`
+- [x] **P1.7 — Doppelklick-Sperre für alle Submit-Aktionen** `[A13]` ✅ 2026-08-02
   Erzeugt sonst doppelte Zahlungen und Belege inkl. Nummernkreis-Verbrauch. Muster aus `Einrichtung.tsx:212` übernehmen.
   → alle Formulare, v. a. `BelegEditor.tsx` (Zahlung erfassen), `Angebote.tsx`, `Rechnungen.tsx`
 
-- [ ] **P1.8 — Import-Reihenfolge korrigieren** `[A15]`
+- [x] **P1.8 — Import-Reihenfolge korrigieren** `[A15]` ✅ 2026-08-02
   `dateiBytes`/`dateiname` werden vor `importVorschau` gesetzt → bei Parse-Fehler wird die neue Datei unter den alten Metadaten gespeichert.
   → `src/pages/Eingangsrechnungen.tsx:44-55`
 

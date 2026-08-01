@@ -11,7 +11,7 @@ interface BestaetigungsdialogProps {
  * Zentriertes Bestätigungs-Modal für destruktive Aktionen. Escape und Klick
  * auf den abgedunkelten Hintergrund brechen ab, wie ein Klick auf
  * "Abbrechen". Rendert nichts von sich aus dauerhaft — die aufrufende Seite
- * (über useLoeschBestaetigung) steuert die Sichtbarkeit per bedingtem
+ * (über useBestaetigung) steuert die Sichtbarkeit per bedingtem
  * Rendering, diese Komponente merkt sich nichts.
  */
 export function Bestaetigungsdialog({ text, bestaetigenLabel, onAbbrechen, onBestaetigen }: BestaetigungsdialogProps) {

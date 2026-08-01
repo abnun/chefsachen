@@ -194,6 +194,8 @@ describe("BelegEditor – Stellen", () => {
     const stellenButton = screen.getByRole("button", { name: "Stellen" });
     expect(stellenButton).not.toBeDisabled();
     fireEvent.click(stellenButton);
+    // Angebot: der bestätigende Knopf heißt „Versenden", nicht „Stellen".
+    fireEvent.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "Versenden" }));
 
     await waitFor(() => expect(api.belege.stellen).toHaveBeenCalledWith("b1"));
     await waitFor(() => expect(vi.mocked(api.belege.get).mock.calls.length).toBeGreaterThanOrEqual(2));
@@ -432,6 +434,7 @@ describe("BelegEditor – Erfolgs-Hinweis", () => {
     render(<BelegEditor id="b1" />);
     await waitFor(() => expect(screen.getByText("Beratung")).toBeTruthy());
     fireEvent.click(screen.getByRole("button", { name: "Stellen" }));
+    fireEvent.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "Stellen" }));
     await waitFor(() => expect(screen.getByText("Rechnung gestellt")).toBeTruthy());
   });
 
@@ -462,7 +465,98 @@ describe("BelegEditor – Erfolgs-Hinweis", () => {
     render(<BelegEditor id="b1" />);
     await waitFor(() => expect(screen.getByRole("button", { name: "Stornieren" })).toBeTruthy());
     fireEvent.click(screen.getByRole("button", { name: "Stornieren" }));
+    fireEvent.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "Stornieren" }));
     await waitFor(() => expect(screen.getByText("Rechnung storniert")).toBeTruthy());
+  });
+
+  // P1.5/P1.6/P1.7 — Schutz vor Fehlklicks bei nicht umkehrbaren Aktionen.
+  const rechnungGestellt = (zusatz: Record<string, unknown> = {}) => ({
+    beleg: {
+      id: "b1", typ: "rechnung" as const, nummer: "R-2026-0001", status: "gestellt", kunde_id: "k1",
+      datum: "2026-07-10", leistungsdatum: "2026-07-10", zahlungsziel_tage: 14,
+      kopftext: "", fusstext: "", summe_cent: 9550, ursprungsangebot_id: null,
+      storno_von_id: null, ...zusatz,
+    },
+    positionen: [], zahlungen: [], bezahlt_cent: 0, offener_betrag_cent: 9550,
+  });
+
+  it("storniert nicht, wenn die Rückfrage abgebrochen wird", async () => {
+    vi.mocked(api.belege.get).mockResolvedValue(rechnungGestellt());
+    render(<BelegEditor id="b1" />);
+    fireEvent.click(await screen.findByRole("button", { name: "Stornieren" }));
+    fireEvent.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "Abbrechen" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(api.belege.rechnungStornieren).not.toHaveBeenCalled();
+  });
+
+  it("stellt nicht, wenn die Rückfrage abgebrochen wird", async () => {
+    vi.mocked(api.belege.get).mockResolvedValue({
+      ...rechnungGestellt({ status: "entwurf", nummer: null }),
+      positionen: [{
+        id: "p1", beleg_id: "b1", artikel_id: null, bezeichnung: "Beratung",
+        einheit_kuerzel: "Std", einzelpreis_cent: 9550, menge: 1000,
+        positionssumme_cent: 9550, reihenfolge: 0,
+      }],
+    });
+    render(<BelegEditor id="b1" />);
+    fireEvent.click(await screen.findByRole("button", { name: "Stellen" }));
+    fireEvent.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "Abbrechen" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(api.belege.stellen).not.toHaveBeenCalled();
+  });
+
+  // Ein Stornobeleg ist selbst eine gestellte Rechnung. Ohne Guard ließe er sich
+  // erneut stornieren — Kaskade aus Gegenbelegen und verbrauchten Nummern.
+  it("bietet für einen Stornobeleg kein Stornieren an", async () => {
+    vi.mocked(api.belege.get).mockResolvedValue(rechnungGestellt({ storno_von_id: "b0" }));
+    render(<BelegEditor id="b1" />);
+    await waitFor(() => expect(screen.getByText(/R-2026-0001/)).toBeTruthy());
+    expect(screen.queryByRole("button", { name: "Stornieren" })).toBeNull();
+  });
+
+  it('fragt vor Abgelehnt nach, aber nicht vor Angenommen', async () => {
+    vi.mocked(api.belege.get).mockResolvedValue({
+      ...rechnungGestellt({ typ: "angebot", status: "versendet", nummer: "A-2026-0001" }),
+    });
+    render(<BelegEditor id="b1" />);
+    fireEvent.click(await screen.findByRole("button", { name: "Angenommen" }));
+    await waitFor(() => expect(api.belege.angebotStatusSetzen).toHaveBeenCalledWith("b1", "angenommen"));
+    expect(screen.queryByRole("dialog")).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Abgelehnt" }));
+    expect(await screen.findByRole("dialog")).toBeTruthy();
+  });
+
+  // Ohne Dialog davor: hier schützt nur die Sperre am Knopf. Eine doppelt
+  // erfasste Zahlung ließe sich mangels Lösch-Funktion nicht mehr korrigieren.
+  it("erfasst bei Doppelklick nur eine Zahlung", async () => {
+    vi.mocked(api.belege.get).mockResolvedValue(rechnungGestellt());
+    render(<BelegEditor id="b1" />);
+    await waitFor(() => expect(screen.getByRole("button", { name: "Zahlung erfassen" })).toBeTruthy());
+    fireEvent.change(screen.getByLabelText("Betrag"), { target: { value: "95,50" } });
+    const knopf = screen.getByRole("button", { name: "Zahlung erfassen" });
+    fireEvent.click(knopf);
+    fireEvent.click(knopf);
+    await waitFor(() => expect(screen.getByText("Zahlung erfasst")).toBeTruthy());
+    expect(api.belege.zahlungErfassen).toHaveBeenCalledTimes(1);
+  });
+
+  it('stellt bei Doppelklick nur einmal', async () => {
+    vi.mocked(api.belege.get).mockResolvedValue({
+      ...rechnungGestellt({ status: "entwurf", nummer: null }),
+      positionen: [{
+        id: "p1", beleg_id: "b1", artikel_id: null, bezeichnung: "Beratung",
+        einheit_kuerzel: "Std", einzelpreis_cent: 9550, menge: 1000,
+        positionssumme_cent: 9550, reihenfolge: 0,
+      }],
+    });
+    render(<BelegEditor id="b1" />);
+    fireEvent.click(await screen.findByRole("button", { name: "Stellen" }));
+    const knopf = within(await screen.findByRole("dialog")).getByRole("button", { name: "Stellen" });
+    fireEvent.click(knopf);
+    fireEvent.click(knopf);
+    await waitFor(() => expect(screen.getByText("Rechnung gestellt")).toBeTruthy());
+    expect(api.belege.stellen).toHaveBeenCalledTimes(1);
   });
 
   it("löscht eine Position nicht, wenn im Dialog abgebrochen wird", async () => {

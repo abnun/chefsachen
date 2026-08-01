@@ -1,17 +1,17 @@
 import { Fragment, useEffect, useState } from "react";
 import {
   api,
-  istValidierungsfehler,
   type AppFehler,
   type Artikel as ArtikelTyp,
   type Einheit,
   type Kunde,
   type Kundenpreis,
 } from "../api";
+import { formularFehler } from "../formularFehler";
 import { Fehler } from "../components/Fehler";
 import { Hinweis } from "../components/Hinweis";
 import { useErfolgsHinweis } from "../hooks/useErfolgsHinweis";
-import { useLoeschBestaetigung } from "../hooks/useLoeschBestaetigung";
+import { useBestaetigung } from "../hooks/useBestaetigung";
 import { formatCent, parseEuro } from "../geld";
 
 const ARTIKEL_NEU_LEER = {
@@ -48,7 +48,7 @@ export function Artikel({ zeigeFormularBeimStart, onFormularUebernommen, onZuKun
   const [leerHinweisVersteckt, setLeerHinweisVersteckt] = useState(false);
   const [zeigtKundenHinweis, setZeigtKundenHinweis] = useState(false);
   const { zeigen, hinweis } = useErfolgsHinweis();
-  const { bestaetigen, dialog } = useLoeschBestaetigung();
+  const { bestaetigen, dialog } = useBestaetigung();
 
   useEffect(() => {
     if (zeigeFormularBeimStart) {
@@ -156,10 +156,13 @@ export function Artikel({ zeigeFormularBeimStart, onFormularUebernommen, onZuKun
     }
   }
 
-  const feldFehler = (feld: string) =>
-    formFehler && istValidierungsfehler(formFehler) && formFehler.feld === feld
-      ? formFehler.meldung
-      : null;
+  // Felder, die das Formular selbst am Eingabefeld ausweist. Alles andere zeigt
+  // formularFehler als Banner an, damit kein Backend-Fehler stumm bleibt.
+  const { feldFehler, bannerFehler } = formularFehler(formFehler, [
+    "bezeichnung",
+    "einheit_id",
+    "standardpreis_cent",
+  ]);
 
   return (
     <div>
@@ -189,7 +192,7 @@ export function Artikel({ zeigeFormularBeimStart, onFormularUebernommen, onZuKun
             speichern();
           }}
         >
-          {formFehler && !istValidierungsfehler(formFehler) && <Fehler fehler={formFehler} />}
+          <Fehler fehler={bannerFehler} />
           <div className="feld">
             <label>
               Bezeichnung
@@ -224,13 +227,20 @@ export function Artikel({ zeigeFormularBeimStart, onFormularUebernommen, onZuKun
                 ))}
               </select>
             </label>
+            {feldFehler("einheit_id") && (
+              <div className="feld-fehler" role="alert">{feldFehler("einheit_id")}</div>
+            )}
           </div>
           <div className="feld">
             <label>
               Standardpreis (€)
               <input value={preisText} onChange={(e) => setPreisText(e.currentTarget.value)} />
             </label>
-            {preisFehlerText && <div className="feld-fehler" role="alert">{preisFehlerText}</div>}
+            {(preisFehlerText || feldFehler("standardpreis_cent")) && (
+              <div className="feld-fehler" role="alert">
+                {preisFehlerText ?? feldFehler("standardpreis_cent")}
+              </div>
+            )}
           </div>
           <button type="submit" className="btn btn-primaer">Speichern</button>
         </form>

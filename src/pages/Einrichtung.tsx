@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { readFile } from "@tauri-apps/plugin-fs";
 import { api, istValidierungsfehler, type AppFehler, type Firma } from "../api";
+import { formularFehler } from "../formularFehler";
 import { Fehler } from "../components/Fehler";
 
 interface EinrichtungProps {
@@ -36,8 +37,7 @@ export function Einrichtung({ onFertig }: EinrichtungProps) {
     );
   }
 
-  const feldFehler = (feld: string) =>
-    fehler && istValidierungsfehler(fehler) && fehler.feld === feld ? fehler.meldung : null;
+  const { feldFehler, bannerFehler } = formularFehler(fehler, ["name", "steuernummer"]);
 
   async function logoWaehlen() {
     const pfad = await open({
@@ -73,7 +73,7 @@ export function Einrichtung({ onFertig }: EinrichtungProps) {
   return (
     <main className="einrichtung-main">
       <h1 className="seiten-kopf">Ersteinrichtung</h1>
-      {fehler && !istValidierungsfehler(fehler) && <Fehler fehler={fehler} />}
+      <Fehler fehler={bannerFehler} />
 
       {schritt === 1 && (
         <section className="karte">

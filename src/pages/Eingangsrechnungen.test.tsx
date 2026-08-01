@@ -166,6 +166,42 @@ describe("Eingangsrechnungen", () => {
     expect(screen.queryByRole("button", { name: "Bearbeiten" })).toBeNull();
   });
 
+  // Regression P1.8: Datei und Metadaten dürfen nie auseinanderlaufen. Vorher
+  // wurden Bytes und Dateiname vor dem Parsen übernommen — schlug das Parsen
+  // fehl, blieb die alte Vorschau stehen und "Speichern" hätte die NEUE Datei
+  // unter den ALTEN Metadaten abgelegt.
+  it("übernimmt bei fehlgeschlagenem Parsen nicht die neue Datei", async () => {
+    const { api } = await import("../api");
+    const { readFile } = await import("@tauri-apps/plugin-fs");
+    const { open } = await import("@tauri-apps/plugin-dialog");
+
+    render(<Eingangsrechnungen onOeffnen={() => {}} />);
+    await waitFor(() => expect(screen.getByText("Lieferant GmbH")).toBeTruthy());
+
+    // Erster Import gelingt — Vorschau und Bytes gehören zu "gut.xml".
+    vi.mocked(open).mockResolvedValueOnce("/pfad/gut.xml");
+    vi.mocked(readFile).mockResolvedValueOnce(new Uint8Array([1, 2, 3]));
+    fireEvent.click(screen.getByRole("button", { name: "Importieren" }));
+    await waitFor(() => expect(screen.getByText("Neuer Lieferant")).toBeTruthy());
+
+    // Zweiter Import scheitert am Parsen.
+    vi.mocked(open).mockResolvedValueOnce("/pfad/kaputt.xml");
+    vi.mocked(readFile).mockResolvedValueOnce(new Uint8Array([9, 9, 9]));
+    vi.mocked(api.eingangsrechnungen.importVorschau).mockRejectedValueOnce({
+      typ: "technisch", meldung: "Datei nicht lesbar",
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Importieren" }));
+    await waitFor(() => expect(screen.getByText(/technischer Fehler/i)).toBeTruthy());
+
+    // Speichern muss die Bytes und den Namen des ERSTEN, gültigen Imports nutzen.
+    fireEvent.click(screen.getByRole("button", { name: "Speichern" }));
+    await waitFor(() => expect(api.eingangsrechnungen.speichern).toHaveBeenCalled());
+    const aufrufe = vi.mocked(api.eingangsrechnungen.speichern).mock.calls;
+    const [bytes, dateiname] = aufrufe[aufrufe.length - 1];
+    expect(bytes).toEqual([1, 2, 3]);
+    expect(dateiname).toBe("gut.xml");
+  });
+
   it("öffnet den Datei-Dialog mit XML/PDF-Filter beim Klick auf Importieren", async () => {
     render(<Eingangsrechnungen onOeffnen={() => {}} />);
     await waitFor(() => expect(screen.getByText("Lieferant GmbH")).toBeTruthy());
