@@ -1,4 +1,5 @@
 use crate::db::jetzt;
+use crate::domain::nummernkreis::MAX_BREITE;
 use crate::error::{AppError, AppResult};
 use serde::{Deserialize, Serialize};
 use sqlx::SqlitePool;
@@ -48,18 +49,55 @@ pub async fn nummernkreis_list_intern(pool: &SqlitePool) -> AppResult<Vec<Nummer
     .await?)
 }
 
+/// Prüft ein Nummernkreis-Format, bevor es gespeichert wird.
+///
+/// Das Format ist frei konfigurierbar und wird später bei jeder Nummernvergabe
+/// ausgewertet. Ein fehlerhaftes Format würde sonst erst beim nächsten
+/// Beleg-Stellen auffallen — an einer Stelle, an der der Nutzer den Zusammenhang
+/// zur Einstellung nicht mehr herstellen kann.
+fn pruefe_format(format: &str) -> AppResult<()> {
+    let fehler = |meldung: &str| AppError::Validation {
+        feld: "format".into(),
+        meldung: meldung.into(),
+    };
+
+    if !format.contains("{lfd") {
+        return Err(fehler("Format muss einen {lfd:n}-Platzhalter enthalten"));
+    }
+
+    let mut suchen_ab = 0;
+    while let Some(rel) = format[suchen_ab..].find("{lfd") {
+        let start = suchen_ab + rel;
+        let Some(rel_ende) = format[start..].find('}') else {
+            return Err(fehler(
+                "Platzhalter {lfd:n} ist unvollständig — die schließende Klammer } fehlt",
+            ));
+        };
+        let end = start + rel_ende;
+        let stellen = format[start + 4..end].trim_start_matches(':');
+        if !stellen.is_empty() {
+            match stellen.parse::<usize>() {
+                Ok(n) if (1..=MAX_BREITE).contains(&n) => {}
+                Ok(_) => {
+                    return Err(fehler(&format!(
+                        "Stellenzahl im Platzhalter muss zwischen 1 und {MAX_BREITE} liegen"
+                    )))
+                }
+                Err(_) => return Err(fehler("Stellenzahl im Platzhalter muss eine Zahl sein")),
+            }
+        }
+        suchen_ab = end + 1;
+    }
+    Ok(())
+}
+
 pub async fn nummernkreis_update_intern(
     pool: &SqlitePool,
     art: String,
     format: String,
     jahres_reset: bool,
 ) -> AppResult<()> {
-    if !format.contains("{lfd") {
-        return Err(AppError::Validation {
-            feld: "format".into(),
-            meldung: "Format muss einen {lfd:n}-Platzhalter enthalten".into(),
-        });
-    }
+    pruefe_format(&format)?;
     // WICHTIG: zaehler und jahr werden hier bewusst NICHT angefasst — die werden
     // ausschließlich von domain::nummernkreis::naechste_nummer verändert.
     let r = sqlx::query(
@@ -134,6 +172,29 @@ mod tests {
     async fn nummernkreis_update_lehnt_format_ohne_platzhalter_ab() {
         let (_dir, pool) = test_pool().await;
         let err = nummernkreis_update_intern(&pool, "kunde".into(), "KD-ohne-platzhalter".into(), false)
+            .await
+            .unwrap_err();
+        assert!(matches!(err, AppError::Validation { feld, .. } if feld == "format"));
+    }
+
+    #[tokio::test]
+    async fn nummernkreis_update_lehnt_unvollstaendigen_platzhalter_ab() {
+        let (_dir, pool) = test_pool().await;
+        for kaputt in ["KD-{lfd", "KD-{lfd:4", "KD-{lfd:4}-{lfd"] {
+            let err = nummernkreis_update_intern(&pool, "kunde".into(), kaputt.into(), false)
+                .await
+                .unwrap_err();
+            assert!(
+                matches!(&err, AppError::Validation { feld, .. } if feld == "format"),
+                "Format {kaputt:?} haette abgelehnt werden muessen, war aber: {err:?}"
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn nummernkreis_update_lehnt_uebergrosse_breite_ab() {
+        let (_dir, pool) = test_pool().await;
+        let err = nummernkreis_update_intern(&pool, "kunde".into(), "KD-{lfd:99}".into(), false)
             .await
             .unwrap_err();
         assert!(matches!(err, AppError::Validation { feld, .. } if feld == "format"));
