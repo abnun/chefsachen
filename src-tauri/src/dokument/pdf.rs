@@ -177,7 +177,12 @@ fn dokument_bauen(
 
 pub fn rendern(kontext: &BelegKontext, logo: Option<&[u8]>) -> AppResult<Vec<u8>> {
     let dokument = dokument_bauen(kontext, logo)?;
-    let optionen = typst_pdf::PdfOptions::default();
+    // PDF/A-3b anfordern: ZUGFeRD verlangt es, und ohne die Vorgabe hinge die
+    // Konformität davon ab, dass die Vorlage zufällig nichts PDF/A-Widriges
+    // enthält (etwa Transparenz oder eine nicht eingebettete Schrift).
+    let standards = typst_pdf::PdfStandards::new(&[typst_pdf::PdfStandard::A_3b])
+        .map_err(|e| AppError::Technisch(format!("PDF/A-Vorgabe abgelehnt: {e}")))?;
+    let optionen = typst_pdf::PdfOptions { standards, ..Default::default() };
     typst_pdf::pdf(&dokument, &optionen)
         .map_err(|e| AppError::Technisch(format!("PDF-Export fehlgeschlagen: {e:?}")))
 }

@@ -108,11 +108,19 @@ Ohne diese Punkte erzeugt die App formell fehlerhafte Rechnungen.
     → Migration `0007_firma_kontakt.sql` mit E-Mail, Telefon und Ansprechpartner.
   - Korrekturrechnungen brauchen den Verweis auf die Vorrechnung (BG-3).
 
-- [ ] **P2.7 — Echtes PDF/A-3 erzeugen oder Konformitätsbehauptung entfernen** `[A7]`
+- [x] **P2.7 — Echtes PDF/A-3 erzeugen oder Konformitätsbehauptung entfernen** `[A7]` ✅ 2026-08-02
   `typst_pdf::PdfOptions::default()` erzeugt PDF 1.7, das XMP behauptet aber `pdfaid:part=3`. `typst-pdf 0.13` bietet `PdfStandards`/`PdfStandard`. Zusätzlich: `ConformanceLevel` steht auf `BASIC` statt EN 16931.
   → `src-tauri/src/dokument/pdf.rs:126`, `src-tauri/src/dokument/zugferd.rs:42-52`
 
-- [x] **P2.8 — Formatvalidierung in die CI** `[B6]` ✅ 2026-08-02 (XRechnung; veraPDF für ZUGFeRD offen)
+  Bestätigt PDF/A-3b-konform durch veraPDF. Die Lage war weniger schlimm als
+  angenommen: 144 Regeln bestanden bereits, gescheitert ist nur eine — die
+  `fx:`-Metadaten waren nicht über ein PDF/A-Erweiterungsschema deklariert
+  (ISO 19005-3, 6.6.2.3.1). Zusätzlich: `ConformanceLevel` auf „EN 16931"
+  korrigiert, und `PdfStandard::A_3b` wird jetzt bei Typst angefordert, damit
+  die Konformität nicht davon abhängt, dass die Vorlage zufällig nichts
+  PDF/A-Widriges enthält.
+
+- [x] **P2.8 — Formatvalidierung in die CI** `[B6]` ✅ 2026-08-02 (KoSIT für XRechnung, veraPDF für PDF/A)
   Für die PDF-Seite ist der Weg inzwischen frei: `pdf-extract` liest den Text der erzeugten
   Rechnung zuverlässig aus (anders als `lopdf`, siehe alter Hinweis im Testmodul). Damit prüfen
   die Tests jetzt, was tatsächlich auf der Rechnung steht. Für XRechnung und ZUGFeRD fehlt das

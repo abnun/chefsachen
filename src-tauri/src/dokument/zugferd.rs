@@ -49,7 +49,30 @@ pub fn einbetten(pdf_bytes: Vec<u8>, xml: &str) -> AppResult<Vec<u8>> {
     xmp.element("DocumentFileName", fx.clone()).value("factur-x.xml");
     xmp.element("DocumentType", fx.clone()).value("INVOICE");
     xmp.element("Version", fx.clone()).value("1.0");
-    xmp.element("ConformanceLevel", fx.clone()).value("BASIC");
+    // Das Profil muss zu dem passen, das die XRechnung im XML angibt. Zuvor
+    // stand hier "BASIC", während das XML nach EN 16931 erzeugt wird — eine
+    // Metadatenangabe, die dem Inhalt widersprach.
+    xmp.element("ConformanceLevel", fx.clone()).value("EN 16931");
+
+    // PDF/A verbietet XMP-Eigenschaften aus Namensräumen, die nicht entweder
+    // vordefiniert oder über ein Erweiterungsschema beschrieben sind
+    // (ISO 19005-3, 6.6.2.3.1). Ohne diesen Block sind die vier fx:-Angaben
+    // oben regelwidrig — das Dokument behauptete PDF/A-3, war es aber nicht.
+    {
+        let mut schemas = xmp.extension_schemas();
+        let mut schema = schemas.add_schema();
+        schema.namespace(fx.clone());
+        let mut eigenschaften = schema.properties();
+        for (name, beschreibung) in [
+            ("DocumentFileName", "Name der eingebetteten Rechnungsdatei"),
+            ("DocumentType", "Art des Dokuments"),
+            ("Version", "Version des Factur-X/ZUGFeRD-Profils"),
+            ("ConformanceLevel", "Konformitätsstufe des eingebetteten XML"),
+        ] {
+            let mut eigenschaft = eigenschaften.add_property();
+            eigenschaft.name(name).value_type("Text").category(true).description(beschreibung);
+        }
+    }
 
     let xmp_bytes = xmp.finish(None).into_bytes();
     let xmp_stream = Stream::new(
@@ -127,6 +150,30 @@ pub fn einbetten(pdf_bytes: Vec<u8>, xml: &str) -> AppResult<Vec<u8>> {
 
 #[cfg(test)]
 mod tests {
+    /// ZUGFeRD verlangt PDF/A-3. Der bisherige Test prüfte nur, ob die
+    /// Zeichenfolge „factur-x.xml" in den Bytes vorkommt — ob die Datei den
+    /// PDF/A-Regeln genügt, konnte er nicht beantworten. Das übernimmt hier
+    /// veraPDF, der Referenzprüfer für PDF/A.
+    #[test]
+    fn zugferd_pdf_ist_pdfa3_konform() {
+        if let Some(grund) = crate::dokument::verapdf::nicht_verfuegbar_weil() {
+            eprintln!("übersprungen: {grund}");
+            return;
+        }
+        let kontext = crate::dokument::pdf::tests::test_kontext();
+        let pdf = crate::dokument::pdf::rendern(&kontext, None).unwrap();
+        let xml = crate::dokument::xrechnung::xml_erzeugen(&kontext).unwrap();
+        let zugferd = einbetten(pdf, &xml).unwrap();
+
+        let bericht = crate::dokument::verapdf::pruefen(&zugferd, "3b").expect("veraPDF-Aufruf");
+        assert!(
+            bericht.konform,
+            "Das ZUGFeRD-PDF ist nicht PDF/A-3b-konform. Verstöße ({}):\n{}",
+            bericht.verstoesse.len(),
+            bericht.verstoesse.iter().map(|v| format!("  - {v}")).collect::<Vec<_>>().join("\n")
+        );
+    }
+
     use super::*;
 
     #[test]
