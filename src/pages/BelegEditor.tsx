@@ -13,6 +13,7 @@ import {
 } from "../api";
 import { Fehler } from "../components/Fehler";
 import { Laden } from "../components/Laden";
+import { StatusMarke } from "../components/StatusMarke";
 import { useErfolgsHinweis } from "../hooks/useErfolgsHinweis";
 import { useBestaetigung } from "../hooks/useBestaetigung";
 import { formatCent, formatMenge, parseEuro, parseMenge } from "../geld";
@@ -32,15 +33,6 @@ const ANGEBOT_ABSCHLUSS_STATUS = [
   { wert: "abgelaufen", label: "Abgelaufen" },
 ];
 
-const BELEGEDITOR_STATUS_KLASSE: Record<string, string> = {
-  entwurf: "status-entwurf",
-  abgelaufen: "status-entwurf",
-  versendet: "status-gestellt",
-  gestellt: "status-gestellt",
-  angenommen: "status-bezahlt",
-  abgelehnt: "status-storniert",
-  storniert: "status-storniert",
-};
 
 /**
  * Editor für Angebote und Rechnungen — beide teilen sich Datenmodell,
@@ -252,9 +244,7 @@ export function BelegEditor({ id, onGeaendert, onRechnungErstellt, onGeloescht }
       </h1>
       <p>
         Status:{" "}
-        <span className={`status ${BELEGEDITOR_STATUS_KLASSE[beleg.status] ?? "status-entwurf"}`}>
-          {beleg.status}
-        </span>
+        <StatusMarke status={beleg.status} />
       </p>
       {fehler && <Fehler fehler={fehler} />}
       {hinweis}

@@ -46,4 +46,17 @@ describe("Angebote", () => {
     render(<Angebote onOeffnen={() => {}} />);
     await waitFor(() => expect(screen.getByText(/Noch keine Angebote/)).toBeTruthy());
   });
+
+  it("zeigt das Datum deutsch, nicht in ISO-Schreibweise", async () => {
+    // Die Rechnungsliste tat das längst; hier war es nie umgestellt worden.
+    // „2026-07-10" liest sich für deutsche Nutzer leicht als Tag-Monat-Dreher.
+    render(<Angebote onOeffnen={() => {}} />);
+    await waitFor(() => expect(screen.getByText("10.07.2026")).toBeTruthy());
+    expect(screen.queryByText("2026-07-10")).toBeNull();
+  });
+
+  it("beschriftet den Status, statt den Datenbankschlüssel zu zeigen", async () => {
+    render(<Angebote onOeffnen={() => {}} />);
+    await waitFor(() => expect(screen.getAllByText("Versendet", { selector: ".status" })).toHaveLength(2));
+  });
 });

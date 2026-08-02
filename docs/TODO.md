@@ -385,11 +385,25 @@ Ohne diese Punkte ist die App für die Zielgruppe nicht wertvoll.
 
 ## Stufe 6 — UX und Code-Qualität
 
-- [ ] **P6.1 — Ladezustände** `[B16]` — aktuell `return null` → weißer Bildschirm, nicht von „kaputt" unterscheidbar
+- [x] **P6.1 — Ladezustände** `[B16]`
+  Komponente `Laden` mit `role="status"`, absichtlich erst nach 150 ms sichtbar — bei
+  Millisekunden-Abrufen auf lokaler Datenbank würde ein sofortiger Hinweis nur aufblitzen.
+  Eingebaut in App, Dashboard, die drei Detailseiten und alle Listen. Die Listen unterscheiden
+  über ein `geladen`-Kennzeichen zwischen „noch nichts da" und „nichts vorhanden";
+  Rechnungen und Angebote zusätzlich zwischen leerer Liste und leerem Filterergebnis.
+  Beide hatten vorher gar keinen Leerzustand.
 - [ ] **P6.2 — Suche, Sortierung, Paginierung** `[B17]` — Rechnungen sind nicht nach Nummer oder Kunde auffindbar, obwohl das Backend den Parameter unterstützt
 - [ ] **P6.3 — Tastaturbedienbarkeit** `[B18]` — Tabellenzeilen nur per Maus (WCAG 2.1.1), kein Zurück-Button in `BelegEditor`/`KundeDetail`
 - [ ] **P6.4 — Warnung bei ungespeicherten Änderungen** `[B19]`
-- [ ] **P6.5 — Duplizierung auflösen** — `Angebote.tsx` ≡ `Rechnungen.tsx` zu ~95 %, `STATUS_KLASSE` in 4 divergierenden Kopien
+- [x] **P6.5 — Duplizierung auflösen**
+  `src/belegStatus.ts` als einzige Quelle für Beschriftung und Einfärbung aller Statuswerte,
+  dazu die Komponente `StatusMarke`. Gemeinsame Listenlogik in `useBelegListe`, das
+  Anlegen-Formular in `BelegAnlegen`. Zusammen 390 → 248 Zeilen.
+  Die Kopien hatten sich auseinandergelebt, und dabei kamen zwei echte Fehler zutage:
+  Die Angebotsliste zeigte das ISO-Datum (`2026-07-10`), weil die Umstellung nur in der
+  Rechnungsliste angekommen war, und der Belegeditor zeigte den Datenbankschlüssel
+  (`abgelehnt`) statt der Beschriftung. Vier Tests hielten das falsche Verhalten fest und
+  wurden mit korrigiert.
 - [ ] **P6.6 — Belegpositionen editierbar und sortierbar** — derzeit nur löschen und neu anlegen
 - [ ] **P6.7 — Artikel-Autocomplete statt `<select>`** — ab ~50 Artikeln unbenutzbar
 - [ ] **P6.8 — Live-Summenvorschau** — Spec-Anforderung, aktuell erst nach Server-Roundtrip

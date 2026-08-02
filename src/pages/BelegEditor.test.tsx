@@ -85,7 +85,7 @@ describe("BelegEditor", () => {
       offener_betrag_cent: 0,
     });
     render(<BelegEditor id="b1" />);
-    await waitFor(() => expect(screen.getByText("entwurf", { selector: ".status" })).toBeTruthy());
+    await waitFor(() => expect(screen.getByText("Entwurf", { selector: ".status" })).toBeTruthy());
     const stellenButton = screen.getByRole("button", { name: "Stellen" });
     expect(stellenButton).toBeDisabled();
   });
@@ -221,7 +221,7 @@ describe("BelegEditor – In Rechnung überführen", () => {
 
     const onRechnungErstellt = vi.fn();
     render(<BelegEditor id="b1" onRechnungErstellt={onRechnungErstellt} />);
-    await waitFor(() => expect(screen.getByText("angenommen", { selector: ".status" })).toBeTruthy());
+    await waitFor(() => expect(screen.getByText("Angenommen", { selector: ".status" })).toBeTruthy());
 
     fireEvent.click(screen.getByRole("button", { name: "In Rechnung überführen" }));
 
@@ -246,7 +246,7 @@ describe("BelegEditor – Zahlungen", () => {
     });
 
     render(<BelegEditor id="b1" />);
-    await waitFor(() => expect(screen.getByText("gestellt", { selector: ".status" })).toBeTruthy());
+    await waitFor(() => expect(screen.getByText("Gestellt", { selector: ".status" })).toBeTruthy());
 
     fireEvent.change(screen.getByLabelText("Betrag"), { target: { value: "50,00" } });
     fireEvent.click(screen.getByLabelText("Erstattung (negativer Betrag)"));
@@ -274,7 +274,7 @@ describe("BelegEditor – Zahlungen", () => {
       positionen: [], zahlungen: [], bezahlt_cent: 0, offener_betrag_cent: 5000,
     });
     render(<BelegEditor id="b1" />);
-    await waitFor(() => expect(screen.getByText("gestellt", { selector: ".status" })).toBeTruthy());
+    await waitFor(() => expect(screen.getByText("Gestellt", { selector: ".status" })).toBeTruthy());
     fireEvent.change(screen.getByLabelText("Betrag"), { target: { value: "50,00" } });
     fireEvent.click(screen.getByRole("button", { name: "Zahlung erfassen" }));
     await waitFor(() => expect(screen.getByText("Zahlung erfasst")).toBeTruthy());
