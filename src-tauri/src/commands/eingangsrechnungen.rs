@@ -114,6 +114,10 @@ pub struct EingangsrechnungFelderNeu {
 
 #[derive(Debug, Serialize)]
 pub struct EingangsrechnungVorschau {
+    /// Erkanntes Format: `xrechnung`, `zugferd` oder `pdf`. Bei `pdf` gibt es
+    /// nichts auszulesen — das ist kein Fehler, sondern der Normalfall bei
+    /// eingescannten Rechnungen, und die Oberfläche soll es entsprechend sagen.
+    pub format: String,
     pub geparst: bool,
     pub felder: EingangsrechnungFelderNeu,
     pub ist_duplikat: bool,
@@ -143,7 +147,7 @@ pub async fn list(pool: &SqlitePool) -> AppResult<Vec<Eingangsrechnung>> {
 }
 
 pub async fn import_vorschau(pool: &SqlitePool, datei_bytes: Vec<u8>) -> AppResult<EingangsrechnungVorschau> {
-    let (_format, geparst) = crate::dokument::eingangsrechnung_parse::verarbeite_datei(&datei_bytes);
+    let (format, geparst) = crate::dokument::eingangsrechnung_parse::verarbeite_datei(&datei_bytes);
     let (geparst_ok, felder) = match geparst {
         Ok(g) => (true, EingangsrechnungFelderNeu {
             rechnungssteller_name: g.rechnungssteller_name,
@@ -185,7 +189,7 @@ pub async fn import_vorschau(pool: &SqlitePool, datei_bytes: Vec<u8>) -> AppResu
         false
     };
 
-    Ok(EingangsrechnungVorschau { geparst: geparst_ok, felder, ist_duplikat })
+    Ok(EingangsrechnungVorschau { format: format.to_string(), geparst: geparst_ok, felder, ist_duplikat })
 }
 
 pub async fn speichern(
@@ -461,10 +465,45 @@ mod tests {
         // Kein `format`-Parameter im Command — auch bei einer .xml-benannten Datei
         // mit PDF-Inhalt wird das tatsächliche Format aus den Bytes bestimmt.
         let (_dir, pool) = test_pool().await;
-        let minimales_pdf = crate::dokument::pdf::rendern(&crate::dokument::pdf::tests::test_kontext(), None).unwrap();
+        let reines_pdf = crate::dokument::pdf::rendern(&crate::dokument::pdf::tests::test_kontext(), None).unwrap();
         let felder = EingangsrechnungFelderNeu { waehrung: "EUR".into(), ..Default::default() };
-        let gespeichert = speichern(&pool, minimales_pdf, "täuschung.xml".into(), felder).await.unwrap();
+        let gespeichert = speichern(&pool, reines_pdf.clone(), "täuschung.xml".into(), felder).await.unwrap();
+        // Ohne eingebettetes XML ist es kein ZUGFeRD, sondern eine gewöhnliche
+        // PDF-Rechnung — aufbewahrungspflichtig ist sie trotzdem.
+        assert_eq!(gespeichert.format, "pdf");
+
+        let kontext = crate::dokument::xrechnung::tests::test_kontext(None, 9500);
+        let xml = crate::dokument::xrechnung::xml_erzeugen(&kontext).unwrap();
+        let zugferd = crate::dokument::zugferd::einbetten(reines_pdf, &xml).unwrap();
+        let felder = EingangsrechnungFelderNeu { waehrung: "EUR".into(), ..Default::default() };
+        let gespeichert = speichern(&pool, zugferd, "auch.xml".into(), felder).await.unwrap();
         assert_eq!(gespeichert.format, "zugferd");
+    }
+
+    /// Aufbewahrungspflichtig sind alle Eingangsrechnungen. Ein reines PDF muss
+    /// sich mit von Hand eingetragenen Angaben ablegen lassen.
+    #[tokio::test]
+    async fn reines_pdf_laesst_sich_mit_handeingaben_archivieren() {
+        let (_dir, pool) = test_pool().await;
+        let reines_pdf = crate::dokument::pdf::rendern(&crate::dokument::pdf::tests::test_kontext(), None).unwrap();
+        let felder = EingangsrechnungFelderNeu {
+            rechnungssteller_name: "Papierlieferant GmbH".into(),
+            rechnungsnummer: "2026-0815".into(),
+            rechnungsdatum: "2026-07-20".into(),
+            betrag_cent: 4_999,
+            waehrung: "EUR".into(),
+            ..Default::default()
+        };
+        let gespeichert = speichern(&pool, reines_pdf.clone(), "scan.pdf".into(), felder).await.unwrap();
+
+        assert_eq!(gespeichert.format, "pdf");
+        assert_eq!(gespeichert.rechnungssteller_name, "Papierlieferant GmbH");
+        assert_eq!(gespeichert.betrag_cent, 4_999);
+
+        // Die Rohdatei bleibt unverändert erhalten — darauf kommt es bei der
+        // Aufbewahrungspflicht an.
+        let original = original_exportieren(&pool, gespeichert.id).await.unwrap();
+        assert_eq!(original.bytes, reines_pdf);
     }
 
     async fn beispiel_speichern(pool: &sqlx::SqlitePool) -> Eingangsrechnung {

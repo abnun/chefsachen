@@ -10,7 +10,7 @@ Reihenfolge = Empfehlung. Jeder Punkt trägt die Referenz aus dem Review.
 | 1 — Kaputte Grundfunktionen | ✅ 8/8 |
 | 2 — Rechtliche Korrektheit | ✅ 8/8, P2.9 teilweise |
 | 3 — Fehlende Kernfunktionen | ✅ 10/11, P3.7 teilweise |
-| 4 — Robustheit | ⬜ 11/13 |
+| 4 — Robustheit | ⬜ 12/13 |
 | 5 — Produktreife | ⬜ 0/7, P5.2 angefangen |
 | 6 — UX und Code-Qualität | ⬜ 0/11 |
 
@@ -281,7 +281,8 @@ Ohne diese Punkte ist die App für die Zielgruppe nicht wertvoll.
   → Migration 0009; PDF weist die Spanne aus, XRechnung nutzt BG-14 (BillingSpecifiedPeriod), vom KoSIT-Validator bestätigt
   Nur Einzeldatum vorhanden; bei Dauerleistungen ist die § 14-Angabe falsch.
 
-- [ ] **P4.12 — Import von PDF-Rechnungen ohne XML** `[B12]`
+- [x] **P4.12 — Import von PDF-Rechnungen ohne XML** `[B12]` ✅ 2026-08-03
+  → Migration 0010 lässt das Format 'pdf' zu; die Datei wird archiviert, die Felder trägt der Nutzer nach
   Aufbewahrungspflichtig sind alle Eingangsrechnungen, nicht nur maschinenlesbare.
 
 - [ ] **P4.13 — Änderungshistorie für Eingangsrechnungen** `[B29]`

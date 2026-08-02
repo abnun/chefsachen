@@ -10,6 +10,7 @@ import { formatCentMitWaehrung, formatMenge, parseEuro } from "../geld";
 const FORMAT_LABEL: Record<string, string> = {
   xrechnung: "XRechnung",
   zugferd: "ZUGFeRD",
+  pdf: "PDF (ohne Daten)",
 };
 
 interface EingangsrechnungenProps {
@@ -119,9 +120,19 @@ export function Eingangsrechnungen({ onOeffnen }: EingangsrechnungenProps) {
             speichernKlick();
           }}
         >
-          {!vorschau.geparst && (
-            <p role="alert">Konnte nicht automatisch gelesen werden — bitte Felder von Hand eintragen.</p>
-          )}
+          {/* Ein PDF ohne eingebettete Daten ist kein Fehlschlag, sondern der
+              Normalfall bei eingescannten Rechnungen — die Meldung darf nicht
+              nach einem Problem klingen. Aufbewahrungspflichtig ist die Datei
+              in beiden Fällen. */}
+          {!vorschau.geparst &&
+            (vorschau.format === "pdf" ? (
+              <p role="status">
+                Dieses PDF enthält keine maschinenlesbaren Rechnungsdaten. Die Datei wird
+                unverändert archiviert — bitte tragen Sie die Angaben von Hand ein.
+              </p>
+            ) : (
+              <p role="alert">Konnte nicht automatisch gelesen werden — bitte Felder von Hand eintragen.</p>
+            ))}
           {vorschau.ist_duplikat && !zeigeDuplikatWarnung && (
             <p>Diese Rechnung wurde möglicherweise bereits importiert.</p>
           )}

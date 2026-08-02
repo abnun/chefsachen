@@ -383,8 +383,18 @@ fn parse_ubl(xml: &str) -> AppResult<GeparsteRechnung> {
     Ok(ergebnis)
 }
 
+/// Bestimmt das Format einer eingelesenen Datei.
+///
+/// Bei einem PDF entscheidet sich erst am eingebetteten XML, ob es sich um eine
+/// ZUGFeRD-Rechnung handelt. Vorher galt jedes PDF als ZUGFeRD; eine
+/// eingescannte oder als reines PDF erhaltene Rechnung scheiterte deshalb am
+/// Parsen und ließ sich gar nicht erst ablegen — obwohl die Aufbewahrungspflicht
+/// für **alle** Eingangsrechnungen gilt, nicht nur für maschinenlesbare.
 pub fn erkenne_format(datei_bytes: &[u8]) -> &'static str {
-    if datei_bytes.starts_with(b"%PDF") { "zugferd" } else { "xrechnung" }
+    if !datei_bytes.starts_with(b"%PDF") {
+        return "xrechnung";
+    }
+    if xml_extrahieren(datei_bytes).is_ok() { "zugferd" } else { "pdf" }
 }
 
 pub fn parsen(xml: &str) -> AppResult<GeparsteRechnung> {
@@ -448,11 +458,21 @@ pub fn xml_extrahieren(pdf_bytes: &[u8]) -> AppResult<String> {
 /// nie einen vom Frontend übergebenen Wert (Defense in Depth, siehe Commands).
 pub fn verarbeite_datei(datei_bytes: &[u8]) -> (String, AppResult<GeparsteRechnung>) {
     let format = erkenne_format(datei_bytes);
-    let xml_ergebnis: AppResult<String> = if format == "zugferd" {
-        xml_extrahieren(datei_bytes)
-    } else {
-        String::from_utf8(datei_bytes.to_vec())
-            .map_err(|e| AppError::Technisch(format!("Datei ist kein gültiges UTF-8: {e}")))
+    let xml_ergebnis: AppResult<String> = match format {
+        "zugferd" => xml_extrahieren(datei_bytes),
+        // Ein PDF ohne eingebettetes XML enthält für uns nichts Auslesbares. Das
+        // ist kein Fehler, sondern der Normalfall bei eingescannten oder als
+        // reines PDF versandten Rechnungen: Die Datei wird archiviert, die
+        // Felder trägt der Nutzer von Hand nach.
+        "pdf" => Err(AppError::Validation {
+            feld: "datei".into(),
+            meldung: "Dieses PDF enthält keine maschinenlesbaren Rechnungsdaten. \
+                      Die Datei wird unverändert archiviert; die Angaben tragen Sie bitte \
+                      von Hand ein."
+                .into(),
+        }),
+        _ => String::from_utf8(datei_bytes.to_vec())
+            .map_err(|e| AppError::Technisch(format!("Datei ist kein gültiges UTF-8: {e}"))),
     };
     let geparst = xml_ergebnis.and_then(|xml| parsen(&xml));
     (format.to_string(), geparst)
@@ -764,9 +784,27 @@ mod tests {
     }
 
     #[test]
-    fn erkenne_format_erkennt_pdf_an_magic_bytes() {
-        assert_eq!(erkenne_format(b"%PDF-1.7 ..."), "zugferd");
+    fn erkenne_format_unterscheidet_zugferd_von_reinem_pdf() {
+        // Ein PDF ohne eingebettetes XML ist kein ZUGFeRD, sondern eine
+        // gewöhnliche PDF-Rechnung — aufbewahrungspflichtig ist sie trotzdem.
+        assert_eq!(erkenne_format(b"%PDF-1.7 ..."), "pdf");
         assert_eq!(erkenne_format(b"<rsm:CrossIndustryInvoice></rsm:CrossIndustryInvoice>"), "xrechnung");
+    }
+
+    /// Aufbewahrungspflichtig sind alle Eingangsrechnungen. Ein eingescanntes
+    /// oder als reines PDF erhaltenes Dokument war bislang gar nicht archivierbar.
+    #[test]
+    fn pdf_ohne_eingebettetes_xml_wird_als_pdf_erkannt_und_erklaert() {
+        let reines_pdf = crate::dokument::pdf::rendern(&crate::dokument::pdf::tests::test_kontext(), None).unwrap();
+        let (format, ergebnis) = verarbeite_datei(&reines_pdf);
+        assert_eq!(format, "pdf");
+        let err = ergebnis.unwrap_err();
+        assert!(
+            matches!(&err, AppError::Validation { feld, .. } if feld == "datei"),
+            "erwartet wurde ein erklärender Hinweis, war: {err:?}"
+        );
+        let AppError::Validation { meldung, .. } = &err else { unreachable!() };
+        assert!(meldung.contains("archiviert"), "der Nutzer muss wissen, dass die Datei erhalten bleibt");
     }
 
     #[test]

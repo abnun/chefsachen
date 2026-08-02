@@ -239,6 +239,8 @@ export interface EingangsrechnungFelderNeu {
   steuerzeilen: EingangsrechnungSteuerzeile[];
 }
 export interface EingangsrechnungVorschau {
+  /** Erkanntes Format: "xrechnung", "zugferd" oder "pdf". */
+  format: string;
   geparst: boolean;
   felder: EingangsrechnungFelderNeu;
   ist_duplikat: boolean;

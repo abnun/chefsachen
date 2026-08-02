@@ -21,6 +21,7 @@ vi.mock("../api", () => ({
         },
       ]),
       importVorschau: vi.fn().mockResolvedValue({
+        format: "xrechnung",
         geparst: true,
         felder: {
           rechnungssteller_name: "Neuer Lieferant", rechnungsnummer: "RE-9999",
@@ -108,6 +109,7 @@ describe("Eingangsrechnungen", () => {
   it("zeigt bei Parse-Fehlschlag sofort editierbare, leere Felder ohne Bearbeiten-Button", async () => {
     const { api } = await import("../api");
     vi.mocked(api.eingangsrechnungen.importVorschau).mockResolvedValueOnce({
+      format: "xrechnung",
       geparst: false,
       felder: {
         rechnungssteller_name: "", rechnungsnummer: "", rechnungsdatum: "", betrag_cent: 0, waehrung: "EUR", positionen: [],
@@ -131,6 +133,7 @@ describe("Eingangsrechnungen", () => {
   it("warnt bei Duplikat und speichert erst nach Bestätigung des Dialogs", async () => {
     const { api } = await import("../api");
     vi.mocked(api.eingangsrechnungen.importVorschau).mockResolvedValueOnce({
+      format: "xrechnung",
       geparst: true,
       felder: {
         rechnungssteller_name: "Lieferant GmbH", rechnungsnummer: "RE-2026-0042",
@@ -216,6 +219,7 @@ describe("Eingangsrechnungen", () => {
   it("zeigt Zusatzfelder in der Vorschau, sobald sie geparst wurden", async () => {
     const { api } = await import("../api");
     vi.mocked(api.eingangsrechnungen.importVorschau).mockResolvedValueOnce({
+      format: "xrechnung",
       geparst: true,
       felder: {
         rechnungssteller_name: "Neuer Lieferant", rechnungsnummer: "RE-9999",
@@ -274,5 +278,33 @@ describe("Eingangsrechnungen", () => {
         expect.anything(), expect.anything(), expect.objectContaining({ betrag_cent: 1234 }),
       ),
     );
+  });
+
+  /// Aufbewahrungspflichtig sind alle Eingangsrechnungen. Ein eingescanntes PDF
+  /// ist kein Fehlschlag — die Meldung darf nicht nach einem Problem klingen.
+  it("erklärt bei einem reinen PDF, dass die Datei trotzdem archiviert wird", async () => {
+    const { api } = await import("../api");
+    vi.mocked(api.eingangsrechnungen.importVorschau).mockResolvedValueOnce({
+      format: "pdf",
+      geparst: false,
+      felder: {
+        rechnungssteller_name: "", rechnungsnummer: "", rechnungsdatum: "", betrag_cent: 0,
+        waehrung: "EUR", positionen: [],
+        kaeufer_name: "", kaeufer_strasse: "", kaeufer_plz: "", kaeufer_ort: "", kaeufer_land: "",
+        verkaeufer_strasse: "", verkaeufer_plz: "", verkaeufer_ort: "", verkaeufer_land: "",
+        verkaeufer_steuernummer: "", verkaeufer_email: "",
+        zahlungsbedingungen: "", faelligkeitsdatum: "", iban: "", bic: "", bankname: "",
+        bestellnummer: "", leitweg_id: "", lieferantennummer: "", leistungsdatum: "",
+        steuerzeilen: [],
+      },
+      ist_duplikat: false,
+    });
+    render(<Eingangsrechnungen onOeffnen={() => {}} />);
+    await waitFor(() => expect(screen.getByText("Lieferant GmbH")).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Importieren" }));
+    await waitFor(() => expect(screen.getByText(/unverändert archiviert/)).toBeTruthy());
+    // Kein alarmierender Ton — es ist der Normalfall bei Scans.
+    expect(screen.queryByText(/Konnte nicht automatisch gelesen werden/)).toBeNull();
+    expect(screen.getByLabelText("Rechnungssteller")).toBeTruthy();
   });
 });
