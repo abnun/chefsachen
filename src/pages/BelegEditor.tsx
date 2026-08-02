@@ -25,6 +25,8 @@ interface BelegEditorProps {
   onRechnungErstellt?: (rechnungId: string) => void;
   /** Wird nach dem Löschen eines Entwurfs gerufen, damit die Seite zurückgeht. */
   onGeloescht?: () => void;
+  /** Zurück zur Liste. Ohne diesen Weg kommt man nur über die Navigation raus. */
+  onZurueck?: () => void;
 }
 
 const ANGEBOT_ABSCHLUSS_STATUS = [
@@ -39,7 +41,7 @@ const ANGEBOT_ABSCHLUSS_STATUS = [
  * Status-Workflow (Entwurf → gestellt) und Positions-Verwaltung, daher eine
  * gemeinsame Komponente statt zweier Kopien.
  */
-export function BelegEditor({ id, onGeaendert, onRechnungErstellt, onGeloescht }: BelegEditorProps) {
+export function BelegEditor({ id, onZurueck, onGeaendert, onRechnungErstellt, onGeloescht }: BelegEditorProps) {
   const [detail, setDetail] = useState<BelegDetail | null>(null);
   const [kunden, setKunden] = useState<Kunde[]>([]);
   const [artikelListe, setArtikelListe] = useState<Artikel[]>([]);
@@ -239,6 +241,11 @@ export function BelegEditor({ id, onGeaendert, onRechnungErstellt, onGeloescht }
 
   return (
     <main>
+      {onZurueck && (
+        <button type="button" className="btn btn-leise" onClick={onZurueck}>
+          ← Zurück zur Liste
+        </button>
+      )}
       <h1 className="seiten-kopf">
         {beleg.typ === "angebot" ? "Angebot" : "Rechnung"} {beleg.nummer ?? "(Entwurf)"}
       </h1>

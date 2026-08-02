@@ -1,5 +1,6 @@
 import { BelegAnlegen } from "../components/BelegAnlegen";
 import { Fehler } from "../components/Fehler";
+import { ZeilenKnopf } from "../components/ZeilenKnopf";
 import { Laden } from "../components/Laden";
 import { StatusMarke } from "../components/StatusMarke";
 import { RECHNUNG_STATUS, statusAuswahl } from "../belegStatus";
@@ -98,7 +99,9 @@ export function Rechnungen({ onOeffnen }: RechnungenProps) {
         <tbody>
           {liste.belege.map((r) => (
             <tr key={r.id} onClick={() => onOeffnen(r.id)}>
-              <td className="tabelle-num nicht-umbrechen">{r.nummer ?? "Entwurf"}</td>
+              <td className="tabelle-num nicht-umbrechen">
+                <ZeilenKnopf onOeffnen={() => onOeffnen(r.id)}>{r.nummer ?? "Entwurf"}</ZeilenKnopf>
+              </td>
               <td>{liste.kundeName(r)}</td>
               <td className="nicht-umbrechen">{datumDeutsch(r.datum)}</td>
               <td>

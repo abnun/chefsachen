@@ -12,7 +12,7 @@ Reihenfolge = Empfehlung. Jeder Punkt trägt die Referenz aus dem Review.
 | 3 — Fehlende Kernfunktionen | ✅ 10/11, P3.7 teilweise |
 | 4 — Robustheit | ✅ 13/13 |
 | 5 — Produktreife | ⬜ 5/7, P5.2 angefangen, P5.6 zurückgestellt |
-| 6 — UX und Code-Qualität | ⬜ 0/11 |
+| 6 — UX und Code-Qualität | ⬜ 4/11 |
 
 **Nächster Schritt:** Stufe 6 (UX und Code-Qualität). Von Stufe 5 bleibt P5.2 offen —
 die CI ist noch nie gelaufen und klärt sich beim ersten Push von selbst; P5.6 (Signierung)
@@ -393,7 +393,15 @@ Ohne diese Punkte ist die App für die Zielgruppe nicht wertvoll.
   Rechnungen und Angebote zusätzlich zwischen leerer Liste und leerem Filterergebnis.
   Beide hatten vorher gar keinen Leerzustand.
 - [ ] **P6.2 — Suche, Sortierung, Paginierung** `[B17]` — Rechnungen sind nicht nach Nummer oder Kunde auffindbar, obwohl das Backend den Parameter unterstützt
-- [ ] **P6.3 — Tastaturbedienbarkeit** `[B18]` — Tabellenzeilen nur per Maus (WCAG 2.1.1), kein Zurück-Button in `BelegEditor`/`KundeDetail`
+- [x] **P6.3 — Tastaturbedienbarkeit** `[B18]`
+  Neue Komponente `ZeilenKnopf`: ein echter Knopf in der ersten Zelle, statt `tabIndex` und
+  `role="button"` an der Zeile — damit hörte eine Tabellenzeile auf, für Screenreader eine
+  Zeile zu sein, und die Zuordnung von Spaltenkopf zu Zelle ginge verloren. Die Zeile bleibt
+  für Mausnutzer klickbar; der Knopf unterbricht die Ereigniskette, sonst öffnete ein Klick
+  zweimal. Eingebaut in alle vier Listen und die drei Dashboard-Tabellen (dort ersetzt er
+  drei inline gebaute Tastaturzeilen).
+  Dazu ein durchgängiger, sichtbarer Fokusring (`:focus-visible`, WCAG 2.4.7) und
+  Zurück-Knöpfe in `BelegEditor` und `KundeDetail`.
 - [ ] **P6.4 — Warnung bei ungespeicherten Änderungen** `[B19]`
 - [x] **P6.5 — Duplizierung auflösen**
   `src/belegStatus.ts` als einzige Quelle für Beschriftung und Einfärbung aller Statuswerte,
@@ -408,7 +416,17 @@ Ohne diese Punkte ist die App für die Zielgruppe nicht wertvoll.
 - [ ] **P6.7 — Artikel-Autocomplete statt `<select>`** — ab ~50 Artikeln unbenutzbar
 - [ ] **P6.8 — Live-Summenvorschau** — Spec-Anforderung, aktuell erst nach Server-Roundtrip
 - [ ] **P6.9 — Adress- und Ansprechpartner-Auswahl im Beleg**
-- [ ] **P6.10 — Barrierefreiheit** — Dialog ohne Fokusfalle, Kontrast `--text-leiser` bei ~3,2:1 unter WCAG AA
+- [x] **P6.10 — Barrierefreiheit**
+  `Bestaetigungsdialog` hält den Fokus bei sich (Tab und Shift+Tab laufen im Kreis), gibt ihn
+  beim Schließen dorthin zurück, wo er herkam, und benennt sich über `aria-labelledby`.
+  Der Fokus wird programmatisch gesetzt statt über `autoFocus` — das Attribut greift *vor*
+  dem Effekt, der Dialog merkte sich sonst seinen eigenen Knopf als Rücksprungziel.
+  Kontrast: `src/styles/kontrast.test.ts` prüft die Token nach WCAG 2.1, hell und dunkel.
+  Der Test fand drei Verstöße statt des einen aus dem Review — der Tabellenkopf lag bei
+  2,94:1, und auch der Dunkelmodus war mit 4,48:1 knapp darunter. `--text-leiser` ist
+  entfernt: Eine dritte, noch leisere Stufe kann auf dieser Palette nicht zugleich existieren
+  und 4,5:1 erreichen. Die drei Verwendungen (Tabellenkopf, Belegnummer, Preisdatum) waren
+  ohnehin Inhalt, kein Zierrat.
 - [ ] **P6.11 — Aufräumen** — `greet`-Template-Command, ~60 `.unwrap()` im XRechnung-Produktivcode, fehlende Indizes auf Fremdschlüsseln, i18n nur 6 Nav-Keys
 
 ---

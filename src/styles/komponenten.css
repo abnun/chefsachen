@@ -154,7 +154,7 @@ label.feld textarea {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.02em;
-  color: var(--text-leiser);
+  color: var(--text-leise);
   padding: var(--abstand-s) var(--abstand-m);
   background: var(--bg-gedaempft);
   border-bottom: 1px solid var(--rand);
@@ -178,7 +178,7 @@ label.feld textarea {
 }
 
 .tabelle-num {
-  color: var(--text-leiser);
+  color: var(--text-leise);
   font-variant-numeric: tabular-nums;
 }
 
@@ -398,7 +398,7 @@ label.feld textarea {
 .kundenpreis-gueltig-ab {
   display: block;
   font-size: var(--text-s);
-  color: var(--text-leiser);
+  color: var(--text-leise);
 }
 
 .kundenpreis-preis {
@@ -619,4 +619,31 @@ label.feld textarea {
   color: var(--text-leise);
   font-size: var(--text-s);
   padding: var(--abstand-m) 0;
+}
+
+/* Öffnen-Knopf in einer Tabellenzeile.
+   Sieht aus wie der Text, den er ersetzt, ist aber ein echter Knopf — nur so
+   ist die Zeile ohne Maus erreichbar (WCAG 2.1.1). */
+.zeilen-knopf {
+  background: none;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  text-align: inherit;
+  cursor: pointer;
+}
+
+.zeilen-knopf:hover {
+  text-decoration: underline;
+}
+
+/* Sichtbarer Fokus, überall. Ohne ihn ist Tastaturbedienung zwar möglich,
+   aber blind — man sieht nicht, wo man ist (WCAG 2.4.7). */
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--akzent);
+  outline-offset: 2px;
+  border-radius: var(--radius-s);
 }

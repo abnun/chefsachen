@@ -7,8 +7,10 @@
   --rand: #e3e6ec;
   --rand-stark: #d3d8e0;
   --text: #1c2230;
+  /* Nur zwei Textstufen: Eine dritte, noch leisere Farbe kann auf dieser
+     Palette nicht zugleich existieren und 4,5:1 erreichen. Siehe
+     kontrast.test.ts. */
   --text-leise: #6b7280;
-  --text-leiser: #8a92a3;
   --akzent: #33506b;
   --akzent-hover: #2b4459;
   --akzent-text: #ffffff;
@@ -69,7 +71,6 @@
     --rand-stark: #3a414c;
     --text: #e6e8ec;
     --text-leise: #9aa2b0;
-    --text-leiser: #838b99;
     --akzent: #4d7093;
     --akzent-hover: #5a80a4;
     --akzent-text: #ffffff;

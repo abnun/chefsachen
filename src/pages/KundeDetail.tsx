@@ -22,6 +22,8 @@ interface KundeDetailProps {
   startReiter?: Reiter | null;
   onReiterUebernommen?: () => void;
   onGeloescht?: () => void;
+  /** Zurück zur Liste. Ohne diesen Weg kommt man nur über die Navigation raus. */
+  onZurueck?: () => void;
 }
 
 export type Reiter = "stammdaten" | "adressen" | "ansprechpartner" | "sonderpreise" | "belege";
@@ -42,7 +44,7 @@ const REITER: { id: Reiter; label: string; aktiv: boolean }[] = [
  * einsehbar, damit die Frage „Welche Sonderpreise hat dieser Kunde?"
  * beantwortbar ist; bislang war sie es nicht.
  */
-export function KundeDetail({ id, startReiter, onReiterUebernommen, onGeloescht }: KundeDetailProps) {
+export function KundeDetail({ id, onZurueck, startReiter, onReiterUebernommen, onGeloescht }: KundeDetailProps) {
   const [detail, setDetail] = useState<KundeDetailTyp | null>(null);
   const [fehler, setFehler] = useState<AppFehler | null>(null);
   const [reiter, setReiter] = useState<Reiter>(startReiter ?? "stammdaten");
@@ -77,6 +79,11 @@ export function KundeDetail({ id, startReiter, onReiterUebernommen, onGeloescht 
 
   return (
     <div>
+      {onZurueck && (
+        <button type="button" className="btn btn-leise" onClick={onZurueck}>
+          ← Zurück zur Liste
+        </button>
+      )}
       <h1 className="seiten-kopf">
         {detail.kunde.name} <small>{detail.kunde.kundennummer}</small>
       </h1>

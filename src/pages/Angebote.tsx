@@ -1,5 +1,6 @@
 import { BelegAnlegen } from "../components/BelegAnlegen";
 import { Fehler } from "../components/Fehler";
+import { ZeilenKnopf } from "../components/ZeilenKnopf";
 import { Laden } from "../components/Laden";
 import { StatusMarke } from "../components/StatusMarke";
 import { ANGEBOT_STATUS, statusAuswahl } from "../belegStatus";
@@ -58,7 +59,9 @@ export function Angebote({ onOeffnen }: AngeboteProps) {
         <tbody>
           {liste.belege.map((a) => (
             <tr key={a.id} onClick={() => onOeffnen(a.id)}>
-              <td className="tabelle-num nicht-umbrechen">{a.nummer ?? "Entwurf"}</td>
+              <td className="tabelle-num nicht-umbrechen">
+                <ZeilenKnopf onOeffnen={() => onOeffnen(a.id)}>{a.nummer ?? "Entwurf"}</ZeilenKnopf>
+              </td>
               <td>{liste.kundeName(a)}</td>
               <td className="nicht-umbrechen">{datumDeutsch(a.datum)}</td>
               <td>

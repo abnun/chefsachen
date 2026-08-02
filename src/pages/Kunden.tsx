@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { api, type AppFehler, type Kunde, type KundeNeu } from "../api";
 import { formularFehler } from "../formularFehler";
 import { Fehler } from "../components/Fehler";
+import { ZeilenKnopf } from "../components/ZeilenKnopf";
 import { Laden } from "../components/Laden";
 import { Hinweis } from "../components/Hinweis";
 import { useErfolgsHinweis } from "../hooks/useErfolgsHinweis";
@@ -294,7 +295,9 @@ export function Kunden({
         <tbody>
           {kunden.map((kunde) => (
             <tr key={kunde.id} onClick={() => onOeffnen(kunde.id)}>
-              <td className="tabelle-num">{kunde.kundennummer}</td>
+              <td className="tabelle-num">
+                <ZeilenKnopf onOeffnen={() => onOeffnen(kunde.id)}>{kunde.kundennummer}</ZeilenKnopf>
+              </td>
               <td>
                 {kunde.name}
                 {!kunde.hat_adresse && (

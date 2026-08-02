@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { api, type AppFehler, type DashboardDaten, type Grenze, type Hinweis, type Warnstufe } from "../api";
 import { Fehler } from "../components/Fehler";
 import { Laden } from "../components/Laden";
+import { ZeilenKnopf } from "../components/ZeilenKnopf";
 import { formatCent } from "../geld";
 import { datumDeutsch } from "../datum";
 
@@ -209,18 +210,10 @@ export function Dashboard({ onRechnungOeffnen, onAngebotOeffnen }: DashboardProp
             </thead>
             <tbody>
               {daten.offene_rechnungen.map((r) => (
-                <tr
-                  key={r.id}
-                  tabIndex={0}
-                  onClick={() => onRechnungOeffnen(r.id)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      onRechnungOeffnen(r.id);
-                    }
-                  }}
-                >
-                  <td>{r.nummer}</td>
+                <tr key={r.id} onClick={() => onRechnungOeffnen(r.id)}>
+                  <td>
+                    <ZeilenKnopf onOeffnen={() => onRechnungOeffnen(r.id)}>{r.nummer}</ZeilenKnopf>
+                  </td>
                   <td>{r.kunde_name}</td>
                   <td className={r.tage_bis_faellig < 0 ? "ueberfaellig" : undefined}>
                     {datumDeutsch(r.faellig_am)} — {faelligkeitText(r.tage_bis_faellig)}
@@ -249,18 +242,10 @@ export function Dashboard({ onRechnungOeffnen, onAngebotOeffnen }: DashboardProp
             </thead>
             <tbody>
               {daten.offene_angebote.map((a) => (
-                <tr
-                  key={a.id}
-                  tabIndex={0}
-                  onClick={() => onAngebotOeffnen(a.id)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      onAngebotOeffnen(a.id);
-                    }
-                  }}
-                >
-                  <td>{a.nummer}</td>
+                <tr key={a.id} onClick={() => onAngebotOeffnen(a.id)}>
+                  <td>
+                    <ZeilenKnopf onOeffnen={() => onAngebotOeffnen(a.id)}>{a.nummer}</ZeilenKnopf>
+                  </td>
                   <td>{a.kunde_name}</td>
                   <td>{datumDeutsch(a.datum)}</td>
                   <td>{formatCent(a.summe_cent)}</td>
@@ -289,17 +274,18 @@ export function Dashboard({ onRechnungOeffnen, onAngebotOeffnen }: DashboardProp
               {daten.letzte_belege.map((b) => (
                 <tr
                   key={b.id}
-                  tabIndex={0}
                   onClick={() => (b.typ === "angebot" ? onAngebotOeffnen(b.id) : onRechnungOeffnen(b.id))}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      b.typ === "angebot" ? onAngebotOeffnen(b.id) : onRechnungOeffnen(b.id);
-                    }
-                  }}
                 >
                   <td>{b.typ === "angebot" ? "Angebot" : "Rechnung"}</td>
-                  <td>{b.nummer || "(Entwurf)"}</td>
+                  <td>
+                    <ZeilenKnopf
+                      onOeffnen={() =>
+                        b.typ === "angebot" ? onAngebotOeffnen(b.id) : onRechnungOeffnen(b.id)
+                      }
+                    >
+                      {b.nummer || "(Entwurf)"}
+                    </ZeilenKnopf>
+                  </td>
                   <td>{b.kunde_name}</td>
                   <td>{formatCent(b.summe_cent)}</td>
                 </tr>

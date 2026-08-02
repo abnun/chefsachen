@@ -5,6 +5,7 @@ import { api, type AppFehler, type Eingangsrechnung, type EingangsrechnungFelder
 import { Bestaetigungsdialog } from "../components/Bestaetigungsdialog";
 import { EingangsrechnungZusatzfelder } from "../components/EingangsrechnungZusatzfelder";
 import { Fehler } from "../components/Fehler";
+import { ZeilenKnopf } from "../components/ZeilenKnopf";
 import { Laden } from "../components/Laden";
 import { formatCentMitWaehrung, formatMenge, parseEuro } from "../geld";
 
@@ -261,7 +262,9 @@ export function Eingangsrechnungen({ onOeffnen }: EingangsrechnungenProps) {
           {liste.map((e) => (
             <tr key={e.id} onClick={() => onOeffnen(e.id)}>
               <td>{e.rechnungssteller_name}</td>
-              <td className="tabelle-num">{e.rechnungsnummer}</td>
+              <td className="tabelle-num">
+                <ZeilenKnopf onOeffnen={() => onOeffnen(e.id)}>{e.rechnungsnummer}</ZeilenKnopf>
+              </td>
               <td>{e.rechnungsdatum}</td>
               <td>{formatCentMitWaehrung(e.betrag_cent, e.waehrung)}</td>
               <td>{FORMAT_LABEL[e.format] ?? e.format}</td>

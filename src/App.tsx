@@ -95,6 +95,7 @@ function App() {
             startReiter={kundeDetailStartReiter}
             onReiterUebernommen={() => setKundeDetailStartReiter(null)}
             onGeloescht={() => setAusgewaehlterKunde(null)}
+            onZurueck={() => setAusgewaehlterKunde(null)}
           />
         ) : (
           <Kunden
@@ -118,6 +119,7 @@ function App() {
         (ausgewaehltesAngebot ? (
           <BelegEditor
             onGeloescht={() => setAusgewaehltesAngebot(null)}
+            onZurueck={() => setAusgewaehltesAngebot(null)}
             id={ausgewaehltesAngebot}
             onRechnungErstellt={(rechnungId) => {
               setSeite("rechnungen");
@@ -133,6 +135,7 @@ function App() {
           <BelegEditor
             id={ausgewaehlteRechnung}
             onGeloescht={() => setAusgewaehlteRechnung(null)}
+            onZurueck={() => setAusgewaehlteRechnung(null)}
           />
         ) : (
           <Rechnungen onOeffnen={setAusgewaehlteRechnung} />

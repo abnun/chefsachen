@@ -54,4 +54,18 @@ describe("Erster Start", () => {
     const verstoesse = await browser.execute(() => window.__e2eVerstoesse);
     await expect(verstoesse).toEqual([]);
   });
+
+  it("ist mit der Tastatur bedienbar", async () => {
+    // Ohne Maus muss sich jedes Bedienelement erreichen lassen (WCAG 2.1.1).
+    // Im echten Fenster zeigt sich, ob die Fokusreihenfolge überhaupt greift —
+    // in jsdom gibt es kein Layout, das sie durcheinanderbringen könnte.
+    await browser.keys(["Tab"]);
+    const aktiv = await browser.execute(() => {
+      const e = document.activeElement;
+      return e ? { tag: e.tagName, sichtbar: e !== document.body } : null;
+    });
+    if (!aktiv?.sichtbar) {
+      throw new Error("Der erste Tabulatorschritt landet nirgends — nichts ist fokussierbar");
+    }
+  });
 });

@@ -1,5 +1,6 @@
 import "@testing-library/jest-dom/vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../api", () => ({
@@ -169,8 +170,12 @@ describe("Dashboard", () => {
       ],
     });
     render(<Dashboard {...props} />);
-    await waitFor(() => expect(screen.getByText("AN-2026-0001")).toBeTruthy());
-    fireEvent.keyDown(screen.getByText("AN-2026-0001").closest("tr")!, { key: "Enter" });
+    // Bedienbar ist jetzt ein richtiger Knopf in der Zeile, nicht die Zeile
+    // selbst — eine Tabellenzeile ist kein Bedienelement, und mit tabIndex und
+    // role="button" verlöre sie für Screenreader ihre Zeilenbedeutung.
+    const knopf = await screen.findByRole("button", { name: "AN-2026-0001" });
+    knopf.focus();
+    await userEvent.keyboard("{Enter}");
     expect(props.onAngebotOeffnen).toHaveBeenCalledWith("a1");
   });
 
