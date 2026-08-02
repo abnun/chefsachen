@@ -11,13 +11,16 @@ Reihenfolge = Empfehlung. Jeder Punkt trägt die Referenz aus dem Review.
 | 2 — Rechtliche Korrektheit | ✅ 8/8, P2.9 teilweise |
 | 3 — Fehlende Kernfunktionen | ✅ 10/11, P3.7 teilweise |
 | 4 — Robustheit | ✅ 13/13 |
-| 5 — Produktreife | ⬜ 5/7, P5.2 angefangen, P5.6 zurückgestellt |
+| 5 — Produktreife | ⬜ 6/7, P5.6 bewusst zurückgestellt |
 | 6 — UX und Code-Qualität | ✅ 11/11 |
 
-**Nächster Schritt:** Alle sechs Stufen sind durch bis auf P5.2 (CI noch nie gelaufen),
-P5.6 (Signierung, bewusst zurückgestellt) und die Teilpunkte P2.9, P3.7. Von Stufe 5 bleibt P5.2 offen —
-die CI ist noch nie gelaufen und klärt sich beim ersten Push von selbst; P5.6 (Signierung)
-ist bewusst zurückgestellt, die App geht vorerst nur an Family & Friends.
+**Stand:** Alle sechs Stufen sind abgearbeitet, die CI läuft und ist grün. Offen bleiben:
+- **P0** — das Projekt liegt weiter auf iCloud Drive. Am 2026-08-02 zweimal konkret
+  aufgeschlagen (npm-Dublette `esbuild 2/`, von iCloud ausgelagerte Dateien beim Kopieren).
+- **P5.6** — Signierung, bewusst zurückgestellt (Family & Friends).
+- Teilpunkte: **P2.9** (DIN-5008-Adressposition, Positionsnummern im PDF),
+  **P3.7** (Sicherung in der App zurückspielen), **P6.4** (Fensterschließen),
+  ESLint aus P5.2.
 
 **P0 ist zweimal konkret aufgeschlagen** (2026-08-02): `npm ci` scheiterte an der
 iCloud-Dublette `node_modules/esbuild 2/`, `tar` an Dateien, deren Inhalt iCloud ausgelagert
@@ -316,14 +319,21 @@ Ohne diese Punkte ist die App für die Zielgruppe nicht wertvoll.
   3. Der Weg von Version A nach B ist noch nie durchlaufen worden; das geht erst mit
      zwei echten Releases.
 
-- [~] **P5.2 — CI mit Tests, Clippy, Typecheck, PR-Trigger** `[B4]` — angefangen 2026-08-02
+- [x] **P5.2 — CI mit Tests, Clippy, Typecheck, PR-Trigger** `[B4]`
   `release.yml` war der einzige Workflow, Trigger nur auf Tags. Kein Commit wurde je maschinell geprüft.
-  Erledigt: `.github/workflows/ci.yml` mit Push-/PR-Trigger, Frontend-Typprüfung und -Tests,
-  Clippy mit `-D warnings`, Rust-Tests inklusive der beiden Normprüfungen (KOSIT_PFLICHT gesetzt).
-  **Offen und wichtig: Der Workflow ist noch nie gelaufen.** Ungetestet sind vor allem die
-  Ubuntu-Systempakete für den Tauri-Bau und die unbeaufsichtigte veraPDF-Installation.
-  Beim ersten Push prüfen und nachbessern.
-  Ebenfalls offen: ESLint ist weiterhin nicht eingerichtet.
+  `.github/workflows/ci.yml` mit Push-/PR-Trigger und drei Jobs: Frontend (tsc + Vitest),
+  Backend (Clippy mit `-D warnings`, `cargo test` mit `KOSIT_PFLICHT=1`) und der
+  browsergetriebene Durchstich unter Linux.
+  **Erstmals gelaufen am 2026-08-03, Lauf 30771221377 — alle drei Jobs grün.** Auch die
+  Ubuntu-Systempakete und die unbeaufsichtigte veraPDF-Installation, die als Wackelkandidaten
+  galten.
+  Nachgesehen, dass die Normprüfungen tatsächlich ausgeführt wurden und sich nicht still
+  übersprungen haben — genau dafür ist `KOSIT_PFLICHT` da: `xrechnung_ist_normkonform`,
+  `storno_xrechnung_ist_normkonform`, `xrechnung_mit_leistungszeitraum_ist_normkonform` und
+  `zugferd_pdf_ist_pdfa3_konform` stehen namentlich im Protokoll.
+  Laufzeiten: Frontend 1 min, Durchstich 9 min, Backend 13 min (davon rund 4 min Download der
+  Prüfwerkzeuge; der Cache war beim ersten Lauf leer und greift ab jetzt).
+  Weiterhin offen: ESLint ist nicht eingerichtet.
 
 - [x] **P5.3 — E2E-Durchstich via `tauri-driver`** `[B5]`
   Zwei Ebenen, weil eine allein nicht reicht:
