@@ -80,3 +80,43 @@ jobs:
         env:
           KOSIT_PFLICHT: "1"
         run: cargo test --manifest-path src-tauri/Cargo.toml
+
+  e2e:
+    name: Durchstich (WebDriver)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+          key: e2e
+
+      # webkit2gtk-driver ist der WebDriver zu der Webview, die Tauri unter
+      # Linux nutzt. tauri-driver spricht mit ihm; auf macOS gibt es dafür kein
+      # Gegenstück, deshalb läuft dieser Job nur hier.
+      - name: Systemabhängigkeiten
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev \
+            librsvg2-dev webkit2gtk-driver xvfb
+
+      - name: tauri-driver
+        run: cargo install tauri-driver --locked
+
+      - name: Durchstich
+        # Auf dem Runner ist genug Speicher für parallele Übersetzung; die
+        # Sparsamkeit aus lauf.sh gilt nur dem lokalen Container.
+        env:
+          # Der Runner hat vier Kerne und reichlich Speicher; die Sparsamkeit
+          # aus lauf.sh gilt nur dem kleinen lokalen Container.
+          CARGO_BUILD_JOBS: "4"
+        run: ./e2e/lauf.sh

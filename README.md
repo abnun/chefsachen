@@ -93,8 +93,12 @@ npm run tauri dev      # Anwendung im Entwicklungsmodus starten
 npx tsc --noEmit                                            # Typen
 npm test                                                    # Frontend (Vitest)
 cd src-tauri && cargo clippy --all-targets -- -D warnings   # Lint
-cd src-tauri && cargo test                                  # Backend
+cd src-tauri && cargo test                                  # Backend, inkl. IPC-Durchstich
+./e2e/docker-lauf.sh                                        # Durchstich im echten Fenster
 ```
+
+Der letzte Punkt braucht Docker und läuft nur unter Linux — siehe
+[e2e/README.md](e2e/README.md).
 
 Dieselben Prüfungen laufen in `.github/workflows/ci.yml` bei jedem Push und
 jedem Pull Request.

@@ -11,3 +11,6 @@ src-tauri/target/
 # Cache für den KoSIT-Validator (siehe scripts/kosit-vorbereiten.sh) —
 # rund 11 MB Fremdartefakte, gehören nicht in die Versionsverwaltung.
 src-tauri/.validator-cache/
+
+# Abhängigkeiten des Durchstichs (siehe e2e/README.md)
+e2e/node_modules/

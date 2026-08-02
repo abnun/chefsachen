@@ -11,12 +11,16 @@ Reihenfolge = Empfehlung. Jeder Punkt trägt die Referenz aus dem Review.
 | 2 — Rechtliche Korrektheit | ✅ 8/8, P2.9 teilweise |
 | 3 — Fehlende Kernfunktionen | ✅ 10/11, P3.7 teilweise |
 | 4 — Robustheit | ✅ 13/13 |
-| 5 — Produktreife | ⬜ 4/7, P5.2 angefangen, P5.6 zurückgestellt |
+| 5 — Produktreife | ⬜ 5/7, P5.2 angefangen, P5.6 zurückgestellt |
 | 6 — UX und Code-Qualität | ⬜ 0/11 |
 
-**Nächster Schritt:** Stufe 5 abschließen — offen sind P5.2 (die CI ist noch nie gelaufen)
-und P5.3 (E2E-Durchstich). P5.6 (Signierung) ist bewusst zurückgestellt, die App geht
-vorerst nur an Family & Friends. Danach Stufe 6 (UX und Code-Qualität).
+**Nächster Schritt:** Stufe 6 (UX und Code-Qualität). Von Stufe 5 bleibt P5.2 offen —
+die CI ist noch nie gelaufen und klärt sich beim ersten Push von selbst; P5.6 (Signierung)
+ist bewusst zurückgestellt, die App geht vorerst nur an Family & Friends.
+
+**P0 ist zweimal konkret aufgeschlagen** (2026-08-02): `npm ci` scheiterte an der
+iCloud-Dublette `node_modules/esbuild 2/`, `tar` an Dateien, deren Inhalt iCloud ausgelagert
+hatte („Resource deadlock avoided"). Das Projekt gehört von iCloud Drive weg.
 
 ## Entwicklungsumgebung einrichten
 
@@ -320,8 +324,23 @@ Ohne diese Punkte ist die App für die Zielgruppe nicht wertvoll.
   Beim ersten Push prüfen und nachbessern.
   Ebenfalls offen: ESLint ist weiterhin nicht eingerichtet.
 
-- [ ] **P5.3 — E2E-Durchstich via `tauri-driver`** `[B5]`
-  Die IPC-Grenze ist komplett ungetestet — genau die Zone, in der P1.1 lag.
+- [x] **P5.3 — E2E-Durchstich via `tauri-driver`** `[B5]`
+  Zwei Ebenen, weil eine allein nicht reicht:
+  1. `src-tauri/src/ipc.rs` — geht über `on_message` des Webviews, mit den echten
+     Berechtigungen und dem Ursprung `tauri://localhost`. Prüft Erreichbarkeit der Befehle,
+     Umwandlung der Argumente, die auswertbare Form der Fehler und die Berechtigung jeder
+     Plugin-Funktion, die das Frontend importiert. Läuft überall, auch auf macOS.
+     Dafür mussten Befehls- und Plugin-Registrierung aus `run()` in `mit_befehlen`/`mit_plugins`.
+  2. `e2e/` — WebdriverIO über `tauri-driver`, startet die gebaute Anwendung und bedient sie.
+     Prüft, was nur im echten Fenster sichtbar wird: dass die Oberfläche überhaupt erscheint,
+     auf Klicks reagiert und die Inhaltsrichtlinie (P5.7) nichts Eigenes blockiert.
+  **Läuft nicht auf macOS.** `tauri-driver` braucht einen WebDriver zur System-Webview;
+  für WKWebView gibt es keinen. Deshalb Linux: in der CI (neuer Job `e2e`) und lokal über
+  `./e2e/docker-lauf.sh`.
+  Dabei gelernt: Ein `cargo build` im Debug-Profil erzeugt einen Entwicklungsbau, der die
+  Oberfläche vom Vite-Server lädt — das Fenster bleibt leer. `tauri build --debug --no-bundle`
+  bettet sie ein. Und `fs:allow-write-file` erlaubt nur den Befehl; der Pfad muss zusätzlich im
+  Geltungsbereich liegen, den erst der Speichern-Dialog öffnet.
 
 - [x] **P5.4 — Logging und Versionsanzeige** `[B2]`
   `tauri-plugin-log` schreibt in den Protokollordner des Betriebssystems, Umbruch bei 2 MiB,
