@@ -10,7 +10,7 @@ Reihenfolge = Empfehlung. Jeder Punkt trägt die Referenz aus dem Review.
 | 1 — Kaputte Grundfunktionen | ✅ 8/8 |
 | 2 — Rechtliche Korrektheit | ✅ 8/8, P2.9 teilweise |
 | 3 — Fehlende Kernfunktionen | ✅ 10/11, P3.7 teilweise |
-| 4 — Robustheit | ⬜ 6/13 |
+| 4 — Robustheit | ⬜ 8/13 |
 | 5 — Produktreife | ⬜ 0/7, P5.2 angefangen |
 | 6 — UX und Code-Qualität | ⬜ 0/11 |
 
@@ -240,11 +240,13 @@ Ohne diese Punkte ist die App für die Zielgruppe nicht wertvoll.
   Schutz hängt tragend an `max_connections(1)` plus Kommentar. WAL-Modus, `busy_timeout` und ein atomares `UPDATE … SET zaehler = zaehler + 1 … RETURNING` würden die Kopplung auflösen.
   → `src-tauri/src/db.rs:8-13`
 
-- [ ] **P4.3 — Byte-Slicing-Panics im Fremddatei-Parser** `[B10]`
+- [x] **P4.3 — Byte-Slicing-Panics im Fremddatei-Parser** `[B10]` ✅ 2026-08-03
+  → Datum und Dezimalzahlen zeichenweise statt byteweise zerlegen
   Eine ungewöhnliche fremde Rechnung bringt den Import zum Absturz.
   → `eingangsrechnung_parse.rs:62,72`
 
-- [ ] **P4.4 — Echte Namespace-Auflösung im XML-Parser** `[B11]`
+- [x] **P4.4 — Echte Namespace-Auflösung im XML-Parser** `[B11]` ✅ 2026-08-03
+  → Vergleiche laufen über den lokalen Elementnamen; Präfixe sind Konvention, nicht Vorschrift
   Präfixe werden wörtlich verglichen (`"ram:"`, `"cbc:"`) → eine valide Rechnung mit `<ns2:CrossIndustryInvoice>` wird komplett abgelehnt.
 
 - [x] **P4.5 — `rows_affected` prüfen** `[B26]` ✅ 2026-08-03
