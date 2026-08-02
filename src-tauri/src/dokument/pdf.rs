@@ -435,7 +435,10 @@ mod muster {
     #[test]
     #[ignore = "erzeugt eine Datei zur Sichtprüfung, kein automatischer Test"]
     fn schreibe_muster_pdf() {
-        let pfad = std::env::var("MUSTER_PFAD").expect("MUSTER_PFAD muss gesetzt sein");
+        let Ok(pfad) = std::env::var("MUSTER_PFAD") else {
+            eprintln!("übersprungen: MUSTER_PFAD nicht gesetzt");
+            return;
+        };
         let bytes = super::rendern(&super::tests::test_kontext(), None).unwrap();
         std::fs::write(pfad, bytes).unwrap();
     }
