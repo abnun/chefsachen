@@ -1,10 +1,27 @@
 import { useEffect, useState } from "react";
 import { save } from "@tauri-apps/plugin-dialog";
 import { writeFile } from "@tauri-apps/plugin-fs";
-import { api, type AppFehler, type EingangsrechnungDetail as EingangsrechnungDetailTyp } from "../api";
+import { api, type AppFehler, type EingangsrechnungAenderung, type EingangsrechnungDetail as EingangsrechnungDetailTyp } from "../api";
 import { EingangsrechnungZusatzfelder } from "../components/EingangsrechnungZusatzfelder";
 import { Fehler } from "../components/Fehler";
+import { datumDeutsch, zeitpunktDeutsch } from "../datum";
 import { formatCentMitWaehrung, formatMenge, parseEuro } from "../geld";
+
+/**
+ * Bereitet einen protokollierten Wert für die Anzeige auf.
+ *
+ * Im Protokoll stehen die Rohwerte, wie sie in der Datenbank lagen — Beträge
+ * also in Cent und Daten im ISO-Format. Unaufbereitet gelesen wäre „9500 →
+ * 12000" bei einer Betragskorrektur schlicht irreführend.
+ */
+function protokollWert(feld: string, wert: string, waehrung: string): string {
+  if (feld === "Betrag") {
+    const cent = Number(wert);
+    return Number.isNaN(cent) ? wert : formatCentMitWaehrung(cent, waehrung);
+  }
+  if (feld === "Rechnungsdatum") return datumDeutsch(wert);
+  return wert === "" ? "(leer)" : wert;
+}
 
 interface EingangsrechnungDetailProps {
   id: string;
@@ -20,6 +37,7 @@ export function EingangsrechnungDetail({ id, onZurueck }: EingangsrechnungDetail
   const [rechnungsdatum, setRechnungsdatum] = useState("");
   const [betrag, setBetrag] = useState("");
   const [waehrung, setWaehrung] = useState("EUR");
+  const [protokoll, setProtokoll] = useState<EingangsrechnungAenderung[]>([]);
 
   function felderAusDetailUebernehmen(d: EingangsrechnungDetailTyp) {
     setRechnungsstellerName(d.eingangsrechnung.rechnungssteller_name);
@@ -38,6 +56,12 @@ export function EingangsrechnungDetail({ id, onZurueck }: EingangsrechnungDetail
         setFehler(null);
       })
       .catch((e) => setFehler(e as AppFehler));
+    api.eingangsrechnungen
+      .aenderungen(id)
+      .then(setProtokoll)
+      // Ein fehlendes Protokoll darf die Rechnung nicht unzugänglich machen —
+      // die Rechnungsdaten selbst sind das Wichtigere.
+      .catch(() => setProtokoll([]));
   }
 
   useEffect(laden, [id]);
@@ -182,6 +206,40 @@ export function EingangsrechnungDetail({ id, onZurueck }: EingangsrechnungDetail
         waehrung={detail.eingangsrechnung.waehrung}
         steuerzeilen={detail.steuerzeilen}
       />
+
+      {/* Die Rohdatei bleibt unverändert archiviert; die daraus übernommenen
+          Felder lassen sich korrigieren. Damit nachvollziehbar bleibt, was
+          ursprünglich in der Rechnung stand (GoBD), wird jede Korrektur hier
+          mit altem und neuem Wert festgehalten. */}
+      {protokoll.length > 0 && (
+        <section>
+          <h2>Änderungshistorie</h2>
+          <p>
+            Diese Angaben wurden nach dem Import von Hand korrigiert. Die importierte
+            Original-Datei ist davon unberührt und lässt sich oben exportieren.
+          </p>
+          <table className="tabelle">
+            <thead>
+              <tr>
+                <th>Zeitpunkt</th>
+                <th>Feld</th>
+                <th>Vorher</th>
+                <th>Nachher</th>
+              </tr>
+            </thead>
+            <tbody>
+              {protokoll.map((a, i) => (
+                <tr key={i}>
+                  <td>{zeitpunktDeutsch(a.geaendert_am)}</td>
+                  <td>{a.feld}</td>
+                  <td>{protokollWert(a.feld, a.alt, detail.eingangsrechnung.waehrung)}</td>
+                  <td>{protokollWert(a.feld, a.neu, detail.eingangsrechnung.waehrung)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      )}
     </div>
   );
 }

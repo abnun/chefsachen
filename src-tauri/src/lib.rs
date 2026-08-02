@@ -136,6 +136,7 @@ pub fn run() {
             commands::eingangsrechnungen::eingangsrechnung_list,
             commands::eingangsrechnungen::eingangsrechnung_get,
             commands::eingangsrechnungen::eingangsrechnung_update,
+            commands::eingangsrechnungen::eingangsrechnung_aenderungen,
             commands::eingangsrechnungen::eingangsrechnung_original_exportieren
         ])
         .run(tauri::generate_context!())

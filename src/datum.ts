@@ -26,3 +26,17 @@ export function datumDeutschOder(iso: string | null | undefined, ersatz: string)
 export function heuteIso(): string {
   return new Date().toISOString().slice(0, 10);
 }
+
+/**
+ * `2026-08-02T09:15:00Z` → `02.08.2026, 11:15` in der Zeitzone des Nutzers.
+ *
+ * Zeitstempel speichert die Anwendung in UTC. Angezeigt gehören sie in Ortszeit,
+ * sonst wirkt ein am Abend gespeicherter Eintrag auf den Folgetag datiert.
+ */
+export function zeitpunktDeutsch(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleString("de-DE", {
+    day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit",
+  });
+}

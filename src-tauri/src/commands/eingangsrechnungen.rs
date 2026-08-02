@@ -274,14 +274,85 @@ pub async fn get(pool: &SqlitePool, id: String) -> AppResult<EingangsrechnungDet
     Ok(EingangsrechnungDetail { eingangsrechnung, positionen, steuerzeilen })
 }
 
+/// Ein protokollierter Feldwechsel.
+#[derive(Debug, Serialize, sqlx::FromRow)]
+pub struct Aenderung {
+    pub feld: String,
+    pub alt: String,
+    pub neu: String,
+    pub geaendert_am: String,
+}
+
+/// Bezeichnungen für das Protokoll — Spaltennamen wären für den Nutzer nutzlos.
+fn feldbezeichnung(feld: &str) -> &'static str {
+    match feld {
+        "rechnungssteller_name" => "Rechnungssteller",
+        "rechnungsnummer" => "Rechnungsnummer",
+        "rechnungsdatum" => "Rechnungsdatum",
+        "betrag_cent" => "Betrag",
+        "waehrung" => "Währung",
+        _ => "Feld",
+    }
+}
+
 pub async fn update(pool: &SqlitePool, d: EingangsrechnungUpdate) -> AppResult<Eingangsrechnung> {
+    let sql = format!("SELECT {EINGANGSRECHNUNG_SPALTEN} FROM eingangsrechnung WHERE id = ?");
+    let vorher: Eingangsrechnung = sqlx::query_as(&sql)
+        .bind(&d.id)
+        .fetch_optional(pool)
+        .await?
+        .ok_or(AppError::NichtGefunden)?;
+
+    // Nur tatsächliche Wertwechsel protokollieren. Ein Speichern ohne Änderung
+    // soll das Protokoll nicht mit Rauschen füllen.
+    let wechsel: Vec<(&str, String, String)> = [
+        ("rechnungssteller_name", vorher.rechnungssteller_name.clone(), d.rechnungssteller_name.clone()),
+        ("rechnungsnummer", vorher.rechnungsnummer.clone(), d.rechnungsnummer.clone()),
+        ("rechnungsdatum", vorher.rechnungsdatum.clone(), d.rechnungsdatum.clone()),
+        ("betrag_cent", vorher.betrag_cent.to_string(), d.betrag_cent.to_string()),
+        ("waehrung", vorher.waehrung.clone(), d.waehrung.clone()),
+    ]
+    .into_iter()
+    .filter(|(_, alt, neu)| alt != neu)
+    .collect();
+
+    // Änderung und Protokoll in einer Transaktion: Ein Protokoll, das den
+    // Schreibvorgang überleben kann, ohne ihn abzubilden, wäre wertlos.
+    let mut tx = pool.begin().await?;
+    let zeitpunkt = jetzt();
     let r = sqlx::query("UPDATE eingangsrechnung SET rechnungssteller_name=?, rechnungsnummer=?, rechnungsdatum=?, betrag_cent=?, waehrung=?, updated_at=? WHERE id=?")
         .bind(&d.rechnungssteller_name).bind(&d.rechnungsnummer).bind(&d.rechnungsdatum)
-        .bind(d.betrag_cent).bind(&d.waehrung).bind(jetzt()).bind(&d.id)
-        .execute(pool).await?;
+        .bind(d.betrag_cent).bind(&d.waehrung).bind(&zeitpunkt).bind(&d.id)
+        .execute(&mut *tx).await?;
     if r.rows_affected() == 0 { return Err(AppError::NichtGefunden); }
-    let sql = format!("SELECT {EINGANGSRECHNUNG_SPALTEN} FROM eingangsrechnung WHERE id = ?");
+
+    for (feld, alt, neu) in wechsel {
+        sqlx::query(
+            "INSERT INTO eingangsrechnung_aenderung (id, eingangsrechnung_id, feld, alt, neu, geaendert_am) \
+             VALUES (?,?,?,?,?,?)")
+            .bind(Uuid::new_v4().to_string()).bind(&d.id)
+            .bind(feldbezeichnung(feld)).bind(&alt).bind(&neu).bind(&zeitpunkt)
+            .execute(&mut *tx).await?;
+    }
+    tx.commit().await?;
+
     sqlx::query_as(&sql).bind(&d.id).fetch_optional(pool).await?.ok_or(AppError::NichtGefunden)
+}
+
+/// Liest das Änderungsprotokoll einer Eingangsrechnung, jüngste zuerst.
+pub async fn aenderungen(pool: &SqlitePool, id: String) -> AppResult<Vec<Aenderung>> {
+    Ok(sqlx::query_as(
+        "SELECT feld, alt, neu, geaendert_am FROM eingangsrechnung_aenderung \
+         WHERE eingangsrechnung_id = ? ORDER BY geaendert_am DESC, rowid DESC")
+        .bind(&id).fetch_all(pool).await?)
+}
+
+#[tauri::command]
+pub async fn eingangsrechnung_aenderungen(
+    pool: tauri::State<'_, SqlitePool>,
+    id: String,
+) -> AppResult<Vec<Aenderung>> {
+    aenderungen(&pool, id).await
 }
 
 pub async fn original_exportieren(pool: &SqlitePool, id: String) -> AppResult<EingangsrechnungOriginal> {
@@ -560,6 +631,75 @@ mod tests {
         // Die neuen Spalten bleiben unverändert, da eingangsrechnung_update sie nicht anfasst.
         assert_eq!(aktualisiert.kaeufer_name, "Käufer GmbH");
         assert_eq!(aktualisiert.verkaeufer_steuernummer, "DE999888777");
+    }
+
+    /// Baut eine gespeicherte Eingangsrechnung mit bekannten Kernfeldern.
+    async fn gespeicherte_rechnung(pool: &SqlitePool) -> Eingangsrechnung {
+        let mut felder = felder_mit_zusatzdaten();
+        felder.rechnungssteller_name = "Alte Firma".into();
+        felder.rechnungsnummer = "RE-2026-0001".into();
+        felder.rechnungsdatum = "2026-07-11".into();
+        felder.betrag_cent = 9500;
+        speichern(pool, b"kein gueltiges XML".to_vec(), "gemischt.xml".into(), felder).await.unwrap()
+    }
+
+    #[tokio::test]
+    async fn update_protokolliert_jeden_geaenderten_wert() {
+        let (_dir, pool) = test_pool().await;
+        let g = gespeicherte_rechnung(&pool).await;
+
+        update(&pool, EingangsrechnungUpdate {
+            id: g.id.clone(), rechnungssteller_name: "Neue Firma".into(),
+            rechnungsnummer: "RE-2026-0002".into(), rechnungsdatum: "2026-07-11".into(),
+            betrag_cent: 12000, waehrung: "EUR".into(),
+        }).await.unwrap();
+
+        let protokoll = aenderungen(&pool, g.id.clone()).await.unwrap();
+        // Datum und Währung blieben gleich, dürfen also nicht auftauchen.
+        assert_eq!(protokoll.len(), 3, "erwartet: Steller, Nummer, Betrag");
+        let paare: Vec<(&str, &str, &str)> = protokoll
+            .iter().map(|a| (a.feld.as_str(), a.alt.as_str(), a.neu.as_str())).collect();
+        assert!(paare.contains(&("Rechnungssteller", "Alte Firma", "Neue Firma")), "{paare:?}");
+        assert!(paare.contains(&("Rechnungsnummer", "RE-2026-0001", "RE-2026-0002")), "{paare:?}");
+        assert!(paare.contains(&("Betrag", "9500", "12000")), "{paare:?}");
+        assert!(protokoll.iter().all(|a| !a.geaendert_am.is_empty()));
+    }
+
+    #[tokio::test]
+    async fn update_ohne_wertwechsel_erzeugt_keinen_eintrag() {
+        let (_dir, pool) = test_pool().await;
+        let g = gespeicherte_rechnung(&pool).await;
+
+        update(&pool, EingangsrechnungUpdate {
+            id: g.id.clone(), rechnungssteller_name: g.rechnungssteller_name.clone(),
+            rechnungsnummer: g.rechnungsnummer.clone(), rechnungsdatum: g.rechnungsdatum.clone(),
+            betrag_cent: g.betrag_cent, waehrung: g.waehrung.clone(),
+        }).await.unwrap();
+
+        assert!(aenderungen(&pool, g.id).await.unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    async fn mehrfache_updates_bleiben_lueckenlos_nachvollziehbar() {
+        let (_dir, pool) = test_pool().await;
+        let g = gespeicherte_rechnung(&pool).await;
+
+        for betrag in [10000, 11000, 12000] {
+            update(&pool, EingangsrechnungUpdate {
+                id: g.id.clone(), rechnungssteller_name: g.rechnungssteller_name.clone(),
+                rechnungsnummer: g.rechnungsnummer.clone(), rechnungsdatum: g.rechnungsdatum.clone(),
+                betrag_cent: betrag, waehrung: g.waehrung.clone(),
+            }).await.unwrap();
+        }
+
+        // Der ursprüngliche Wert muss auch nach mehreren Korrekturen feststellbar
+        // bleiben — sonst ist die Kette für die GoBD wertlos.
+        let protokoll = aenderungen(&pool, g.id).await.unwrap();
+        assert_eq!(protokoll.len(), 3);
+        let mut kette: Vec<(&str, &str)> = protokoll
+            .iter().map(|a| (a.alt.as_str(), a.neu.as_str())).collect();
+        kette.reverse();
+        assert_eq!(kette, vec![("9500", "10000"), ("10000", "11000"), ("11000", "12000")]);
     }
 
     #[tokio::test]

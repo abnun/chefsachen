@@ -285,6 +285,13 @@ export interface EingangsrechnungUpdate {
   betrag_cent: number;
   waehrung: string;
 }
+/** Ein protokollierter Feldwechsel an einer Eingangsrechnung. */
+export interface EingangsrechnungAenderung {
+  feld: string;
+  alt: string;
+  neu: string;
+  geaendert_am: string;
+}
 export interface EingangsrechnungDetail {
   eingangsrechnung: Eingangsrechnung;
   positionen: EingangsrechnungPosition[];
@@ -465,5 +472,6 @@ export const api = {
     get: (id: string) => invoke<EingangsrechnungDetail>("eingangsrechnung_get", { id }),
     update: (daten: EingangsrechnungUpdate) => invoke<Eingangsrechnung>("eingangsrechnung_update", { daten }),
     originalExportieren: (id: string) => invoke<EingangsrechnungOriginal>("eingangsrechnung_original_exportieren", { id }),
+    aenderungen: (id: string) => invoke<EingangsrechnungAenderung[]>("eingangsrechnung_aenderungen", { id }),
   },
 };

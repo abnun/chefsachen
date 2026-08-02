@@ -3,19 +3,20 @@
 Priorisierte Arbeitsliste, abgeleitet aus [MVP-Review vom 2026-08-02](2026-08-02-mvp-review.md).
 Reihenfolge = Empfehlung. Jeder Punkt trägt die Referenz aus dem Review.
 
-## Stand (2026-08-03)
+## Stand (2026-08-02)
 
 | Stufe | Fortschritt |
 |---|---|
 | 1 — Kaputte Grundfunktionen | ✅ 8/8 |
 | 2 — Rechtliche Korrektheit | ✅ 8/8, P2.9 teilweise |
 | 3 — Fehlende Kernfunktionen | ✅ 10/11, P3.7 teilweise |
-| 4 — Robustheit | ⬜ 12/13 |
+| 4 — Robustheit | ✅ 13/13 |
 | 5 — Produktreife | ⬜ 0/7, P5.2 angefangen |
 | 6 — UX und Code-Qualität | ⬜ 0/11 |
 
-**Nächster Schritt:** Stufe 4 (Robustheit) — allen voran P4.1/P4.2
-(Nummernvergabe transaktional, Nebenläufigkeit) und P4.9 (IBAN-Prüfung).
+**Nächster Schritt:** Stufe 5 (Produktreife) — P5.5 (README/LICENSE/Bundle-Metadaten)
+und P5.4 (Logging, Versionsanzeige) sind ohne Rückfragen machbar; P5.1 (Auto-Updater)
+und P5.6 (Signierung) brauchen eine Entscheidung zu Zertifikaten.
 
 ## Entwicklungsumgebung einrichten
 
@@ -285,8 +286,11 @@ Ohne diese Punkte ist die App für die Zielgruppe nicht wertvoll.
   → Migration 0010 lässt das Format 'pdf' zu; die Datei wird archiviert, die Felder trägt der Nutzer nach
   Aufbewahrungspflichtig sind alle Eingangsrechnungen, nicht nur maschinenlesbare.
 
-- [ ] **P4.13 — Änderungshistorie für Eingangsrechnungen** `[B29]`
-  Rohdatei bleibt, auswertbare Felder sind spurlos änderbar. GoBD verlangt Nachvollziehbarkeit.
+- [x] **P4.13 — Änderungshistorie für Eingangsrechnungen** `[B29]`
+  Jede Korrektur an Rechnungssteller, Nummer, Datum, Betrag oder Währung wird mit
+  altem und neuem Wert protokolliert (`eingangsrechnung_aenderung`), in derselben
+  Transaktion wie die Änderung. Das Detail zeigt die Historie mit aufbereiteten
+  Werten; ohne Korrekturen bleibt sie unsichtbar.
 
 ---
 

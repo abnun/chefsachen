@@ -36,12 +36,14 @@ vi.mock("../api", () => ({
         manuell_erfasst: false, importiert_am: "2026-07-19T10:00:00Z",
       }),
       originalExportieren: vi.fn().mockResolvedValue({ dateiname: "rechnung.xml", bytes: [1, 2, 3] }),
+      aenderungen: vi.fn().mockResolvedValue([]),
     },
   },
 }));
 vi.mock("@tauri-apps/plugin-dialog", () => ({ save: vi.fn().mockResolvedValue("/pfad/rechnung.xml") }));
 vi.mock("@tauri-apps/plugin-fs", () => ({ writeFile: vi.fn().mockResolvedValue(undefined) }));
 import { writeFile } from "@tauri-apps/plugin-fs";
+import { api } from "../api";
 import { EingangsrechnungDetail } from "./EingangsrechnungDetail";
 
 describe("EingangsrechnungDetail", () => {
@@ -128,5 +130,26 @@ describe("EingangsrechnungDetail", () => {
     await waitFor(() => expect(screen.getByText("Lieferant GmbH")).toBeTruthy());
     expect(screen.getByText("DE123456789")).toBeTruthy();
     expect(screen.getByText("19,0 %")).toBeTruthy();
+  });
+
+  it("zeigt die Änderungshistorie mit lesbar aufbereiteten Werten", async () => {
+    vi.mocked(api.eingangsrechnungen.aenderungen).mockResolvedValueOnce([
+      { feld: "Betrag", alt: "23800", neu: "25000", geaendert_am: "2026-07-20T08:30:00Z" },
+      { feld: "Rechnungsdatum", alt: "2026-07-15", neu: "2026-07-16", geaendert_am: "2026-07-20T08:30:00Z" },
+    ]);
+    render(<EingangsrechnungDetail id="e1" />);
+
+    await waitFor(() => expect(screen.getByText("Änderungshistorie")).toBeTruthy());
+    // Cent und ISO-Datum wären hier unverständlich; die Tabelle zeigt die
+    // Werte so, wie sie in der Oberfläche sonst auch stehen.
+    expect(screen.getByText("250,00 €")).toBeTruthy();
+    expect(screen.getByText("16.07.2026")).toBeTruthy();
+    expect(screen.getByText("15.07.2026")).toBeTruthy();
+  });
+
+  it("zeigt ohne Korrekturen keine Änderungshistorie", async () => {
+    render(<EingangsrechnungDetail id="e1" />);
+    await waitFor(() => expect(screen.getByText("Lieferant GmbH")).toBeTruthy());
+    expect(screen.queryByText("Änderungshistorie")).toBeNull();
   });
 });
