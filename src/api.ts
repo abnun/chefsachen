@@ -443,8 +443,8 @@ export const api = {
       invoke<void>("nummernkreis_update", { art, format, jahresReset }),
   },
   belege: {
-    list: (typ?: "angebot" | "rechnung", status?: string) =>
-      invoke<Beleg[]>("beleg_list", { typ: typ ?? null, status: status ?? null }),
+    list: (typ?: "angebot" | "rechnung", status?: string, suche?: string) =>
+      invoke<Beleg[]>("beleg_list", { typ: typ ?? null, status: status ?? null, suche: suche ?? null }),
     get: (id: string) => invoke<BelegDetail>("beleg_get", { id }),
     create: (daten: BelegNeu) => invoke<Beleg>("beleg_create", { daten }),
     update: (daten: BelegUpdate) => invoke<Beleg>("beleg_update", { daten }),

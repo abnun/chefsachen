@@ -1,5 +1,7 @@
+import "@testing-library/jest-dom/vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import userEvent from "@testing-library/user-event";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { api } from "../api";
 
 afterEach(cleanup);
@@ -7,15 +9,7 @@ afterEach(cleanup);
 vi.mock("../api", () => ({
   api: {
     belege: {
-      list: vi.fn().mockResolvedValue([
-        { id: "1", typ: "rechnung", nummer: "RE-2026-0001", status: "gestellt", kunde_id: "k1",
-          datum: "2026-07-10", leistungsdatum: "2026-07-10", zahlungsziel_tage: 14,
-          kopftext: "", fusstext: "", summe_cent: 9500, ursprungsangebot_id: null, storno_von_id: null },
-        { id: "2", typ: "rechnung", nummer: "RE-2026-0002", status: "gestellt", kunde_id: "k1",
-          datum: "2026-07-11", leistungsdatum: "2026-07-11", zahlungsziel_tage: 14,
-          kopftext: "", fusstext: "", summe_cent: 5000, ursprungsangebot_id: null, storno_von_id: null,
-          kunde_snapshot_name: "ACME GmbH (alter Name)" },
-      ]),
+      list: vi.fn(),
     },
     kunden: {
       list: vi.fn().mockResolvedValue([
@@ -27,6 +21,22 @@ vi.mock("../api", () => ({
   },
 }));
 import { Rechnungen } from "./Rechnungen";
+
+/** Ausgangslage für jeden Test. Ohne das Zurücksetzen wirkt ein `mockResolvedValue`
+ *  aus einem früheren Test in allen folgenden weiter. */
+const STANDARD = [
+        { id: "1", typ: "rechnung", nummer: "RE-2026-0001", status: "gestellt", kunde_id: "k1",
+          datum: "2026-07-10", leistungsdatum: "2026-07-10", zahlungsziel_tage: 14,
+          kopftext: "", fusstext: "", summe_cent: 9500, ursprungsangebot_id: null, storno_von_id: null },
+        { id: "2", typ: "rechnung", nummer: "RE-2026-0002", status: "gestellt", kunde_id: "k1",
+          datum: "2026-07-11", leistungsdatum: "2026-07-11", zahlungsziel_tage: 14,
+          kopftext: "", fusstext: "", summe_cent: 5000, ursprungsangebot_id: null, storno_von_id: null,
+          kunde_snapshot_name: "ACME GmbH (alter Name)" },
+      ] as never;
+
+beforeEach(() => {
+  vi.mocked(api.belege.list).mockResolvedValue(STANDARD);
+});
 
 describe("Rechnungen", () => {
   it("zeigt Rechnungsliste mit Nummer und Kunde", async () => {
@@ -57,4 +67,73 @@ describe("Rechnungen", () => {
     fireEvent.change(screen.getByLabelText(/Status/), { target: { value: "storniert" } });
     await waitFor(() => expect(screen.getByText(/Keine Rechnungen mit diesem Status/)).toBeTruthy());
   });
+
+  it("reicht den Suchbegriff ans Backend weiter", async () => {
+    // Gesucht wird serverseitig: Der Kundenname steht in einer anderen Tabelle
+    // und ist bei gestellten Rechnungen eingefroren.
+    render(<Rechnungen onOeffnen={() => {}} />);
+    await waitFor(() => expect(screen.getByText("RE-2026-0001")).toBeTruthy());
+
+    await userEvent.type(screen.getByLabelText(/Suche/), "ACME");
+    await waitFor(
+      () => expect(vi.mocked(api.belege.list)).toHaveBeenCalledWith("rechnung", undefined, "ACME"),
+      { timeout: 2000 },
+    );
+  });
+
+  it("sagt bei einer erfolglosen Suche, wonach gesucht wurde", async () => {
+    render(<Rechnungen onOeffnen={() => {}} />);
+    await waitFor(() => expect(screen.getByText("RE-2026-0001")).toBeTruthy());
+
+    vi.mocked(api.belege.list).mockResolvedValue([]);
+    await userEvent.type(screen.getByLabelText(/Suche/), "gibtsnicht");
+    await waitFor(() => expect(screen.getByText(/gibtsnicht/)).toBeTruthy(), { timeout: 2000 });
+  });
+
+  it("sortiert per Klick auf den Spaltenkopf und kehrt die Richtung um", async () => {
+    render(<Rechnungen onOeffnen={() => {}} />);
+    await waitFor(() => expect(screen.getByText("RE-2026-0001")).toBeTruthy());
+
+    const nummer = screen.getByRole("button", { name: /Nummer/ });
+    await userEvent.click(nummer);
+    expect(reihenfolge()).toEqual(["RE-2026-0001", "RE-2026-0002"]);
+    expect(nummer.closest("th")).toHaveAttribute("aria-sort", "ascending");
+
+    await userEvent.click(nummer);
+    expect(reihenfolge()).toEqual(["RE-2026-0002", "RE-2026-0001"]);
+    expect(nummer.closest("th")).toHaveAttribute("aria-sort", "descending");
+  });
+
+  it("blättert erst, wenn eine Seite nicht mehr reicht", async () => {
+    // Bei den zwölf Rechnungen eines typischen Jahres wäre eine Blätterleiste
+    // unter jeder Tabelle nur Beiwerk.
+    render(<Rechnungen onOeffnen={() => {}} />);
+    await waitFor(() => expect(screen.getByText("RE-2026-0001")).toBeTruthy());
+    expect(screen.queryByRole("navigation", { name: "Seiten" })).toBeNull();
+
+    const viele = Array.from({ length: 30 }, (_, i) => ({
+      id: `v${i}`, typ: "rechnung", nummer: `RE-2026-${String(i + 100).padStart(4, "0")}`,
+      status: "gestellt", kunde_id: "k1", datum: "2026-07-10", leistungsdatum: "2026-07-10",
+      zahlungsziel_tage: 14, kopftext: "", fusstext: "", summe_cent: 100,
+      ursprungsangebot_id: null, storno_von_id: null,
+    }));
+    vi.mocked(api.belege.list).mockResolvedValue(viele as never);
+    fireEvent.change(screen.getByLabelText(/Status/), { target: { value: "gestellt" } });
+
+    await waitFor(() => expect(screen.getByRole("navigation", { name: "Seiten" })).toBeTruthy());
+    expect(screen.getByText(/Seite 1 von 2 \(30 Einträge\)/)).toBeTruthy();
+    // 25 je Seite.
+    expect(reihenfolge()).toHaveLength(25);
+
+    await userEvent.click(screen.getByRole("button", { name: /Weiter/ }));
+    expect(reihenfolge()).toHaveLength(5);
+  });
 });
+
+/** Die Belegnummern der Tabelle in der angezeigten Reihenfolge. */
+function reihenfolge(): string[] {
+  return screen
+    .getAllByRole("row")
+    .slice(1)
+    .map((zeile) => zeile.querySelector(".zeilen-knopf")?.textContent ?? "");
+}

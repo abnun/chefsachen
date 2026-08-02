@@ -203,7 +203,18 @@ pub async fn create(pool: &SqlitePool, d: BelegNeu) -> AppResult<Beleg> {
     Ok(beleg)
 }
 
-pub async fn list(pool: &SqlitePool, typ: Option<String>, status: Option<String>) -> AppResult<Vec<Beleg>> {
+/// Listet Belege, wahlweise gefiltert nach Art, Status und Suchbegriff.
+///
+/// Gesucht wird in der Belegnummer und im Kundennamen. Der Name steht in einer
+/// anderen Tabelle und ist bei gestellten Belegen zusätzlich eingefroren —
+/// beides lässt sich in der Oberfläche nicht nachbilden, ohne alle Belege und
+/// alle Kunden zu laden. Deshalb hier.
+pub async fn list(
+    pool: &SqlitePool,
+    typ: Option<String>,
+    status: Option<String>,
+    suche: Option<String>,
+) -> AppResult<Vec<Beleg>> {
     // Die Zahlungssumme kommt als Unterabfrage mit, damit die Liste den
     // Zahlungsstand ohne eine Abfrage je Zeile anzeigen kann.
     let spalten: String = BELEG_SPALTEN
@@ -211,17 +222,28 @@ pub async fn list(pool: &SqlitePool, typ: Option<String>, status: Option<String>
         .map(|s| format!("b.{s}"))
         .collect::<Vec<_>>()
         .join(", ");
+    // Ein leerer Suchbegriff ist keine Suche — sonst fände „" nichts.
+    let muster = suche
+        .filter(|s| !s.trim().is_empty())
+        .map(|s| format!("%{}%", s.trim().to_lowercase()));
+
+    // COALESCE auf den eingefrorenen Namen: Bei gestellten Belegen zählt er,
+    // denn er steht auf dem Beleg. Vorher gibt es ihn nicht, dann der aktuelle.
     let sql = format!(
         "SELECT {spalten}, \
            COALESCE((SELECT SUM(z.betrag_cent) FROM zahlung z \
                      WHERE z.rechnung_id = b.id AND z.deleted_at IS NULL), 0) AS bezahlt_cent \
-         FROM beleg b WHERE b.deleted_at IS NULL \
+         FROM beleg b LEFT JOIN kunde k ON k.id = b.kunde_id \
+         WHERE b.deleted_at IS NULL \
          AND (? IS NULL OR b.typ = ?) AND (? IS NULL OR b.status = ?) \
+         AND (? IS NULL OR lower(COALESCE(b.nummer, '')) LIKE ? \
+              OR lower(COALESCE(json_extract(NULLIF(b.kunde_snapshot, ''), '$.kunde.name'), k.name, '')) LIKE ?) \
          ORDER BY b.datum DESC, b.created_at DESC"
     );
     let belege: Vec<Beleg> = sqlx::query_as(&sql)
         .bind(typ.clone()).bind(typ)
         .bind(status.clone()).bind(status)
+        .bind(muster.clone()).bind(muster.clone()).bind(muster)
         .fetch_all(pool).await?;
     Ok(belege.into_iter().map(mit_snapshot_name).map(mit_zahlungsstand).collect())
 }
@@ -730,8 +752,9 @@ pub async fn offene_posten_list(pool: tauri::State<'_, SqlitePool>) -> AppResult
 
 // Dünne Tauri-Wrapper
 #[tauri::command]
-pub async fn beleg_list(pool: tauri::State<'_, SqlitePool>, typ: Option<String>, status: Option<String>) -> AppResult<Vec<Beleg>> {
-    list(&pool, typ, status).await
+pub async fn beleg_list(pool: tauri::State<'_, SqlitePool>, typ: Option<String>, status: Option<String>,
+    suche: Option<String>) -> AppResult<Vec<Beleg>> {
+    list(&pool, typ, status, suche).await
 }
 #[tauri::command]
 pub async fn beleg_get(pool: tauri::State<'_, SqlitePool>, id: String) -> AppResult<BelegDetail> {
@@ -880,15 +903,96 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn list_findet_nach_belegnummer_und_kundenname() {
+        let (_dir, pool) = test_pool().await;
+        let acme = kunde_anlegen(&pool).await;
+        let baecker = kunde_create(&pool, KundeNeu {
+            typ: "firma".into(), name: "Bäckerei Schmitt".into(), zahlungsziel_tage: 14,
+            notizen: "".into(), ust_idnr: "".into(), email: "".into(),
+            leitweg_id: "".into(), kaeuferreferenz: "".into(),
+        }).await.unwrap().id;
+        rechnungsadresse_anlegen(&pool, &baecker).await;
+
+        let a = create(&pool, beleg_neu("rechnung", &acme)).await.unwrap();
+        let b = create(&pool, beleg_neu("rechnung", &baecker)).await.unwrap();
+
+        // Nach dem Kundennamen — die Oberfläche zeigt ihn, also muss man danach
+        // suchen können. Er steht in einer anderen Tabelle, deshalb gehört die
+        // Suche ins Backend und nicht in die Liste im Speicher.
+        let treffer = list(&pool, None, None, Some("bäckerei".into())).await.unwrap();
+        assert_eq!(treffer.len(), 1, "erwartet nur die Rechnung an die Bäckerei");
+        assert_eq!(treffer[0].id, b.id);
+
+        // Groß- und Kleinschreibung darf keine Rolle spielen.
+        assert_eq!(list(&pool, None, None, Some("ACME".into())).await.unwrap().len(), 1);
+        assert_eq!(list(&pool, None, None, Some("acme".into())).await.unwrap().len(), 1);
+
+        // Nach der Nummer. Entwürfe haben noch keine, deshalb erst stellen.
+        let artikel_id = artikel_anlegen(&pool, 5000).await;
+        position_speichern(&pool, BelegpositionNeu {
+            id: "".into(), beleg_id: a.id.clone(), artikel_id: Some(artikel_id),
+            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000,
+        }).await.unwrap();
+        let gestellt = stellen(&pool, a.id.clone()).await.unwrap();
+        let nummer = gestellt.nummer.clone().unwrap();
+        let treffer = list(&pool, None, None, Some(nummer.clone())).await.unwrap();
+        assert_eq!(treffer.len(), 1);
+        assert_eq!(treffer[0].nummer.as_deref(), Some(nummer.as_str()));
+    }
+
+    #[tokio::test]
+    async fn list_sucht_im_festgeschriebenen_kundennamen() {
+        // Nach dem Stellen zählt der eingefrorene Name, nicht der aktuelle.
+        // Wer die Rechnung sucht, hat den Namen vor Augen, der auf ihr steht.
+        let (_dir, pool) = test_pool().await;
+        let kunde_id = kunde_anlegen(&pool).await;
+
+        // Ein zweiter Beleg für einen anderen Kunden, sonst bestünde der Test
+        // auch ohne jede Filterung.
+        let anderer = kunde_create(&pool, KundeNeu {
+            typ: "firma".into(), name: "Zweiter Kunde".into(), zahlungsziel_tage: 14,
+            notizen: "".into(), ust_idnr: "".into(), email: "".into(),
+            leitweg_id: "".into(), kaeuferreferenz: "".into(),
+        }).await.unwrap().id;
+        rechnungsadresse_anlegen(&pool, &anderer).await;
+        create(&pool, beleg_neu("rechnung", &anderer)).await.unwrap();
+
+        let beleg = create(&pool, beleg_neu("rechnung", &kunde_id)).await.unwrap();
+        let artikel_id = artikel_anlegen(&pool, 5000).await;
+        position_speichern(&pool, BelegpositionNeu {
+            id: "".into(), beleg_id: beleg.id.clone(), artikel_id: Some(artikel_id),
+            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000,
+        }).await.unwrap();
+        stellen(&pool, beleg.id.clone()).await.unwrap();
+
+        let mut kunde = crate::commands::kunden::get(&pool, kunde_id.clone()).await.unwrap().kunde;
+        kunde.name = "Neuer Name AG".into();
+        crate::commands::kunden::update(&pool, kunde).await.unwrap();
+
+        assert_eq!(list(&pool, None, None, Some("ACME".into())).await.unwrap().len(), 1,
+                   "der festgeschriebene Name muss weiter auffindbar sein");
+    }
+
+    #[tokio::test]
+    async fn list_ohne_suche_liefert_alles() {
+        let (_dir, pool) = test_pool().await;
+        let kunde_id = kunde_anlegen(&pool).await;
+        create(&pool, beleg_neu("rechnung", &kunde_id)).await.unwrap();
+        create(&pool, beleg_neu("angebot", &kunde_id)).await.unwrap();
+        assert_eq!(list(&pool, None, None, None).await.unwrap().len(), 2);
+        assert_eq!(list(&pool, None, None, Some("".into())).await.unwrap().len(), 2);
+    }
+
+    #[tokio::test]
     async fn list_filtert_nach_typ_und_status() {
         let (_dir, pool) = test_pool().await;
         let kunde_id = kunde_anlegen(&pool).await;
         create(&pool, beleg_neu("angebot", &kunde_id)).await.unwrap();
         create(&pool, beleg_neu("rechnung", &kunde_id)).await.unwrap();
-        let angebote = list(&pool, Some("angebot".into()), None).await.unwrap();
+        let angebote = list(&pool, Some("angebot".into()), None, None).await.unwrap();
         assert_eq!(angebote.len(), 1);
         assert_eq!(angebote[0].typ, "angebot");
-        let entwuerfe = list(&pool, None, Some("entwurf".into())).await.unwrap();
+        let entwuerfe = list(&pool, None, Some("entwurf".into()), None).await.unwrap();
         assert_eq!(entwuerfe.len(), 2);
     }
 
@@ -1363,7 +1467,7 @@ mod tests {
         }).await.unwrap();
         let gestellt = stellen(&pool, rechnung.id).await.unwrap();
 
-        let offen = &list(&pool, Some("rechnung".into()), None).await.unwrap()[0];
+        let offen = &list(&pool, Some("rechnung".into()), None, None).await.unwrap()[0];
         assert_eq!(offen.zahlungsstand, Some(crate::domain::beleg::Zahlungsstand::Offen));
         // Belegdatum 2026-07-10 plus 14 Tage Zahlungsziel.
         assert_eq!(offen.faellig_am.as_deref(), Some("2026-07-24"));
@@ -1372,7 +1476,7 @@ mod tests {
             rechnung_id: gestellt.id.clone(), datum: "2026-07-20".into(),
             betrag_cent: 4_000, notiz: "".into(),
         }).await.unwrap();
-        let teil = &list(&pool, Some("rechnung".into()), None).await.unwrap()[0];
+        let teil = &list(&pool, Some("rechnung".into()), None, None).await.unwrap()[0];
         assert_eq!(teil.zahlungsstand, Some(crate::domain::beleg::Zahlungsstand::Teilbezahlt));
         assert_eq!(teil.bezahlt_cent, 4_000);
 
@@ -1380,7 +1484,7 @@ mod tests {
             rechnung_id: gestellt.id, datum: "2026-07-22".into(),
             betrag_cent: 6_000, notiz: "".into(),
         }).await.unwrap();
-        let bezahlt = &list(&pool, Some("rechnung".into()), None).await.unwrap()[0];
+        let bezahlt = &list(&pool, Some("rechnung".into()), None, None).await.unwrap()[0];
         assert_eq!(bezahlt.zahlungsstand, Some(crate::domain::beleg::Zahlungsstand::Bezahlt));
     }
 
@@ -1393,7 +1497,7 @@ mod tests {
         create(&pool, beleg_neu("rechnung", &kunde_id)).await.unwrap();
         create(&pool, beleg_neu("angebot", &kunde_id)).await.unwrap();
 
-        for beleg in list(&pool, None, None).await.unwrap() {
+        for beleg in list(&pool, None, None, None).await.unwrap() {
             assert_eq!(beleg.zahlungsstand, None, "Beleg {} sollte keinen Stand tragen", beleg.typ);
             assert_eq!(beleg.faellig_am, None);
         }
@@ -1682,13 +1786,13 @@ mod tests {
         // ZWEI getrennte list()-Aufrufe (vor und nach dem Stellen), nicht einen
         // einzigen Aufruf danach mit zwei "unterschiedlichen" find()-Treffern, die in
         // Wahrheit dieselbe (dann schon gestellte) Zeile wären.
-        let vor_stellen = list(&pool, None, None).await.unwrap();
+        let vor_stellen = list(&pool, None, None, None).await.unwrap();
         let entwurf_geladen = vor_stellen.iter().find(|b| b.id == entwurf.id).unwrap();
         assert_eq!(entwurf_geladen.kunde_snapshot_name, None);
 
         let gestellt = stellen(&pool, entwurf.id.clone()).await.unwrap();
 
-        let nach_stellen = list(&pool, None, None).await.unwrap();
+        let nach_stellen = list(&pool, None, None, None).await.unwrap();
         let gestellt_geladen = nach_stellen.iter().find(|b| b.id == gestellt.id).unwrap();
         assert_eq!(gestellt_geladen.kunde_snapshot_name, Some("ACME GmbH".to_string()));
     }

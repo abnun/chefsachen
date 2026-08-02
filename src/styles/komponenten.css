@@ -647,3 +647,37 @@ label.feld textarea {
   outline-offset: 2px;
   border-radius: var(--radius-s);
 }
+
+/* Sortierbarer Spaltenkopf. */
+.sortier-kopf {
+  background: none;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  text-transform: inherit;
+  letter-spacing: inherit;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--abstand-xs, 4px);
+}
+
+.sortier-pfeil {
+  font-size: 0.8em;
+  /* Feste Breite, damit die Spalte beim Sortieren nicht springt. */
+  width: 1em;
+  display: inline-block;
+}
+
+/* Blätterleiste. */
+.blaettern {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--abstand-m);
+  padding: var(--abstand-m) 0;
+  color: var(--text-leise);
+  font-size: var(--text-s);
+}

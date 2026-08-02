@@ -1,7 +1,9 @@
 import { BelegAnlegen } from "../components/BelegAnlegen";
 import { Fehler } from "../components/Fehler";
 import { ZeilenKnopf } from "../components/ZeilenKnopf";
+import { Blaettern } from "../components/Blaettern";
 import { Laden } from "../components/Laden";
+import { SortierKopf } from "../components/SortierKopf";
 import { StatusMarke } from "../components/StatusMarke";
 import { ANGEBOT_STATUS, statusAuswahl } from "../belegStatus";
 import { datumDeutsch } from "../datum";
@@ -20,6 +22,15 @@ export function Angebote({ onOeffnen }: AngeboteProps) {
       <h1 className="seiten-kopf">Angebote</h1>
       {liste.fehler && <Fehler fehler={liste.fehler} />}
       <div className="werkzeugleiste">
+        <label className="feld">
+          Suche
+          <input
+            type="search"
+            value={liste.suche}
+            onChange={(e) => liste.setSuche(e.currentTarget.value)}
+            placeholder="Nummer oder Kunde"
+          />
+        </label>
         <label className="feld">
           Status
           <select
@@ -40,20 +51,57 @@ export function Angebote({ onOeffnen }: AngeboteProps) {
 
       {liste.geladen && liste.belege.length === 0 && (
         <p>
-          {liste.statusFilter
-            ? "Keine Angebote mit diesem Status."
-            : "Noch keine Angebote — leg oben eines an."}
+          {liste.suche
+            ? `Keine Angebote gefunden für „${liste.suche}".`
+            : liste.statusFilter
+              ? "Keine Angebote mit diesem Status."
+              : "Noch keine Angebote — leg oben eines an."}
         </p>
       )}
 
       <table className="tabelle tabelle-klickbar">
         <thead>
           <tr>
-            <th>Nummer</th>
-            <th>Kunde</th>
-            <th>Datum</th>
-            <th>Status</th>
-            <th>Summe</th>
+            <SortierKopf
+              spalte="nummer"
+              aktiv={liste.sortierung.spalte}
+              richtung={liste.sortierung.richtung}
+              onSortieren={liste.sortieren}
+            >
+              Nummer
+            </SortierKopf>
+            <SortierKopf
+              spalte="kunde"
+              aktiv={liste.sortierung.spalte}
+              richtung={liste.sortierung.richtung}
+              onSortieren={liste.sortieren}
+            >
+              Kunde
+            </SortierKopf>
+            <SortierKopf
+              spalte="datum"
+              aktiv={liste.sortierung.spalte}
+              richtung={liste.sortierung.richtung}
+              onSortieren={liste.sortieren}
+            >
+              Datum
+            </SortierKopf>
+            <SortierKopf
+              spalte="status"
+              aktiv={liste.sortierung.spalte}
+              richtung={liste.sortierung.richtung}
+              onSortieren={liste.sortieren}
+            >
+              Status
+            </SortierKopf>
+            <SortierKopf
+              spalte="summe"
+              aktiv={liste.sortierung.spalte}
+              richtung={liste.sortierung.richtung}
+              onSortieren={liste.sortieren}
+            >
+              Summe
+            </SortierKopf>
           </tr>
         </thead>
         <tbody>
@@ -72,6 +120,13 @@ export function Angebote({ onOeffnen }: AngeboteProps) {
           ))}
         </tbody>
       </table>
+
+      <Blaettern
+        seite={liste.seite}
+        seitenAnzahl={liste.seitenAnzahl}
+        gesamt={liste.trefferAnzahl}
+        onSeite={liste.setSeite}
+      />
 
       {liste.zeigeFormular ? (
         <BelegAnlegen

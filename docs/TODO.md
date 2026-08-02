@@ -12,7 +12,7 @@ Reihenfolge = Empfehlung. Jeder Punkt trägt die Referenz aus dem Review.
 | 3 — Fehlende Kernfunktionen | ✅ 10/11, P3.7 teilweise |
 | 4 — Robustheit | ✅ 13/13 |
 | 5 — Produktreife | ⬜ 5/7, P5.2 angefangen, P5.6 zurückgestellt |
-| 6 — UX und Code-Qualität | ⬜ 4/11 |
+| 6 — UX und Code-Qualität | ⬜ 5/11 |
 
 **Nächster Schritt:** Stufe 6 (UX und Code-Qualität). Von Stufe 5 bleibt P5.2 offen —
 die CI ist noch nie gelaufen und klärt sich beim ersten Push von selbst; P5.6 (Signierung)
@@ -392,7 +392,19 @@ Ohne diese Punkte ist die App für die Zielgruppe nicht wertvoll.
   über ein `geladen`-Kennzeichen zwischen „noch nichts da" und „nichts vorhanden";
   Rechnungen und Angebote zusätzlich zwischen leerer Liste und leerem Filterergebnis.
   Beide hatten vorher gar keinen Leerzustand.
-- [ ] **P6.2 — Suche, Sortierung, Paginierung** `[B17]` — Rechnungen sind nicht nach Nummer oder Kunde auffindbar, obwohl das Backend den Parameter unterstützt
+- [x] **P6.2 — Suche, Sortierung, Blättern** `[B17]`
+  Suche im Backend (`beleg_list` hat jetzt einen `suche`-Parameter): Gesucht wird in der
+  Belegnummer und im Kundennamen. Der Name steht in einer anderen Tabelle und ist bei
+  gestellten Belegen im Snapshot eingefroren — beides lässt sich in der Oberfläche nicht
+  nachbilden, ohne alle Belege und alle Kunden zu laden. Der Snapshot geht dem aktuellen
+  Namen vor: Wer eine Rechnung sucht, hat den Namen vor Augen, der auf ihr steht.
+  Sortierung und Blättern im Speicher — die Liste ist ohnehin vollständig da, und ein
+  Rundweg zum Backend brächte nichts. Bei einigen hundert Belegen im Jahr trägt das;
+  wird es je zu viel, ist die Grenze am langsamen Abruf spürbar.
+  Neue Komponenten `SortierKopf` (mit `aria-sort`, sonst steckt die Sortierrichtung nur im
+  Pfeil) und `Blaettern` (25 je Seite, blendet sich unter einer Seite aus).
+  Anmerkung zum Review: Der `suche`-Parameter existierte für Kunden und Artikel, für Belege
+  nicht — er musste erst gebaut werden.
 - [x] **P6.3 — Tastaturbedienbarkeit** `[B18]`
   Neue Komponente `ZeilenKnopf`: ein echter Knopf in der ersten Zelle, statt `tabIndex` und
   `role="button"` an der Zeile — damit hörte eine Tabellenzeile auf, für Screenreader eine

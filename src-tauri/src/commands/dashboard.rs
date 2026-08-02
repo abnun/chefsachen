@@ -176,7 +176,7 @@ pub async fn laden(pool: &SqlitePool, heute: chrono::NaiveDate) -> AppResult<Das
     offene_rechnungen.sort_by_key(|r| r.tage_bis_faellig);
 
     let angebote: Vec<crate::commands::belege::Beleg> =
-        crate::commands::belege::list(pool, Some("angebot".into()), None).await?;
+        crate::commands::belege::list(pool, Some("angebot".into()), None, None).await?;
     let offene_angebote = angebote
         .into_iter()
         .filter(|b| ["versendet", "angenommen"].contains(&b.status.as_str()))

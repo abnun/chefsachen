@@ -15,7 +15,7 @@ describe("api", () => {
   });
   it("ruft beleg_list per invoke auf", async () => {
     await api.belege.list();
-    expect(invoke).toHaveBeenCalledWith("beleg_list", { typ: null, status: null });
+    expect(invoke).toHaveBeenCalledWith("beleg_list", { typ: null, status: null, suche: null });
   });
   it("ruft beleg_pdf_exportieren per invoke auf", async () => {
     await api.belege.pdfExportieren("b1");
