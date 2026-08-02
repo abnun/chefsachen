@@ -66,7 +66,7 @@ pub struct BelegDetail {
     pub offener_betrag_cent: i64,
 }
 
-#[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
+#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
 pub struct Belegposition {
     pub id: String,
     pub beleg_id: String,

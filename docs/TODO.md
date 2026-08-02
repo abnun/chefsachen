@@ -58,15 +58,15 @@ Ohne diese Punkte tut die App nicht, wofür sie gebaut wurde.
 
 Ohne diese Punkte erzeugt die App formell fehlerhafte Rechnungen.
 
-- [ ] **P2.1 — Steuernummer/USt-IdNr. auf die PDF-Rechnung** `[A2]`
+- [x] **P2.1 — Steuernummer/USt-IdNr. auf die PDF-Rechnung** `[A2]` ✅ 2026-08-02
   Zentrale Pflichtangabe nach § 14 Abs. 4 Nr. 2 UStG. Fehlt komplett → jede Rechnung ist formell fehlerhaft und zurückweisbar.
   → `src-tauri/templates/rechnung.typ`, `src-tauri/src/dokument/pdf.rs:100-119`
 
-- [ ] **P2.2 — IBAN/BIC auf die PDF-Rechnung** `[A2]`
+- [x] **P2.2 — IBAN/BIC auf die PDF-Rechnung** `[A2]` ✅ 2026-08-02
   Daten sind gepflegt und gehen in die XRechnung, fehlen aber im PDF → der Kunde kann nicht bezahlen.
   → wie P2.1
 
-- [ ] **P2.3 — `kopftext` an die Vorlage übergeben** `[A2]`
+- [x] **P2.3 — `kopftext` an die Vorlage übergeben** `[A2]` ✅ 2026-08-02
   Wird im Editor gepflegt, aus Textbausteinen vorbelegt und dann nie gedruckt. Aus Nutzersicht Datenverlust.
   → `src-tauri/src/dokument/pdf.rs:100-119`
 
@@ -95,10 +95,16 @@ Ohne diese Punkte erzeugt die App formell fehlerhafte Rechnungen.
   → `src-tauri/src/dokument/pdf.rs:126`, `src-tauri/src/dokument/zugferd.rs:42-52`
 
 - [ ] **P2.8 — Formatvalidierung in die CI** `[B6]`
-  KoSIT-Schematron für XRechnung, veraPDF für ZUGFeRD. Ohne das wiederholt sich das Muster: Die Tests bestätigen nur, dass der Code tut was er tut, nie dass das Ergebnis normkonform ist.
+  Für die PDF-Seite ist der Weg inzwischen frei: `pdf-extract` liest den Text der erzeugten
+  Rechnung zuverlässig aus (anders als `lopdf`, siehe alter Hinweis im Testmodul). Damit prüfen
+  die Tests jetzt, was tatsächlich auf der Rechnung steht. Für XRechnung und ZUGFeRD fehlt das
+  Gegenstück noch: KoSIT-Schematron für XRechnung, veraPDF für ZUGFeRD. Ohne das wiederholt sich das Muster: Die Tests bestätigen nur, dass der Code tut was er tut, nie dass das Ergebnis normkonform ist.
 
-- [ ] **P2.9 — PDF-Vorlage produktionsreif machen** `[A2]`
-  Seitenzahlen, Tabellenkopf-Wiederholung (`table.header(repeat: true)`), Land in beiden Adressblöcken, DIN-5008-Adressposition für Fensterumschläge, Fälligkeitsdatum statt nur „N Tage".
+- [~] **P2.9 — PDF-Vorlage produktionsreif machen** `[A2]` — teilweise erledigt 2026-08-02
+  Erledigt: Seitenzahlen (erst ab Seite 2), Tabellenkopf-Wiederholung, Land im Empfängerblock
+  (nur bei Auslandsrechnung), deutsches Datumsformat, IBAN in Viererblöcken.
+  Offen: DIN-5008-Adressposition für Fensterumschläge, konkretes Fälligkeitsdatum statt „N Tage",
+  Positions- und Artikelnummer in der Tabelle, Verweis auf die Ursprungsrechnung im Storno-PDF.
   → `src-tauri/templates/rechnung.typ`
 
 ---

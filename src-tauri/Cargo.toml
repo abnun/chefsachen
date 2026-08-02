@@ -37,5 +37,6 @@ xmp-writer = "0.3"
 quick-xml = { version = "0.37", features = ["serialize"] }
 
 [dev-dependencies]
+pdf-extract = "0.12.0"
 tempfile = "3"
 
