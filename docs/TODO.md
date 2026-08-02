@@ -11,12 +11,11 @@ Reihenfolge = Empfehlung. Jeder Punkt trägt die Referenz aus dem Review.
 | 2 — Rechtliche Korrektheit | ✅ 8/8, P2.9 teilweise |
 | 3 — Fehlende Kernfunktionen | ✅ 10/11, P3.7 teilweise |
 | 4 — Robustheit | ✅ 13/13 |
-| 5 — Produktreife | ⬜ 0/7, P5.2 angefangen |
+| 5 — Produktreife | ⬜ 1/7, P5.2 angefangen, P5.6 zurückgestellt |
 | 6 — UX und Code-Qualität | ⬜ 0/11 |
 
-**Nächster Schritt:** Stufe 5 (Produktreife) — P5.5 (README/LICENSE/Bundle-Metadaten)
-und P5.4 (Logging, Versionsanzeige) sind ohne Rückfragen machbar; P5.1 (Auto-Updater)
-und P5.6 (Signierung) brauchen eine Entscheidung zu Zertifikaten.
+**Nächster Schritt:** Stufe 5 weiter — P5.7 (CSP) und P5.4 (Logging, Versionsanzeige).
+P5.6 (Signierung) ist bewusst zurückgestellt, die App geht vorerst nur an Family & Friends.
 
 ## Entwicklungsumgebung einrichten
 
@@ -298,6 +297,10 @@ Ohne diese Punkte ist die App für die Zielgruppe nicht wertvoll.
 
 - [ ] **P5.1 — Auto-Updater einrichten** `[B1]`
   Ohne ihn erreicht kein Bugfix je einen Bestandsnutzer. Lässt sich nicht folgenlos nachrüsten, da Signaturschlüssel vorausgesetzt werden — daher **vor** der ersten echten Verteilung.
+  Hinweis: Der Updater braucht *nicht* dieselben Zertifikate wie P5.6 — Tauri signiert die
+  Update-Artefakte mit einem selbst erzeugten minisign-Schlüsselpaar. Die Zurückstellung von
+  P5.6 blockiert diesen Punkt also nicht. Bis dahin gilt das manuelle Neuinstallieren,
+  wie in der Installationsanleitung beschrieben.
 
 - [~] **P5.2 — CI mit Tests, Clippy, Typecheck, PR-Trigger** `[B4]` — angefangen 2026-08-02
   `release.yml` war der einzige Workflow, Trigger nur auf Tags. Kein Commit wurde je maschinell geprüft.
@@ -314,11 +317,20 @@ Ohne diese Punkte ist die App für die Zielgruppe nicht wertvoll.
 - [ ] **P5.4 — Logging und Versionsanzeige** `[B2]`
   Bei einem Fehler beim Endnutzer existiert keine Spur; Ferndiagnose unmöglich.
 
-- [ ] **P5.5 — README, Nutzerdoku, LICENSE, Bundle-Metadaten** `[B7]`
-  README ist unverändertes Tauri-Template, `Cargo.toml` steht auf `description = "A Tauri App"` / `authors = ["you"]`. Diese Felder erscheinen im Windows-Installer und in den macOS-Infos.
+- [x] **P5.5 — README, Nutzerdoku, LICENSE, Bundle-Metadaten** `[B7]`
+  `LICENSE` (MIT) ergänzt; `README.md` beschreibt Funktionsumfang, Einrichtung, Prüfwerkzeuge,
+  Aufbau und Datenablage statt des Tauri-Templates. Bundle-Metadaten in `tauri.conf.json`
+  (publisher, copyright, license, category, short-/longDescription) sowie `Cargo.toml`
+  und `package.json` gesetzt — geprüft am gebauten `.app`-Bundle, nicht nur an der Konfiguration.
+  `docs/installation-freunde.md` um Erste Schritte, Datenablage, Sicherung und Updates erweitert;
+  der macOS-Weg führt jetzt über die Systemeinstellungen (Rechtsklick → Öffnen wirkt auf
+  aktuellen macOS-Versionen nicht mehr).
 
-- [ ] **P5.6 — Code-Signing und Notarisierung** `[B1]`
-  Secrets sind in `release.yml` bereits vorbereitet. Benötigt Apple-Developer- und Windows-Zertifikat.
+- [–] **P5.6 — Code-Signing und Notarisierung** `[B1]` — **bewusst zurückgestellt (2026-08-02)**
+  Die App geht vorerst nur an Family & Friends; Apple-Developer-Zertifikat (99 $/Jahr) und
+  Windows-Zertifikat lohnen sich dafür nicht. Stattdessen ist der ungesignierte Erststart in
+  `docs/installation-freunde.md` dokumentiert. Secrets sind in `release.yml` vorbereitet,
+  falls die Entscheidung später anders ausfällt.
 
 - [ ] **P5.7 — CSP setzen** `[B13]`
   Aktuell `null` bei gleichzeitiger Verarbeitung fremder XML-Dateien. Für eine Offline-App praktisch kostenlos.

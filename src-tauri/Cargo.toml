@@ -1,8 +1,11 @@
 [package]
 name = "kleinunternehmer-verwaltung"
 version = "0.1.0"
-description = "A Tauri App"
-authors = ["you"]
+description = "Rechnungen, Angebote und E-Rechnungen für Kleinunternehmer nach § 19 UStG"
+authors = ["Markus Müller <abnun@gmx.de>"]
+license = "MIT"
+readme = "../README.md"
+publish = false
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
