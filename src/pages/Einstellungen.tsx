@@ -13,6 +13,7 @@ import { formularFehler } from "../formularFehler";
 import { Fehler } from "../components/Fehler";
 import { useErfolgsHinweis } from "../hooks/useErfolgsHinweis";
 import { useBestaetigung } from "../hooks/useBestaetigung";
+import { useUngespeichert } from "../hooks/useUngespeichert";
 import { Aktualisierung } from "../components/Aktualisierung";
 
 /**
@@ -37,12 +38,24 @@ export function Einstellungen() {
 
 function FirmendatenAbschnitt() {
   const [firma, setFirma] = useState<Firma | null>(null);
+  /** Der zuletzt gespeicherte Stand, um Änderungen zu erkennen. */
+  const [gespeichert, setGespeichert] = useState<Firma | null>(null);
   const [fehler, setFehler] = useState<AppFehler | null>(null);
   const [logoGroesse, setLogoGroesse] = useState<number | null>(null);
   const { zeigen, hinweis } = useErfolgsHinweis();
 
+  useUngespeichert(
+    firma !== null && gespeichert !== null && JSON.stringify(firma) !== JSON.stringify(gespeichert),
+  );
+
   useEffect(() => {
-    api.firma.get().then(setFirma).catch((e) => setFehler(e as AppFehler));
+    api.firma
+      .get()
+      .then((f) => {
+        setFirma(f);
+        setGespeichert(f);
+      })
+      .catch((e) => setFehler(e as AppFehler));
     api.firma.logoGet().then((b) => setLogoGroesse(b ? b.length : null)).catch(() => {});
   }, []);
 
@@ -85,6 +98,7 @@ function FirmendatenAbschnitt() {
     try {
       const gespeicherteFirma = await api.firma.save(firma);
       setFirma(gespeicherteFirma);
+      setGespeichert(gespeicherteFirma);
       zeigen("Firmendaten gespeichert");
     } catch (e) {
       setFehler(e as AppFehler);

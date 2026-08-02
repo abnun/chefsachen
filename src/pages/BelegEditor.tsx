@@ -17,6 +17,7 @@ import { Laden } from "../components/Laden";
 import { StatusMarke } from "../components/StatusMarke";
 import { useErfolgsHinweis } from "../hooks/useErfolgsHinweis";
 import { useBestaetigung } from "../hooks/useBestaetigung";
+import { useUngespeichert } from "../hooks/useUngespeichert";
 import { formatCent, formatMenge, parseEuro, parseMenge } from "../geld";
 import { datumDeutsch } from "../datum";
 
@@ -391,6 +392,20 @@ function StammdatenAbschnitt({ beleg, kunden, bearbeitbar, onSpeichern }: Stammd
     setKopftext(beleg.kopftext);
     setFusstext(beleg.fusstext);
   }, [beleg]);
+
+  // Abweichung vom geladenen Beleg heißt: ungespeichert. Der Vergleich läuft
+  // gegen die Vorlage statt über ein „berührt"-Kennzeichen — wer einen Wert
+  // ändert und wieder zurücksetzt, soll nicht gefragt werden.
+  const geaendert =
+    bearbeitbar &&
+    (kundeId !== beleg.kunde_id ||
+      datum !== beleg.datum ||
+      leistungsdatum !== beleg.leistungsdatum ||
+      leistungsdatumBis !== (beleg.leistungsdatum_bis ?? "") ||
+      zahlungszielTage !== beleg.zahlungsziel_tage ||
+      kopftext !== beleg.kopftext ||
+      fusstext !== beleg.fusstext);
+  useUngespeichert(geaendert);
 
   const kunde = kunden.find((k) => k.id === beleg.kunde_id);
 

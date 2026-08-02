@@ -14,6 +14,7 @@ import { Fehler } from "../components/Fehler";
 import { Laden } from "../components/Laden";
 import { useErfolgsHinweis } from "../hooks/useErfolgsHinweis";
 import { useBestaetigung } from "../hooks/useBestaetigung";
+import { useUngespeichert } from "../hooks/useUngespeichert";
 import { formatCent } from "../geld";
 import { datumDeutschOder } from "../datum";
 
@@ -269,6 +270,10 @@ function StammdatenReiter({ kunde, onGespeichert, onGeloescht }: StammdatenReite
   useEffect(() => {
     setForm(kunde);
   }, [kunde]);
+
+  // Gegen den geladenen Kunden vergleichen, nicht gegen ein „berührt"-Merkmal:
+  // Wer einen Wert ändert und wieder zurücksetzt, soll nicht gefragt werden.
+  useUngespeichert(JSON.stringify(form) !== JSON.stringify(kunde));
 
   async function speichern() {
     setFehler(null);

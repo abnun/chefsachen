@@ -1,6 +1,8 @@
 import "@testing-library/jest-dom/vitest";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { UngespeichertProvider, useVerlassenPruefen } from "../hooks/useUngespeichert";
 
 afterEach(cleanup);
 
@@ -276,5 +278,67 @@ describe("KundeDetail", () => {
     fireEvent.click(screen.getByRole("button", { name: "Sonderpreise" }));
     await waitFor(() => expect(screen.getByText(/keine Sonderpreise hinterlegt/)).toBeTruthy());
     expect(screen.getByText(/Artikel-Seite/)).toBeTruthy();
+  });
+
+  it("warnt vor dem Verlassen, wenn die Stammdaten geändert wurden", async () => {
+    // Der Seitenwechsel läuft über den Zustand, nicht über eine Adresse — es
+    // gibt also keinen Browser, der von sich aus nachfragte.
+    const gewechselt = vi.fn();
+    function Umgebung() {
+      const pruefen = useVerlassenPruefen();
+      return (
+        <>
+          <KundeDetail id="1" />
+          <button type="button" onClick={async () => gewechselt(await pruefen())}>
+            Zu den Rechnungen
+          </button>
+        </>
+      );
+    }
+    render(
+      <UngespeichertProvider>
+        <Umgebung />
+      </UngespeichertProvider>,
+    );
+    await waitFor(() => expect(screen.getByDisplayValue("ACME GmbH")).toBeTruthy());
+
+    // Ohne Änderung: kein Aufhalten.
+    await userEvent.click(screen.getByRole("button", { name: "Zu den Rechnungen" }));
+    await waitFor(() => expect(gewechselt).toHaveBeenCalledWith(true));
+
+    gewechselt.mockClear();
+    fireEvent.change(screen.getByDisplayValue("ACME GmbH"), { target: { value: "ACME AG" } });
+    await userEvent.click(screen.getByRole("button", { name: "Zu den Rechnungen" }));
+    await waitFor(() => expect(screen.getByRole("dialog")).toBeTruthy());
+    expect(gewechselt).not.toHaveBeenCalled();
+  });
+
+  it("fragt nicht, wenn eine Änderung wieder zurückgenommen wurde", async () => {
+    // Verglichen wird gegen den geladenen Stand, nicht gegen ein
+    // „berührt"-Merkmal — sonst wäre jede Rückfrage grundlos.
+    const gewechselt = vi.fn();
+    function Umgebung() {
+      const pruefen = useVerlassenPruefen();
+      return (
+        <>
+          <KundeDetail id="1" />
+          <button type="button" onClick={async () => gewechselt(await pruefen())}>
+            Weiter
+          </button>
+        </>
+      );
+    }
+    render(
+      <UngespeichertProvider>
+        <Umgebung />
+      </UngespeichertProvider>,
+    );
+    await waitFor(() => expect(screen.getByDisplayValue("ACME GmbH")).toBeTruthy());
+
+    fireEvent.change(screen.getByDisplayValue("ACME GmbH"), { target: { value: "ACME AG" } });
+    fireEvent.change(screen.getByDisplayValue("ACME AG"), { target: { value: "ACME GmbH" } });
+
+    await userEvent.click(screen.getByRole("button", { name: "Weiter" }));
+    await waitFor(() => expect(gewechselt).toHaveBeenCalledWith(true));
   });
 });

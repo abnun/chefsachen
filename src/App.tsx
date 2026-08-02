@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { api, type AppFehler, type Firma } from "./api";
 import { Layout, type Seite } from "./components/Layout";
 import { Fehler } from "./components/Fehler";
+import { useVerlassenPruefen } from "./hooks/useUngespeichert";
 import { Laden } from "./components/Laden";
 import { Dashboard } from "./pages/Dashboard";
 import { Einrichtung } from "./pages/Einrichtung";
@@ -22,6 +23,7 @@ function App() {
   const [firma, setFirma] = useState<Firma | null>(null);
   const [fehler, setFehler] = useState<AppFehler | null>(null);
   const [seite, setSeite] = useState<Seite>("uebersicht");
+  const verlassenPruefen = useVerlassenPruefen();
   const [ausgewaehlterKunde, setAusgewaehlterKunde] = useState<string | null>(null);
   const [kundeDetailStartReiter, setKundeDetailStartReiter] = useState<Reiter | null>(null);
   const [ausgewaehltesAngebot, setAusgewaehltesAngebot] = useState<string | null>(null);
@@ -58,7 +60,10 @@ function App() {
     );
   }
 
-  function navigiere(neueSeite: Seite) {
+  // Vor jedem Seitenwechsel nachfragen, wenn irgendwo ungespeicherte Eingaben
+  // stehen. Ohne das verschwindet ein halb ausgefülltes Formular wortlos.
+  async function navigiere(neueSeite: Seite) {
+    if (!(await verlassenPruefen())) return;
     setAusgewaehlterKunde(null);
     setKundeDetailStartReiter(null);
     setAusgewaehltesAngebot(null);
@@ -68,8 +73,8 @@ function App() {
     setSeite(neueSeite);
   }
 
-  function navigiereMitFormular(ziel: "kunden" | "artikel") {
-    navigiere(ziel);
+  async function navigiereMitFormular(ziel: "kunden" | "artikel") {
+    await navigiere(ziel);
     setFormularBeimStartZiel(ziel);
   }
 

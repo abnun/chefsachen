@@ -12,7 +12,7 @@ Reihenfolge = Empfehlung. Jeder Punkt trägt die Referenz aus dem Review.
 | 3 — Fehlende Kernfunktionen | ✅ 10/11, P3.7 teilweise |
 | 4 — Robustheit | ✅ 13/13 |
 | 5 — Produktreife | ⬜ 5/7, P5.2 angefangen, P5.6 zurückgestellt |
-| 6 — UX und Code-Qualität | ⬜ 8/11 |
+| 6 — UX und Code-Qualität | ⬜ 9/11 |
 
 **Nächster Schritt:** Stufe 6 (UX und Code-Qualität). Von Stufe 5 bleibt P5.2 offen —
 die CI ist noch nie gelaufen und klärt sich beim ersten Push von selbst; P5.6 (Signierung)
@@ -414,7 +414,17 @@ Ohne diese Punkte ist die App für die Zielgruppe nicht wertvoll.
   drei inline gebaute Tastaturzeilen).
   Dazu ein durchgängiger, sichtbarer Fokusring (`:focus-visible`, WCAG 2.4.7) und
   Zurück-Knöpfe in `BelegEditor` und `KundeDetail`.
-- [ ] **P6.4 — Warnung bei ungespeicherten Änderungen** `[B19]`
+- [x] **P6.4 — Warnung bei ungespeicherten Änderungen** `[B19]`
+  `UngespeichertProvider` und die Hooks `useUngespeichert` / `useVerlassenPruefen`.
+  Formulare melden an, wenn ihr Stand vom geladenen abweicht; `App.navigiere` fragt vor
+  jedem Seitenwechsel nach. Die Anwendung wechselt Seiten über den Zustand, nicht über
+  Adressen — es gibt also keinen Browser, der von sich aus nachfragte.
+  Verglichen wird gegen den geladenen Stand statt über ein „berührt"-Merkmal: Wer einen
+  Wert ändert und zurücksetzt, soll nicht gefragt werden. Ohne Provider (in Tests, die nur
+  eine Seite rendern) ist die Antwort immer „weiter", sonst stünde dort jede Navigation still.
+  Angemeldet sind Belegstammdaten, Kundenstammdaten und Firmendaten.
+  **Offen:** Das Schließen des Programmfensters ist nicht abgedeckt — das läuft an der
+  Webview vorbei und bräuchte `onCloseRequested` auf der Rust-Seite.
 - [x] **P6.5 — Duplizierung auflösen**
   `src/belegStatus.ts` als einzige Quelle für Beschriftung und Einfärbung aller Statuswerte,
   dazu die Komponente `StatusMarke`. Gemeinsame Listenlogik in `useBelegListe`, das
