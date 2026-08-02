@@ -15,6 +15,18 @@ const WARN_KLASSE: Record<Warnstufe, string> = {
   ueberschritten: "grenze-ueberschritten",
 };
 
+/**
+ * Formatiert eine Umsatzgrenze für eine Überschrift: runde Beträge ohne „,00".
+ *
+ * `formatCent` schreibt immer zwei Nachkommastellen — bei „100.000,00 €" in
+ * einer Überschrift ist das unnötiger Ballast. Alle drei Balkentitel gehen
+ * durch diese Funktion, damit sie einheitlich aussehen und sich im
+ * Gründungsjahr mit der Grenze ändern.
+ */
+function grenzeText(cent: number): string {
+  return formatCent(cent).replace(",00", "");
+}
+
 /** Deutsche Datumsangabe aus einem ISO-Datum; unerwartete Werte bleiben stehen. */
 function datum(iso: string): string {
   const teile = iso.split("-");
@@ -153,21 +165,21 @@ export function Dashboard({ onRechnungOeffnen, onAngebotOeffnen }: DashboardProp
           </h2>
 
           <GrenzenBalken
-            titel={`Laufendes Jahr gegen ${formatCent(g.laufendes_jahr_gegen_jahresgrenze.grenze_cent)}`}
+            titel={`Laufendes Jahr gegen ${grenzeText(g.laufendes_jahr_gegen_jahresgrenze.grenze_cent)}`}
             erlaeuterung="Wird diese Grenze überschritten, endet die Regelung sofort — mit dem Umsatz, der sie reißt."
             grenze={g.laufendes_jahr_gegen_jahresgrenze}
           />
 
           {!g.ist_gruendungsjahr && (
             <GrenzenBalken
-              titel="Laufendes Jahr gegen 25.000 €"
+              titel={`Laufendes Jahr gegen ${grenzeText(g.laufendes_jahr_gegen_vorjahresgrenze.grenze_cent)}`}
               erlaeuterung="Dieser Wert entscheidet, ob die Regelung im nächsten Jahr noch gilt."
               grenze={g.laufendes_jahr_gegen_vorjahresgrenze}
             />
           )}
 
           <GrenzenBalken
-            titel="Vorjahr gegen 25.000 €"
+            titel={`Vorjahr gegen ${grenzeText(g.vorjahr_gegen_vorjahresgrenze.grenze_cent)}`}
             erlaeuterung="Dieser Wert entscheidet, ob die Regelung im laufenden Jahr überhaupt gilt."
             grenze={g.vorjahr_gegen_vorjahresgrenze}
           />

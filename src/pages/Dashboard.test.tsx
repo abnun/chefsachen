@@ -75,6 +75,17 @@ describe("Dashboard", () => {
     expect(balken[1]).toHaveAttribute("aria-valuenow", "84");
   });
 
+  /// Die Titel werden alle aus der jeweiligen Grenze erzeugt — fest verdrahtete
+  /// Beträge sähen im Gründungsjahr falsch aus und wurden zudem uneinheitlich
+  /// formatiert („100.000,00 €" neben „25.000 €").
+  it("beschriftet die Balken einheitlich ohne überflüssige Nachkommastellen", async () => {
+    laden().mockResolvedValue(mitGrenzen());
+    render(<Dashboard {...props} />);
+    await waitFor(() => expect(screen.getByText("Laufendes Jahr gegen 100.000 €")).toBeTruthy());
+    expect(screen.getByText("Laufendes Jahr gegen 25.000 €")).toBeTruthy();
+    expect(screen.getByText("Vorjahr gegen 25.000 €")).toBeTruthy();
+  });
+
   /// Im Gründungsjahr fallen die 25.000-€-Grenze des laufenden Jahres und die
   /// maßgebliche Jahresgrenze zusammen — zwei gleiche Balken wären verwirrend.
   it("zeigt im Gründungsjahr nur zwei Balken und kennzeichnet das Jahr", async () => {
