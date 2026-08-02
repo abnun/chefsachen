@@ -193,6 +193,7 @@ export function Kunden({
             <label>
               Name
               <input
+                required
                 value={neuerKunde.name}
                 onChange={(e) => setNeuerKunde({ ...neuerKunde, name: e.currentTarget.value })}
               />
@@ -204,6 +205,8 @@ export function Kunden({
               Zahlungsziel (Tage)
               <input
                 type="number"
+                min={0}
+                max={365}
                 value={neuerKunde.zahlungsziel_tage}
                 onChange={(e) =>
                   setNeuerKunde({ ...neuerKunde, zahlungsziel_tage: Number(e.currentTarget.value) })

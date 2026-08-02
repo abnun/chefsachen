@@ -62,6 +62,7 @@ describe("Artikel", () => {
     await waitFor(() => expect(screen.getByRole("button", { name: "Neuer Artikel" })).toBeTruthy());
     fireEvent.click(screen.getByRole("button", { name: "Neuer Artikel" }));
     fireEvent.change(screen.getByLabelText("Bezeichnung"), { target: { value: "Beratung" } });
+    fireEvent.change(screen.getByLabelText("Einheit"), { target: { value: "e1" } });
     fireEvent.change(screen.getByLabelText("Standardpreis (€)"), { target: { value: "50,00" } });
     fireEvent.click(screen.getByRole("button", { name: "Speichern" }));
     await waitFor(() =>
@@ -261,6 +262,9 @@ describe("Artikel", () => {
     await waitFor(() => expect(screen.getByText("Beratung")).toBeTruthy());
     fireEvent.click(screen.getByRole("button", { name: "Neuer Artikel" }));
     fireEvent.change(screen.getByLabelText("Bezeichnung"), { target: { value: "Konzeption" } });
+    // Die Einheit ist im Formular Pflicht; ohne Auswahl blockiert der Browser
+    // das Abschicken und der Backend-Fehler entstünde gar nicht erst.
+    fireEvent.change(screen.getByLabelText("Einheit"), { target: { value: "e1" } });
     fireEvent.change(screen.getByLabelText("Standardpreis (€)"), { target: { value: "50,00" } });
     fireEvent.click(screen.getByRole("button", { name: "Speichern" }));
     await waitFor(() => expect(screen.getByText('Artikel „Konzeption" angelegt')).toBeTruthy());
@@ -280,6 +284,9 @@ describe("Artikel", () => {
     await waitFor(() => expect(screen.getByRole("button", { name: "Neuer Artikel" })).toBeTruthy());
     fireEvent.click(screen.getByRole("button", { name: "Neuer Artikel" }));
     fireEvent.change(screen.getByLabelText("Bezeichnung"), { target: { value: "Konzeption" } });
+    // Die Einheit ist im Formular Pflicht; ohne Auswahl blockiert der Browser
+    // das Abschicken und der Backend-Fehler entstünde gar nicht erst.
+    fireEvent.change(screen.getByLabelText("Einheit"), { target: { value: "e1" } });
     fireEvent.change(screen.getByLabelText("Standardpreis (€)"), { target: { value: "50,00" } });
     fireEvent.click(screen.getByRole("button", { name: "Speichern" }));
     await waitFor(() => expect(screen.getByText(meldung)).toBeTruthy());

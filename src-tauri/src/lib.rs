@@ -13,6 +13,49 @@ fn greet(name: &str) -> String {
     format!("Hello, {}! You've been greeted from Rust!", name)
 }
 
+/// Richtet Verzeichnis, Sicherung und Datenbank ein.
+///
+/// Gibt einen für Menschen lesbaren Text zurück statt eines technischen Fehlers:
+/// Was hier schiefgeht, sieht der Nutzer unmittelbar, und "No such file or
+/// directory (os error 2)" hilft ihm nicht weiter.
+fn starten(app: &tauri::App) -> Result<sqlx::SqlitePool, String> {
+    let dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|e| format!("Der Datenordner der App konnte nicht ermittelt werden: {e}"))?;
+    std::fs::create_dir_all(&dir).map_err(|e| {
+        format!("Der Datenordner konnte nicht angelegt werden ({}):\n{e}", dir.display())
+    })?;
+    let datenbank = dir.join("daten.db");
+
+    // Vor den Migrationen sichern: Bricht eine Migration ab oder verändert sie
+    // Daten fehlerhaft, ist der Stand davor noch vorhanden. Ein Fehler beim
+    // Sichern darf den Start nicht verhindern — dann wäre die App wegen einer
+    // Vorsichtsmaßnahme unbenutzbar.
+    if let Err(e) = backup::sichern(&datenbank, &dir, &backup::zeitstempel_jetzt()) {
+        eprintln!("Sicherung beim Start fehlgeschlagen: {e:?}");
+    }
+
+    tauri::async_runtime::block_on(db::init_db(&datenbank)).map_err(|e| {
+        format!(
+            "Die Datenbank konnte nicht geöffnet werden.\n\nAblage: {}\n\nGrund: {e}\n\n             Möglicherweise läuft das Programm bereits, oder eine Sicherung im Ordner              \"Sicherungen\" lässt sich als Ersatz einspielen.",
+            datenbank.display()
+        )
+    })
+}
+
+/// Zeigt einen Startfehler als Dialog. Fällt auf die Standardfehlerausgabe
+/// zurück, falls sich nicht einmal mehr ein Fenster öffnen lässt.
+fn zeige_startfehler(app: &tauri::App, meldung: &str) {
+    eprintln!("Start fehlgeschlagen: {meldung}");
+    use tauri_plugin_dialog::{DialogExt, MessageDialogKind};
+    app.dialog()
+        .message(meldung)
+        .title("Kleinunternehmer-Verwaltung kann nicht starten")
+        .kind(MessageDialogKind::Error)
+        .blocking_show();
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -20,21 +63,20 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .setup(|app| {
-            let dir = app.path().app_data_dir().expect("app_data_dir");
-            std::fs::create_dir_all(&dir)?;
-            let datenbank = dir.join("daten.db");
-
-            // Vor den Migrationen sichern: Bricht eine Migration ab oder verändert
-            // sie Daten fehlerhaft, ist der Stand davor noch vorhanden. Ein
-            // Fehler beim Sichern darf den Start nicht verhindern — dann wäre die
-            // App wegen einer Vorsichtsmaßnahme unbenutzbar.
-            if let Err(e) = backup::sichern(&datenbank, &dir, &backup::zeitstempel_jetzt()) {
-                eprintln!("Sicherung beim Start fehlgeschlagen: {e:?}");
+            match starten(app) {
+                Ok(pool) => {
+                    app.manage(pool);
+                    Ok(())
+                }
+                Err(meldung) => {
+                    // Ohne diesen Dialog beendet sich die App wortlos: Der Nutzer
+                    // klickt doppelt und es passiert nichts. Da es weder Logdatei
+                    // noch Absturzbericht gibt (siehe P5.4), bliebe ihm keinerlei
+                    // Anhaltspunkt.
+                    zeige_startfehler(app, &meldung);
+                    Err(meldung.into())
+                }
             }
-
-            let pool = tauri::async_runtime::block_on(db::init_db(&datenbank))?;
-            app.manage(pool);
-            Ok(())
         })
         .invoke_handler(tauri::generate_handler![
             greet,

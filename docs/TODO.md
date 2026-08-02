@@ -10,7 +10,7 @@ Reihenfolge = Empfehlung. Jeder Punkt trägt die Referenz aus dem Review.
 | 1 — Kaputte Grundfunktionen | ✅ 8/8 |
 | 2 — Rechtliche Korrektheit | ✅ 8/8, P2.9 teilweise |
 | 3 — Fehlende Kernfunktionen | ✅ 10/11, P3.7 teilweise |
-| 4 — Robustheit | ⬜ 8/13 |
+| 4 — Robustheit | ⬜ 10/13 |
 | 5 — Produktreife | ⬜ 0/7, P5.2 angefangen |
 | 6 — UX und Code-Qualität | ⬜ 0/11 |
 
@@ -262,7 +262,8 @@ Ohne diese Punkte ist die App für die Zielgruppe nicht wertvoll.
   → Jahr aus dem Belegdatum, sonst lokale Zeit statt UTC
   Eine am 01.01. gestellte Rechnung bekommt `RE-2027-…`; in DE-Sommerzeit liefert `jetzt()` ab 22:00 Uhr das Datum des Folgetages.
 
-- [ ] **P4.8 — Startfehler bedienbar machen** `[B3]`
+- [x] **P4.8 — Startfehler bedienbar machen** `[B3]` ✅ 2026-08-03
+  → Startfehler erscheinen als Dialog mit Ablageort und Hinweis auf die Sicherungen, statt die App wortlos zu beenden
   `.expect("app_data_dir")` und `?` im `setup`-Hook → App startet bei DB-/Migrationsfehler wortlos nicht.
 
 - [x] **P4.9 — IBAN-/BIC-Validierung** `[B14]` ✅ 2026-08-03
@@ -272,7 +273,8 @@ Ohne diese Punkte ist die App für die Zielgruppe nicht wertvoll.
   KoSIT-Konfiguration lehnt das Dokument schon bei dieser Warnung ab. Eine Prüfung der
   Prüfsumme beim Speichern verhindert das, bevor eine Rechnung hinausgeht.
 
-- [ ] **P4.10 — Clientseitige Pflichtfeld-Validierung** `[B15]`
+- [x] **P4.10 — Clientseitige Pflichtfeld-Validierung** `[B15]` ✅ 2026-08-03
+  → Pflichtfelder und Wertebereiche im Formular ausgezeichnet; die Backend-Prüfung bleibt maßgeblich
   Kein einziges `required`/`pattern`/`type="email"` im gesamten Frontend.
 
 - [ ] **P4.11 — Leistungszeitraum im Datenmodell** `[B27]`

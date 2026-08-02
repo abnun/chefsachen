@@ -83,7 +83,7 @@ export function Einrichtung({ onFertig }: EinrichtungProps) {
           <div className="feld">
             <label>
               Name
-              <input value={firma.name} onChange={(e) => setFirma({ ...firma, name: e.currentTarget.value })} />
+              <input required value={firma.name} onChange={(e) => setFirma({ ...firma, name: e.currentTarget.value })} />
             </label>
             {feldFehler("name") && <div className="feld-fehler" role="alert">{feldFehler("name")}</div>}
           </div>

@@ -197,6 +197,7 @@ export function Artikel({ zeigeFormularBeimStart, onFormularUebernommen, onZuKun
             <label>
               Bezeichnung
               <input
+                required
                 value={form.bezeichnung}
                 onChange={(e) => setForm({ ...form, bezeichnung: e.currentTarget.value })}
               />
@@ -216,6 +217,7 @@ export function Artikel({ zeigeFormularBeimStart, onFormularUebernommen, onZuKun
             <label>
               Einheit
               <select
+                required
                 value={form.einheit_id}
                 onChange={(e) => setForm({ ...form, einheit_id: e.currentTarget.value })}
               >
