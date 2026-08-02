@@ -613,3 +613,10 @@ label.feld textarea {
   word-break: break-all;
   color: var(--text-leise);
 }
+
+/* Ladehinweis — zurückhaltend, er soll die Seite nicht dominieren. */
+.laden {
+  color: var(--text-leise);
+  font-size: var(--text-s);
+  padding: var(--abstand-m) 0;
+}

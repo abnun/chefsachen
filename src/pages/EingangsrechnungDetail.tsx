@@ -4,6 +4,7 @@ import { writeFile } from "@tauri-apps/plugin-fs";
 import { api, type AppFehler, type EingangsrechnungAenderung, type EingangsrechnungDetail as EingangsrechnungDetailTyp } from "../api";
 import { EingangsrechnungZusatzfelder } from "../components/EingangsrechnungZusatzfelder";
 import { Fehler } from "../components/Fehler";
+import { Laden } from "../components/Laden";
 import { datumDeutsch, zeitpunktDeutsch } from "../datum";
 import { formatCentMitWaehrung, formatMenge, parseEuro } from "../geld";
 
@@ -107,6 +108,7 @@ export function EingangsrechnungDetail({ id, onZurueck }: EingangsrechnungDetail
     return (
       <div>
         <Fehler fehler={fehler} />
+        {!fehler && <Laden />}
       </div>
     );
   }

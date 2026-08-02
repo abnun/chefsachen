@@ -1,5 +1,6 @@
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { api } from "../api";
 
 afterEach(cleanup);
 
@@ -38,5 +39,11 @@ describe("Angebote", () => {
     render(<Angebote onOeffnen={() => {}} />);
     await waitFor(() => expect(screen.getByText("AN-2026-0002")).toBeTruthy());
     expect(screen.getByText("ACME GmbH (alter Name)")).toBeTruthy();
+  });
+
+  it("sagt, dass es noch keine Angebote gibt, statt eine leere Tabelle zu zeigen", async () => {
+    vi.mocked(api.belege.list).mockResolvedValueOnce([]);
+    render(<Angebote onOeffnen={() => {}} />);
+    await waitFor(() => expect(screen.getByText(/Noch keine Angebote/)).toBeTruthy());
   });
 });

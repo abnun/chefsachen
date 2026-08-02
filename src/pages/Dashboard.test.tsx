@@ -183,9 +183,11 @@ describe("Dashboard", () => {
   });
 
   it("zeigt einen Ladezustand statt eines leeren Bildschirms", async () => {
+    // Der Hinweis erscheint verzögert, damit er bei den üblichen
+    // Millisekunden-Abrufen nicht aufblitzt — siehe Laden.tsx.
     laden().mockReturnValue(new Promise(() => {}));
     render(<Dashboard {...props} />);
-    expect(screen.getByText(/werden geladen/)).toBeTruthy();
+    await waitFor(() => expect(screen.getByText(/wird geladen/i)).toBeTruthy(), { timeout: 1000 });
   });
 
   it("zeigt einen Backend-Fehler an, statt still zu bleiben", async () => {

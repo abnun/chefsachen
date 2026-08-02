@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { api, type AppFehler, type Firma } from "./api";
 import { Layout, type Seite } from "./components/Layout";
 import { Fehler } from "./components/Fehler";
+import { Laden } from "./components/Laden";
 import { Dashboard } from "./pages/Dashboard";
 import { Einrichtung } from "./pages/Einrichtung";
 import { Einstellungen } from "./pages/Einstellungen";
@@ -37,7 +38,10 @@ function App() {
   }
 
   if (!firma) {
-    return null;
+    // Bis die Firmendaten da sind, ist noch keine Entscheidung möglich, ob die
+    // Einrichtung oder die Anwendung gehört. Ein leeres Fenster wäre für den
+    // Nutzer nicht von einem Absturz zu unterscheiden.
+    return <Laden />;
   }
 
   if (!firma.eingerichtet) {

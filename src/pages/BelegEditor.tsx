@@ -12,6 +12,7 @@ import {
   type Zahlung,
 } from "../api";
 import { Fehler } from "../components/Fehler";
+import { Laden } from "../components/Laden";
 import { useErfolgsHinweis } from "../hooks/useErfolgsHinweis";
 import { useBestaetigung } from "../hooks/useBestaetigung";
 import { formatCent, formatMenge, parseEuro, parseMenge } from "../geld";
@@ -74,7 +75,7 @@ export function BelegEditor({ id, onGeaendert, onRechnungErstellt, onGeloescht }
   }, []);
 
   if (!detail) {
-    return <main>{fehler && <Fehler fehler={fehler} />}</main>;
+    return <main>{fehler ? <Fehler fehler={fehler} /> : <Laden />}</main>;
   }
 
   const { beleg, positionen, zahlungen, offener_betrag_cent } = detail;

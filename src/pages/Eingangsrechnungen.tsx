@@ -5,6 +5,7 @@ import { api, type AppFehler, type Eingangsrechnung, type EingangsrechnungFelder
 import { Bestaetigungsdialog } from "../components/Bestaetigungsdialog";
 import { EingangsrechnungZusatzfelder } from "../components/EingangsrechnungZusatzfelder";
 import { Fehler } from "../components/Fehler";
+import { Laden } from "../components/Laden";
 import { formatCentMitWaehrung, formatMenge, parseEuro } from "../geld";
 
 const FORMAT_LABEL: Record<string, string> = {
@@ -20,6 +21,8 @@ interface EingangsrechnungenProps {
 export function Eingangsrechnungen({ onOeffnen }: EingangsrechnungenProps) {
   const [liste, setListe] = useState<Eingangsrechnung[]>([]);
   const [fehler, setFehler] = useState<AppFehler | null>(null);
+  // Eine leere Liste und eine noch ausstehende Antwort sehen sonst gleich aus.
+  const [geladen, setGeladen] = useState(false);
   const [vorschau, setVorschau] = useState<EingangsrechnungVorschau | null>(null);
   const [dateiBytes, setDateiBytes] = useState<number[]>([]);
   const [dateiname, setDateiname] = useState("");
@@ -34,7 +37,8 @@ export function Eingangsrechnungen({ onOeffnen }: EingangsrechnungenProps) {
         setListe(l);
         setFehler(null);
       })
-      .catch((e) => setFehler(e as AppFehler));
+      .catch((e) => setFehler(e as AppFehler))
+      .finally(() => setGeladen(true));
   }
 
   useEffect(laden, []);
@@ -235,6 +239,12 @@ export function Eingangsrechnungen({ onOeffnen }: EingangsrechnungenProps) {
 
           <button type="submit" className="btn btn-primaer">Speichern</button>
         </form>
+      )}
+
+      {!geladen && <Laden was="Eingangsrechnungen" />}
+
+      {geladen && liste.length === 0 && (
+        <p>Noch keine Eingangsrechnungen — importiere oben eine E-Rechnung oder ein PDF.</p>
       )}
 
       <table className="tabelle tabelle-klickbar">

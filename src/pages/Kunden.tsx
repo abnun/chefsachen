@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { api, type AppFehler, type Kunde, type KundeNeu } from "../api";
 import { formularFehler } from "../formularFehler";
 import { Fehler } from "../components/Fehler";
+import { Laden } from "../components/Laden";
 import { Hinweis } from "../components/Hinweis";
 import { useErfolgsHinweis } from "../hooks/useErfolgsHinweis";
 import { useBestaetigung } from "../hooks/useBestaetigung";
@@ -55,6 +56,8 @@ export function Kunden({
   const [neuerKundeId, setNeuerKundeId] = useState<string | null>(null);
   const [zeigtAdressHinweis, setZeigtAdressHinweis] = useState(false);
   const [fehler, setFehler] = useState<AppFehler | null>(null);
+  // Eine leere Liste und eine noch ausstehende Antwort sehen sonst gleich aus.
+  const [geladen, setGeladen] = useState(false);
   const [zeigeFormular, setZeigeFormular] = useState(zeigeFormularBeimStart ?? false);
   const [neuerKunde, setNeuerKunde] = useState<KundeNeu>(KUNDE_NEU_LEER);
   const [formFehler, setFormFehler] = useState<AppFehler | null>(null);
@@ -82,7 +85,8 @@ export function Kunden({
           setKunden(liste);
           setFehler(null);
         })
-        .catch((e) => setFehler(e as AppFehler));
+        .catch((e) => setFehler(e as AppFehler))
+        .finally(() => setGeladen(true));
     }, 300);
     return () => clearTimeout(timeout);
   }, [suche]);
@@ -266,13 +270,17 @@ export function Kunden({
         </form>
       )}
 
-      {kunden.length === 0 && suche === "" && !leerHinweisVersteckt && (
+      {!geladen && <Laden was="Kunden" />}
+
+      {geladen && kunden.length === 0 && suche === "" && !leerHinweisVersteckt && (
         <Hinweis onSchliessen={() => setLeerHinweisVersteckt(true)}>
           Noch keine Kunden — leg direkt los.
         </Hinweis>
       )}
 
-      {kunden.length === 0 && suche !== "" && <p>Keine Kunden gefunden für „{suche}".</p>}
+      {geladen && kunden.length === 0 && suche !== "" && (
+        <p>Keine Kunden gefunden für „{suche}".</p>
+      )}
 
       <table className="tabelle tabelle-klickbar">
         <thead>

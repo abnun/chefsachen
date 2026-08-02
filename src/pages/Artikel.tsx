@@ -9,6 +9,7 @@ import {
 } from "../api";
 import { formularFehler } from "../formularFehler";
 import { Fehler } from "../components/Fehler";
+import { Laden } from "../components/Laden";
 import { Hinweis } from "../components/Hinweis";
 import { useErfolgsHinweis } from "../hooks/useErfolgsHinweis";
 import { useBestaetigung } from "../hooks/useBestaetigung";
@@ -37,6 +38,8 @@ export function Artikel({ zeigeFormularBeimStart, onFormularUebernommen, onZuKun
   const [artikel, setArtikel] = useState<ArtikelTyp[]>([]);
   const [einheiten, setEinheiten] = useState<Einheit[]>([]);
   const [kunden, setKunden] = useState<Kunde[]>([]);
+  // Eine leere Liste und eine noch ausstehende Antwort sehen sonst gleich aus.
+  const [geladen, setGeladen] = useState(false);
   const [fehler, setFehler] = useState<AppFehler | null>(null);
   const [zeigeFormular, setZeigeFormular] = useState(zeigeFormularBeimStart ?? false);
   const [bearbeiteId, setBearbeiteId] = useState<string | null>(null);
@@ -64,7 +67,8 @@ export function Artikel({ zeigeFormularBeimStart, onFormularUebernommen, onZuKun
         setArtikel(liste);
         setFehler(null);
       })
-      .catch((e) => setFehler(e as AppFehler));
+      .catch((e) => setFehler(e as AppFehler))
+      .finally(() => setGeladen(true));
   }
 
   async function loeschen(a: ArtikelTyp) {
@@ -248,7 +252,9 @@ export function Artikel({ zeigeFormularBeimStart, onFormularUebernommen, onZuKun
         </form>
       )}
 
-      {artikel.length === 0 && !leerHinweisVersteckt && (
+      {!geladen && <Laden was="Artikel" />}
+
+      {geladen && artikel.length === 0 && !leerHinweisVersteckt && (
         <Hinweis onSchliessen={() => setLeerHinweisVersteckt(true)}>
           Noch keine Artikel oder Leistungen — leg direkt los.
         </Hinweis>

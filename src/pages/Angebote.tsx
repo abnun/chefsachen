@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api, type AppFehler, type Beleg, type Kunde } from "../api";
 import { Fehler } from "../components/Fehler";
+import { Laden } from "../components/Laden";
 import { formatCent } from "../geld";
 
 interface AngeboteProps {
@@ -28,6 +29,8 @@ export function Angebote({ onOeffnen }: AngeboteProps) {
   const [statusFilter, setStatusFilter] = useState("");
   const [kunden, setKunden] = useState<Kunde[]>([]);
   const [fehler, setFehler] = useState<AppFehler | null>(null);
+  // Eine leere Liste und eine noch ausstehende Antwort sehen sonst gleich aus.
+  const [geladen, setGeladen] = useState(false);
   const [zeigeFormular, setZeigeFormular] = useState(false);
   const [kundeId, setKundeId] = useState("");
   const [datum, setDatum] = useState(new Date().toISOString().slice(0, 10));
@@ -40,7 +43,8 @@ export function Angebote({ onOeffnen }: AngeboteProps) {
         setAngebote(liste);
         setFehler(null);
       })
-      .catch((e) => setFehler(e as AppFehler));
+      .catch((e) => setFehler(e as AppFehler))
+      .finally(() => setGeladen(true));
   }
 
   useEffect(laden, [statusFilter]);
@@ -90,6 +94,16 @@ export function Angebote({ onOeffnen }: AngeboteProps) {
           </select>
         </label>
       </div>
+      {!geladen && <Laden was="Angebote" />}
+
+      {geladen && angebote.length === 0 && (
+        <p>
+          {statusFilter
+            ? "Keine Angebote mit diesem Status."
+            : "Noch keine Angebote — leg oben eines an."}
+        </p>
+      )}
+
       <table className="tabelle tabelle-klickbar">
         <thead>
           <tr>

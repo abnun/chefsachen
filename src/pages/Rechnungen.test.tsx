@@ -1,5 +1,6 @@
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { api } from "../api";
 
 afterEach(cleanup);
 
@@ -38,5 +39,22 @@ describe("Rechnungen", () => {
     render(<Rechnungen onOeffnen={() => {}} />);
     await waitFor(() => expect(screen.getByText("RE-2026-0002")).toBeTruthy());
     expect(screen.getByText("ACME GmbH (alter Name)")).toBeTruthy();
+  });
+
+  it("sagt, dass es noch keine Rechnungen gibt, statt eine leere Tabelle zu zeigen", async () => {
+    // Eine Tabelle mit Kopfzeile und ohne Inhalt lässt offen, ob nichts da ist
+    // oder etwas schiefging.
+    vi.mocked(api.belege.list).mockResolvedValueOnce([]);
+    render(<Rechnungen onOeffnen={() => {}} />);
+    await waitFor(() => expect(screen.getByText(/Noch keine Rechnungen/)).toBeTruthy());
+  });
+
+  it("unterscheidet eine leere Liste von einem leeren Filterergebnis", async () => {
+    vi.mocked(api.belege.list).mockResolvedValue([]);
+    render(<Rechnungen onOeffnen={() => {}} />);
+    await waitFor(() => expect(screen.getByText(/Noch keine Rechnungen/)).toBeTruthy());
+
+    fireEvent.change(screen.getByLabelText(/Status/), { target: { value: "storniert" } });
+    await waitFor(() => expect(screen.getByText(/Keine Rechnungen mit diesem Status/)).toBeTruthy());
   });
 });

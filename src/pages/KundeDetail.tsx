@@ -11,6 +11,7 @@ import {
 } from "../api";
 import { formularFehler } from "../formularFehler";
 import { Fehler } from "../components/Fehler";
+import { Laden } from "../components/Laden";
 import { useErfolgsHinweis } from "../hooks/useErfolgsHinweis";
 import { useBestaetigung } from "../hooks/useBestaetigung";
 import { formatCent } from "../geld";
@@ -69,7 +70,7 @@ export function KundeDetail({ id, startReiter, onReiterUebernommen, onGeloescht 
     return (
       <div>
         <h1>Kunde</h1>
-        {fehler && <Fehler fehler={fehler} />}
+        {fehler ? <Fehler fehler={fehler} /> : <Laden />}
       </div>
     );
   }

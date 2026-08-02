@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api, type AppFehler, type DashboardDaten, type Grenze, type Hinweis, type Warnstufe } from "../api";
 import { Fehler } from "../components/Fehler";
+import { Laden } from "../components/Laden";
 import { formatCent } from "../geld";
 import { datumDeutsch } from "../datum";
 
@@ -129,7 +130,7 @@ export function Dashboard({ onRechnungOeffnen, onAngebotOeffnen }: DashboardProp
     return (
       <div>
         <h1 className="seiten-kopf">Übersicht</h1>
-        <p aria-busy="true">Daten werden geladen …</p>
+        <Laden />
       </div>
     );
   }

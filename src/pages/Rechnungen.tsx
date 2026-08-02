@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api, type AppFehler, type Beleg, type Kunde, type Zahlungsstand } from "../api";
 import { Fehler } from "../components/Fehler";
+import { Laden } from "../components/Laden";
 import { formatCent } from "../geld";
 import { datumDeutsch, heuteIso } from "../datum";
 
@@ -62,6 +63,8 @@ export function Rechnungen({ onOeffnen }: RechnungenProps) {
   const [statusFilter, setStatusFilter] = useState("");
   const [kunden, setKunden] = useState<Kunde[]>([]);
   const [fehler, setFehler] = useState<AppFehler | null>(null);
+  // Eine leere Liste und eine noch ausstehende Antwort sehen sonst gleich aus.
+  const [geladen, setGeladen] = useState(false);
   const [zeigeFormular, setZeigeFormular] = useState(false);
   const [kundeId, setKundeId] = useState("");
   const [datum, setDatum] = useState(new Date().toISOString().slice(0, 10));
@@ -74,7 +77,8 @@ export function Rechnungen({ onOeffnen }: RechnungenProps) {
         setRechnungen(liste);
         setFehler(null);
       })
-      .catch((e) => setFehler(e as AppFehler));
+      .catch((e) => setFehler(e as AppFehler))
+      .finally(() => setGeladen(true));
   }
 
   useEffect(laden, [statusFilter]);
@@ -124,6 +128,16 @@ export function Rechnungen({ onOeffnen }: RechnungenProps) {
           </select>
         </label>
       </div>
+      {!geladen && <Laden was="Rechnungen" />}
+
+      {geladen && rechnungen.length === 0 && (
+        <p>
+          {statusFilter
+            ? "Keine Rechnungen mit diesem Status."
+            : "Noch keine Rechnungen — leg oben eine an."}
+        </p>
+      )}
+
       <table className="tabelle tabelle-klickbar">
         <thead>
           <tr>
