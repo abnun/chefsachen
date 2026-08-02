@@ -12,6 +12,7 @@
     "fs:allow-read-file",
     "fs:allow-write-file",
     "updater:default",
-    "process:allow-restart"
+    "process:allow-restart",
+    "log:default"
   ]
 }

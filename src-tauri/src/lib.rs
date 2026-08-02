@@ -1,4 +1,3 @@
-// Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 use tauri::Manager;
 
 mod backup;
@@ -7,11 +6,7 @@ mod db;
 mod dokument;
 mod domain;
 mod error;
-
-#[tauri::command]
-fn greet(name: &str) -> String {
-    format!("Hello, {}! You've been greeted from Rust!", name)
-}
+mod protokoll;
 
 /// Richtet Verzeichnis, Sicherung und Datenbank ein.
 ///
@@ -32,11 +27,15 @@ fn starten(app: &tauri::App) -> Result<sqlx::SqlitePool, String> {
     // Daten fehlerhaft, ist der Stand davor noch vorhanden. Ein Fehler beim
     // Sichern darf den Start nicht verhindern — dann wäre die App wegen einer
     // Vorsichtsmaßnahme unbenutzbar.
-    if let Err(e) = backup::sichern(&datenbank, &dir, &backup::zeitstempel_jetzt()) {
-        eprintln!("Sicherung beim Start fehlgeschlagen: {e:?}");
+    match backup::sichern(&datenbank, &dir, &backup::zeitstempel_jetzt()) {
+        Ok(Some(_)) => log::info!("Sicherung vor den Migrationen angelegt"),
+        Ok(None) => log::info!("Keine Sicherung nötig, es gibt noch keine Datenbank"),
+        Err(e) => log::warn!("Sicherung beim Start fehlgeschlagen: {e:?}"),
     }
 
+    log::info!("Datenbank wird geöffnet und migriert");
     tauri::async_runtime::block_on(db::init_db(&datenbank)).map_err(|e| {
+        log::error!("Datenbank konnte nicht geöffnet werden: {e:?}");
         format!(
             "Die Datenbank konnte nicht geöffnet werden.\n\nAblage: {}\n\nGrund: {e}\n\n             Möglicherweise läuft das Programm bereits, oder eine Sicherung im Ordner              \"Sicherungen\" lässt sich als Ersatz einspielen.",
             datenbank.display()
@@ -47,7 +46,7 @@ fn starten(app: &tauri::App) -> Result<sqlx::SqlitePool, String> {
 /// Zeigt einen Startfehler als Dialog. Fällt auf die Standardfehlerausgabe
 /// zurück, falls sich nicht einmal mehr ein Fenster öffnen lässt.
 fn zeige_startfehler(app: &tauri::App, meldung: &str) {
-    eprintln!("Start fehlgeschlagen: {meldung}");
+    log::error!("Start fehlgeschlagen: {meldung}");
     use tauri_plugin_dialog::{DialogExt, MessageDialogKind};
     app.dialog()
         .message(meldung)
@@ -58,7 +57,11 @@ fn zeige_startfehler(app: &tauri::App, meldung: &str) {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // Vor allem anderen: Was danach schiefgeht, soll aufgezeichnet werden.
+    protokoll::absturzmelder_einrichten();
+
     tauri::Builder::default()
+        .plugin(protokoll::plugin())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
@@ -67,6 +70,7 @@ pub fn run() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
         .setup(|app| {
+            protokoll::startzeile(app.package_info().version.to_string().as_str());
             match starten(app) {
                 Ok(pool) => {
                     app.manage(pool);
@@ -74,16 +78,15 @@ pub fn run() {
                 }
                 Err(meldung) => {
                     // Ohne diesen Dialog beendet sich die App wortlos: Der Nutzer
-                    // klickt doppelt und es passiert nichts. Da es weder Logdatei
-                    // noch Absturzbericht gibt (siehe P5.4), bliebe ihm keinerlei
-                    // Anhaltspunkt.
+                    // klickt doppelt und es passiert nichts. Die Ursache steht
+                    // zusätzlich im Protokoll, der Dialog ist die einzige
+                    // Fassung, die den Nutzer unmittelbar erreicht.
                     zeige_startfehler(app, &meldung);
                     Err(meldung.into())
                 }
             }
         })
         .invoke_handler(tauri::generate_handler![
-            greet,
             commands::einheiten::einheit_list,
             commands::einheiten::einheit_create,
             commands::einheiten::einheit_update,
@@ -141,7 +144,8 @@ pub fn run() {
             commands::eingangsrechnungen::eingangsrechnung_get,
             commands::eingangsrechnungen::eingangsrechnung_update,
             commands::eingangsrechnungen::eingangsrechnung_aenderungen,
-            commands::eingangsrechnungen::eingangsrechnung_original_exportieren
+            commands::eingangsrechnungen::eingangsrechnung_original_exportieren,
+            protokoll::protokoll_pfad
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

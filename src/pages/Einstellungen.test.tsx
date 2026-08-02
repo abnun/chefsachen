@@ -10,9 +10,16 @@ afterEach(() => {
 });
 
 vi.mock("@tauri-apps/plugin-dialog", () => ({ open: vi.fn().mockResolvedValue(null) }));
+// Der Abschnitt „Programmversion" gehört zu dieser Seite; seine eigenen Tests
+// stehen in Aktualisierung.test.tsx. Hier reicht es, ihn stumm zu stellen.
+vi.mock("@tauri-apps/api/app", () => ({ getVersion: vi.fn().mockResolvedValue("0.1.0") }));
+vi.mock("@tauri-apps/plugin-updater", () => ({ check: vi.fn().mockResolvedValue(null) }));
+vi.mock("@tauri-apps/plugin-process", () => ({ relaunch: vi.fn() }));
+vi.mock("@tauri-apps/plugin-opener", () => ({ revealItemInDir: vi.fn() }));
 vi.mock("@tauri-apps/plugin-fs", () => ({ readFile: vi.fn().mockResolvedValue(new Uint8Array()) }));
 vi.mock("../api", () => ({
   api: {
+    protokoll: { pfad: vi.fn().mockResolvedValue("/p/protokoll.log") },
     sicherungen: {
       liste: vi.fn().mockResolvedValue([]),
       jetzt: vi.fn().mockResolvedValue({ zeitstempel: "2026-08-03_10-15-00", groesse_bytes: 2048, pfad: "/p/daten-2026-08-03_10-15-00.db" }),

@@ -605,3 +605,11 @@ label.feld textarea {
 .nicht-umbrechen {
   white-space: nowrap;
 }
+
+/* Dateipfad — lang, technisch, und in einem Fließtext schwer zu erfassen. */
+.pfad {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: var(--text-s);
+  word-break: break-all;
+  color: var(--text-leise);
+}

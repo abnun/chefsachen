@@ -102,6 +102,16 @@ einfach übersprungen.
 
 ## Wenn etwas nicht funktioniert
 
-Melde dich einfach mit einer Beschreibung, was du getan hast und was
-stattdessen passiert ist. Falls die App eine Fehlermeldung anzeigt, hilft ein
-Bildschirmfoto davon am meisten.
+Melde dich mit einer Beschreibung, was du getan hast und was stattdessen
+passiert ist. Falls die App eine Fehlermeldung anzeigt, hilft ein
+Bildschirmfoto davon.
+
+Am meisten hilft die **Protokolldatei**. Sie steht unter **Einstellungen →
+Programmversion → Protokoll**; der Knopf „Protokolldatei im Ordner zeigen"
+öffnet den Ordner, in dem sie liegt. Schick sie einfach mit.
+
+In der Datei stehen technische Vorgänge und Fehlermeldungen — wann die App
+gestartet wurde, welche Version läuft, was schiefging. **Keine Kundennamen,
+keine Rechnungsinhalte, keine Beträge.** Du kannst sie also bedenkenlos
+weitergeben. Sie wird umgebrochen, sobald sie 2 MB erreicht; eine ältere
+Fassung bleibt erhalten.

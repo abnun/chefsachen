@@ -5,9 +5,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("@tauri-apps/api/app", () => ({ getVersion: vi.fn().mockResolvedValue("0.1.0") }));
 vi.mock("@tauri-apps/plugin-updater", () => ({ check: vi.fn() }));
 vi.mock("@tauri-apps/plugin-process", () => ({ relaunch: vi.fn().mockResolvedValue(undefined) }));
+vi.mock("@tauri-apps/plugin-opener", () => ({ revealItemInDir: vi.fn().mockResolvedValue(undefined) }));
+vi.mock("../api", () => ({
+  api: { protokoll: { pfad: vi.fn().mockResolvedValue("/Users/test/Library/Logs/app/app.log") } },
+}));
 
 import { check } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
+import { revealItemInDir } from "@tauri-apps/plugin-opener";
+import { api } from "../api";
 import { Aktualisierung } from "./Aktualisierung";
 
 /** Minimales Update-Objekt; nur die genutzten Felder sind belegt. */
@@ -111,5 +117,26 @@ describe("Aktualisierung", () => {
 
     fireEvent.click(screen.getByText("Jetzt aktualisieren"));
     await waitFor(() => expect(screen.getByRole("alert").textContent).toContain("Signatur ungültig"));
+  });
+
+  it("zeigt den Pfad der Protokolldatei und öffnet ihren Ordner", async () => {
+    vi.mocked(check).mockResolvedValue(null);
+    render(<Aktualisierung />);
+    await waitFor(() =>
+      expect(screen.getByText("/Users/test/Library/Logs/app/app.log")).toBeTruthy(),
+    );
+
+    fireEvent.click(screen.getByText("Protokolldatei im Ordner zeigen"));
+    expect(revealItemInDir).toHaveBeenCalledWith("/Users/test/Library/Logs/app/app.log");
+  });
+
+  it("verspricht keine Protokolldatei, deren Pfad unbekannt ist", async () => {
+    vi.mocked(check).mockResolvedValue(null);
+    vi.mocked(api.protokoll.pfad).mockImplementationOnce(async () => {
+      throw new Error("kein Protokollordner");
+    });
+    render(<Aktualisierung />);
+    await waitFor(() => expect(screen.getByText("Installiert: Version 0.1.0")).toBeTruthy());
+    expect(screen.queryByText("Protokolldatei im Ordner zeigen")).toBeNull();
   });
 });

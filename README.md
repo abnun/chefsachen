@@ -31,6 +31,8 @@ kein Konto, keine Cloud.
 - **Automatische Sicherungen** der Datenbank bei jedem Start (die letzten
   zehn bleiben erhalten)
 - **Aktualisierung** über signierte Update-Pakete, angestoßen vom Nutzer
+- **Protokolldatei** für die Ferndiagnose — bewusst ohne Kunden- und
+  Rechnungsdaten, damit sie sich weitergeben lässt
 
 Die Belegarchivierung folgt den GoBD: Festgeschriebene Belege lassen sich
 nicht mehr ändern, Korrekturen an importierten Eingangsrechnungen werden mit

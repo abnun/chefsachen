@@ -19,9 +19,22 @@ impl From<sqlx::Error> for AppError {
     }
 }
 
+/// Serialisiert wird ein Fehler genau dann, wenn er die Oberfläche erreicht —
+/// der einzige Punkt, den jeder Fehler aus jedem Befehl durchläuft. Deshalb
+/// steht die Protokollierung hier und nicht in fünfzig Befehlen einzeln.
+///
+/// Nur technische Fehler werden als Fehler verbucht. Eine fehlende
+/// Pflichtangabe ist kein Programmfehler, sondern der übliche Ablauf beim
+/// Ausfüllen eines Formulars; sie landet auf Debug-Ebene und im ausgelieferten
+/// Programm damit gar nicht in der Datei.
 impl Serialize for AppError {
     fn serialize<S: serde::Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
         use serde::ser::SerializeMap;
+        match self {
+            AppError::Technisch(msg) => log::error!("Technischer Fehler: {msg}"),
+            AppError::NichtGefunden => log::debug!("Datensatz nicht gefunden"),
+            AppError::Validation { feld, .. } => log::debug!("Eingabe abgelehnt, Feld {feld}"),
+        }
         let mut m = s.serialize_map(None)?;
         match self {
             AppError::Validation { feld, meldung } => {

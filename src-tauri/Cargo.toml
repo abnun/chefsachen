@@ -38,6 +38,8 @@ typst-as-lib = "0.14"
 lopdf = "0.35"
 xmp-writer = "0.3"
 quick-xml = { version = "0.37", features = ["serialize"] }
+tauri-plugin-log = "2.9.0"
+log = "0.4.33"
 
 [dev-dependencies]
 pdf-extract = "0.12.0"

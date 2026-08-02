@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from "react";
 import { getVersion } from "@tauri-apps/api/app";
 import { check, type Update } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
+import { revealItemInDir } from "@tauri-apps/plugin-opener";
+import { api } from "../api";
 
 /**
  * Suche nach neuen Programmversionen.
@@ -31,10 +33,12 @@ function fehlertext(e: unknown): string {
 
 export function Aktualisierung() {
   const [version, setVersion] = useState("");
+  const [protokollPfad, setProtokollPfad] = useState("");
   const [stand, setStand] = useState<Stand>({ art: "unbekannt" });
 
   useEffect(() => {
     getVersion().then(setVersion).catch(() => setVersion(""));
+    api.protokoll.pfad().then(setProtokollPfad).catch(() => setProtokollPfad(""));
   }, []);
 
   const suchen = useCallback(async (manuell: boolean) => {
@@ -126,6 +130,24 @@ export function Aktualisierung() {
         <button type="button" className="btn" onClick={() => suchen(true)}>
           Nach Aktualisierung suchen
         </button>
+      )}
+
+      {/* Geht etwas schief, ist diese Datei das Einzige, woran sich im
+          Nachhinein noch etwas ablesen lässt. Sie enthält technische Vorgänge
+          und Fehlertexte — keine Kunden-, Rechnungs- oder Artikeldaten. */}
+      {protokollPfad && (
+        <>
+          <h3>Protokoll</h3>
+          <p>
+            Wenn etwas nicht funktioniert, hilft diese Datei bei der Suche nach der
+            Ursache. Sie enthält technische Vorgänge und Fehlermeldungen, aber keine
+            Kunden- oder Rechnungsdaten.
+          </p>
+          <p className="pfad">{protokollPfad}</p>
+          <button type="button" className="btn" onClick={() => revealItemInDir(protokollPfad)}>
+            Protokolldatei im Ordner zeigen
+          </button>
+        </>
       )}
     </section>
   );

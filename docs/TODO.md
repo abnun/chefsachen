@@ -11,12 +11,12 @@ Reihenfolge = Empfehlung. Jeder Punkt trägt die Referenz aus dem Review.
 | 2 — Rechtliche Korrektheit | ✅ 8/8, P2.9 teilweise |
 | 3 — Fehlende Kernfunktionen | ✅ 10/11, P3.7 teilweise |
 | 4 — Robustheit | ✅ 13/13 |
-| 5 — Produktreife | ⬜ 3/7, P5.2 angefangen, P5.6 zurückgestellt |
+| 5 — Produktreife | ⬜ 4/7, P5.2 angefangen, P5.6 zurückgestellt |
 | 6 — UX und Code-Qualität | ⬜ 0/11 |
 
-**Nächster Schritt:** Stufe 5 weiter — P5.4 (Logging; die Versionsanzeige kam mit P5.1)
-und P5.3 (E2E). P5.6 (Signierung) ist bewusst zurückgestellt, die App geht vorerst nur an
-Family & Friends.
+**Nächster Schritt:** Stufe 5 abschließen — offen sind P5.2 (die CI ist noch nie gelaufen)
+und P5.3 (E2E-Durchstich). P5.6 (Signierung) ist bewusst zurückgestellt, die App geht
+vorerst nur an Family & Friends. Danach Stufe 6 (UX und Code-Qualität).
 
 ## Entwicklungsumgebung einrichten
 
@@ -323,8 +323,20 @@ Ohne diese Punkte ist die App für die Zielgruppe nicht wertvoll.
 - [ ] **P5.3 — E2E-Durchstich via `tauri-driver`** `[B5]`
   Die IPC-Grenze ist komplett ungetestet — genau die Zone, in der P1.1 lag.
 
-- [ ] **P5.4 — Logging und Versionsanzeige** `[B2]`
-  Bei einem Fehler beim Endnutzer existiert keine Spur; Ferndiagnose unmöglich.
+- [x] **P5.4 — Logging und Versionsanzeige** `[B2]`
+  `tauri-plugin-log` schreibt in den Protokollordner des Betriebssystems, Umbruch bei 2 MiB,
+  eine ältere Fassung bleibt. Zeitstempel in UTC, damit sie sich mit denen in der Datenbank
+  vergleichen lassen.
+  Aufgezeichnet werden: Startzeile mit Version und Plattform, Sicherung, Migration,
+  Programmabbrüche (Panic-Hook) und jeder technische Fehler — Letzteres in `Serialize for
+  AppError`, dem einzigen Punkt, den jeder Fehler aus jedem Befehl durchläuft. Fehler in der
+  Oberfläche werden über `window.onerror`/`unhandledrejection` weitergereicht.
+  **Datenschutz:** `sqlx` protokolliert auf Info-Ebene jede Abfrage; das stünde voller Kunden-
+  und Rechnungsdaten. Ein Filter lässt eigene Meldungen durch und fremde erst ab Warnung —
+  mit eigenen Tests, weil die Datei im Zweifel per E-Mail verschickt wird.
+  Die Versionsanzeige kam bereits mit P5.1; dort steht jetzt auch der Pfad zur Protokolldatei
+  samt Knopf, der ihren Ordner öffnet.
+  Nebenbei: der `greet`-Befehl aus dem Tauri-Template entfernt.
 
 - [x] **P5.5 — README, Nutzerdoku, LICENSE, Bundle-Metadaten** `[B7]`
   `LICENSE` (MIT) ergänzt; `README.md` beschreibt Funktionsumfang, Einrichtung, Prüfwerkzeuge,

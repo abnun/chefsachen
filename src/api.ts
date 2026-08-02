@@ -474,4 +474,7 @@ export const api = {
     originalExportieren: (id: string) => invoke<EingangsrechnungOriginal>("eingangsrechnung_original_exportieren", { id }),
     aenderungen: (id: string) => invoke<EingangsrechnungAenderung[]>("eingangsrechnung_aenderungen", { id }),
   },
+  protokoll: {
+    pfad: () => invoke<string>("protokoll_pfad"),
+  },
 };
