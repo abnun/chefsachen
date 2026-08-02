@@ -99,7 +99,7 @@ pub struct Zahlung {
     pub notiz: String,
 }
 
-const BELEG_SPALTEN: &str = "id, typ, nummer, status, kunde_id, datum, leistungsdatum, zahlungsziel_tage, kopftext, fusstext, summe_cent, ursprungsangebot_id, storno_von_id, kunde_snapshot";
+pub(crate) const BELEG_SPALTEN: &str = "id, typ, nummer, status, kunde_id, datum, leistungsdatum, zahlungsziel_tage, kopftext, fusstext, summe_cent, ursprungsangebot_id, storno_von_id, kunde_snapshot";
 
 fn pruefe_beleg_neu(typ: &str, datum: &str, leistungsdatum: &str, zahlungsziel_tage: i64) -> AppResult<()> {
     if !["angebot", "rechnung"].contains(&typ) {
@@ -333,7 +333,7 @@ fn kunde_snapshot_name(roh: &str) -> Option<String> {
 /// Wird nach jedem `query_as::<_, Beleg>`-Aufruf angewendet, der über
 /// `BELEG_SPALTEN` selektiert (die Spalte landet dank `#[sqlx(default)]`
 /// sonst ungenutzt im Struct).
-fn mit_snapshot_name(mut beleg: Beleg) -> Beleg {
+pub(crate) fn mit_snapshot_name(mut beleg: Beleg) -> Beleg {
     beleg.kunde_snapshot_name = kunde_snapshot_name(&beleg.kunde_snapshot);
     beleg
 }

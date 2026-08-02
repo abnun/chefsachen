@@ -29,6 +29,14 @@ fn programm() -> PathBuf {
     cache_verzeichnis().join("verapdf/verapdf")
 }
 
+fn java_vorhanden() -> bool {
+    Command::new("java")
+        .arg("-version")
+        .output()
+        .map(|a| a.status.success())
+        .unwrap_or(false)
+}
+
 /// Prüft, ob veraPDF bereitsteht. Gibt bei Fehlen den Grund zurück.
 ///
 /// Wie bei der XRechnung-Prüfung gilt: Ist `KOSIT_PFLICHT` gesetzt, bricht die
@@ -40,6 +48,15 @@ pub fn nicht_verfuegbar_weil() -> Option<String> {
             "veraPDF fehlt in {}. Einmalig einrichten mit: ./scripts/kosit-vorbereiten.sh",
             cache_verzeichnis().display()
         ))
+    } else if !java_vorhanden() {
+        // Das veraPDF-Startskript ruft java auf. Ohne JVM scheitert es mit einer
+        // leeren Ausgabe — ohne diese Prüfung liefe der Test in einen
+        // Aufruf-Fehler statt sich sauber zu überspringen.
+        Some(
+            "Keine Java-Laufzeit gefunden — veraPDF benötigt eine \
+             (unter macOS z. B. 'brew install openjdk')."
+                .into(),
+        )
     } else {
         None
     };

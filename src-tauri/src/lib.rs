@@ -69,6 +69,7 @@ pub fn run() {
             commands::firma::firma_save,
             commands::firma::firma_logo_set,
             commands::firma::firma_logo_get,
+            commands::dashboard::dashboard_laden,
             commands::einstellungen::einstellung_get,
             commands::einstellungen::einstellung_set,
             commands::einstellungen::einstellung_list,

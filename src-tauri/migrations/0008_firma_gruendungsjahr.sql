@@ -1,0 +1,13 @@
+-- Gründungsjahr des Unternehmens.
+--
+-- Für die Kleinunternehmergrenzen entscheidend: Wer neu gründet, hat kein
+-- Vorjahr. Dann tritt die 25.000-€-Grenze an die Stelle der 100.000-€-Grenze
+-- und gilt bereits für das laufende Jahr (§ 19 Abs. 1 UStG).
+--
+-- Ohne dieses Feld ist ein Vorjahresumsatz von 0 € nicht von „etabliert, aber
+-- ohne Einnahmen" zu unterscheiden — ein Gründer mit 30.000 € Umsatz würde
+-- fälschlich weiter als Kleinunternehmer geführt.
+--
+-- NULL bedeutet „nicht angegeben"; dann wird wie bisher vom Regelfall
+-- ausgegangen (Vorjahr vorhanden).
+ALTER TABLE firma ADD COLUMN gruendungsjahr INTEGER;

@@ -23,6 +23,10 @@ pub struct Firma {
     /// Name des Ansprechpartners (BT-41). Ohne die Gruppe SELLER CONTACT (BG-6)
     /// lehnt der amtliche Validator die Rechnung ab (BR-DE-2).
     pub kontakt_name: String,
+    /// Jahr der Gründung, sofern bekannt. Entscheidet über die im laufenden Jahr
+    /// maßgebliche Umsatzgrenze: Im Gründungsjahr gibt es kein Vorjahr, an dem
+    /// die 25.000-€-Grenze ansetzen könnte — sie gilt dann sofort.
+    pub gruendungsjahr: Option<i64>,
     pub kleinunternehmer: bool,
     pub eingerichtet: bool,
 }
@@ -45,7 +49,7 @@ fn pruefe_firma(firma: &Firma) -> AppResult<()> {
 
 pub async fn get(pool: &SqlitePool) -> AppResult<Firma> {
     Ok(sqlx::query_as(
-        "SELECT id, name, strasse, plz, ort, land, steuernummer, ust_idnr, iban, bic, email, telefon, kontakt_name, kleinunternehmer, eingerichtet \
+        "SELECT id, name, strasse, plz, ort, land, steuernummer, ust_idnr, iban, bic, email, telefon, kontakt_name, gruendungsjahr, kleinunternehmer, eingerichtet \
          FROM firma WHERE deleted_at IS NULL LIMIT 1",
     )
     .fetch_one(pool)
@@ -58,7 +62,7 @@ pub async fn save(pool: &SqlitePool, mut firma: Firma) -> AppResult<Firma> {
     // Ersteinrichtungs-Assistenten als abgeschlossen.
     firma.eingerichtet = true;
     let r = sqlx::query(
-        "UPDATE firma SET name=?, strasse=?, plz=?, ort=?, land=?, steuernummer=?, ust_idnr=?, iban=?, bic=?, email=?, telefon=?, kontakt_name=?, kleinunternehmer=?, eingerichtet=1, updated_at=? \
+        "UPDATE firma SET name=?, strasse=?, plz=?, ort=?, land=?, steuernummer=?, ust_idnr=?, iban=?, bic=?, email=?, telefon=?, kontakt_name=?, gruendungsjahr=?, kleinunternehmer=?, eingerichtet=1, updated_at=? \
          WHERE deleted_at IS NULL",
     )
     .bind(firma.name.trim())
@@ -73,6 +77,7 @@ pub async fn save(pool: &SqlitePool, mut firma: Firma) -> AppResult<Firma> {
     .bind(firma.email.trim())
     .bind(firma.telefon.trim())
     .bind(firma.kontakt_name.trim())
+    .bind(firma.gruendungsjahr)
     .bind(firma.kleinunternehmer)
     .bind(jetzt())
     .execute(pool)

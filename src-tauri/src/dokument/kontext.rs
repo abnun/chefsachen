@@ -88,6 +88,8 @@ fn firma_aus_snapshot(snapshot: &serde_json::Value, vorlage: &crate::commands::f
         // stehen nicht im Snapshot.
         id: vorlage.id.clone(),
         eingerichtet: vorlage.eingerichtet,
+        // Rein steuerliche Angabe ohne Belegbezug, daher nicht im Snapshot.
+        gruendungsjahr: vorlage.gruendungsjahr,
         name: feld_str(f, "name"),
         strasse: feld_str(f, "strasse"),
         plz: feld_str(f, "plz"),

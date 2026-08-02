@@ -215,6 +215,7 @@ pub(crate) mod tests {
                 iban: "DE02120300000000202051".into(), bic: "BYLADEM1001".into(),
                 email: "rechnung@meine-firma.de".into(), telefon: "030 123456".into(),
                 kontakt_name: "Max Mustermann".into(),
+                gruendungsjahr: None,
                 kleinunternehmer: true, eingerichtet: true,
             },
             kunde_name: "ACME GmbH".into(), kunde_kundennummer: "KD-0001".into(), kunde_ust_idnr: "".into(),
