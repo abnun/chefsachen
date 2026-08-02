@@ -1,6 +1,7 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 use tauri::Manager;
 
+mod backup;
 mod commands;
 mod db;
 mod dokument;
@@ -21,7 +22,17 @@ pub fn run() {
         .setup(|app| {
             let dir = app.path().app_data_dir().expect("app_data_dir");
             std::fs::create_dir_all(&dir)?;
-            let pool = tauri::async_runtime::block_on(db::init_db(&dir.join("daten.db")))?;
+            let datenbank = dir.join("daten.db");
+
+            // Vor den Migrationen sichern: Bricht eine Migration ab oder verändert
+            // sie Daten fehlerhaft, ist der Stand davor noch vorhanden. Ein
+            // Fehler beim Sichern darf den Start nicht verhindern — dann wäre die
+            // App wegen einer Vorsichtsmaßnahme unbenutzbar.
+            if let Err(e) = backup::sichern(&datenbank, &dir, &backup::zeitstempel_jetzt()) {
+                eprintln!("Sicherung beim Start fehlgeschlagen: {e:?}");
+            }
+
+            let pool = tauri::async_runtime::block_on(db::init_db(&datenbank))?;
             app.manage(pool);
             Ok(())
         })
@@ -70,6 +81,8 @@ pub fn run() {
             commands::firma::firma_logo_set,
             commands::firma::firma_logo_get,
             commands::dashboard::dashboard_laden,
+            backup::sicherungen_liste,
+            backup::sicherung_jetzt,
             commands::einstellungen::einstellung_get,
             commands::einstellungen::einstellung_set,
             commands::einstellungen::einstellung_list,

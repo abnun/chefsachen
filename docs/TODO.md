@@ -9,7 +9,7 @@ Reihenfolge = Empfehlung. Jeder Punkt trägt die Referenz aus dem Review.
 |---|---|
 | 1 — Kaputte Grundfunktionen | ✅ 8/8 |
 | 2 — Rechtliche Korrektheit | ✅ 8/8, P2.9 teilweise |
-| 3 — Fehlende Kernfunktionen | ⬜ 8/11 |
+| 3 — Fehlende Kernfunktionen | ⬜ 8/11, P3.7 teilweise |
 | 4 — Robustheit | ⬜ 0/13 |
 | 5 — Produktreife | ⬜ 0/7, P5.2 angefangen |
 | 6 — UX und Code-Qualität | ⬜ 0/11 |
@@ -201,9 +201,14 @@ Ohne diese Punkte ist die App für die Zielgruppe nicht wertvoll.
 - [ ] **P3.6 — Kunde im Beleg-Editor änderbar** `[A11]`
   Backend unterstützt `BelegUpdate.kunde_id`, das Frontend rendert nur Text. Falscher Kunde beim Anlegen = unbrauchbarer Entwurf.
 
-- [ ] **P3.7 — Automatisches Backup + manueller Export/Import** `[A3]`
-  Spec: rotierendes Start-Backup (letzte 10) plus Export/Import in den Einstellungen. Aktuell null Treffer im Code.
-  Zusätzlich Pre-Migration-Backup — Migrationen haben derzeit keine Rückfallebene.
+- [~] **P3.7 — Automatisches Backup + manueller Export/Import** `[A3]` — teilweise 2026-08-03
+  Spec: rotierendes Start-Backup (letzte 10) plus Export/Import in den Einstellungen.
+  Erledigt: Sicherung bei jedem Start **vor** den Migrationen, zehn jüngste bleiben erhalten,
+  sichtbar in den Einstellungen samt Knopf für eine sofortige Sicherung. Ein Fehler beim
+  Sichern verhindert den Start nicht — die App wäre sonst wegen einer Vorsichtsmaßnahme
+  unbenutzbar.
+  Offen: Wiederherstellung aus der App heraus (derzeit nur durch Ersetzen der Datei bei
+  geschlossenem Programm) und Export an einen selbst gewählten Ort.
 
 - [x] **P3.8 — Stornobelege in der Liste kennzeichnen** `[B22]` ✅ 2026-08-03
   Tragen aktuell Status „Gestellt" → die Liste enthält scheinbar doppelte offene Rechnungen mit negativer Summe.

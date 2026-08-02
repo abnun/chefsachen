@@ -7,6 +7,7 @@ import {
   type Einheit,
   type Firma,
   type Nummernkreis,
+  type Sicherung,
 } from "../api";
 import { formularFehler } from "../formularFehler";
 import { Fehler } from "../components/Fehler";
@@ -24,6 +25,7 @@ export function Einstellungen() {
     <div>
       <h1 className="seiten-kopf">Einstellungen</h1>
       <FirmendatenAbschnitt />
+      <SicherungenAbschnitt />
       <EinheitenAbschnitt />
       <NummernkreiseAbschnitt />
       <TextbausteineAbschnitt />
@@ -280,6 +282,89 @@ function FirmendatenAbschnitt() {
         </label>
         <button type="submit" className="btn btn-primaer">Speichern</button>
       </form>
+    </section>
+  );
+}
+
+/**
+ * Zeigt die automatischen Sicherungen und erlaubt eine sofortige.
+ *
+ * Ohne diesen Abschnitt bliebe die Sicherung unsichtbar: Sie liefe zwar bei
+ * jedem Start, aber im Ernstfall wüsste niemand, dass es sie gibt oder wo sie
+ * liegt.
+ */
+function SicherungenAbschnitt() {
+  const [sicherungen, setSicherungen] = useState<Sicherung[]>([]);
+  const [fehler, setFehler] = useState<AppFehler | null>(null);
+  const [laeuft, setLaeuft] = useState(false);
+  const { zeigen, hinweis } = useErfolgsHinweis();
+
+  function laden() {
+    api.sicherungen.liste().then(setSicherungen).catch((e) => setFehler(e as AppFehler));
+  }
+
+  useEffect(laden, []);
+
+  async function jetztSichern() {
+    if (laeuft) return;
+    setFehler(null);
+    setLaeuft(true);
+    try {
+      await api.sicherungen.jetzt();
+      laden();
+      zeigen("Sicherung angelegt");
+    } catch (e) {
+      setFehler(e as AppFehler);
+    } finally {
+      setLaeuft(false);
+    }
+  }
+
+  /** "2026-08-03_10-15-00" → "03.08.2026, 10:15 Uhr" */
+  function zeitpunkt(zeitstempel: string): string {
+    const [datum, uhrzeit] = zeitstempel.split("_");
+    const d = datum?.split("-");
+    const u = uhrzeit?.split("-");
+    if (d?.length !== 3 || u?.length !== 3) return zeitstempel;
+    return `${d[2]}.${d[1]}.${d[0]}, ${u[0]}:${u[1]} Uhr`;
+  }
+
+  return (
+    <section className="karte">
+      <h2>Sicherungen</h2>
+      <Fehler fehler={fehler} />
+      {hinweis}
+      <p className="feld-hinweis">
+        Bei jedem Programmstart wird die Datenbank kopiert, bevor Änderungen an ihrer
+        Struktur vorgenommen werden. Die zehn jüngsten Kopien bleiben erhalten. Zum
+        Wiederherstellen ersetzen Sie die Datei <code>daten.db</code> durch eine Sicherung —
+        bei geschlossenem Programm.
+      </p>
+      <button type="button" className="btn" disabled={laeuft} onClick={jetztSichern}>
+        Jetzt sichern
+      </button>
+      {sicherungen.length === 0 ? (
+        <p>Noch keine Sicherungen vorhanden.</p>
+      ) : (
+        <table className="tabelle">
+          <thead>
+            <tr>
+              <th>Zeitpunkt</th>
+              <th>Größe</th>
+              <th>Ablage</th>
+            </tr>
+          </thead>
+          <tbody>
+            {sicherungen.map((s) => (
+              <tr key={s.zeitstempel}>
+                <td>{zeitpunkt(s.zeitstempel)}</td>
+                <td>{Math.max(1, Math.round(s.groesse_bytes / 1024))} KB</td>
+                <td className="tabelle-num">{s.pfad}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
     </section>
   );
 }

@@ -338,6 +338,13 @@ export interface DashboardDaten {
   letzte_belege: LetzterBeleg[];
 }
 
+export interface Sicherung {
+  /** Zeitpunkt der Sicherung im Format JJJJ-MM-TT_hh-mm-ss. */
+  zeitstempel: string;
+  groesse_bytes: number;
+  pfad: string;
+}
+
 export type AppFehler =
   | { typ: "validation"; feld: string; meldung: string }
   | { typ: "nicht_gefunden"; meldung: string }
@@ -350,6 +357,10 @@ export function istValidierungsfehler(e: unknown): e is Extract<AppFehler, { typ
 export const api = {
   dashboard: {
     laden: () => invoke<DashboardDaten>("dashboard_laden"),
+  },
+  sicherungen: {
+    liste: () => invoke<Sicherung[]>("sicherungen_liste"),
+    jetzt: () => invoke<Sicherung>("sicherung_jetzt"),
   },
   einheiten: {
     list: () => invoke<Einheit[]>("einheit_list"),

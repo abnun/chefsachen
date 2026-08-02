@@ -13,6 +13,10 @@ vi.mock("@tauri-apps/plugin-dialog", () => ({ open: vi.fn().mockResolvedValue(nu
 vi.mock("@tauri-apps/plugin-fs", () => ({ readFile: vi.fn().mockResolvedValue(new Uint8Array()) }));
 vi.mock("../api", () => ({
   api: {
+    sicherungen: {
+      liste: vi.fn().mockResolvedValue([]),
+      jetzt: vi.fn().mockResolvedValue({ zeitstempel: "2026-08-03_10-15-00", groesse_bytes: 2048, pfad: "/p/daten-2026-08-03_10-15-00.db" }),
+    },
     firma: {
       get: vi.fn().mockResolvedValue({
         id: "1",
@@ -172,5 +176,27 @@ describe("Einstellungen", () => {
     vi.mocked(open).mockResolvedValueOnce(null);
     fireEvent.click(screen.getByRole("button", { name: "Logo wählen" }));
     await waitFor(() => expect(api.firma.logoSet).not.toHaveBeenCalled());
+  });
+
+  /// Ohne sichtbare Sicherungen wüsste im Ernstfall niemand, dass es sie gibt
+  /// oder wo sie liegen.
+  it("zeigt vorhandene Sicherungen mit lesbarem Zeitpunkt", async () => {
+    const { api } = await import("../api");
+    vi.mocked(api.sicherungen.liste).mockResolvedValue([
+      { zeitstempel: "2026-08-03_10-15-00", groesse_bytes: 2048, pfad: "/p/daten-2026-08-03_10-15-00.db" },
+    ]);
+    render(<Einstellungen />);
+    await waitFor(() => expect(screen.getByText("03.08.2026, 10:15 Uhr")).toBeTruthy());
+    expect(screen.getByText("2 KB")).toBeTruthy();
+  });
+
+  it("legt auf Knopfdruck eine Sicherung an und lädt die Liste neu", async () => {
+    const { api } = await import("../api");
+    vi.mocked(api.sicherungen.liste).mockResolvedValue([]);
+    render(<Einstellungen />);
+    await waitFor(() => expect(screen.getByText(/Noch keine Sicherungen/)).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Jetzt sichern" }));
+    await waitFor(() => expect(api.sicherungen.jetzt).toHaveBeenCalled());
+    await waitFor(() => expect(vi.mocked(api.sicherungen.liste).mock.calls.length).toBeGreaterThan(1));
   });
 });
