@@ -14,6 +14,7 @@ import { Fehler } from "../components/Fehler";
 import { useErfolgsHinweis } from "../hooks/useErfolgsHinweis";
 import { useBestaetigung } from "../hooks/useBestaetigung";
 import { formatCent } from "../geld";
+import { datumDeutschOder } from "../datum";
 
 interface KundeDetailProps {
   id: string;
@@ -164,10 +165,18 @@ function SonderpreiseReiter({ kundeId }: { kundeId: string }) {
                   {p.bezeichnung} <span className="tabelle-num">{p.artikelnummer}</span>
                 </td>
                 <td>{formatCent(p.standardpreis_cent)}</td>
-                <td className={p.preis_cent < p.standardpreis_cent ? "preis-guenstiger" : "preis-teurer"}>
-                  {formatCent(p.preis_cent)}
+                <td>
+                  {/* Dieselbe Auszeichnung wie auf der Artikel-Seite, damit ein
+                      Sonderpreis überall gleich aussieht. */}
+                  <span
+                    className={`kundenpreis-badge ${
+                      p.preis_cent < p.standardpreis_cent ? "guenstiger" : "teurer"
+                    }`}
+                  >
+                    {formatCent(p.preis_cent)}
+                  </span>
                 </td>
-                <td>{p.gueltig_ab ?? "immer"}</td>
+                <td>{datumDeutschOder(p.gueltig_ab, "immer")}</td>
               </tr>
             ))}
           </tbody>

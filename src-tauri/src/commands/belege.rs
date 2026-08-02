@@ -384,10 +384,14 @@ fn mit_zahlungsstand(mut beleg: Beleg) -> Beleg {
             beleg.summe_cent,
             beleg.bezahlt_cent,
         ));
-        beleg.faellig_am = chrono::NaiveDate::parse_from_str(&beleg.datum, "%Y-%m-%d")
-            .ok()
-            .and_then(|d| d.checked_add_signed(chrono::Duration::days(beleg.zahlungsziel_tage)))
-            .map(|d| d.to_string());
+        // Ein Stornobeleg ist eine Gutschrift, keine Forderung — ein Zahlungsziel
+        // hat er nicht. Ein Fälligkeitsdatum wäre dort schlicht erfunden.
+        if beleg.storno_von_id.is_none() {
+            beleg.faellig_am = chrono::NaiveDate::parse_from_str(&beleg.datum, "%Y-%m-%d")
+                .ok()
+                .and_then(|d| d.checked_add_signed(chrono::Duration::days(beleg.zahlungsziel_tage)))
+                .map(|d| d.to_string());
+        }
     }
     beleg
 }

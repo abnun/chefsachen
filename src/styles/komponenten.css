@@ -227,6 +227,9 @@ label.feld textarea {
   border-radius: var(--radius-pill);
   font-size: var(--text-s);
   font-weight: 600;
+  /* Ein umgebrochenes Etikett ("Erstattung / offen") liest sich wie zwei
+     Angaben und zerreißt zudem die Pillenform. */
+  white-space: nowrap;
 }
 
 .status-entwurf {
@@ -595,4 +598,10 @@ label.feld textarea {
   font-size: var(--text-s);
   font-weight: 500;
   color: var(--text-leise);
+}
+
+/* Nummern, Beträge und Daten sollen nicht mitten im Wert umbrechen — eine
+   zerrissene Rechnungsnummer ist schlechter lesbar als eine breitere Spalte. */
+.nicht-umbrechen {
+  white-space: nowrap;
 }

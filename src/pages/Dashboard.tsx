@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { api, type AppFehler, type DashboardDaten, type Grenze, type Hinweis, type Warnstufe } from "../api";
 import { Fehler } from "../components/Fehler";
 import { formatCent } from "../geld";
+import { datumDeutsch } from "../datum";
 
 interface DashboardProps {
   onRechnungOeffnen: (id: string) => void;
@@ -25,12 +26,6 @@ const WARN_KLASSE: Record<Warnstufe, string> = {
  */
 function grenzeText(cent: number): string {
   return formatCent(cent).replace(",00", "");
-}
-
-/** Deutsche Datumsangabe aus einem ISO-Datum; unerwartete Werte bleiben stehen. */
-function datum(iso: string): string {
-  const teile = iso.split("-");
-  return teile.length === 3 ? `${teile[2]}.${teile[1]}.${teile[0]}` : iso;
 }
 
 function faelligkeitText(tage: number): string {
@@ -227,7 +222,7 @@ export function Dashboard({ onRechnungOeffnen, onAngebotOeffnen }: DashboardProp
                   <td>{r.nummer}</td>
                   <td>{r.kunde_name}</td>
                   <td className={r.tage_bis_faellig < 0 ? "ueberfaellig" : undefined}>
-                    {datum(r.faellig_am)} — {faelligkeitText(r.tage_bis_faellig)}
+                    {datumDeutsch(r.faellig_am)} — {faelligkeitText(r.tage_bis_faellig)}
                   </td>
                   <td>{formatCent(r.offener_betrag_cent)}</td>
                 </tr>
@@ -266,7 +261,7 @@ export function Dashboard({ onRechnungOeffnen, onAngebotOeffnen }: DashboardProp
                 >
                   <td>{a.nummer}</td>
                   <td>{a.kunde_name}</td>
-                  <td>{datum(a.datum)}</td>
+                  <td>{datumDeutsch(a.datum)}</td>
                   <td>{formatCent(a.summe_cent)}</td>
                 </tr>
               ))}

@@ -223,6 +223,35 @@ function FirmendatenAbschnitt() {
         </div>
         <div className="feld">
           <label>
+            Ansprechpartner
+            <input
+              value={firma.kontakt_name}
+              onChange={(e) => setFirma({ ...firma, kontakt_name: e.currentTarget.value })}
+            />
+          </label>
+          <p className="feld-hinweis">Ohne Angabe wird der Firmenname verwendet.</p>
+          {feldFehler("kontakt_name") && <div role="alert" className="feld-fehler">{feldFehler("kontakt_name")}</div>}
+        </div>
+        <div className="feld">
+          <span className="feld-beschriftung">Logo</span>
+          <p className="feld-hinweis">
+            {logoGroesse === null
+              ? "Kein Logo hinterlegt — die Rechnungen erscheinen ohne."
+              : `Logo hinterlegt (${logoGroesse < 1024 ? `${logoGroesse} Bytes` : `${Math.round(logoGroesse / 1024)} KB`}).`}
+          </p>
+          <div className="werkzeugleiste">
+            <button type="button" className="btn" onClick={logoWaehlen}>
+              {logoGroesse === null ? "Logo wählen" : "Logo ersetzen"}
+            </button>
+            {logoGroesse !== null && (
+              <button type="button" className="btn btn-gefahr" onClick={logoEntfernen}>
+                Logo entfernen
+              </button>
+            )}
+          </div>
+        </div>
+        <div className="feld">
+          <label>
             Gründungsjahr
             <input
               type="number"
@@ -242,35 +271,6 @@ function FirmendatenAbschnitt() {
           {feldFehler("gruendungsjahr") && (
             <div role="alert" className="feld-fehler">{feldFehler("gruendungsjahr")}</div>
           )}
-        </div>
-        <div className="feld">
-          <label>
-            Ansprechpartner
-            <input
-              value={firma.kontakt_name}
-              onChange={(e) => setFirma({ ...firma, kontakt_name: e.currentTarget.value })}
-            />
-          </label>
-          <p className="feld-hinweis">Ohne Angabe wird der Firmenname verwendet.</p>
-          {feldFehler("kontakt_name") && <div role="alert" className="feld-fehler">{feldFehler("kontakt_name")}</div>}
-        </div>
-        <div className="feld">
-          <span className="feld-beschriftung">Logo</span>
-          <p className="feld-hinweis">
-            {logoGroesse === null
-              ? "Kein Logo hinterlegt — die Rechnungen erscheinen ohne."
-              : `Logo hinterlegt (${Math.round(logoGroesse / 1024)} KB).`}
-          </p>
-          <div className="werkzeugleiste">
-            <button type="button" className="btn" onClick={logoWaehlen}>
-              {logoGroesse === null ? "Logo wählen" : "Logo ersetzen"}
-            </button>
-            {logoGroesse !== null && (
-              <button type="button" className="btn btn-gefahr" onClick={logoEntfernen}>
-                Logo entfernen
-              </button>
-            )}
-          </div>
         </div>
         <label className="feld-checkbox">
           <input
