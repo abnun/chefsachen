@@ -21,6 +21,7 @@ vi.mock("../api", () => ({
         einzelpreis_cent: 0, menge: 1000, positionssumme_cent: 0, reihenfolge: 0,
       }),
       positionDelete: vi.fn().mockResolvedValue(undefined),
+      positionVerschieben: vi.fn().mockResolvedValue(undefined),
       delete: vi.fn().mockResolvedValue(undefined),
       zahlungDelete: vi.fn().mockResolvedValue(undefined),
       update: vi.fn().mockResolvedValue({
@@ -127,9 +128,10 @@ describe("BelegEditor – Position hinzufügen", () => {
     ]);
 
     render(<BelegEditor id="b1" />);
-    await waitFor(() => expect(screen.getByText("Beratung")).toBeTruthy());
-
-    fireEvent.change(screen.getByLabelText("Artikel"), { target: { value: "a1" } });
+    // Die Artikelauswahl ist eine Tipphilfe (datalist), kein Auswahlfeld mehr:
+    // Gewählt wird über die Beschriftung, nicht über die Id.
+    await waitFor(() => expect(screen.getByLabelText("Artikel")).toBeTruthy());
+    fireEvent.change(screen.getByLabelText("Artikel"), { target: { value: "Beratung" } });
     fireEvent.click(screen.getByRole("button", { name: "Position hinzufügen" }));
 
     await waitFor(() =>
@@ -162,8 +164,8 @@ describe("BelegEditor – Position hinzufügen", () => {
       },
     ]);
     render(<BelegEditor id="b1" />);
-    await waitFor(() => expect(screen.getByText("Beratung")).toBeTruthy());
-    fireEvent.change(screen.getByLabelText("Artikel"), { target: { value: "a1" } });
+    await waitFor(() => expect(screen.getByLabelText("Artikel")).toBeTruthy());
+    fireEvent.change(screen.getByLabelText("Artikel"), { target: { value: "Beratung" } });
     fireEvent.click(screen.getByRole("button", { name: "Position hinzufügen" }));
     await waitFor(() => expect(screen.getByText("Position hinzugefügt")).toBeTruthy());
   });
@@ -685,5 +687,93 @@ describe("BelegEditor – Erfolgs-Hinweis", () => {
         expect.objectContaining({ leistungsdatum_bis: null }),
       ),
     );
+  });
+});
+
+describe("BelegEditor – Positionen bearbeiten und sortieren", () => {
+  /** Entwurf mit zwei Positionen. */
+  function entwurfMitPositionen() {
+    vi.mocked(api.belege.get).mockResolvedValue({
+      beleg: {
+        id: "b1", typ: "angebot", nummer: null, status: "entwurf", kunde_id: "k1",
+        datum: "2026-07-10", leistungsdatum: "2026-07-10", zahlungsziel_tage: 14,
+        kopftext: "", fusstext: "", summe_cent: 19100, ursprungsangebot_id: null, storno_von_id: null,
+      },
+      positionen: [
+        { id: "p1", beleg_id: "b1", artikel_id: null, bezeichnung: "Konzept",
+          einheit_kuerzel: "Std", einzelpreis_cent: 9550, menge: 1000,
+          positionssumme_cent: 9550, reihenfolge: 1 },
+        { id: "p2", beleg_id: "b1", artikel_id: null, bezeichnung: "Umsetzung",
+          einheit_kuerzel: "Std", einzelpreis_cent: 9550, menge: 1000,
+          positionssumme_cent: 9550, reihenfolge: 2 },
+      ],
+      zahlungen: [], bezahlt_cent: 0, offener_betrag_cent: 0,
+    } as never);
+    vi.mocked(api.artikel.list).mockResolvedValue([]);
+  }
+
+  it("übernimmt eine Position ins Formular und speichert sie unter ihrer Id", async () => {
+    // Bisher ließ sich eine Position nur löschen und neu anlegen. Bei einem
+    // Zahlendreher in der Menge hieß das: alles noch einmal eintippen.
+    entwurfMitPositionen();
+    render(<BelegEditor id="b1" />);
+    await waitFor(() => expect(screen.getByText("Konzept")).toBeTruthy());
+
+    fireEvent.click(screen.getAllByRole("button", { name: "Bearbeiten" })[0]);
+    expect(screen.getByText("Position ändern")).toBeTruthy();
+    expect((screen.getByLabelText("Bezeichnung") as HTMLInputElement).value).toBe("Konzept");
+
+    fireEvent.change(screen.getByLabelText("Menge"), { target: { value: "3" } });
+    fireEvent.click(screen.getByRole("button", { name: "Änderung speichern" }));
+
+    await waitFor(() =>
+      expect(api.belege.positionSave).toHaveBeenCalledWith(
+        expect.objectContaining({ id: "p1", menge: 3000 }),
+      ),
+    );
+  });
+
+  it("verschiebt eine Position und blendet die Knöpfe an den Rändern ab", async () => {
+    entwurfMitPositionen();
+    render(<BelegEditor id="b1" />);
+    await waitFor(() => expect(screen.getByText("Konzept")).toBeTruthy());
+
+    // Die erste Position kann nicht höher, die letzte nicht tiefer.
+    expect(screen.getByRole("button", { name: '„Konzept" nach oben' })).toBeDisabled();
+    expect(screen.getByRole("button", { name: '„Umsetzung" nach unten' })).toBeDisabled();
+
+    fireEvent.click(screen.getByRole("button", { name: '„Umsetzung" nach oben' }));
+    await waitFor(() => expect(api.belege.positionVerschieben).toHaveBeenCalledWith("p2", "hoch"));
+  });
+
+  it("zeigt die Positionssumme, bevor gespeichert wird", async () => {
+    entwurfMitPositionen();
+    render(<BelegEditor id="b1" />);
+    await waitFor(() => expect(screen.getByText("Konzept")).toBeTruthy());
+
+    fireEvent.click(screen.getByLabelText("Freitextposition"));
+    fireEvent.change(screen.getByLabelText("Einzelpreis"), { target: { value: "95,50" } });
+    fireEvent.change(screen.getByLabelText("Menge"), { target: { value: "3" } });
+
+    await waitFor(() => expect(screen.getByText(/Positionssumme: 286,50/)).toBeTruthy());
+  });
+
+  it("erfindet keine Summe, wenn der Preis erst das Backend kennt", async () => {
+    // Bei einem Artikel ohne überschriebenen Preis kann ein Kundenpreis gelten.
+    // Den kennt nur das Backend — eine Zahl zu zeigen hieße, sie zu raten.
+    entwurfMitPositionen();
+    render(<BelegEditor id="b1" />);
+    await waitFor(() => expect(screen.getByText("Konzept")).toBeTruthy());
+
+    expect(screen.getByText(/Preis wird beim Speichern ermittelt/)).toBeTruthy();
+  });
+
+  it("sagt Bescheid, wenn die Menge nicht lesbar ist", async () => {
+    entwurfMitPositionen();
+    render(<BelegEditor id="b1" />);
+    await waitFor(() => expect(screen.getByText("Konzept")).toBeTruthy());
+
+    fireEvent.change(screen.getByLabelText("Menge"), { target: { value: "drei" } });
+    await waitFor(() => expect(screen.getByText(/Menge unklar/)).toBeTruthy());
   });
 });

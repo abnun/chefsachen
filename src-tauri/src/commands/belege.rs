@@ -370,6 +370,57 @@ pub async fn position_speichern(pool: &SqlitePool, d: BelegpositionNeu) -> AppRe
     Ok(position)
 }
 
+/// Verschiebt eine Position um einen Platz nach oben oder unten.
+///
+/// Die Reihenfolge steht so auf dem Beleg. Wer eine Position nachträglich
+/// braucht, musste sie bisher ans Ende hängen — oder alles darunter löschen
+/// und neu anlegen.
+///
+/// Getauscht wird mit dem Nachbarn, statt alle Ränge neu zu vergeben: Das ist
+/// eine Änderung an zwei Zeilen und kommt ohne Annahme darüber aus, ob die
+/// Ränge lückenlos sind.
+pub async fn position_verschieben(pool: &SqlitePool, id: String, richtung: String) -> AppResult<()> {
+    let zeile: (String, i64) = sqlx::query_as(
+        "SELECT beleg_id, reihenfolge FROM belegposition WHERE id = ? AND deleted_at IS NULL")
+        .bind(&id).fetch_optional(pool).await?.ok_or(AppError::NichtGefunden)?;
+    let (beleg_id, rang) = zeile;
+    let beleg = lade_beleg(pool, &beleg_id).await?;
+    pruefe_ist_entwurf(&beleg)?;
+
+    let hoch = match richtung.as_str() {
+        "hoch" => true,
+        "runter" => false,
+        _ => return Err(AppError::Validation {
+            feld: "richtung".into(),
+            meldung: "Richtung muss \"hoch\" oder \"runter\" sein".into(),
+        }),
+    };
+
+    let sql = if hoch {
+        "SELECT id, reihenfolge FROM belegposition WHERE beleg_id = ? AND deleted_at IS NULL \
+         AND reihenfolge < ? ORDER BY reihenfolge DESC LIMIT 1"
+    } else {
+        "SELECT id, reihenfolge FROM belegposition WHERE beleg_id = ? AND deleted_at IS NULL \
+         AND reihenfolge > ? ORDER BY reihenfolge ASC LIMIT 1"
+    };
+    let nachbar: Option<(String, i64)> = sqlx::query_as(sql)
+        .bind(&beleg_id).bind(rang).fetch_optional(pool).await?;
+
+    // Am Rand gibt es keinen Nachbarn. Das ist kein Fehler: Der Knopf ist in
+    // der Oberfläche abgeblendet, und eine Meldung hätte hier keinen Anlass.
+    let Some((nachbar_id, nachbar_rang)) = nachbar else {
+        return Ok(());
+    };
+
+    let mut tx = pool.begin().await?;
+    sqlx::query("UPDATE belegposition SET reihenfolge = ?, updated_at = ? WHERE id = ?")
+        .bind(nachbar_rang).bind(jetzt()).bind(&id).execute(&mut *tx).await?;
+    sqlx::query("UPDATE belegposition SET reihenfolge = ?, updated_at = ? WHERE id = ?")
+        .bind(rang).bind(jetzt()).bind(&nachbar_id).execute(&mut *tx).await?;
+    tx.commit().await?;
+    Ok(())
+}
+
 pub async fn position_loeschen(pool: &SqlitePool, id: String) -> AppResult<()> {
     let row: (String,) = sqlx::query_as("SELECT beleg_id FROM belegposition WHERE id = ? AND deleted_at IS NULL")
         .bind(&id).fetch_optional(pool).await?.ok_or(AppError::NichtGefunden)?;
@@ -757,6 +808,14 @@ pub async fn beleg_list(pool: tauri::State<'_, SqlitePool>, typ: Option<String>,
     list(&pool, typ, status, suche).await
 }
 #[tauri::command]
+pub async fn belegposition_verschieben(
+    pool: tauri::State<'_, SqlitePool>,
+    id: String,
+    richtung: String,
+) -> AppResult<()> {
+    position_verschieben(&pool, id, richtung).await
+}
+#[tauri::command]
 pub async fn beleg_get(pool: tauri::State<'_, SqlitePool>, id: String) -> AppResult<BelegDetail> {
     get(&pool, id).await
 }
@@ -900,6 +959,73 @@ mod tests {
         let (_dir, pool) = test_pool().await;
         let err = create(&pool, beleg_neu("angebot", "unbekannt")).await.unwrap_err();
         assert!(matches!(err, AppError::Validation { .. }));
+    }
+
+    /// Legt drei Positionen an und liefert deren Ids in Reihenfolge.
+    async fn drei_positionen(pool: &sqlx::SqlitePool, beleg_id: &str) -> Vec<String> {
+        let mut ids = Vec::new();
+        for i in 0..3 {
+            let p = position_speichern(pool, BelegpositionNeu {
+                id: "".into(), beleg_id: beleg_id.into(), artikel_id: None,
+                bezeichnung: format!("Position {i}"), einheit_kuerzel: "Std".into(),
+                einzelpreis_cent: Some(1000), menge: 1000,
+            }).await.unwrap();
+            ids.push(p.id);
+        }
+        ids
+    }
+
+    async fn bezeichnungen(pool: &sqlx::SqlitePool, beleg_id: &str) -> Vec<String> {
+        get(pool, beleg_id.into()).await.unwrap().positionen
+            .into_iter().map(|p| p.bezeichnung).collect()
+    }
+
+    #[tokio::test]
+    async fn position_verschieben_tauscht_mit_dem_nachbarn() {
+        // Die Reihenfolge steht so auf der Rechnung. Wer eine Position
+        // nachträglich einfügt, musste sie bisher löschen und alles neu
+        // anlegen, um sie an die richtige Stelle zu bekommen.
+        let (_dir, pool) = test_pool().await;
+        let kunde_id = kunde_anlegen(&pool).await;
+        let beleg = create(&pool, beleg_neu("rechnung", &kunde_id)).await.unwrap();
+        let ids = drei_positionen(&pool, &beleg.id).await;
+
+        position_verschieben(&pool, ids[2].clone(), "hoch".into()).await.unwrap();
+        assert_eq!(bezeichnungen(&pool, &beleg.id).await,
+                   vec!["Position 0", "Position 2", "Position 1"]);
+
+        position_verschieben(&pool, ids[0].clone(), "runter".into()).await.unwrap();
+        assert_eq!(bezeichnungen(&pool, &beleg.id).await,
+                   vec!["Position 2", "Position 0", "Position 1"]);
+    }
+
+    #[tokio::test]
+    async fn position_verschieben_an_den_raendern_tut_nichts() {
+        // Kein Fehler: Der Knopf ist in der Oberfläche ohnehin abgeblendet,
+        // und ein Fehlschlag wäre hier eine Meldung ohne Anlass.
+        let (_dir, pool) = test_pool().await;
+        let kunde_id = kunde_anlegen(&pool).await;
+        let beleg = create(&pool, beleg_neu("rechnung", &kunde_id)).await.unwrap();
+        let ids = drei_positionen(&pool, &beleg.id).await;
+
+        position_verschieben(&pool, ids[0].clone(), "hoch".into()).await.unwrap();
+        position_verschieben(&pool, ids[2].clone(), "runter".into()).await.unwrap();
+        assert_eq!(bezeichnungen(&pool, &beleg.id).await,
+                   vec!["Position 0", "Position 1", "Position 2"]);
+    }
+
+    #[tokio::test]
+    async fn position_verschieben_nur_im_entwurf() {
+        // Ein gestellter Beleg ist unveränderlich (GoBD) — das gilt auch für
+        // die Reihenfolge seiner Positionen.
+        let (_dir, pool) = test_pool().await;
+        let kunde_id = kunde_anlegen(&pool).await;
+        let beleg = create(&pool, beleg_neu("rechnung", &kunde_id)).await.unwrap();
+        let ids = drei_positionen(&pool, &beleg.id).await;
+        stellen(&pool, beleg.id.clone()).await.unwrap();
+
+        let fehler = position_verschieben(&pool, ids[0].clone(), "runter".into()).await;
+        assert!(matches!(fehler, Err(AppError::Validation { .. })), "{fehler:?}");
     }
 
     #[tokio::test]

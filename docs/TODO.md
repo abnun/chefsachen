@@ -12,7 +12,7 @@ Reihenfolge = Empfehlung. Jeder Punkt trägt die Referenz aus dem Review.
 | 3 — Fehlende Kernfunktionen | ✅ 10/11, P3.7 teilweise |
 | 4 — Robustheit | ✅ 13/13 |
 | 5 — Produktreife | ⬜ 5/7, P5.2 angefangen, P5.6 zurückgestellt |
-| 6 — UX und Code-Qualität | ⬜ 5/11 |
+| 6 — UX und Code-Qualität | ⬜ 8/11 |
 
 **Nächster Schritt:** Stufe 6 (UX und Code-Qualität). Von Stufe 5 bleibt P5.2 offen —
 die CI ist noch nie gelaufen und klärt sich beim ersten Push von selbst; P5.6 (Signierung)
@@ -424,9 +424,26 @@ Ohne diese Punkte ist die App für die Zielgruppe nicht wertvoll.
   Rechnungsliste angekommen war, und der Belegeditor zeigte den Datenbankschlüssel
   (`abgelehnt`) statt der Beschriftung. Vier Tests hielten das falsche Verhalten fest und
   wurden mit korrigiert.
-- [ ] **P6.6 — Belegpositionen editierbar und sortierbar** — derzeit nur löschen und neu anlegen
-- [ ] **P6.7 — Artikel-Autocomplete statt `<select>`** — ab ~50 Artikeln unbenutzbar
-- [ ] **P6.8 — Live-Summenvorschau** — Spec-Anforderung, aktuell erst nach Server-Roundtrip
+- [x] **P6.6 — Belegpositionen editierbar und sortierbar**
+  Bearbeiten ging im Backend längst (`position_speichern` mit Id), es fehlte nur in der
+  Oberfläche: Knopf „Bearbeiten" übernimmt die Zeile ins Formular darunter, die bearbeitete
+  Zeile ist hervorgehoben.
+  Neu im Backend: `belegposition_verschieben`. Getauscht wird mit dem Nachbarn statt alle
+  Ränge neu zu vergeben — zwei geänderte Zeilen, und es braucht keine Annahme darüber, ob
+  die Ränge lückenlos sind. Am Rand passiert nichts, ohne Fehler: Der Knopf ist dort ohnehin
+  abgeblendet, eine Meldung hätte keinen Anlass. Nur im Entwurf (GoBD).
+- [x] **P6.7 — Artikel-Auswahl mit Tipphilfe**
+  Komponente `ArtikelAuswahl` auf Basis von `<datalist>` statt einer selbstgebauten
+  Vorschlagsliste — Tastaturbedienung, Blättern durch die Vorschläge und die Ankündigung
+  gegenüber Screenreadern bringt der Browser mit.
+  Übernommen wird erst bei genauer Übereinstimmung: Auf Teiltreffer zu raten hieße, dem
+  Nutzer einen Artikel unterzuschieben. Bei mehrfach vergebenen Bezeichnungen führt die
+  Anzeige die Artikelnummer mit, sonst wäre die Auswahl mehrdeutig.
+- [x] **P6.8 — Live-Summenvorschau**
+  Die Positionssumme steht im Formular, bevor gespeichert wird. Für einen Artikel ohne
+  überschriebenen Preis bleibt es bei „Preis wird beim Speichern ermittelt": Dort kann ein
+  Kundenpreis gelten, den nur das Backend kennt — eine Zahl zu zeigen hieße, sie zu raten.
+  Unlesbare Eingaben melden sich als solche, statt still auf null zu fallen.
 - [ ] **P6.9 — Adress- und Ansprechpartner-Auswahl im Beleg**
 - [x] **P6.10 — Barrierefreiheit**
   `Bestaetigungsdialog` hält den Fokus bei sich (Tab und Shift+Tab laufen im Kreis), gibt ihn

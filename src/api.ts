@@ -451,6 +451,8 @@ export const api = {
     delete: (id: string) => invoke<void>("beleg_delete", { id }),
     positionSave: (position: BelegpositionNeu) => invoke<Belegposition>("belegposition_save", { position }),
     positionDelete: (id: string) => invoke<void>("belegposition_delete", { id }),
+    positionVerschieben: (id: string, richtung: "hoch" | "runter") =>
+      invoke<void>("belegposition_verschieben", { id, richtung }),
     stellen: (id: string) => invoke<Beleg>("beleg_stellen", { id }),
     angebotStatusSetzen: (id: string, status: string) => invoke<Beleg>("angebot_status_setzen", { id, status }),
     angebotInRechnungUeberfuehren: (angebotId: string) =>

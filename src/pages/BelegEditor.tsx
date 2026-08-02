@@ -11,6 +11,7 @@ import {
   type Kunde,
   type Zahlung,
 } from "../api";
+import { ArtikelAuswahl } from "../components/ArtikelAuswahl";
 import { Fehler } from "../components/Fehler";
 import { Laden } from "../components/Laden";
 import { StatusMarke } from "../components/StatusMarke";
@@ -503,11 +504,56 @@ function PositionenAbschnitt({
   const [einheitKuerzel, setEinheitKuerzel] = useState("");
   const [einzelpreis, setEinzelpreis] = useState("");
   const [menge, setMenge] = useState("1");
+  /** Id der Position, die gerade bearbeitet wird; leer beim Anlegen. */
+  const [bearbeiteId, setBearbeiteId] = useState("");
   const [fehler, setFehler] = useState<AppFehler | null>(null);
   const { zeigen, hinweis } = useErfolgsHinweis();
   const { bestaetigen, dialog } = useBestaetigung();
 
-  async function hinzufuegen() {
+  function formularLeeren() {
+    setBearbeiteId("");
+    setFreitext(false);
+    setBezeichnung("");
+    setEinheitKuerzel("");
+    setEinzelpreis("");
+    setMenge("1");
+    setArtikelId("");
+    setFehler(null);
+  }
+
+  function bearbeiten(p: Belegposition) {
+    setBearbeiteId(p.id);
+    setFreitext(p.artikel_id === null);
+    setBezeichnung(p.bezeichnung);
+    setEinheitKuerzel(p.einheit_kuerzel);
+    setEinzelpreis((p.einzelpreis_cent / 100).toFixed(2).replace(".", ","));
+    setMenge(formatMenge(p.menge));
+    setArtikelId(p.artikel_id ?? "");
+    setFehler(null);
+  }
+
+  /**
+   * Summe der Eingabe, noch bevor gespeichert wird.
+   *
+   * Ohne sie erfährt man den Betrag erst nach dem Absenden — und bei einem
+   * Vertipper in der Menge auch erst dann. Für Artikel ohne überschriebenen
+   * Preis lässt sich hier nichts sagen: Der gültige Preis kann ein Kundenpreis
+   * sein, und den kennt nur das Backend. Dann bleibt es bei einem Hinweis
+   * statt einer erfundenen Zahl.
+   */
+  const vorschau = (() => {
+    const mengeX1000 = parseMenge(menge);
+    const preisCent = einzelpreis.trim() === "" ? null : parseEuro(einzelpreis);
+    if (mengeX1000 === null) return { text: "Menge unklar", betrag: null };
+    if (preisCent === null) {
+      return einzelpreis.trim() === "" && !freitext
+        ? { text: "Preis wird beim Speichern ermittelt", betrag: null }
+        : { text: "Preis unklar", betrag: null };
+    }
+    return { text: "", betrag: Math.round((mengeX1000 * preisCent) / 1000) };
+  })();
+
+  async function speichern() {
     setFehler(null);
     const mengeX1000 = parseMenge(menge);
     if (mengeX1000 === null) {
@@ -521,7 +567,7 @@ function PositionenAbschnitt({
     }
     try {
       await api.belege.positionSave({
-        id: "",
+        id: bearbeiteId,
         beleg_id: belegId,
         artikel_id: freitext ? null : artikelId || null,
         bezeichnung: freitext ? bezeichnung : "",
@@ -529,13 +575,20 @@ function PositionenAbschnitt({
         einzelpreis_cent: einzelpreisCent,
         menge: mengeX1000,
       });
-      setBezeichnung("");
-      setEinheitKuerzel("");
-      setEinzelpreis("");
-      setMenge("1");
-      setArtikelId("");
+      const geaendert = bearbeiteId !== "";
+      formularLeeren();
       onGeaendert();
-      zeigen("Position hinzugefügt");
+      zeigen(geaendert ? "Position geändert" : "Position hinzugefügt");
+    } catch (e) {
+      setFehler(e as AppFehler);
+    }
+  }
+
+  async function verschieben(id: string, richtung: "hoch" | "runter") {
+    setFehler(null);
+    try {
+      await api.belege.positionVerschieben(id, richtung);
+      onGeaendert();
     } catch (e) {
       setFehler(e as AppFehler);
     }
@@ -543,6 +596,7 @@ function PositionenAbschnitt({
 
   async function loeschenBestaetigen(id: string, bezeichnung: string) {
     if (!(await bestaetigen(`Position „${bezeichnung}" löschen?`))) return;
+    if (id === bearbeiteId) formularLeeren();
     onLoeschen(id);
   }
 
@@ -564,22 +618,45 @@ function PositionenAbschnitt({
           </tr>
         </thead>
         <tbody>
-          {positionen.map((p) => (
-            <tr key={p.id}>
+          {positionen.map((p, i) => (
+            <tr key={p.id} className={p.id === bearbeiteId ? "zeile-bearbeitet" : undefined}>
               <td>{p.bezeichnung}</td>
               <td>{formatMenge(p.menge)}</td>
               <td>{p.einheit_kuerzel}</td>
               <td>{formatCent(p.einzelpreis_cent)}</td>
               <td>{formatCent(p.positionssumme_cent)}</td>
-              <td>
+              <td className="zeilen-aktionen">
                 {bearbeitbar && (
-                  <button
-                    type="button"
-                    className="btn btn-gefahr"
-                    onClick={() => loeschenBestaetigen(p.id, p.bezeichnung)}
-                  >
-                    Löschen
-                  </button>
+                  <>
+                    <button
+                      type="button"
+                      className="btn"
+                      aria-label={`„${p.bezeichnung}" nach oben`}
+                      disabled={i === 0}
+                      onClick={() => verschieben(p.id, "hoch")}
+                    >
+                      ↑
+                    </button>
+                    <button
+                      type="button"
+                      className="btn"
+                      aria-label={`„${p.bezeichnung}" nach unten`}
+                      disabled={i === positionen.length - 1}
+                      onClick={() => verschieben(p.id, "runter")}
+                    >
+                      ↓
+                    </button>
+                    <button type="button" className="btn" onClick={() => bearbeiten(p)}>
+                      Bearbeiten
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-gefahr"
+                      onClick={() => loeschenBestaetigen(p.id, p.bezeichnung)}
+                    >
+                      Löschen
+                    </button>
+                  </>
                 )}
               </td>
             </tr>
@@ -590,11 +667,16 @@ function PositionenAbschnitt({
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            hinzufuegen();
+            speichern();
           }}
         >
+          <h3>{bearbeiteId ? "Position ändern" : "Position hinzufügen"}</h3>
           <label className="feld-checkbox">
-            <input type="checkbox" checked={freitext} onChange={(e) => setFreitext(e.currentTarget.checked)} />
+            <input
+              type="checkbox"
+              checked={freitext}
+              onChange={(e) => setFreitext(e.currentTarget.checked)}
+            />
             Freitextposition
           </label>
           {freitext ? (
@@ -614,17 +696,11 @@ function PositionenAbschnitt({
             </>
           ) : (
             <>
-              <label className="feld">
-                Artikel
-                <select value={artikelId} onChange={(e) => setArtikelId(e.currentTarget.value)}>
-                  <option value="">– wählen –</option>
-                  {artikelListe.map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {a.bezeichnung}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <ArtikelAuswahl
+                artikelListe={artikelListe}
+                artikelId={artikelId}
+                onArtikelId={setArtikelId}
+              />
               <label className="feld">
                 Preis überschreiben (optional)
                 <input value={einzelpreis} onChange={(e) => setEinzelpreis(e.currentTarget.value)} placeholder="automatisch" />
@@ -635,7 +711,19 @@ function PositionenAbschnitt({
             Menge
             <input value={menge} onChange={(e) => setMenge(e.currentTarget.value)} />
           </label>
-          <button type="submit" className="btn btn-primaer">Position hinzufügen</button>
+
+          <p className="positions-vorschau" aria-live="polite">
+            {vorschau.betrag === null ? vorschau.text : `Positionssumme: ${formatCent(vorschau.betrag)}`}
+          </p>
+
+          <button type="submit" className="btn btn-primaer">
+            {bearbeiteId ? "Änderung speichern" : "Position hinzufügen"}
+          </button>
+          {bearbeiteId && (
+            <button type="button" className="btn" onClick={formularLeeren}>
+              Abbrechen
+            </button>
+          )}
         </form>
       )}
     </section>

@@ -681,3 +681,22 @@ label.feld textarea {
   color: var(--text-leise);
   font-size: var(--text-s);
 }
+
+/* Aktionen in einer Positionszeile — nebeneinander, nicht untereinander. */
+.zeilen-aktionen {
+  display: flex;
+  gap: var(--abstand-s);
+  align-items: center;
+}
+
+/* Die Zeile, die gerade im Formular darunter bearbeitet wird. */
+.zeile-bearbeitet {
+  background: var(--akzent-leise);
+}
+
+/* Summenvorschau des Positionsformulars. */
+.positions-vorschau {
+  font-weight: 600;
+  color: var(--text-leise);
+  margin: var(--abstand-s) 0;
+}
