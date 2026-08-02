@@ -349,6 +349,24 @@ pub async fn stellen(pool: &SqlitePool, id: String) -> AppResult<Beleg> {
 
     let kunde = crate::commands::kunden::get(pool, beleg.kunde_id.clone()).await?;
     let standardadresse = kunde.adressen.iter().find(|a| a.typ == "rechnung" && a.ist_standard);
+
+    // § 14 Abs. 4 Nr. 1 UStG verlangt die vollständige Anschrift des
+    // Leistungsempfängers. Ohne sie würde hier "adresse": null eingefroren; der
+    // Beleg wäre unveränderbar gestellt und trüge dauerhaft einen leeren
+    // Empfängerblock — heilbar nur noch per Storno. Angebote sind ausgenommen,
+    // sie unterliegen § 14 nicht und gehen oft an noch unvollständig erfasste
+    // Interessenten.
+    if beleg.typ == "rechnung" && standardadresse.is_none() {
+        return Err(AppError::Validation {
+            feld: "adresse".into(),
+            meldung: format!(
+                "Für „{}\" ist keine Rechnungsadresse als Standard hinterlegt. \
+                 Eine Rechnung muss die vollständige Anschrift des Empfängers enthalten (§ 14 UStG).",
+                kunde.kunde.name
+            ),
+        });
+    }
+
     let firma = crate::commands::firma::get(pool).await?;
     let snapshot = kunde_snapshot_json(&kunde.kunde, standardadresse, &firma);
 
@@ -671,12 +689,32 @@ mod tests {
         (dir, p)
     }
 
+    /// Legt einen Kunden samt Standard-Rechnungsadresse an — der Normalfall für
+    /// jemanden, dem man Rechnungen stellt. Ohne Adresse lehnt `stellen` eine
+    /// Rechnung seit P2.4 ab (§ 14 Abs. 4 Nr. 1 UStG); wer diesen Fall testen
+    /// will, nimmt `kunde_ohne_adresse_anlegen`.
     async fn kunde_anlegen(pool: &sqlx::SqlitePool) -> String {
+        let id = kunde_ohne_adresse_anlegen(pool).await;
+        rechnungsadresse_anlegen(pool, &id).await;
+        id
+    }
+
+    async fn kunde_ohne_adresse_anlegen(pool: &sqlx::SqlitePool) -> String {
         kunde_create(pool, KundeNeu {
             typ: "firma".into(), name: "ACME GmbH".into(), zahlungsziel_tage: 14,
             notizen: "".into(), ust_idnr: "".into(), email: "".into(),
             leitweg_id: "".into(), kaeuferreferenz: "".into(),
         }).await.unwrap().id
+    }
+
+    /// Legt eine Standard-Rechnungsadresse an. Ohne sie lässt sich seit P2.4
+    /// keine Rechnung mehr stellen (§ 14 Abs. 4 Nr. 1 UStG).
+    async fn rechnungsadresse_anlegen(pool: &sqlx::SqlitePool, kunde_id: &str) {
+        crate::commands::kunden::adresse_speichern(pool, crate::commands::kunden::Adresse {
+            id: "".into(), kunde_id: kunde_id.into(), typ: "rechnung".into(),
+            strasse: "Kundenweg 5".into(), plz: "10117".into(), ort: "Berlin".into(),
+            land: "DE".into(), ist_standard: true,
+        }).await.unwrap();
     }
 
     fn beleg_neu(typ: &str, kunde_id: &str) -> BelegNeu {
@@ -948,6 +986,7 @@ mod tests {
             notizen: "".into(), ust_idnr: "".into(), email: "acme@example.com".into(),
             leitweg_id: "991-12345-67".into(), kaeuferreferenz: "PO-42".into(),
         }).await.unwrap().id;
+        rechnungsadresse_anlegen(&pool, &kunde_id).await;
         let artikel_id = artikel_anlegen(&pool, 5000).await;
         let beleg = create(&pool, beleg_neu("rechnung", &kunde_id)).await.unwrap();
         position_speichern(&pool, BelegpositionNeu {
@@ -1169,6 +1208,68 @@ mod tests {
 
         let storno_detail = get(&pool, storno.id).await.unwrap();
         assert_eq!(storno_detail.positionen[0].positionssumme_cent, -5000);
+    }
+
+    /// § 14 Abs. 4 Nr. 1 UStG verlangt die vollständige Anschrift des
+    /// Leistungsempfängers. Fehlt sie beim Stellen, wird `"adresse": null`
+    /// eingefroren — der Beleg ist dann unveränderbar gestellt und trägt
+    /// dauerhaft einen leeren Empfängerblock. Das lässt sich nur noch per
+    /// Storno heilen, deshalb muss es vorher auffallen.
+    #[tokio::test]
+    async fn rechnung_stellen_ohne_rechnungsadresse_wird_abgelehnt() {
+        let (_dir, pool) = test_pool().await;
+        let kunde_id = kunde_ohne_adresse_anlegen(&pool).await;
+        let artikel_id = artikel_anlegen(&pool, 5000).await;
+        let rechnung = create(&pool, beleg_neu("rechnung", &kunde_id)).await.unwrap();
+        position_speichern(&pool, BelegpositionNeu {
+            id: "".into(), beleg_id: rechnung.id.clone(), artikel_id: Some(artikel_id),
+            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000,
+        }).await.unwrap();
+
+        let err = stellen(&pool, rechnung.id.clone()).await.unwrap_err();
+        assert!(
+            matches!(&err, AppError::Validation { feld, .. } if feld == "adresse"),
+            "erwartet wurde ein Validierungsfehler zu adresse, war: {err:?}"
+        );
+
+        // Der Beleg muss ein änderbarer Entwurf ohne Nummer geblieben sein.
+        let unveraendert = get(&pool, rechnung.id).await.unwrap().beleg;
+        assert_eq!(unveraendert.status, "entwurf");
+        assert_eq!(unveraendert.nummer, None);
+    }
+
+    #[tokio::test]
+    async fn rechnung_stellen_mit_rechnungsadresse_gelingt() {
+        let (_dir, pool) = test_pool().await;
+        let kunde_id = kunde_anlegen(&pool).await;
+        let artikel_id = artikel_anlegen(&pool, 5000).await;
+        let rechnung = create(&pool, beleg_neu("rechnung", &kunde_id)).await.unwrap();
+        position_speichern(&pool, BelegpositionNeu {
+            id: "".into(), beleg_id: rechnung.id.clone(), artikel_id: Some(artikel_id),
+            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000,
+        }).await.unwrap();
+
+        let gestellt = stellen(&pool, rechnung.id).await.unwrap();
+        assert_eq!(gestellt.status, "gestellt");
+        assert!(gestellt.kunde_snapshot.contains("Kundenweg 5"));
+    }
+
+    /// Angebote unterliegen nicht § 14 UStG. Sie ohne Adresse zu blockieren
+    /// wäre Reibung ohne rechtlichen Grund — ein Angebot geht oft an einen
+    /// Interessenten, dessen Anschrift noch gar nicht erfasst ist.
+    #[tokio::test]
+    async fn angebot_stellen_ohne_adresse_bleibt_moeglich() {
+        let (_dir, pool) = test_pool().await;
+        let kunde_id = kunde_ohne_adresse_anlegen(&pool).await;
+        let artikel_id = artikel_anlegen(&pool, 5000).await;
+        let angebot = create(&pool, beleg_neu("angebot", &kunde_id)).await.unwrap();
+        position_speichern(&pool, BelegpositionNeu {
+            id: "".into(), beleg_id: angebot.id.clone(), artikel_id: Some(artikel_id),
+            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000,
+        }).await.unwrap();
+
+        let gestellt = stellen(&pool, angebot.id).await.unwrap();
+        assert_eq!(gestellt.status, "versendet");
     }
 
     /// Der Stornobeleg ist selbst eine gestellte Rechnung und käme sonst durch

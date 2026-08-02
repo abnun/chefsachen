@@ -7,15 +7,30 @@ fn dateiname_sicher(nummer: &str) -> String {
     nummer.replace(['/', '\\'], "-")
 }
 
+/// Legt eine erzeugte Datei im Belegarchiv ab.
+///
+/// Eine bereits abgelegte Datei wird **nicht** überschrieben. Ein erneuter
+/// Export nach einer Stammdatenänderung würde sonst die archivierte Rechnung
+/// durch ein inhaltlich anderes Dokument ersetzen — das Archiv wäre damit
+/// veränderlich, was dem Unveränderbarkeitsgrundsatz der GoBD widerspricht.
+/// Der Nutzer erhält seine Kopie ohnehin über den Speichern-Dialog; das Archiv
+/// bewahrt die Fassung, die beim ersten Export entstanden ist.
+fn ablegen(verzeichnis: &std::path::Path, dateiname: &str, bytes: &[u8]) -> AppResult<()> {
+    std::fs::create_dir_all(verzeichnis)
+        .map_err(|e| crate::error::AppError::Technisch(e.to_string()))?;
+    let ziel = verzeichnis.join(dateiname);
+    if ziel.exists() {
+        return Ok(());
+    }
+    std::fs::write(&ziel, bytes).map_err(|e| crate::error::AppError::Technisch(e.to_string()))?;
+    Ok(())
+}
+
 fn im_app_verzeichnis_ablegen(app: &tauri::AppHandle, dateiname: &str, bytes: &[u8]) -> AppResult<()> {
     let verzeichnis = app.path().app_data_dir()
         .map_err(|e| crate::error::AppError::Technisch(e.to_string()))?
         .join("Belege");
-    std::fs::create_dir_all(&verzeichnis)
-        .map_err(|e| crate::error::AppError::Technisch(e.to_string()))?;
-    std::fs::write(verzeichnis.join(dateiname), bytes)
-        .map_err(|e| crate::error::AppError::Technisch(e.to_string()))?;
-    Ok(())
+    ablegen(&verzeichnis, dateiname, bytes)
 }
 
 async fn firma_logo(pool: &SqlitePool) -> AppResult<Option<Vec<u8>>> {
@@ -88,5 +103,26 @@ mod tests {
     fn dateiname_sicher_ersetzt_schraegstriche() {
         assert_eq!(dateiname_sicher("RE-2026/0001"), "RE-2026-0001");
         assert_eq!(dateiname_sicher("RE-2026-0001"), "RE-2026-0001");
+    }
+
+    /// GoBD-Unveränderbarkeit: Wird eine Rechnung nach einer Stammdatenänderung
+    /// erneut exportiert, darf die archivierte Fassung nicht durch ein
+    /// inhaltlich anderes Dokument ersetzt werden.
+    #[test]
+    fn ablegen_ueberschreibt_eine_vorhandene_datei_nicht() {
+        let dir = tempfile::tempdir().unwrap();
+        ablegen(dir.path(), "RE-2026-0001.pdf", b"urspruengliche fassung").unwrap();
+        ablegen(dir.path(), "RE-2026-0001.pdf", b"spaeter geaenderte fassung").unwrap();
+
+        let inhalt = std::fs::read(dir.path().join("RE-2026-0001.pdf")).unwrap();
+        assert_eq!(inhalt, b"urspruengliche fassung");
+    }
+
+    #[test]
+    fn ablegen_legt_verzeichnis_an_und_schreibt_neue_dateien() {
+        let dir = tempfile::tempdir().unwrap();
+        let unterordner = dir.path().join("Belege");
+        ablegen(&unterordner, "RE-2026-0002.pdf", b"inhalt").unwrap();
+        assert_eq!(std::fs::read(unterordner.join("RE-2026-0002.pdf")).unwrap(), b"inhalt");
     }
 }

@@ -73,6 +73,30 @@ fn kundenfelder_aus_live_daten(kunde_detail: &crate::commands::kunden::KundeDeta
     }
 }
 
+/// Baut die Firmendaten aus dem eingefrorenen Snapshot. Fehlt dort ein Feld
+/// (sehr alte Belege), bleibt es leer statt auf Live-Daten zurückzufallen —
+/// ein gemischtes Dokument aus alten und neuen Stammdaten wäre schlechter
+/// nachvollziehbar als ein erkennbar unvollständiges.
+fn firma_aus_snapshot(snapshot: &serde_json::Value, vorlage: &crate::commands::firma::Firma) -> crate::commands::firma::Firma {
+    let f = &snapshot["firma"];
+    crate::commands::firma::Firma {
+        // id und eingerichtet sind reine Verwaltungsfelder ohne Belegbezug und
+        // stehen nicht im Snapshot.
+        id: vorlage.id.clone(),
+        eingerichtet: vorlage.eingerichtet,
+        name: feld_str(f, "name"),
+        strasse: feld_str(f, "strasse"),
+        plz: feld_str(f, "plz"),
+        ort: feld_str(f, "ort"),
+        land: feld_str(f, "land"),
+        steuernummer: feld_str(f, "steuernummer"),
+        ust_idnr: feld_str(f, "ust_idnr"),
+        iban: feld_str(f, "iban"),
+        bic: feld_str(f, "bic"),
+        kleinunternehmer: f.get("kleinunternehmer").and_then(|v| v.as_bool()).unwrap_or(vorlage.kleinunternehmer),
+    }
+}
+
 pub async fn kontext_aus_beleg(pool: &SqlitePool, beleg_id: String) -> AppResult<BelegKontext> {
     let detail = crate::commands::belege::get(pool, beleg_id.clone()).await?;
     if detail.beleg.status == "entwurf" {
@@ -81,11 +105,21 @@ pub async fn kontext_aus_beleg(pool: &SqlitePool, beleg_id: String) -> AppResult
             meldung: "Nur gestellte Belege können exportiert werden".into(),
         });
     }
-    let firma = crate::commands::firma::get(pool).await?;
+    let firma_live = crate::commands::firma::get(pool).await?;
     let snapshot_roh: (String,) = sqlx::query_as("SELECT kunde_snapshot FROM beleg WHERE id = ?")
         .bind(&beleg_id).fetch_one(pool).await?;
     let snapshot: serde_json::Value = serde_json::from_str(&snapshot_roh.0).unwrap_or(serde_json::Value::Null);
     let snapshot_hat_erweiterte_felder = snapshot.get("kunde").and_then(|k| k.get("email")).is_some();
+
+    // Die Firmendaten müssen aus dem Snapshot kommen, den das Stellen eingefroren
+    // hat. Aus der Datenbank gelesen würde ein späterer Umzug oder eine neue
+    // Bankverbindung rückwirkend jede alte Rechnung verändern — die Rechnung
+    // ließe sich dann nicht mehr so reproduzieren, wie sie versendet wurde.
+    let firma = if snapshot.get("firma").is_some() {
+        firma_aus_snapshot(&snapshot, &firma_live)
+    } else {
+        firma_live
+    };
 
     let kf = if snapshot_hat_erweiterte_felder {
         kundenfelder_aus_snapshot(&snapshot)
@@ -114,11 +148,41 @@ mod tests {
         (dir, p)
     }
 
+    /// GoBD-Nachvollziehbarkeit: Eine gestellte Rechnung muss sich später
+    /// unverändert reproduzieren lassen. Kämen die Firmendaten live aus der
+    /// Datenbank, würde ein Umzug oder eine neue Bankverbindung rückwirkend
+    /// jede alte Rechnung verändern.
+    #[tokio::test]
+    async fn spaetere_firmenaenderung_veraendert_gestellte_rechnung_nicht() {
+        let (_dir, pool) = test_pool().await;
+        let beleg_id = setup_gestellte_rechnung(&pool).await;
+        let vorher = kontext_aus_beleg(&pool, beleg_id.clone()).await.unwrap();
+
+        let mut firma = crate::commands::firma::get(&pool).await.unwrap();
+        firma.name = "Umbenannte Firma".into();
+        firma.strasse = "Neue Strasse 99".into();
+        firma.iban = "DE99999999999999999999".into();
+        // pruefe_firma verlangt eine Steuernummer; die Seed-Firma hat noch keine.
+        firma.steuernummer = "99/999/99999".into();
+        crate::commands::firma::save(&pool, firma).await.unwrap();
+
+        let nachher = kontext_aus_beleg(&pool, beleg_id).await.unwrap();
+        assert_eq!(nachher.firma.name, vorher.firma.name, "Firmenname der alten Rechnung hat sich geändert");
+        assert_eq!(nachher.firma.strasse, vorher.firma.strasse, "Anschrift der alten Rechnung hat sich geändert");
+        assert_eq!(nachher.firma.iban, vorher.firma.iban, "IBAN der alten Rechnung hat sich geändert");
+    }
+
     async fn setup_gestellte_rechnung(pool: &sqlx::SqlitePool) -> String {
         let kunde = crate::commands::kunden::create(pool, crate::commands::kunden::KundeNeu {
             typ: "firma".into(), name: "ACME GmbH".into(), zahlungsziel_tage: 14,
             notizen: "".into(), ust_idnr: "".into(), email: "acme@example.com".into(),
             leitweg_id: "".into(), kaeuferreferenz: "".into(),
+        }).await.unwrap();
+        // Seit P2.4 verlangt `stellen` eine Standard-Rechnungsadresse (§ 14 UStG).
+        crate::commands::kunden::adresse_speichern(pool, crate::commands::kunden::Adresse {
+            id: "".into(), kunde_id: kunde.id.clone(), typ: "rechnung".into(),
+            strasse: "Kundenweg 5".into(), plz: "10117".into(), ort: "Berlin".into(),
+            land: "DE".into(), ist_standard: true,
         }).await.unwrap();
         let artikel = crate::commands::artikel::create(pool, crate::commands::artikel::ArtikelNeu {
             bezeichnung: "Beratung".into(), beschreibung: "".into(),

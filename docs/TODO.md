@@ -70,13 +70,18 @@ Ohne diese Punkte erzeugt die App formell fehlerhafte Rechnungen.
   Wird im Editor gepflegt, aus Textbausteinen vorbelegt und dann nie gedruckt. Aus Nutzersicht Datenverlust.
   → `src-tauri/src/dokument/pdf.rs:100-119`
 
-- [ ] **P2.4 — Rechnungsadresse beim Stellen erzwingen** `[B23]`
+- [x] **P2.4 — Rechnungsadresse beim Stellen erzwingen** `[B23]` ✅ 2026-08-02
   Fehlt sie, wird `"adresse": null` eingefroren und der Beleg ist unveränderbar gestellt. § 14 UStG verlangt die vollständige Anschrift.
   → `src-tauri/src/commands/belege.rs:340-353`
+  Gilt nur für Rechnungen: Angebote unterliegen § 14 nicht und gehen oft an Interessenten,
+  deren Anschrift noch nicht erfasst ist — dort wäre die Sperre Reibung ohne Grund.
 
-- [ ] **P2.5 — Archiv unveränderbar machen** `[A8]`
+- [x] **P2.5 — Archiv unveränderbar machen** `[A8]` ✅ 2026-08-02
   `std::fs::write` überschreibt still; zusätzlich kommen Firmendaten live aus der DB statt aus dem Snapshot → Re-Export nach Stammdatenänderung ersetzt die archivierte Rechnung durch eine inhaltlich andere.
   → `src-tauri/src/dokument/export.rs:16`, `src-tauri/src/dokument/kontext.rs:84`
+  Gelöst: `ablegen` überschreibt eine vorhandene Archivdatei nicht mehr (die Nutzerkopie
+  über den Speichern-Dialog ist davon unberührt), und die Firmendaten kommen aus dem
+  beim Stellen eingefrorenen Snapshot.
 
 - [ ] **P2.6 — XRechnung schemavalide machen** `[A6]`
   Aktuell würde ein KoSIT-Validator die Datei ablehnen. Zu ergänzen bzw. zu korrigieren:
