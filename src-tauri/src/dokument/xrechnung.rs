@@ -373,6 +373,7 @@ pub(crate) mod tests {
                 kopftext: "".into(), fusstext: "".into(), summe_cent,
                 ursprungsangebot_id: None, storno_von_id: storno_von.map(String::from),
                 kunde_snapshot: String::new(), kunde_snapshot_name: None,
+                bezahlt_cent: 0, zahlungsstand: None, faellig_am: None,
             },
             positionen: vec![Belegposition {
                 id: "p1".into(), beleg_id: "b1".into(), artikel_id: None,

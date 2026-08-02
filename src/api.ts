@@ -108,7 +108,18 @@ export interface Beleg {
   ursprungsangebot_id: string | null;
   storno_von_id: string | null;
   kunde_snapshot_name?: string | null;
+  /** Summe der erfassten Zahlungen; nur in Listen befüllt. */
+  bezahlt_cent?: number;
+  /**
+   * Aus Summe und Zahlungen abgeleitet — nicht gespeichert, damit Status und
+   * Zahlungen nicht auseinanderlaufen können. Null bei Angeboten und Entwürfen.
+   */
+  zahlungsstand?: Zahlungsstand | null;
+  /** Belegdatum plus Zahlungsziel. Null bei Angeboten und Entwürfen. */
+  faellig_am?: string | null;
 }
+
+export type Zahlungsstand = "offen" | "teilbezahlt" | "bezahlt" | "ueberzahlt";
 export type BelegNeu = Pick<
   Beleg,
   "typ" | "kunde_id" | "datum" | "leistungsdatum" | "zahlungsziel_tage" | "kopftext" | "fusstext"

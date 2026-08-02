@@ -21,6 +21,8 @@ vi.mock("../api", () => ({
         einzelpreis_cent: 0, menge: 1000, positionssumme_cent: 0, reihenfolge: 0,
       }),
       positionDelete: vi.fn().mockResolvedValue(undefined),
+      delete: vi.fn().mockResolvedValue(undefined),
+      zahlungDelete: vi.fn().mockResolvedValue(undefined),
       update: vi.fn().mockResolvedValue({
         id: "b1", typ: "angebot", nummer: null, status: "entwurf", kunde_id: "k1",
         datum: "2026-07-10", leistungsdatum: "2026-07-10", zahlungsziel_tage: 14,
@@ -529,6 +531,50 @@ describe("BelegEditor – Erfolgs-Hinweis", () => {
 
   // Ohne Dialog davor: hier schützt nur die Sperre am Knopf. Eine doppelt
   // erfasste Zahlung ließe sich mangels Lösch-Funktion nicht mehr korrigieren.
+  /// Ein versehentlich angelegter Entwurf blieb bislang für immer stehen und
+  /// blockierte zusätzlich das Löschen seines Kunden.
+  it("löscht einen Entwurf nach Rückfrage und meldet es der Seite", async () => {
+    const onGeloescht = vi.fn();
+    vi.mocked(api.belege.get).mockResolvedValue(rechnungGestellt({ status: "entwurf", nummer: null }));
+    render(<BelegEditor id="b1" onGeloescht={onGeloescht} />);
+    fireEvent.click(await screen.findByRole("button", { name: "Entwurf löschen" }));
+    fireEvent.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "Löschen" }));
+    await waitFor(() => expect(api.belege.delete).toHaveBeenCalledWith("b1"));
+    expect(onGeloescht).toHaveBeenCalled();
+  });
+
+  it("löscht keinen Entwurf, wenn die Rückfrage abgebrochen wird", async () => {
+    vi.mocked(api.belege.get).mockResolvedValue(rechnungGestellt({ status: "entwurf", nummer: null }));
+    render(<BelegEditor id="b1" />);
+    fireEvent.click(await screen.findByRole("button", { name: "Entwurf löschen" }));
+    fireEvent.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "Abbrechen" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(api.belege.delete).not.toHaveBeenCalled();
+  });
+
+  /// Gestellte Belege sind unveränderbar — dort darf kein Löschknopf stehen.
+  it("bietet für eine gestellte Rechnung kein Löschen an", async () => {
+    vi.mocked(api.belege.get).mockResolvedValue(rechnungGestellt());
+    render(<BelegEditor id="b1" />);
+    await waitFor(() => expect(screen.getByText(/R-2026-0001/)).toBeTruthy());
+    expect(screen.queryByRole("button", { name: "Entwurf löschen" })).toBeNull();
+  });
+
+  /// Eine vertippte Zahlung war bislang nur über eine gegenläufige Erstattung
+  /// zu heilen — die den Zahlungsverlauf dauerhaft verfälscht.
+  it("löscht eine Zahlung nach Rückfrage", async () => {
+    vi.mocked(api.belege.get).mockResolvedValue({
+      ...rechnungGestellt(),
+      zahlungen: [{ id: "z1", rechnung_id: "b1", datum: "2026-07-20", betrag_cent: 5000, notiz: "" }],
+    });
+    render(<BelegEditor id="b1" />);
+    fireEvent.click(await screen.findByRole("button", { name: "Löschen" }));
+    const dialog = await screen.findByRole("dialog");
+    expect(dialog).toHaveTextContent("50,00 €");
+    fireEvent.click(within(dialog).getByRole("button", { name: "Löschen" }));
+    await waitFor(() => expect(api.belege.zahlungDelete).toHaveBeenCalledWith("z1"));
+  });
+
   it("erfasst bei Doppelklick nur eine Zahlung", async () => {
     vi.mocked(api.belege.get).mockResolvedValue(rechnungGestellt());
     render(<BelegEditor id="b1" />);

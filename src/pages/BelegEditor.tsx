@@ -20,6 +20,8 @@ interface BelegEditorProps {
   id: string;
   onGeaendert?: () => void;
   onRechnungErstellt?: (rechnungId: string) => void;
+  /** Wird nach dem Löschen eines Entwurfs gerufen, damit die Seite zurückgeht. */
+  onGeloescht?: () => void;
 }
 
 const ANGEBOT_ABSCHLUSS_STATUS = [
@@ -43,7 +45,7 @@ const BELEGEDITOR_STATUS_KLASSE: Record<string, string> = {
  * Status-Workflow (Entwurf → gestellt) und Positions-Verwaltung, daher eine
  * gemeinsame Komponente statt zweier Kopien.
  */
-export function BelegEditor({ id, onGeaendert, onRechnungErstellt }: BelegEditorProps) {
+export function BelegEditor({ id, onGeaendert, onRechnungErstellt, onGeloescht }: BelegEditorProps) {
   const [detail, setDetail] = useState<BelegDetail | null>(null);
   const [kunden, setKunden] = useState<Kunde[]>([]);
   const [artikelListe, setArtikelListe] = useState<Artikel[]>([]);
@@ -170,6 +172,22 @@ export function BelegEditor({ id, onGeaendert, onRechnungErstellt }: BelegEditor
     }
   }
 
+  async function entwurfLoeschen() {
+    const was = beleg.typ === "angebot" ? "Angebot" : "Rechnung";
+    if (!(await bestaetigen(`${was}sentwurf endgültig löschen?`, "Löschen"))) return;
+    setFehler(null);
+    setLaeuft(true);
+    try {
+      await api.belege.delete(beleg.id);
+      onGeaendert?.();
+      onGeloescht?.();
+    } catch (e) {
+      setFehler(e as AppFehler);
+    } finally {
+      setLaeuft(false);
+    }
+  }
+
   async function positionLoeschen(positionId: string) {
     setFehler(null);
     try {
@@ -280,6 +298,13 @@ export function BelegEditor({ id, onGeaendert, onRechnungErstellt }: BelegEditor
           onClick={stellen}
         >
           Stellen
+        </button>
+      )}
+      {/* Ohne diese Möglichkeit bleibt ein versehentlich angelegter Entwurf für
+          immer stehen — und blockiert zusätzlich das Löschen seines Kunden. */}
+      {istEntwurf && (
+        <button type="button" className="btn btn-gefahr" disabled={laeuft} onClick={entwurfLoeschen}>
+          Entwurf löschen
         </button>
       )}
 
@@ -588,10 +613,23 @@ function ZahlungenAbschnitt({ rechnungId, zahlungen, offenerBetragCent, onGeaend
   const [erstattung, setErstattung] = useState(false);
   const [notiz, setNotiz] = useState("");
   const [fehler, setFehler] = useState<AppFehler | null>(null);
-  // Eine doppelt erfasste Zahlung ließe sich derzeit nicht wieder löschen
-  // (siehe P3.5), deshalb muss der Doppelklick hier zuverlässig ins Leere laufen.
+  // Ohne Sperre legt ein Doppelklick zwei Zahlungen an.
   const [laeuft, setLaeuft] = useState(false);
   const { zeigen, hinweis } = useErfolgsHinweis();
+  const { bestaetigen, dialog } = useBestaetigung();
+
+  async function zahlungLoeschen(zahlungId: string, betragCent: number) {
+    const frage = `Zahlung über ${formatCent(betragCent)} löschen? Der offene Betrag der Rechnung erhöht sich entsprechend.`;
+    if (!(await bestaetigen(frage, "Löschen"))) return;
+    setFehler(null);
+    try {
+      await api.belege.zahlungDelete(zahlungId);
+      onGeaendert();
+      zeigen("Zahlung gelöscht");
+    } catch (e) {
+      setFehler(e as AppFehler);
+    }
+  }
 
   async function erfassen() {
     if (laeuft) return;
@@ -625,6 +663,7 @@ function ZahlungenAbschnitt({ rechnungId, zahlungen, offenerBetragCent, onGeaend
       <h2>Zahlungen</h2>
       {fehler && <Fehler fehler={fehler} />}
       {hinweis}
+      {dialog}
       <p>Offener Betrag: {formatCent(offenerBetragCent)}</p>
       <table className="tabelle">
         <thead>
@@ -632,6 +671,7 @@ function ZahlungenAbschnitt({ rechnungId, zahlungen, offenerBetragCent, onGeaend
             <th>Datum</th>
             <th>Betrag</th>
             <th>Notiz</th>
+            <th />
           </tr>
         </thead>
         <tbody>
@@ -640,6 +680,18 @@ function ZahlungenAbschnitt({ rechnungId, zahlungen, offenerBetragCent, onGeaend
               <td>{z.datum}</td>
               <td>{formatCent(z.betrag_cent)}</td>
               <td>{z.notiz}</td>
+              <td>
+                {/* Ohne diese Möglichkeit wäre eine vertippte Zahlung nur über
+                    eine gegenläufige Erstattung zu heilen — die den
+                    Zahlungsverlauf dauerhaft verfälscht. */}
+                <button
+                  type="button"
+                  className="btn btn-leise"
+                  onClick={() => zahlungLoeschen(z.id, z.betrag_cent)}
+                >
+                  Löschen
+                </button>
+              </td>
             </tr>
           ))}
         </tbody>

@@ -33,6 +33,23 @@ pub struct Beleg {
     #[sqlx(default)]
     #[serde(default)]
     pub kunde_snapshot_name: Option<String>,
+    /// Summe der erfassten Zahlungen. Wird von `list` mitgeladen und von
+    /// `mit_zahlungsstand` in `zahlungsstand` übersetzt; bei Angeboten ohne
+    /// Bedeutung.
+    #[sqlx(default)]
+    #[serde(default)]
+    pub bezahlt_cent: i64,
+    /// Aus Summe und Zahlungen abgeleitet — nicht gespeichert, damit Status und
+    /// Zahlungen nicht auseinanderlaufen können. `skip` statt `default`, weil es
+    /// keine Datenbankspalte gibt, aus der sich der Wert lesen ließe.
+    #[sqlx(skip)]
+    #[serde(default)]
+    pub zahlungsstand: Option<crate::domain::beleg::Zahlungsstand>,
+    /// Belegdatum plus Zahlungsziel. Im Datenmodell steht nur die Frist in Tagen;
+    /// für Listen und Mahnungen ist das Datum die brauchbarere Angabe.
+    #[sqlx(skip)]
+    #[serde(default)]
+    pub faellig_am: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -146,6 +163,7 @@ pub async fn create(pool: &SqlitePool, d: BelegNeu) -> AppResult<Beleg> {
         zahlungsziel_tage: d.zahlungsziel_tage, kopftext: d.kopftext, fusstext: d.fusstext,
         summe_cent: 0, ursprungsangebot_id: None, storno_von_id: None,
         kunde_snapshot: String::new(), kunde_snapshot_name: None,
+                bezahlt_cent: 0, zahlungsstand: None, faellig_am: None,
     };
     sqlx::query("INSERT INTO beleg (id, typ, nummer, status, kunde_id, datum, leistungsdatum, zahlungsziel_tage, kopftext, fusstext, summe_cent, ursprungsangebot_id, storno_von_id, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
         .bind(&beleg.id).bind(&beleg.typ).bind(&beleg.nummer).bind(&beleg.status).bind(&beleg.kunde_id)
@@ -157,16 +175,26 @@ pub async fn create(pool: &SqlitePool, d: BelegNeu) -> AppResult<Beleg> {
 }
 
 pub async fn list(pool: &SqlitePool, typ: Option<String>, status: Option<String>) -> AppResult<Vec<Beleg>> {
+    // Die Zahlungssumme kommt als Unterabfrage mit, damit die Liste den
+    // Zahlungsstand ohne eine Abfrage je Zeile anzeigen kann.
+    let spalten: String = BELEG_SPALTEN
+        .split(", ")
+        .map(|s| format!("b.{s}"))
+        .collect::<Vec<_>>()
+        .join(", ");
     let sql = format!(
-        "SELECT {BELEG_SPALTEN} FROM beleg WHERE deleted_at IS NULL \
-         AND (? IS NULL OR typ = ?) AND (? IS NULL OR status = ?) \
-         ORDER BY datum DESC, created_at DESC"
+        "SELECT {spalten}, \
+           COALESCE((SELECT SUM(z.betrag_cent) FROM zahlung z \
+                     WHERE z.rechnung_id = b.id AND z.deleted_at IS NULL), 0) AS bezahlt_cent \
+         FROM beleg b WHERE b.deleted_at IS NULL \
+         AND (? IS NULL OR b.typ = ?) AND (? IS NULL OR b.status = ?) \
+         ORDER BY b.datum DESC, b.created_at DESC"
     );
     let belege: Vec<Beleg> = sqlx::query_as(&sql)
         .bind(typ.clone()).bind(typ)
         .bind(status.clone()).bind(status)
         .fetch_all(pool).await?;
-    Ok(belege.into_iter().map(mit_snapshot_name).collect())
+    Ok(belege.into_iter().map(mit_snapshot_name).map(mit_zahlungsstand).collect())
 }
 
 pub async fn get(pool: &SqlitePool, id: String) -> AppResult<BelegDetail> {
@@ -197,7 +225,15 @@ pub async fn update(pool: &SqlitePool, d: BelegUpdate) -> AppResult<Beleg> {
 pub async fn delete(pool: &SqlitePool, id: String) -> AppResult<()> {
     let beleg = lade_beleg(pool, &id).await?;
     pruefe_ist_entwurf(&beleg)?;
-    sqlx::query("UPDATE beleg SET deleted_at = ? WHERE id = ?").bind(jetzt()).bind(&id).execute(pool).await?;
+    // Positionen mit soft-löschen. Blieben sie zurück, hinge an einem gelöschten
+    // Beleg weiterhin sichtbarer Inhalt — dieselbe Klasse von Karteileichen, die
+    // Migration 0005 für Kundenpreise nachträglich aufräumen musste.
+    let mut tx = pool.begin().await?;
+    sqlx::query("UPDATE belegposition SET deleted_at = ? WHERE beleg_id = ? AND deleted_at IS NULL")
+        .bind(jetzt()).bind(&id).execute(&mut *tx).await?;
+    sqlx::query("UPDATE beleg SET deleted_at = ? WHERE id = ?")
+        .bind(jetzt()).bind(&id).execute(&mut *tx).await?;
+    tx.commit().await?;
     Ok(())
 }
 
@@ -338,6 +374,24 @@ pub(crate) fn mit_snapshot_name(mut beleg: Beleg) -> Beleg {
     beleg
 }
 
+/// Ergänzt die abgeleiteten Felder Zahlungsstand und Fälligkeit.
+///
+/// Nur für Rechnungen: Ein Angebot kennt weder Zahlungen noch eine Fälligkeit,
+/// dort blieben die Felder sonst mit sinnlosen Werten belegt.
+fn mit_zahlungsstand(mut beleg: Beleg) -> Beleg {
+    if beleg.typ == "rechnung" && beleg.status != "entwurf" {
+        beleg.zahlungsstand = Some(crate::domain::beleg::zahlungsstand(
+            beleg.summe_cent,
+            beleg.bezahlt_cent,
+        ));
+        beleg.faellig_am = chrono::NaiveDate::parse_from_str(&beleg.datum, "%Y-%m-%d")
+            .ok()
+            .and_then(|d| d.checked_add_signed(chrono::Duration::days(beleg.zahlungsziel_tage)))
+            .map(|d| d.to_string());
+    }
+    beleg
+}
+
 pub async fn stellen(pool: &SqlitePool, id: String) -> AppResult<Beleg> {
     let beleg = lade_beleg(pool, &id).await?;
     pruefe_ist_entwurf(&beleg)?;
@@ -420,6 +474,7 @@ pub async fn angebot_ueberfuehren(pool: &SqlitePool, angebot_id: String) -> AppR
         zahlungsziel_tage: angebot.zahlungsziel_tage, kopftext: angebot.kopftext.clone(), fusstext: angebot.fusstext.clone(),
         summe_cent: angebot.summe_cent, ursprungsangebot_id: Some(angebot.id.clone()), storno_von_id: None,
         kunde_snapshot: String::new(), kunde_snapshot_name: None,
+                bezahlt_cent: 0, zahlungsstand: None, faellig_am: None,
     };
 
     // Transaktion: das Beleg-INSERT und die Positions-INSERTs müssen atomar sein,
@@ -502,6 +557,7 @@ pub async fn storniere_rechnung(pool: &SqlitePool, id: String) -> AppResult<Bele
         fusstext: format!("Stornierung zu Rechnung {}", rechnung.nummer.clone().unwrap_or_default()),
         summe_cent: -rechnung.summe_cent, ursprungsangebot_id: None, storno_von_id: Some(rechnung.id.clone()),
         kunde_snapshot: snapshot.0.clone(), kunde_snapshot_name: kunde_snapshot_name(&snapshot.0),
+        bezahlt_cent: 0, zahlungsstand: None, faellig_am: None,
     };
 
     // Transaktion: das Storno-Beleg-INSERT, die negierten Positions-INSERTs und das
@@ -1209,6 +1265,103 @@ mod tests {
 
         let storno_detail = get(&pool, storno.id).await.unwrap();
         assert_eq!(storno_detail.positionen[0].positionssumme_cent, -5000);
+    }
+
+    /// Ein gelöschter Entwurf darf keine sichtbaren Positionen zurücklassen.
+    #[tokio::test]
+    async fn beleg_loeschen_entfernt_auch_die_positionen() {
+        let (_dir, pool) = test_pool().await;
+        let kunde_id = kunde_anlegen(&pool).await;
+        let artikel_id = artikel_anlegen(&pool, 5_000).await;
+        let beleg = create(&pool, beleg_neu("rechnung", &kunde_id)).await.unwrap();
+        position_speichern(&pool, BelegpositionNeu {
+            id: "".into(), beleg_id: beleg.id.clone(), artikel_id: Some(artikel_id),
+            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000,
+        }).await.unwrap();
+
+        delete(&pool, beleg.id.clone()).await.unwrap();
+
+        let uebrig: (i64,) = sqlx::query_as(
+            "SELECT COUNT(*) FROM belegposition WHERE beleg_id = ? AND deleted_at IS NULL")
+            .bind(&beleg.id).fetch_one(&pool).await.unwrap();
+        assert_eq!(uebrig.0, 0, "Positionen blieben als Karteileichen zurück");
+    }
+
+    /// Eine vertippte Zahlung muss sich zurücknehmen lassen — sonst bleibt nur
+    /// eine gegenläufige Erstattung, die den Zahlungsverlauf verfälscht.
+    #[tokio::test]
+    async fn zahlung_loeschen_stellt_den_offenen_betrag_wieder_her() {
+        let (_dir, pool) = test_pool().await;
+        let kunde_id = kunde_anlegen(&pool).await;
+        let artikel_id = artikel_anlegen(&pool, 10_000).await;
+        let rechnung = create(&pool, beleg_neu("rechnung", &kunde_id)).await.unwrap();
+        position_speichern(&pool, BelegpositionNeu {
+            id: "".into(), beleg_id: rechnung.id.clone(), artikel_id: Some(artikel_id),
+            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000,
+        }).await.unwrap();
+        let gestellt = stellen(&pool, rechnung.id).await.unwrap();
+        let zahlung = erfasse_zahlung(&pool, ZahlungNeu {
+            rechnung_id: gestellt.id.clone(), datum: "2026-07-20".into(),
+            betrag_cent: 10_000, notiz: "vertippt".into(),
+        }).await.unwrap();
+        assert_eq!(get(&pool, gestellt.id.clone()).await.unwrap().offener_betrag_cent, 0);
+
+        zahlung_loeschen(&pool, zahlung.id).await.unwrap();
+
+        let detail = get(&pool, gestellt.id).await.unwrap();
+        assert_eq!(detail.offener_betrag_cent, 10_000);
+        assert!(detail.zahlungen.is_empty(), "gelöschte Zahlung darf nicht mehr erscheinen");
+    }
+
+    /// Die Liste muss den Zahlungsstand ohne eine Abfrage je Zeile liefern —
+    /// und er muss aus den Zahlungen abgeleitet sein, nicht gespeichert, damit
+    /// er nicht mit ihnen auseinanderlaufen kann.
+    #[tokio::test]
+    async fn liste_leitet_zahlungsstand_und_faelligkeit_ab() {
+        let (_dir, pool) = test_pool().await;
+        let kunde_id = kunde_anlegen(&pool).await;
+        let artikel_id = artikel_anlegen(&pool, 10_000).await;
+        let rechnung = create(&pool, beleg_neu("rechnung", &kunde_id)).await.unwrap();
+        position_speichern(&pool, BelegpositionNeu {
+            id: "".into(), beleg_id: rechnung.id.clone(), artikel_id: Some(artikel_id),
+            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000,
+        }).await.unwrap();
+        let gestellt = stellen(&pool, rechnung.id).await.unwrap();
+
+        let offen = &list(&pool, Some("rechnung".into()), None).await.unwrap()[0];
+        assert_eq!(offen.zahlungsstand, Some(crate::domain::beleg::Zahlungsstand::Offen));
+        // Belegdatum 2026-07-10 plus 14 Tage Zahlungsziel.
+        assert_eq!(offen.faellig_am.as_deref(), Some("2026-07-24"));
+
+        erfasse_zahlung(&pool, ZahlungNeu {
+            rechnung_id: gestellt.id.clone(), datum: "2026-07-20".into(),
+            betrag_cent: 4_000, notiz: "".into(),
+        }).await.unwrap();
+        let teil = &list(&pool, Some("rechnung".into()), None).await.unwrap()[0];
+        assert_eq!(teil.zahlungsstand, Some(crate::domain::beleg::Zahlungsstand::Teilbezahlt));
+        assert_eq!(teil.bezahlt_cent, 4_000);
+
+        erfasse_zahlung(&pool, ZahlungNeu {
+            rechnung_id: gestellt.id, datum: "2026-07-22".into(),
+            betrag_cent: 6_000, notiz: "".into(),
+        }).await.unwrap();
+        let bezahlt = &list(&pool, Some("rechnung".into()), None).await.unwrap()[0];
+        assert_eq!(bezahlt.zahlungsstand, Some(crate::domain::beleg::Zahlungsstand::Bezahlt));
+    }
+
+    /// Ein Entwurf hat weder Zahlungen noch eine Fälligkeit — dort wären die
+    /// Felder mit Werten belegt, die nichts bedeuten.
+    #[tokio::test]
+    async fn entwuerfe_und_angebote_tragen_keinen_zahlungsstand() {
+        let (_dir, pool) = test_pool().await;
+        let kunde_id = kunde_anlegen(&pool).await;
+        create(&pool, beleg_neu("rechnung", &kunde_id)).await.unwrap();
+        create(&pool, beleg_neu("angebot", &kunde_id)).await.unwrap();
+
+        for beleg in list(&pool, None, None).await.unwrap() {
+            assert_eq!(beleg.zahlungsstand, None, "Beleg {} sollte keinen Stand tragen", beleg.typ);
+            assert_eq!(beleg.faellig_am, None);
+        }
     }
 
     /// § 14 Abs. 4 Nr. 1 UStG verlangt die vollständige Anschrift des

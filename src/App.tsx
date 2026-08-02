@@ -113,6 +113,7 @@ function App() {
       {seite === "angebote" &&
         (ausgewaehltesAngebot ? (
           <BelegEditor
+            onGeloescht={() => setAusgewaehltesAngebot(null)}
             id={ausgewaehltesAngebot}
             onRechnungErstellt={(rechnungId) => {
               setSeite("rechnungen");
@@ -125,7 +126,10 @@ function App() {
         ))}
       {seite === "rechnungen" &&
         (ausgewaehlteRechnung ? (
-          <BelegEditor id={ausgewaehlteRechnung} />
+          <BelegEditor
+            id={ausgewaehlteRechnung}
+            onGeloescht={() => setAusgewaehlteRechnung(null)}
+          />
         ) : (
           <Rechnungen onOeffnen={setAusgewaehlteRechnung} />
         ))}

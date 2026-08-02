@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { api, type AppFehler, type Beleg, type Kunde } from "../api";
+import { api, type AppFehler, type Beleg, type Kunde, type Zahlungsstand } from "../api";
 import { Fehler } from "../components/Fehler";
 import { formatCent } from "../geld";
 
@@ -18,6 +18,38 @@ const STATUS_KLASSE: Record<string, string> = {
   gestellt: "status-gestellt",
   storniert: "status-storniert",
 };
+
+const ZAHLUNGSSTAND_LABEL: Record<Zahlungsstand, string> = {
+  offen: "Offen",
+  teilbezahlt: "Teilbezahlt",
+  bezahlt: "Bezahlt",
+  ueberzahlt: "Überzahlt",
+};
+
+const ZAHLUNGSSTAND_KLASSE: Record<Zahlungsstand, string> = {
+  offen: "status-gestellt",
+  teilbezahlt: "status-gestellt",
+  bezahlt: "status-bezahlt",
+  ueberzahlt: "status-storniert",
+};
+
+/** Deutsche Datumsangabe aus einem ISO-Datum; unerwartete Werte bleiben stehen. */
+function datumText(iso: string): string {
+  const teile = iso.split("-");
+  return teile.length === 3 ? `${teile[2]}.${teile[1]}.${teile[0]}` : iso;
+}
+
+/**
+ * Fälligkeit als Text, überfällige Rechnungen als solche gekennzeichnet.
+ * Der Vergleich läuft über die ISO-Schreibweise, die sich lexikografisch
+ * sortieren lässt — eine Zeitzonenumrechnung wäre hier nur Fehlerquelle.
+ */
+function faelligkeit(faellig_am: string | null | undefined, stand: Zahlungsstand | null | undefined) {
+  if (!faellig_am) return { text: "—", ueberfaellig: false };
+  const heute = new Date().toISOString().slice(0, 10);
+  const offen = stand === "offen" || stand === "teilbezahlt";
+  return { text: datumText(faellig_am), ueberfaellig: offen && faellig_am < heute };
+}
 
 export function Rechnungen({ onOeffnen }: RechnungenProps) {
   const [rechnungen, setRechnungen] = useState<Beleg[]>([]);
@@ -93,7 +125,10 @@ export function Rechnungen({ onOeffnen }: RechnungenProps) {
             <th>Kunde</th>
             <th>Datum</th>
             <th>Status</th>
+            <th>Zahlung</th>
+            <th>Fällig</th>
             <th>Summe</th>
+            <th>Offen</th>
           </tr>
         </thead>
         <tbody>
@@ -106,8 +141,27 @@ export function Rechnungen({ onOeffnen }: RechnungenProps) {
                 <span className={`status ${STATUS_KLASSE[r.status] ?? "status-entwurf"}`}>
                   {STATUS_LABEL[r.status] ?? r.status}
                 </span>
+                {r.storno_von_id && <span className="marke">Storno</span>}
               </td>
+              <td>
+                {r.zahlungsstand ? (
+                  <span className={`status ${ZAHLUNGSSTAND_KLASSE[r.zahlungsstand]}`}>
+                    {ZAHLUNGSSTAND_LABEL[r.zahlungsstand]}
+                  </span>
+                ) : (
+                  "—"
+                )}
+              </td>
+              {(() => {
+                const f = faelligkeit(r.faellig_am, r.zahlungsstand);
+                return <td className={f.ueberfaellig ? "ueberfaellig" : undefined}>{f.text}</td>;
+              })()}
               <td>{formatCent(r.summe_cent)}</td>
+              <td>
+                {r.zahlungsstand && r.zahlungsstand !== "bezahlt"
+                  ? formatCent(r.summe_cent - (r.bezahlt_cent ?? 0))
+                  : "—"}
+              </td>
             </tr>
           ))}
         </tbody>

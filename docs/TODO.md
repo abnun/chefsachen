@@ -9,7 +9,7 @@ Reihenfolge = Empfehlung. Jeder Punkt trägt die Referenz aus dem Review.
 |---|---|
 | 1 — Kaputte Grundfunktionen | ✅ 8/8 |
 | 2 — Rechtliche Korrektheit | ✅ 8/8, P2.9 teilweise |
-| 3 — Fehlende Kernfunktionen | ⬜ 1/11 |
+| 3 — Fehlende Kernfunktionen | ⬜ 6/11 |
 | 4 — Robustheit | ⬜ 0/13 |
 | 5 — Produktreife | ⬜ 0/7, P5.2 angefangen |
 | 6 — UX und Code-Qualität | ⬜ 0/11 |
@@ -181,18 +181,21 @@ Ohne diese Punkte ist die App für die Zielgruppe nicht wertvoll.
   **Noch nicht mit eigenen Augen geprüft** — die Seite ist nur durch Tests abgesichert,
   ein Lauf der echten App steht aus.
 
-- [ ] **P3.2 — Bezahlt-/Teilbezahlt-Status** `[A10]`
+- [x] **P3.2 — Bezahlt-/Teilbezahlt-Status** `[A10]` ✅ 2026-08-03
+  Bewusst **abgeleitet** statt als Spalte geführt: Ein gespeicherter Status müsste bei
+  jeder Zahlungserfassung, -korrektur und -löschung mitgezogen werden; jede vergessene
+  Stelle erzeugte eine Rechnung, die als bezahlt gilt, ohne es zu sein.
   Existiert nirgends in der Codebasis; vollständig bezahlte Rechnungen bleiben ewig „gestellt".
   → Statusübergänge im Backend, Statusanzeige in `Rechnungen.tsx`
 
-- [ ] **P3.3 — Offene-Posten-Sicht** `[A10]`
+- [x] **P3.3 — Offene-Posten-Sicht** `[A10]` ✅ 2026-08-03 (Rechnungsliste mit Zahlung, Fälligkeit, offenem Betrag; Übersicht siehe P3.1)
   `api.belege.offenePosten()` ist implementiert und hat 0 Aufrufe. Dazu Fälligkeitsdatum aus `zahlungsziel_tage` berechnen.
 
-- [ ] **P3.4 — Entwürfe löschbar machen** `[A11]`
+- [x] **P3.4 — Entwürfe löschbar machen** `[A11]` ✅ 2026-08-03 (samt B24: Positionen werden mit soft-gelöscht)
   `api.belege.delete` hat 0 Aufrufe. Ein Entwurf mit falschem Kunden bleibt für immer **und** blockiert das Löschen des Kunden → Sackgasse.
   Zusätzlich: `beleg_delete` soft-löscht die Positionen nicht `[B24]`.
 
-- [ ] **P3.5 — Zahlungen löschbar machen** `[A11]`
+- [x] **P3.5 — Zahlungen löschbar machen** `[A11]` ✅ 2026-08-03
   `api.belege.zahlungDelete` hat 0 Aufrufe. Eine vertippte Zahlung ist derzeit irreversibel.
 
 - [ ] **P3.6 — Kunde im Beleg-Editor änderbar** `[A11]`
@@ -202,7 +205,7 @@ Ohne diese Punkte ist die App für die Zielgruppe nicht wertvoll.
   Spec: rotierendes Start-Backup (letzte 10) plus Export/Import in den Einstellungen. Aktuell null Treffer im Code.
   Zusätzlich Pre-Migration-Backup — Migrationen haben derzeit keine Rückfallebene.
 
-- [ ] **P3.8 — Stornobelege in der Liste kennzeichnen** `[B22]`
+- [x] **P3.8 — Stornobelege in der Liste kennzeichnen** `[B22]` ✅ 2026-08-03
   Tragen aktuell Status „Gestellt" → die Liste enthält scheinbar doppelte offene Rechnungen mit negativer Summe.
 
 - [ ] **P3.9 — Reiter „Sonderpreise" beim Kunden umsetzen** `[B20]`
