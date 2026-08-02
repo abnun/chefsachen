@@ -32,6 +32,14 @@ pub struct Beleg {
     /// `kunde_snapshot_name` innerhalb dieser Datei verwendet.
     #[serde(skip_serializing, default)]
     pub kunde_snapshot: String,
+    /// Gewählte abweichende Rechnungsadresse; leer heißt Standardadresse.
+    #[sqlx(default)]
+    #[serde(default)]
+    pub adresse_id: Option<String>,
+    /// Gewählter Ansprechpartner beim Kunden.
+    #[sqlx(default)]
+    #[serde(default)]
+    pub ansprechpartner_id: Option<String>,
     /// Aus `kunde_snapshot` abgeleitet: `None` bei Entwürfen (noch kein
     /// Snapshot geschrieben), sonst der zum Zeitpunkt des Stellens
     /// eingefrorene Kundenname. Wird von `mit_snapshot_name()` befüllt,
@@ -84,6 +92,12 @@ pub struct BelegUpdate {
     pub zahlungsziel_tage: i64,
     pub kopftext: String,
     pub fusstext: String,
+    /// Abweichende Rechnungsadresse. Leer heißt: die Standardadresse des Kunden.
+    #[serde(default)]
+    pub adresse_id: Option<String>,
+    /// Ansprechpartner beim Kunden. Leer heißt: keiner auf dem Beleg.
+    #[serde(default)]
+    pub ansprechpartner_id: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -128,7 +142,7 @@ pub struct Zahlung {
     pub notiz: String,
 }
 
-pub(crate) const BELEG_SPALTEN: &str = "id, typ, nummer, status, kunde_id, datum, leistungsdatum, leistungsdatum_bis, zahlungsziel_tage, kopftext, fusstext, summe_cent, ursprungsangebot_id, storno_von_id, kunde_snapshot";
+pub(crate) const BELEG_SPALTEN: &str = "id, typ, nummer, status, kunde_id, datum, leistungsdatum, leistungsdatum_bis, zahlungsziel_tage, kopftext, fusstext, summe_cent, ursprungsangebot_id, storno_von_id, kunde_snapshot, adresse_id, ansprechpartner_id";
 
 fn pruefe_beleg_neu(
     typ: &str,
@@ -192,7 +206,8 @@ pub async fn create(pool: &SqlitePool, d: BelegNeu) -> AppResult<Beleg> {
         zahlungsziel_tage: d.zahlungsziel_tage, kopftext: d.kopftext, fusstext: d.fusstext,
         summe_cent: 0, ursprungsangebot_id: None, storno_von_id: None,
         kunde_snapshot: String::new(), kunde_snapshot_name: None,
-                bezahlt_cent: 0, zahlungsstand: None, faellig_am: None,
+        adresse_id: None, ansprechpartner_id: None,
+        bezahlt_cent: 0, zahlungsstand: None, faellig_am: None,
     };
     sqlx::query("INSERT INTO beleg (id, typ, nummer, status, kunde_id, datum, leistungsdatum, leistungsdatum_bis, zahlungsziel_tage, kopftext, fusstext, summe_cent, ursprungsangebot_id, storno_von_id, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
         .bind(&beleg.id).bind(&beleg.typ).bind(&beleg.nummer).bind(&beleg.status).bind(&beleg.kunde_id)
@@ -266,11 +281,39 @@ pub async fn update(pool: &SqlitePool, d: BelegUpdate) -> AppResult<Beleg> {
     let beleg = lade_beleg(pool, &d.id).await?;
     pruefe_ist_entwurf(&beleg)?;
     pruefe_beleg_neu(&beleg.typ, &d.datum, &d.leistungsdatum, d.leistungsdatum_bis.as_deref(), d.zahlungsziel_tage)?;
-    sqlx::query("UPDATE beleg SET kunde_id=?, datum=?, leistungsdatum=?, leistungsdatum_bis=?, zahlungsziel_tage=?, kopftext=?, fusstext=?, updated_at=? WHERE id=?")
+    pruefe_gehoert_zum_kunden(pool, "adresse", d.adresse_id.as_deref(), &d.kunde_id).await?;
+    pruefe_gehoert_zum_kunden(pool, "ansprechpartner", d.ansprechpartner_id.as_deref(), &d.kunde_id).await?;
+    sqlx::query("UPDATE beleg SET kunde_id=?, datum=?, leistungsdatum=?, leistungsdatum_bis=?, zahlungsziel_tage=?, kopftext=?, fusstext=?, adresse_id=?, ansprechpartner_id=?, updated_at=? WHERE id=?")
         .bind(&d.kunde_id).bind(&d.datum).bind(&d.leistungsdatum).bind(&d.leistungsdatum_bis).bind(d.zahlungsziel_tage)
-        .bind(&d.kopftext).bind(&d.fusstext).bind(jetzt()).bind(&d.id)
+        .bind(&d.kopftext).bind(&d.fusstext).bind(&d.adresse_id).bind(&d.ansprechpartner_id)
+        .bind(jetzt()).bind(&d.id)
         .execute(pool).await?;
     lade_beleg(pool, &d.id).await
+}
+
+/// Stellt sicher, dass eine gewählte Adresse oder ein Ansprechpartner zum
+/// Kunden des Belegs gehört.
+///
+/// Ohne diese Prüfung ließe sich die Anschrift eines fremden Kunden auf die
+/// Rechnung setzen — ein Fehler, den niemand bemerkt, bis die Post
+/// zurückkommt.
+async fn pruefe_gehoert_zum_kunden(
+    pool: &SqlitePool,
+    tabelle: &str,
+    id: Option<&str>,
+    kunde_id: &str,
+) -> AppResult<()> {
+    let Some(id) = id.filter(|s| !s.is_empty()) else { return Ok(()) };
+    // Der Tabellenname stammt aus dem Aufruf, nicht aus einer Eingabe.
+    let sql = format!("SELECT kunde_id FROM {tabelle} WHERE id = ? AND deleted_at IS NULL");
+    let zeile: Option<(String,)> = sqlx::query_as(&sql).bind(id).fetch_optional(pool).await?;
+    match zeile {
+        Some((gehoert_zu,)) if gehoert_zu == kunde_id => Ok(()),
+        _ => Err(AppError::Validation {
+            feld: format!("{tabelle}_id"),
+            meldung: "Auswahl gehört nicht zu diesem Kunden".into(),
+        }),
+    }
 }
 
 pub async fn delete(pool: &SqlitePool, id: String) -> AppResult<()> {
@@ -436,6 +479,7 @@ pub async fn position_loeschen(pool: &SqlitePool, id: String) -> AppResult<()> {
 fn kunde_snapshot_json(
     kunde: &crate::commands::kunden::Kunde,
     adresse: Option<&crate::commands::kunden::Adresse>,
+    ansprechpartner: Option<&crate::commands::kunden::Ansprechpartner>,
     firma: &crate::commands::firma::Firma,
 ) -> String {
     serde_json::json!({
@@ -445,6 +489,11 @@ fn kunde_snapshot_json(
         },
         "adresse": adresse.map(|a| serde_json::json!({
             "strasse": a.strasse, "plz": a.plz, "ort": a.ort, "land": a.land,
+        })),
+        // Mit eingefroren: Ändert sich die Besetzung beim Kunden, darf das den
+        // bereits gestellten Beleg nicht rückwirkend ändern (GoBD).
+        "ansprechpartner": ansprechpartner.map(|a| serde_json::json!({
+            "name": a.name, "rolle": a.rolle, "email": a.email, "telefon": a.telefon,
         })),
         "firma": {
             "name": firma.name, "strasse": firma.strasse, "plz": firma.plz, "ort": firma.ort, "land": firma.land,
@@ -509,7 +558,18 @@ pub async fn stellen(pool: &SqlitePool, id: String) -> AppResult<Beleg> {
     }
 
     let kunde = crate::commands::kunden::get(pool, beleg.kunde_id.clone()).await?;
-    let standardadresse = kunde.adressen.iter().find(|a| a.typ == "rechnung" && a.ist_standard);
+    // Die am Beleg gewählte Adresse geht vor; ohne Wahl bleibt es beim Standard.
+    let standardadresse = beleg
+        .adresse_id
+        .as_deref()
+        .filter(|id| !id.is_empty())
+        .and_then(|id| kunde.adressen.iter().find(|a| a.id == id))
+        .or_else(|| kunde.adressen.iter().find(|a| a.typ == "rechnung" && a.ist_standard));
+    let ansprechpartner = beleg
+        .ansprechpartner_id
+        .as_deref()
+        .filter(|id| !id.is_empty())
+        .and_then(|id| kunde.ansprechpartner.iter().find(|a| a.id == id));
 
     // § 14 Abs. 4 Nr. 1 UStG verlangt die vollständige Anschrift des
     // Leistungsempfängers. Ohne sie würde hier "adresse": null eingefroren; der
@@ -529,7 +589,7 @@ pub async fn stellen(pool: &SqlitePool, id: String) -> AppResult<Beleg> {
     }
 
     let firma = crate::commands::firma::get(pool).await?;
-    let snapshot = kunde_snapshot_json(&kunde.kunde, standardadresse, &firma);
+    let snapshot = kunde_snapshot_json(&kunde.kunde, standardadresse, ansprechpartner, &firma);
 
     // Nummernvergabe und Beleg-UPDATE in einer Transaktion: Schlägt das UPDATE
     // fehl — etwa weil der Beleg zwischenzeitlich gestellt wurde —, wird auch
@@ -586,7 +646,10 @@ pub async fn angebot_ueberfuehren(pool: &SqlitePool, angebot_id: String) -> AppR
         zahlungsziel_tage: angebot.zahlungsziel_tage, kopftext: angebot.kopftext.clone(), fusstext: angebot.fusstext.clone(),
         summe_cent: angebot.summe_cent, ursprungsangebot_id: Some(angebot.id.clone()), storno_von_id: None,
         kunde_snapshot: String::new(), kunde_snapshot_name: None,
-                bezahlt_cent: 0, zahlungsstand: None, faellig_am: None,
+        // Wer die Anschrift schon am Angebot gewählt hat, meint sie auch für
+        // die Rechnung.
+        adresse_id: angebot.adresse_id.clone(), ansprechpartner_id: angebot.ansprechpartner_id.clone(),
+        bezahlt_cent: 0, zahlungsstand: None, faellig_am: None,
     };
 
     // Transaktion: das Beleg-INSERT und die Positions-INSERTs müssen atomar sein,
@@ -667,6 +730,7 @@ pub async fn storniere_rechnung(pool: &SqlitePool, id: String) -> AppResult<Bele
         fusstext: format!("Stornierung zu Rechnung {}", rechnung.nummer.clone().unwrap_or_default()),
         summe_cent: -rechnung.summe_cent, ursprungsangebot_id: None, storno_von_id: Some(rechnung.id.clone()),
         kunde_snapshot: snapshot.0.clone(), kunde_snapshot_name: kunde_snapshot_name(&snapshot.0),
+        adresse_id: rechnung.adresse_id.clone(), ansprechpartner_id: rechnung.ansprechpartner_id.clone(),
         bezahlt_cent: 0, zahlungsstand: None, faellig_am: None,
     };
 
@@ -980,6 +1044,96 @@ mod tests {
             .into_iter().map(|p| p.bezeichnung).collect()
     }
 
+    /// Legt eine zweite, abweichende Rechnungsadresse an.
+    async fn zweite_adresse_anlegen(pool: &sqlx::SqlitePool, kunde_id: &str) -> String {
+        crate::commands::kunden::adresse_speichern(pool, crate::commands::kunden::Adresse {
+            id: "".into(), kunde_id: kunde_id.into(), typ: "rechnung".into(),
+            strasse: "Zweigstelle 7".into(), plz: "20095".into(), ort: "Hamburg".into(),
+            land: "DE".into(), ist_standard: false,
+        }).await.unwrap().id
+    }
+
+    #[tokio::test]
+    async fn stellen_nimmt_die_gewaehlte_adresse_statt_der_standardadresse() {
+        // Wer mehrere Standorte beliefert, konnte eine abweichende Anschrift
+        // bisher nur erzwingen, indem er den Standard beim Kunden umstellte.
+        let (_dir, pool) = test_pool().await;
+        let kunde_id = kunde_anlegen(&pool).await;
+        let adresse_id = zweite_adresse_anlegen(&pool, &kunde_id).await;
+        let beleg = create(&pool, beleg_neu("rechnung", &kunde_id)).await.unwrap();
+        drei_positionen(&pool, &beleg.id).await;
+
+        update(&pool, BelegUpdate {
+            id: beleg.id.clone(), kunde_id: kunde_id.clone(), datum: beleg.datum.clone(),
+            leistungsdatum: beleg.leistungsdatum.clone(), leistungsdatum_bis: None,
+            zahlungsziel_tage: 14, kopftext: "".into(), fusstext: "".into(),
+            adresse_id: Some(adresse_id.clone()), ansprechpartner_id: None,
+        }).await.unwrap();
+
+        let gestellt = stellen(&pool, beleg.id.clone()).await.unwrap();
+        let snapshot: serde_json::Value = serde_json::from_str(&gestellt.kunde_snapshot).unwrap();
+        assert_eq!(snapshot["adresse"]["ort"], "Hamburg");
+    }
+
+    #[tokio::test]
+    async fn stellen_faellt_ohne_wahl_auf_die_standardadresse_zurueck() {
+        let (_dir, pool) = test_pool().await;
+        let kunde_id = kunde_anlegen(&pool).await;
+        zweite_adresse_anlegen(&pool, &kunde_id).await;
+        let beleg = create(&pool, beleg_neu("rechnung", &kunde_id)).await.unwrap();
+        drei_positionen(&pool, &beleg.id).await;
+
+        let gestellt = stellen(&pool, beleg.id.clone()).await.unwrap();
+        let snapshot: serde_json::Value = serde_json::from_str(&gestellt.kunde_snapshot).unwrap();
+        assert_eq!(snapshot["adresse"]["ort"], "Berlin", "ohne Wahl gilt die Standardadresse");
+    }
+
+    #[tokio::test]
+    async fn stellen_friert_den_ansprechpartner_mit_ein() {
+        // Der Name steht später auf dem Beleg. Ändert sich die Besetzung beim
+        // Kunden, darf das den bereits gestellten Beleg nicht rückwirkend
+        // ändern (GoBD).
+        let (_dir, pool) = test_pool().await;
+        let kunde_id = kunde_anlegen(&pool).await;
+        let ap = crate::commands::kunden::ansprechpartner_speichern(&pool,
+            crate::commands::kunden::Ansprechpartner {
+                id: "".into(), kunde_id: kunde_id.clone(), name: "Erika Musterfrau".into(),
+                rolle: "Einkauf".into(), email: "".into(), telefon: "".into(), ist_standard: false,
+            }).await.unwrap();
+        let beleg = create(&pool, beleg_neu("rechnung", &kunde_id)).await.unwrap();
+        drei_positionen(&pool, &beleg.id).await;
+
+        update(&pool, BelegUpdate {
+            id: beleg.id.clone(), kunde_id: kunde_id.clone(), datum: beleg.datum.clone(),
+            leistungsdatum: beleg.leistungsdatum.clone(), leistungsdatum_bis: None,
+            zahlungsziel_tage: 14, kopftext: "".into(), fusstext: "".into(),
+            adresse_id: None, ansprechpartner_id: Some(ap.id.clone()),
+        }).await.unwrap();
+
+        let gestellt = stellen(&pool, beleg.id.clone()).await.unwrap();
+        let snapshot: serde_json::Value = serde_json::from_str(&gestellt.kunde_snapshot).unwrap();
+        assert_eq!(snapshot["ansprechpartner"]["name"], "Erika Musterfrau");
+    }
+
+    #[tokio::test]
+    async fn adresse_eines_fremden_kunden_wird_abgelehnt() {
+        // Sonst stünde am Ende die Anschrift eines anderen Kunden auf der
+        // Rechnung — ein Fehler, den niemand bemerkt, bis sie zurückkommt.
+        let (_dir, pool) = test_pool().await;
+        let kunde_id = kunde_anlegen(&pool).await;
+        let fremder = kunde_anlegen(&pool).await;
+        let fremde_adresse = zweite_adresse_anlegen(&pool, &fremder).await;
+        let beleg = create(&pool, beleg_neu("rechnung", &kunde_id)).await.unwrap();
+
+        let fehler = update(&pool, BelegUpdate {
+            id: beleg.id.clone(), kunde_id: kunde_id.clone(), datum: beleg.datum.clone(),
+            leistungsdatum: beleg.leistungsdatum.clone(), leistungsdatum_bis: None,
+            zahlungsziel_tage: 14, kopftext: "".into(), fusstext: "".into(),
+            adresse_id: Some(fremde_adresse), ansprechpartner_id: None,
+        }).await;
+        assert!(matches!(fehler, Err(AppError::Validation { .. })), "{fehler:?}");
+    }
+
     #[tokio::test]
     async fn position_verschieben_tauscht_mit_dem_nachbarn() {
         // Die Reihenfolge steht so auf der Rechnung. Wer eine Position
@@ -1131,6 +1285,7 @@ mod tests {
             id: beleg.id.clone(), kunde_id: kunde_id.clone(), datum: "2026-07-11".into(),
             leistungsdatum: "2026-07-11".into(), leistungsdatum_bis: None, zahlungsziel_tage: 30,
             kopftext: "Hallo".into(), fusstext: "".into(),
+            adresse_id: None, ansprechpartner_id: None,
         }).await.unwrap();
         assert_eq!(aktualisiert.datum, "2026-07-11");
         assert_eq!(aktualisiert.zahlungsziel_tage, 30);
@@ -1146,6 +1301,7 @@ mod tests {
         let err = update(&pool, BelegUpdate {
             id: beleg.id, kunde_id, datum: "2026-07-11".into(), leistungsdatum: "2026-07-11".into(), leistungsdatum_bis: None,
             zahlungsziel_tage: 14, kopftext: "".into(), fusstext: "".into(),
+            adresse_id: None, ansprechpartner_id: None,
         }).await.unwrap_err();
         assert!(matches!(err, AppError::Validation { .. }));
     }
@@ -1296,6 +1452,7 @@ mod tests {
             id: gestellt.id.clone(), kunde_id, datum: gestellt.datum.clone(),
             leistungsdatum: gestellt.leistungsdatum.clone(), leistungsdatum_bis: None, zahlungsziel_tage: 14,
             kopftext: "".into(), fusstext: "".into(),
+            adresse_id: None, ansprechpartner_id: None,
         }).await.unwrap_err();
         assert!(matches!(err, AppError::Validation { .. }), "gestellter Beleg darf nicht mehr editierbar sein");
     }

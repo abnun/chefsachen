@@ -392,6 +392,7 @@ pub(crate) mod tests {
                 ursprungsangebot_id: None, storno_von_id: storno_von.map(String::from),
                 kunde_snapshot: String::new(), kunde_snapshot_name: None,
                 bezahlt_cent: 0, zahlungsstand: None, faellig_am: None,
+                adresse_id: None, ansprechpartner_id: None,
             },
             positionen: vec![Belegposition {
                 id: "p1".into(), beleg_id: "b1".into(), artikel_id: None,
@@ -403,7 +404,7 @@ pub(crate) mod tests {
                 ort: "Berlin".into(), land: "DE".into(), steuernummer: "12/345".into(), ust_idnr: "DE123456789".into(),
                 iban: "DE02120300000000202051".into(), bic: "BYLADEM1001".into(), email: "rechnung@meine-firma.de".into(), telefon: "030 123456".into(), kontakt_name: "Max Mustermann".into(), gruendungsjahr: None, kleinunternehmer: true, eingerichtet: true,
             },
-            kunde_name: "ACME GmbH".into(), kunde_kundennummer: "KD-0001".into(), kunde_ust_idnr: "".into(),
+            kunde_ansprechpartner: String::new(), kunde_name: "ACME GmbH".into(), kunde_kundennummer: "KD-0001".into(), kunde_ust_idnr: "".into(),
             kunde_email: "acme@example.com".into(), kunde_leitweg_id: "991-12345-67".into(),
             kunde_kaeuferreferenz: "PO-42".into(),
             adresse_strasse: "Kundenweg 5".into(), adresse_plz: "10117".into(), adresse_ort: "Berlin".into(),

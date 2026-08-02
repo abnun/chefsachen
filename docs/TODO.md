@@ -12,7 +12,7 @@ Reihenfolge = Empfehlung. Jeder Punkt trägt die Referenz aus dem Review.
 | 3 — Fehlende Kernfunktionen | ✅ 10/11, P3.7 teilweise |
 | 4 — Robustheit | ✅ 13/13 |
 | 5 — Produktreife | ⬜ 5/7, P5.2 angefangen, P5.6 zurückgestellt |
-| 6 — UX und Code-Qualität | ⬜ 9/11 |
+| 6 — UX und Code-Qualität | ⬜ 10/11 |
 
 **Nächster Schritt:** Stufe 6 (UX und Code-Qualität). Von Stufe 5 bleibt P5.2 offen —
 die CI ist noch nie gelaufen und klärt sich beim ersten Push von selbst; P5.6 (Signierung)
@@ -454,7 +454,20 @@ Ohne diese Punkte ist die App für die Zielgruppe nicht wertvoll.
   überschriebenen Preis bleibt es bei „Preis wird beim Speichern ermittelt": Dort kann ein
   Kundenpreis gelten, den nur das Backend kennt — eine Zahl zu zeigen hieße, sie zu raten.
   Unlesbare Eingaben melden sich als solche, statt still auf null zu fallen.
-- [ ] **P6.9 — Adress- und Ansprechpartner-Auswahl im Beleg**
+- [x] **P6.9 — Adress- und Ansprechpartner-Auswahl im Beleg**
+  Migration 0012 gibt dem Beleg `adresse_id` und `ansprechpartner_id`, beide optional.
+  Ohne Wahl gilt weiter die Standard-Rechnungsadresse — bestehende Belege verhalten sich
+  unverändert. Wer mehrere Standorte beliefert, musste bisher den Standard beim Kunden
+  umstellen, was rückwirkend nichts ändert, aber alle künftigen Belege betrifft.
+  Beim Festschreiben wird der Ansprechpartner mit eingefroren (GoBD): Wird beim Kunden
+  jemand anderes zuständig, ändert das den gestellten Beleg nicht.
+  Zur Auswahl stehen nur Adressen vom Typ „rechnung" — eine Lieferadresse auf der Rechnung
+  wäre falsch. Das Backend prüft zusätzlich, dass Adresse und Ansprechpartner zum Kunden
+  des Belegs gehören; sonst stünde die Anschrift eines fremden Kunden auf der Rechnung,
+  und das fällt erst auf, wenn die Post zurückkommt.
+  Der Ansprechpartner erscheint als Zeile über der Anschrift im PDF — geprüft am
+  extrahierten Text, nicht an den Eingabefeldern. Angebot → Rechnung und Storno erben
+  die Wahl.
 - [x] **P6.10 — Barrierefreiheit**
   `Bestaetigungsdialog` hält den Fokus bei sich (Tab und Shift+Tab laufen im Kreis), gibt ihn
   beim Schließen dorthin zurück, wo er herkam, und benennt sich über `aria-labelledby`.

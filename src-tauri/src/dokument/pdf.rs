@@ -161,6 +161,7 @@ fn dokument_bauen(
             "Leistungsdatum".to_string()
         }),
         ("zahlungsziel_tage", kontext.beleg.zahlungsziel_tage.to_string()),
+        ("kunde_ansprechpartner", kontext.kunde_ansprechpartner.clone()),
         ("kunde_name", kontext.kunde_name.clone()),
         ("kunde_strasse", kontext.adresse_strasse.clone()),
         ("kunde_plz", kontext.adresse_plz.clone()),
@@ -220,6 +221,7 @@ pub(crate) mod tests {
                 ursprungsangebot_id: None, storno_von_id: None,
                 kunde_snapshot: String::new(), kunde_snapshot_name: None,
                 bezahlt_cent: 0, zahlungsstand: None, faellig_am: None,
+                adresse_id: None, ansprechpartner_id: None,
             },
             positionen: vec![Belegposition {
                 id: "p1".into(), beleg_id: "b1".into(), artikel_id: None,
@@ -235,7 +237,7 @@ pub(crate) mod tests {
                 gruendungsjahr: None,
                 kleinunternehmer: true, eingerichtet: true,
             },
-            kunde_name: "ACME GmbH".into(), kunde_kundennummer: "KD-0001".into(), kunde_ust_idnr: "".into(),
+            kunde_ansprechpartner: String::new(), kunde_name: "ACME GmbH".into(), kunde_kundennummer: "KD-0001".into(), kunde_ust_idnr: "".into(),
             kunde_email: "".into(), kunde_leitweg_id: "".into(), kunde_kaeuferreferenz: "".into(),
             adresse_strasse: "Kundenweg 5".into(), adresse_plz: "10117".into(), adresse_ort: "Berlin".into(),
             adresse_land: "DE".into(),
@@ -247,6 +249,20 @@ pub(crate) mod tests {
     fn text(kontext: &BelegKontext) -> String {
         let bytes = rendern(kontext, None).unwrap();
         pdf_extract::extract_text_from_mem(&bytes).unwrap()
+    }
+
+    #[test]
+    fn ansprechpartner_steht_ueber_der_anschrift() {
+        // Bei größeren Kunden landet eine Rechnung ohne Namen in der
+        // Poststelle und von dort irgendwo.
+        let mut kontext = test_kontext();
+        kontext.kunde_ansprechpartner = "Erika Musterfrau".into();
+        let t = text(&kontext);
+        assert!(t.contains("Erika Musterfrau"), "Ansprechpartner fehlt:\n{t}");
+
+        let ohne = text(&test_kontext());
+        // Ohne Ansprechpartner darf keine leere Zeile über der Anschrift stehen.
+        assert!(!ohne.contains("Erika Musterfrau"));
     }
 
     /// § 14 Abs. 4 UStG zählt die Pflichtangaben einer Rechnung abschließend auf.

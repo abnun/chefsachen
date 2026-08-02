@@ -8,6 +8,9 @@ pub struct BelegKontext {
     pub positionen: Vec<crate::commands::belege::Belegposition>,
     pub firma: crate::commands::firma::Firma,
     pub kunde_name: String,
+    /// Ansprechpartner beim Kunden, falls am Beleg gewählt. Steht als
+    /// „z. Hd."-Zeile über der Anschrift.
+    pub kunde_ansprechpartner: String,
     pub kunde_kundennummer: String,
     pub kunde_ust_idnr: String,
     pub kunde_email: String,
@@ -147,8 +150,18 @@ pub async fn kontext_aus_beleg(pool: &SqlitePool, beleg_id: String) -> AppResult
         kundenfelder_aus_live_daten(&kunde_detail)
     };
 
+    // Aus dem Snapshot, nicht aus den Live-Daten: Der Name auf einem gestellten
+    // Beleg darf sich nicht ändern, wenn beim Kunden jemand anderes zuständig wird.
+    let ansprechpartner = snapshot
+        .get("ansprechpartner")
+        .and_then(|a| a.get("name"))
+        .and_then(|n| n.as_str())
+        .unwrap_or_default()
+        .to_string();
+
     Ok(BelegKontext {
         beleg: detail.beleg, positionen: detail.positionen, firma,
+        kunde_ansprechpartner: ansprechpartner,
         kunde_name: kf.name, kunde_kundennummer: kf.kundennummer, kunde_ust_idnr: kf.ust_idnr,
         kunde_email: kf.email, kunde_leitweg_id: kf.leitweg_id, kunde_kaeuferreferenz: kf.kaeuferreferenz,
         adresse_strasse: kf.adresse_strasse, adresse_plz: kf.adresse_plz,

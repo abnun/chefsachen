@@ -29,6 +29,9 @@
 
 #v(1cm)
 
+#if ist_gesetzt(sys.inputs.kunde_ansprechpartner) [
+  #sys.inputs.kunde_ansprechpartner \
+]
 #sys.inputs.kunde_name \
 #sys.inputs.kunde_strasse \
 #sys.inputs.kunde_plz #sys.inputs.kunde_ort

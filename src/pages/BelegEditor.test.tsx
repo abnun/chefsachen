@@ -56,7 +56,12 @@ vi.mock("../api", () => ({
       xrechnungExportieren: vi.fn().mockResolvedValue([1, 2, 3]),
       zugferdExportieren: vi.fn().mockResolvedValue([1, 2, 3]),
     },
-    kunden: { list: vi.fn().mockResolvedValue([]) },
+    kunden: {
+      list: vi.fn().mockResolvedValue([]),
+      // Der Belegeditor lädt Adressen und Ansprechpartner des Kunden für die
+      // Auswahl in den Stammdaten.
+      get: vi.fn().mockResolvedValue({ kunde: {}, adressen: [], ansprechpartner: [] }),
+    },
     artikel: { list: vi.fn().mockResolvedValue([]) },
   },
 }));
@@ -775,5 +780,83 @@ describe("BelegEditor – Positionen bearbeiten und sortieren", () => {
 
     fireEvent.change(screen.getByLabelText("Menge"), { target: { value: "drei" } });
     await waitFor(() => expect(screen.getByText(/Menge unklar/)).toBeTruthy());
+  });
+});
+
+describe("BelegEditor – Anschrift und Ansprechpartner", () => {
+  function entwurfMitKunde() {
+    vi.mocked(api.belege.get).mockResolvedValue({
+      beleg: {
+        id: "b1", typ: "rechnung", nummer: null, status: "entwurf", kunde_id: "k1",
+        datum: "2026-07-10", leistungsdatum: "2026-07-10", zahlungsziel_tage: 14,
+        kopftext: "", fusstext: "", summe_cent: 0, ursprungsangebot_id: null,
+        storno_von_id: null, adresse_id: null, ansprechpartner_id: null,
+      },
+      positionen: [], zahlungen: [], bezahlt_cent: 0, offener_betrag_cent: 0,
+    } as never);
+    vi.mocked(api.kunden.list).mockResolvedValue([
+      { id: "k1", typ: "firma", name: "ACME GmbH", kundennummer: "KD-0001", zahlungsziel_tage: 14,
+        notizen: "", ust_idnr: "", email: "", leitweg_id: "", kaeuferreferenz: "", hat_adresse: true },
+    ] as never);
+    vi.mocked(api.kunden.get).mockResolvedValue({
+      kunde: { id: "k1", name: "ACME GmbH" },
+      adressen: [
+        { id: "adr1", kunde_id: "k1", typ: "rechnung", strasse: "Hauptstr. 1", plz: "10115",
+          ort: "Berlin", land: "DE", ist_standard: true },
+        { id: "adr2", kunde_id: "k1", typ: "rechnung", strasse: "Zweigstelle 7", plz: "20095",
+          ort: "Hamburg", land: "DE", ist_standard: false },
+        { id: "adr3", kunde_id: "k1", typ: "liefer", strasse: "Lager 3", plz: "50667",
+          ort: "Köln", land: "DE", ist_standard: false },
+      ],
+      ansprechpartner: [
+        { id: "ap1", kunde_id: "k1", name: "Erika Musterfrau", rolle: "Einkauf",
+          email: "", telefon: "", ist_standard: false },
+      ],
+    } as never);
+  }
+
+  it("bietet nur Rechnungsadressen zur Auswahl an", async () => {
+    // Eine Lieferadresse auf der Rechnung wäre schlicht falsch.
+    entwurfMitKunde();
+    render(<BelegEditor id="b1" />);
+    const auswahl = await screen.findByLabelText("Rechnungsadresse");
+    await waitFor(() => expect(within(auswahl).getAllByRole("option")).toHaveLength(3));
+
+    const texte = within(auswahl).getAllByRole("option").map((o) => o.textContent);
+    expect(texte[0]).toContain("Standardadresse");
+    expect(texte.join(" ")).toContain("Hamburg");
+    expect(texte.join(" ")).not.toContain("Köln");
+  });
+
+  it("schickt die gewählte Anschrift und den Ansprechpartner mit", async () => {
+    entwurfMitKunde();
+    render(<BelegEditor id="b1" />);
+    const auswahl = await screen.findByLabelText("Rechnungsadresse");
+    await waitFor(() => expect(within(auswahl).getAllByRole("option")).toHaveLength(3));
+
+    fireEvent.change(auswahl, { target: { value: "adr2" } });
+    fireEvent.change(screen.getByLabelText("Ansprechpartner"), { target: { value: "ap1" } });
+    fireEvent.click(screen.getByRole("button", { name: "Speichern" }));
+
+    await waitFor(() =>
+      expect(api.belege.update).toHaveBeenCalledWith(
+        expect.objectContaining({ adresse_id: "adr2", ansprechpartner_id: "ap1" }),
+      ),
+    );
+  });
+
+  it("schickt ohne Wahl null statt einer leeren Zeichenkette", async () => {
+    // Das Backend unterscheidet „keine Wahl" von „ungültige Id"; ein leerer
+    // String wäre Letzteres.
+    entwurfMitKunde();
+    render(<BelegEditor id="b1" />);
+    await screen.findByLabelText("Rechnungsadresse");
+
+    fireEvent.click(screen.getByRole("button", { name: "Speichern" }));
+    await waitFor(() =>
+      expect(api.belege.update).toHaveBeenCalledWith(
+        expect.objectContaining({ adresse_id: null, ansprechpartner_id: null }),
+      ),
+    );
   });
 });

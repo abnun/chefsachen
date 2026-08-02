@@ -9,6 +9,7 @@ import {
   type BelegDetail,
   type Belegposition,
   type Kunde,
+  type KundeDetail as KundeDetailTyp,
   type Zahlung,
 } from "../api";
 import { ArtikelAuswahl } from "../components/ArtikelAuswahl";
@@ -85,6 +86,8 @@ export function BelegEditor({ id, onZurueck, onGeaendert, onRechnungErstellt, on
     zahlungsziel_tage: number;
     kopftext: string;
     fusstext: string;
+    adresse_id: string | null;
+    ansprechpartner_id: string | null;
   }) {
     setFehler(null);
     try {
@@ -371,6 +374,8 @@ interface StammdatenAbschnittProps {
     zahlungsziel_tage: number;
     kopftext: string;
     fusstext: string;
+    adresse_id: string | null;
+    ansprechpartner_id: string | null;
   }) => void;
 }
 
@@ -382,6 +387,10 @@ function StammdatenAbschnitt({ beleg, kunden, bearbeitbar, onSpeichern }: Stammd
   const [zahlungszielTage, setZahlungszielTage] = useState(beleg.zahlungsziel_tage);
   const [kopftext, setKopftext] = useState(beleg.kopftext);
   const [fusstext, setFusstext] = useState(beleg.fusstext);
+  const [adresseId, setAdresseId] = useState(beleg.adresse_id ?? "");
+  const [ansprechpartnerId, setAnsprechpartnerId] = useState(beleg.ansprechpartner_id ?? "");
+  /** Adressen und Ansprechpartner des gewählten Kunden. */
+  const [kundeDetail, setKundeDetail] = useState<KundeDetailTyp | null>(null);
 
   useEffect(() => {
     setKundeId(beleg.kunde_id);
@@ -391,7 +400,30 @@ function StammdatenAbschnitt({ beleg, kunden, bearbeitbar, onSpeichern }: Stammd
     setZahlungszielTage(beleg.zahlungsziel_tage);
     setKopftext(beleg.kopftext);
     setFusstext(beleg.fusstext);
+    setAdresseId(beleg.adresse_id ?? "");
+    setAnsprechpartnerId(beleg.ansprechpartner_id ?? "");
   }, [beleg]);
+
+  useEffect(() => {
+    // Nur im Entwurf: Bei einem festgeschriebenen Beleg gibt es nichts zu
+    // wählen, und die Anschrift steht ohnehin im Snapshot.
+    if (!bearbeitbar || !kundeId) {
+      setKundeDetail(null);
+      return;
+    }
+    // Nach einem Kundenwechsel passen die bisherigen Auswahlen nicht mehr —
+    // eine Adresse eines anderen Kunden würde das Backend ohnehin ablehnen.
+    api.kunden
+      .get(kundeId)
+      .then((d) => {
+        setKundeDetail(d);
+        if (kundeId !== beleg.kunde_id) {
+          setAdresseId("");
+          setAnsprechpartnerId("");
+        }
+      })
+      .catch(() => setKundeDetail(null));
+  }, [bearbeitbar, kundeId, beleg.kunde_id]);
 
   // Abweichung vom geladenen Beleg heißt: ungespeichert. Der Vergleich läuft
   // gegen die Vorlage statt über ein „berührt"-Kennzeichen — wer einen Wert
@@ -404,7 +436,9 @@ function StammdatenAbschnitt({ beleg, kunden, bearbeitbar, onSpeichern }: Stammd
       leistungsdatumBis !== (beleg.leistungsdatum_bis ?? "") ||
       zahlungszielTage !== beleg.zahlungsziel_tage ||
       kopftext !== beleg.kopftext ||
-      fusstext !== beleg.fusstext);
+      fusstext !== beleg.fusstext ||
+      adresseId !== (beleg.adresse_id ?? "") ||
+      ansprechpartnerId !== (beleg.ansprechpartner_id ?? ""));
   useUngespeichert(geaendert);
 
   const kunde = kunden.find((k) => k.id === beleg.kunde_id);
@@ -439,6 +473,8 @@ function StammdatenAbschnitt({ beleg, kunden, bearbeitbar, onSpeichern }: Stammd
             zahlungsziel_tage: zahlungszielTage,
             kopftext,
             fusstext,
+            adresse_id: adresseId === "" ? null : adresseId,
+            ansprechpartner_id: ansprechpartnerId === "" ? null : ansprechpartnerId,
           });
         }}
       >
@@ -450,6 +486,42 @@ function StammdatenAbschnitt({ beleg, kunden, bearbeitbar, onSpeichern }: Stammd
             {kunden.map((k) => (
               <option key={k.id} value={k.id}>
                 {k.name}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        {/* Ohne Wahl gilt die Standard-Rechnungsadresse des Kunden. Wer mehrere
+            Standorte beliefert, konnte das bisher nur erzwingen, indem er den
+            Standard beim Kunden umstellte — was alle künftigen Belege betrifft. */}
+        <label className="feld">
+          Rechnungsadresse
+          <select value={adresseId} onChange={(e) => setAdresseId(e.currentTarget.value)}>
+            <option value="">Standardadresse des Kunden</option>
+            {(kundeDetail?.adressen ?? [])
+              .filter((a) => a.typ === "rechnung")
+              .map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.strasse}, {a.plz} {a.ort}
+                  {a.ist_standard ? " (Standard)" : ""}
+                </option>
+              ))}
+          </select>
+        </label>
+
+        {/* Bei größeren Kunden landet eine Rechnung ohne Namen in der
+            Poststelle und von dort irgendwo. */}
+        <label className="feld">
+          Ansprechpartner
+          <select
+            value={ansprechpartnerId}
+            onChange={(e) => setAnsprechpartnerId(e.currentTarget.value)}
+          >
+            <option value="">– keiner –</option>
+            {(kundeDetail?.ansprechpartner ?? []).map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.name}
+                {a.rolle ? ` (${a.rolle})` : ""}
               </option>
             ))}
           </select>

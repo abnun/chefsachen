@@ -126,6 +126,8 @@ export interface Beleg {
   summe_cent: number;
   ursprungsangebot_id: string | null;
   storno_von_id: string | null;
+  adresse_id?: string | null;
+  ansprechpartner_id?: string | null;
   kunde_snapshot_name?: string | null;
   /** Summe der erfassten Zahlungen; nur in Listen befüllt. */
   bezahlt_cent?: number;
@@ -158,6 +160,10 @@ export interface BelegUpdate {
   zahlungsziel_tage: number;
   kopftext: string;
   fusstext: string;
+  /** Abweichende Rechnungsadresse; null heißt: Standardadresse des Kunden. */
+  adresse_id?: string | null;
+  /** Ansprechpartner beim Kunden; null heißt: keiner auf dem Beleg. */
+  ansprechpartner_id?: string | null;
 }
 export interface Belegposition {
   id: string;
