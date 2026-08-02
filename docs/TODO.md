@@ -3,6 +3,35 @@
 Priorisierte Arbeitsliste, abgeleitet aus [MVP-Review vom 2026-08-02](2026-08-02-mvp-review.md).
 Reihenfolge = Empfehlung. Jeder Punkt trägt die Referenz aus dem Review.
 
+## Stand (2026-08-02)
+
+| Stufe | Fortschritt |
+|---|---|
+| 1 — Kaputte Grundfunktionen | ✅ 8/8 |
+| 2 — Rechtliche Korrektheit | ✅ 8/8, P2.9 teilweise |
+| 3 — Fehlende Kernfunktionen | ⬜ 0/11 |
+| 4 — Robustheit | ⬜ 0/13 |
+| 5 — Produktreife | ⬜ 0/7, P5.2 angefangen |
+| 6 — UX und Code-Qualität | ⬜ 0/11 |
+
+**Nächster Schritt:** P3.1 — Dashboard mit Umsatzgrenzen-Überwachung. Das ist der
+Grund, warum ein Kleinunternehmer dieses Werkzeug überhaupt braucht.
+
+## Entwicklungsumgebung einrichten
+
+Die Tests prüfen XRechnung und ZUGFeRD gegen die amtlichen Regelwerke. Dafür
+werden zwei externe Java-Werkzeuge benötigt, die **nicht** im Repository liegen:
+
+```
+brew install openjdk          # oder eine andere JVM
+./scripts/kosit-vorbereiten.sh
+```
+
+Ohne JVM oder Cache **überspringen** sich die beiden Normprüfungen. Weil Cargo
+die Ausgabe bestandener Tests verschluckt, sieht ein übersprungener Test dabei
+aus wie ein bestandener — `KOSIT_PFLICHT=1 cargo test` lässt sie stattdessen
+fehlschlagen. In der CI ist der Schalter gesetzt.
+
 ---
 
 ## Stufe 1 — Sofort: kaputte Grundfunktionen (Aufwand klein, Wirkung groß)
@@ -173,6 +202,14 @@ Ohne diese Punkte ist die App für die Zielgruppe nicht wertvoll.
 - [ ] **P3.10 — Logo in den Einstellungen änderbar** `[B21]`
   Der Einrichtungsassistent sagt es ausdrücklich zu, die Einstellungsseite bietet es nicht.
 
+- [ ] **P3.11 — Kontaktfelder in den Einrichtungsassistenten** — neu aufgetaucht 2026-08-02
+  E-Mail, Telefon und Ansprechpartner der Firma sind seit P2.6 Pflicht für eine gültige
+  XRechnung (BT-34, BG-6), stehen aber nur in den Einstellungen. Wer die App neu aufsetzt,
+  muss sie nachtragen, bevor ein XRechnung-Export gelingt — ohne dass ihn etwas darauf hinweist.
+  → `src/pages/Einrichtung.tsx`
+  Sinnvoll dazu: `xrechnung::pruefe_exportierbarkeit` um diese Felder erweitern, damit der
+  Fehler beim Export benannt wird, statt erst beim Empfänger aufzufallen.
+
 ---
 
 ## Stufe 4 — Robustheit und Datenintegrität
@@ -207,6 +244,9 @@ Ohne diese Punkte ist die App für die Zielgruppe nicht wertvoll.
 
 - [ ] **P4.9 — IBAN-/BIC-Validierung** `[B14]`
   Weder Frontend noch Backend. Tippfehler landen auf jeder Rechnung und in der XRechnung.
+  Durch die Normprüfung bestätigt: Eine syntaktisch falsche IBAN löst BR-DE-19 aus, und die
+  KoSIT-Konfiguration lehnt das Dokument schon bei dieser Warnung ab. Eine Prüfung der
+  Prüfsumme beim Speichern verhindert das, bevor eine Rechnung hinausgeht.
 
 - [ ] **P4.10 — Clientseitige Pflichtfeld-Validierung** `[B15]`
   Kein einziges `required`/`pattern`/`type="email"` im gesamten Frontend.
@@ -227,8 +267,14 @@ Ohne diese Punkte ist die App für die Zielgruppe nicht wertvoll.
 - [ ] **P5.1 — Auto-Updater einrichten** `[B1]`
   Ohne ihn erreicht kein Bugfix je einen Bestandsnutzer. Lässt sich nicht folgenlos nachrüsten, da Signaturschlüssel vorausgesetzt werden — daher **vor** der ersten echten Verteilung.
 
-- [ ] **P5.2 — CI mit Tests, Clippy, Typecheck, PR-Trigger** `[B4]`
-  `release.yml` ist der einzige Workflow, Trigger nur auf Tags. Kein Commit wird je maschinell geprüft.
+- [~] **P5.2 — CI mit Tests, Clippy, Typecheck, PR-Trigger** `[B4]` — angefangen 2026-08-02
+  `release.yml` war der einzige Workflow, Trigger nur auf Tags. Kein Commit wurde je maschinell geprüft.
+  Erledigt: `.github/workflows/ci.yml` mit Push-/PR-Trigger, Frontend-Typprüfung und -Tests,
+  Clippy mit `-D warnings`, Rust-Tests inklusive der beiden Normprüfungen (KOSIT_PFLICHT gesetzt).
+  **Offen und wichtig: Der Workflow ist noch nie gelaufen.** Ungetestet sind vor allem die
+  Ubuntu-Systempakete für den Tauri-Bau und die unbeaufsichtigte veraPDF-Installation.
+  Beim ersten Push prüfen und nachbessern.
+  Ebenfalls offen: ESLint ist weiterhin nicht eingerichtet.
 
 - [ ] **P5.3 — E2E-Durchstich via `tauri-driver`** `[B5]`
   Die IPC-Grenze ist komplett ungetestet — genau die Zone, in der P1.1 lag.
