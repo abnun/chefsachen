@@ -17,6 +17,10 @@ pub struct BelegKontext {
     pub adresse_plz: String,
     pub adresse_ort: String,
     pub adresse_land: String,
+    /// Nummer der stornierten Ursprungsrechnung. EN 16931 verlangt bei einer
+    /// Korrektur (TypeCode 384) den Verweis auf die Vorrechnung (BG-3), und auch
+    /// auf dem PDF muss erkennbar sein, welche Rechnung korrigiert wird.
+    pub storno_von_nummer: Option<String>,
 }
 
 fn feld_str(wert: &serde_json::Value, feld: &str) -> String {
@@ -93,6 +97,9 @@ fn firma_aus_snapshot(snapshot: &serde_json::Value, vorlage: &crate::commands::f
         ust_idnr: feld_str(f, "ust_idnr"),
         iban: feld_str(f, "iban"),
         bic: feld_str(f, "bic"),
+        email: feld_str(f, "email"),
+        telefon: feld_str(f, "telefon"),
+        kontakt_name: feld_str(f, "kontakt_name"),
         kleinunternehmer: f.get("kleinunternehmer").and_then(|v| v.as_bool()).unwrap_or(vorlage.kleinunternehmer),
     }
 }
@@ -105,6 +112,15 @@ pub async fn kontext_aus_beleg(pool: &SqlitePool, beleg_id: String) -> AppResult
             meldung: "Nur gestellte Belege können exportiert werden".into(),
         });
     }
+    // Nummer der Ursprungsrechnung nachschlagen, falls dies ein Stornobeleg ist.
+    let storno_von_nummer = match &detail.beleg.storno_von_id {
+        Some(id) => {
+            let zeile: Option<(Option<String>,)> =
+                sqlx::query_as("SELECT nummer FROM beleg WHERE id = ?").bind(id).fetch_optional(pool).await?;
+            zeile.and_then(|z| z.0)
+        }
+        None => None,
+    };
     let firma_live = crate::commands::firma::get(pool).await?;
     let snapshot_roh: (String,) = sqlx::query_as("SELECT kunde_snapshot FROM beleg WHERE id = ?")
         .bind(&beleg_id).fetch_one(pool).await?;
@@ -135,6 +151,7 @@ pub async fn kontext_aus_beleg(pool: &SqlitePool, beleg_id: String) -> AppResult
         kunde_email: kf.email, kunde_leitweg_id: kf.leitweg_id, kunde_kaeuferreferenz: kf.kaeuferreferenz,
         adresse_strasse: kf.adresse_strasse, adresse_plz: kf.adresse_plz,
         adresse_ort: kf.adresse_ort, adresse_land: kf.adresse_land,
+        storno_von_nummer,
     })
 }
 

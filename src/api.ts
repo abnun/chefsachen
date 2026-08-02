@@ -72,6 +72,12 @@ export interface Firma {
   ust_idnr: string;
   iban: string;
   bic: string;
+  /** Elektronische Adresse des Rechnungsstellers (BT-34) — für eine gültige XRechnung Pflicht. */
+  email: string;
+  /** Telefon des Ansprechpartners (BT-42) — Teil der Pflichtgruppe SELLER CONTACT. */
+  telefon: string;
+  /** Name des Ansprechpartners (BT-41). Leer bedeutet: Firmenname wird verwendet. */
+  kontakt_name: string;
   kleinunternehmer: boolean;
   eingerichtet: boolean;
 }

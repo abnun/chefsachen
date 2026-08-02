@@ -83,7 +83,7 @@ Ohne diese Punkte erzeugt die App formell fehlerhafte Rechnungen.
   über den Speichern-Dialog ist davon unberührt), und die Firmendaten kommen aus dem
   beim Stellen eingefrorenen Snapshot.
 
-- [ ] **P2.6 — XRechnung schemavalide machen** `[A6]`
+- [x] **P2.6 — XRechnung schemavalide machen** `[A6]` ✅ 2026-08-02
   Aktuell würde ein KoSIT-Validator die Datei ablehnen. Zu ergänzen bzw. zu korrigieren:
   - `rsm:ExchangedDocumentContext` mit BT-24 (Profilkennung) als erstes Kind
   - `ram:ApplicableHeaderTradeDelivery` inkl. BT-72 (Leistungsdatum)
@@ -95,11 +95,24 @@ Ohne diese Punkte erzeugt die App formell fehlerhafte Rechnungen.
   - `unitCode` aus `einheit_kuerzel` statt hart `C62`
   → `src-tauri/src/dokument/xrechnung.rs`
 
+  Bestätigt normkonform durch den amtlichen KoSIT-Validator (XRechnung 3.0.2).
+  Zusätzlich gefunden, was im Review nicht stand und ohne Validator auch nicht
+  auffindbar gewesen wäre:
+  - Die Profilkennung wechselte mit XRechnung 3.0 von `xoev-de:kosit:standard`
+    auf `xeinkauf.de:kosit` — mit der alten Kennung passte kein Prüfszenario.
+  - `currencyID` gehört in CII **nur** an `TaxTotalAmount`; überall sonst ist es
+    verboten (CII-DT-031). In UBL ist es genau umgekehrt.
+  - `udt:DateTimeString` braucht `format="102"`, sonst wird das Datum nicht erkannt (BR-03).
+  - Geschäftsprozess-Kennung BT-23 ist Pflicht (PEPPOL-EN16931-R001).
+  - Elektronische Adresse (BT-34) und SELLER CONTACT (BG-6) fehlten im Datenmodell
+    → Migration `0007_firma_kontakt.sql` mit E-Mail, Telefon und Ansprechpartner.
+  - Korrekturrechnungen brauchen den Verweis auf die Vorrechnung (BG-3).
+
 - [ ] **P2.7 — Echtes PDF/A-3 erzeugen oder Konformitätsbehauptung entfernen** `[A7]`
   `typst_pdf::PdfOptions::default()` erzeugt PDF 1.7, das XMP behauptet aber `pdfaid:part=3`. `typst-pdf 0.13` bietet `PdfStandards`/`PdfStandard`. Zusätzlich: `ConformanceLevel` steht auf `BASIC` statt EN 16931.
   → `src-tauri/src/dokument/pdf.rs:126`, `src-tauri/src/dokument/zugferd.rs:42-52`
 
-- [ ] **P2.8 — Formatvalidierung in die CI** `[B6]`
+- [x] **P2.8 — Formatvalidierung in die CI** `[B6]` ✅ 2026-08-02 (XRechnung; veraPDF für ZUGFeRD offen)
   Für die PDF-Seite ist der Weg inzwischen frei: `pdf-extract` liest den Text der erzeugten
   Rechnung zuverlässig aus (anders als `lopdf`, siehe alter Hinweis im Testmodul). Damit prüfen
   die Tests jetzt, was tatsächlich auf der Rechnung steht. Für XRechnung und ZUGFeRD fehlt das

@@ -60,6 +60,9 @@ function FirmendatenAbschnitt() {
     "ust_idnr",
     "iban",
     "bic",
+    "email",
+    "telefon",
+    "kontakt_name",
   ]);
 
   if (!firma) {
@@ -154,6 +157,40 @@ function FirmendatenAbschnitt() {
             <input value={firma.bic} onChange={(e) => setFirma({ ...firma, bic: e.currentTarget.value })} />
           </label>
           {feldFehler("bic") && <div role="alert" className="feld-fehler">{feldFehler("bic")}</div>}
+        </div>
+        <div className="feld">
+          <label>
+            E-Mail
+            <input
+              type="email"
+              value={firma.email}
+              onChange={(e) => setFirma({ ...firma, email: e.currentTarget.value })}
+            />
+          </label>
+          <p className="feld-hinweis">Pflichtangabe für den XRechnung-Export.</p>
+          {feldFehler("email") && <div role="alert" className="feld-fehler">{feldFehler("email")}</div>}
+        </div>
+        <div className="feld">
+          <label>
+            Telefon
+            <input
+              value={firma.telefon}
+              onChange={(e) => setFirma({ ...firma, telefon: e.currentTarget.value })}
+            />
+          </label>
+          <p className="feld-hinweis">Pflichtangabe für den XRechnung-Export.</p>
+          {feldFehler("telefon") && <div role="alert" className="feld-fehler">{feldFehler("telefon")}</div>}
+        </div>
+        <div className="feld">
+          <label>
+            Ansprechpartner
+            <input
+              value={firma.kontakt_name}
+              onChange={(e) => setFirma({ ...firma, kontakt_name: e.currentTarget.value })}
+            />
+          </label>
+          <p className="feld-hinweis">Ohne Angabe wird der Firmenname verwendet.</p>
+          {feldFehler("kontakt_name") && <div role="alert" className="feld-fehler">{feldFehler("kontakt_name")}</div>}
         </div>
         <label className="feld-checkbox">
           <input

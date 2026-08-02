@@ -1,0 +1,81 @@
+name: CI
+
+# Prüft jeden Push und jeden Pull Request. Bis hierhin gab es nur den
+# Release-Workflow, der ausschließlich auf Tags lief und keine Tests ausführte —
+# kein Commit wurde je maschinell geprüft.
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+  workflow_dispatch: {}
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frontend:
+    name: Frontend (Typen und Tests)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Typprüfung
+        run: npx tsc --noEmit
+      - name: Tests
+        run: npm test
+
+  backend:
+    name: Backend (Clippy und Tests)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Der KoSIT-Validator ist ein Java-Werkzeug. Ohne JVM überspringt sich die
+      # Normprüfung — hier ist sie Pflicht, siehe KOSIT_PFLICHT weiter unten.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      # Systembibliotheken für den Tauri-Bau unter Linux.
+      - name: Systemabhängigkeiten
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev
+
+      # Validator und amtliches Regelwerk liegen bewusst nicht im Repository
+      # (rund 11 MB Fremdartefakte). Der Cache spart den Download bei jedem Lauf.
+      - name: KoSIT-Validator zwischenspeichern
+        uses: actions/cache@v4
+        with:
+          path: src-tauri/.validator-cache
+          key: kosit-validator-1.6.2-xrechnung-3.0.2-2026-01-31
+
+      - name: KoSIT-Validator bereitstellen
+        run: ./scripts/kosit-vorbereiten.sh
+
+      - name: Clippy
+        run: cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
+
+      - name: Tests
+        # KOSIT_PFLICHT lässt die Normprüfung fehlschlagen, statt sich zu
+        # überspringen, falls Validator oder JVM fehlen. Ohne diesen Schalter
+        # wäre ein bestandener Lauf nicht von einem übersprungenen zu
+        # unterscheiden — wir hielten uns für validiert, ohne es zu sein.
+        env:
+          KOSIT_PFLICHT: "1"
+        run: cargo test --manifest-path src-tauri/Cargo.toml

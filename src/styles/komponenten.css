@@ -130,6 +130,14 @@ label.feld textarea {
   margin: -6px 0 var(--abstand-m);
 }
 
+/* Erklärender Hinweis unter einem Eingabefeld — etwa warum ein Feld für den
+   XRechnung-Export benötigt wird. Zurückhaltender als eine Fehlermeldung. */
+.feld-hinweis {
+  color: var(--text-leise);
+  font-size: var(--text-s);
+  margin: -6px 0 var(--abstand-m);
+}
+
 /* Tabellen */
 .tabelle {
   width: 100%;

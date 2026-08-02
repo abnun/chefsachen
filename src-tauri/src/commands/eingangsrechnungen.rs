@@ -341,7 +341,7 @@ mod tests {
         assert!(!vorschau.ist_duplikat);
         assert_eq!(vorschau.felder.kaeufer_name, "ACME GmbH");
         assert_eq!(vorschau.felder.verkaeufer_steuernummer, "DE123456789");
-        assert_eq!(vorschau.felder.iban, "DE00 1234 5678");
+        assert_eq!(vorschau.felder.iban, "DE02120300000000202051");
     }
 
     #[tokio::test]

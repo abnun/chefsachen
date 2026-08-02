@@ -208,12 +208,15 @@ pub(crate) mod tests {
                 id: "f1".into(), name: "Meine Firma".into(), strasse: "Weg 1".into(), plz: "10115".into(),
                 ort: "Berlin".into(), land: "DE".into(), steuernummer: "12/345/67890".into(), ust_idnr: "".into(),
                 iban: "DE02120300000000202051".into(), bic: "BYLADEM1001".into(),
+                email: "rechnung@meine-firma.de".into(), telefon: "030 123456".into(),
+                kontakt_name: "Max Mustermann".into(),
                 kleinunternehmer: true, eingerichtet: true,
             },
             kunde_name: "ACME GmbH".into(), kunde_kundennummer: "KD-0001".into(), kunde_ust_idnr: "".into(),
             kunde_email: "".into(), kunde_leitweg_id: "".into(), kunde_kaeuferreferenz: "".into(),
             adresse_strasse: "Kundenweg 5".into(), adresse_plz: "10117".into(), adresse_ort: "Berlin".into(),
             adresse_land: "DE".into(),
+            storno_von_nummer: None,
         }
     }
 

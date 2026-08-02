@@ -465,15 +465,18 @@ mod tests {
         assert_eq!(ergebnis.bestellnummer, "PO-42");
         assert_eq!(ergebnis.leitweg_id, "991-12345-67");
         assert_eq!(ergebnis.zahlungsbedingungen, "Zahlbar innerhalb von 14 Tagen");
-        assert_eq!(ergebnis.iban, "DE00 1234 5678");
-        assert_eq!(ergebnis.bic, "ABCDDEFF");
+        assert_eq!(ergebnis.iban, "DE02120300000000202051");
+        assert_eq!(ergebnis.bic, "BYLADEM1001");
 
-        // Regressionstest für die Kopf-/Positions-Steuerzeilen-Kollision: der eigene
-        // Generator schreibt pro Position eine ApplicableTradeTax (CategoryCode "E",
-        // 0 %), aber KEINE Kopf-Steuerzeile. Würde die Prüfreihenfolge im Parser die
-        // positionsinterne ApplicableTradeTax fälschlich als Kopf-Steuerzeile werten,
-        // wäre steuerzeilen hier nicht leer.
-        assert!(ergebnis.steuerzeilen.is_empty());
+        // Der Generator schreibt seit der Normkonformität eine Kopf-Steuerzeile
+        // (BG-23) — dort werten Empfängersysteme die Steuerbefreiung aus. Genau
+        // eine muss der Parser finden: Würde er die positionsinterne
+        // ApplicableTradeTax mitzählen, stünden hier zwei.
+        assert_eq!(ergebnis.steuerzeilen.len(), 1, "erwartet genau die Kopf-Steuerzeile");
+        let steuer = &ergebnis.steuerzeilen[0];
+        assert_eq!(steuer.nettobetrag_cent, 9500);
+        assert_eq!(steuer.steuersatz_promille, 0, "Kleinunternehmer: 0 % Steuer");
+        assert_eq!(steuer.steuerbetrag_cent, 0);
     }
 
     #[test]

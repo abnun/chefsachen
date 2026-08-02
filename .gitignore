@@ -7,3 +7,7 @@ src-tauri/target/
 .DS_Store
 .superpowers/
 .claude/
+
+# Cache für den KoSIT-Validator (siehe scripts/kosit-vorbereiten.sh) —
+# rund 11 MB Fremdartefakte, gehören nicht in die Versionsverwaltung.
+src-tauri/.validator-cache/
