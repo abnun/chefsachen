@@ -61,6 +61,18 @@ export interface Kundenpreis {
   preis_cent: number;
   gueltig_ab: string | null;
 }
+/** Sonderpreis samt Artikeldaten — für die Sicht vom Kunden aus. */
+export interface KundenpreisMitArtikel {
+  id: string;
+  artikel_id: string;
+  kunde_id: string;
+  preis_cent: number;
+  gueltig_ab: string | null;
+  artikelnummer: string;
+  bezeichnung: string;
+  /** Zum Vergleich: Was der Artikel ohne Sonderpreis kosten würde. */
+  standardpreis_cent: number;
+}
 export interface Firma {
   id: string;
   name: string;
@@ -387,6 +399,8 @@ export const api = {
     delete: (id: string, kundenpreiseMitloeschen: boolean) =>
       invoke<void>("artikel_delete", { id, kundenpreiseMitloeschen }),
     kundenpreise: (artikelId: string) => invoke<Kundenpreis[]>("kundenpreis_list", { artikelId }),
+    kundenpreiseFuerKunde: (kundeId: string) =>
+      invoke<KundenpreisMitArtikel[]>("kundenpreis_list_fuer_kunde", { kundeId }),
     kundenpreisSave: (kp: Kundenpreis) => invoke<Kundenpreis>("kundenpreis_save", { kp }),
     kundenpreisDelete: (id: string) => invoke<void>("kundenpreis_delete", { id }),
     preisErmitteln: (artikelId: string, kundeId: string, belegdatum: string) =>

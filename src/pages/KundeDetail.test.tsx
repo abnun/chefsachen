@@ -6,6 +6,7 @@ afterEach(cleanup);
 
 vi.mock("../api", () => ({
   api: {
+    artikel: { kundenpreiseFuerKunde: vi.fn().mockResolvedValue([]) },
     kunden: {
       get: vi.fn().mockResolvedValue({
         kunde: {
@@ -247,5 +248,33 @@ describe("KundeDetail", () => {
     );
     fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Löschen" }));
     await waitFor(() => expect(vi.mocked(api.kunden.delete)).toHaveBeenCalledWith("1", true));
+  });
+
+  /// Die Frage „Welche Sonderpreise hat dieser Kunde?" war bislang nicht
+  /// beantwortbar — der Reiter war ein deaktivierter Platzhalter.
+  it("zeigt die Sonderpreise des Kunden mit Vergleich zum Standardpreis", async () => {
+    const { api } = await import("../api");
+    vi.mocked(api.artikel.kundenpreiseFuerKunde).mockResolvedValue([
+      {
+        id: "kp1", artikel_id: "a1", kunde_id: "k1", preis_cent: 9000, gueltig_ab: null,
+        artikelnummer: "ART-0001", bezeichnung: "Beratung", standardpreis_cent: 12000,
+      },
+    ]);
+    render(<KundeDetail id="k1" onGeloescht={() => {}} />);
+    await waitFor(() => expect(screen.getByRole("button", { name: "Sonderpreise" })).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Sonderpreise" }));
+    await waitFor(() => expect(screen.getByText("120,00 €")).toBeTruthy());
+    expect(screen.getByText("90,00 €")).toBeTruthy();
+    expect(screen.getByText("ART-0001")).toBeTruthy();
+  });
+
+  it("erklärt beim leeren Reiter, wo Sonderpreise gepflegt werden", async () => {
+    const { api } = await import("../api");
+    vi.mocked(api.artikel.kundenpreiseFuerKunde).mockResolvedValue([]);
+    render(<KundeDetail id="k1" onGeloescht={() => {}} />);
+    await waitFor(() => expect(screen.getByRole("button", { name: "Sonderpreise" })).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Sonderpreise" }));
+    await waitFor(() => expect(screen.getByText(/keine Sonderpreise hinterlegt/)).toBeTruthy());
+    expect(screen.getByText(/Artikel-Seite/)).toBeTruthy();
   });
 });

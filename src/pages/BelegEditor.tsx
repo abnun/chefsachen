@@ -80,6 +80,7 @@ export function BelegEditor({ id, onGeaendert, onRechnungErstellt, onGeloescht }
   const istEntwurf = beleg.status === "entwurf";
 
   async function stammdatenSpeichern(felder: {
+    kunde_id: string;
     datum: string;
     leistungsdatum: string;
     zahlungsziel_tage: number;
@@ -88,7 +89,7 @@ export function BelegEditor({ id, onGeaendert, onRechnungErstellt, onGeloescht }
   }) {
     setFehler(null);
     try {
-      await api.belege.update({ id: beleg.id, kunde_id: beleg.kunde_id, ...felder });
+      await api.belege.update({ id: beleg.id, ...felder });
       laden();
       zeigen(beleg.typ === "angebot" ? "Angebot gespeichert" : "Rechnung gespeichert");
     } catch (e) {
@@ -361,6 +362,7 @@ interface StammdatenAbschnittProps {
   kunden: Kunde[];
   bearbeitbar: boolean;
   onSpeichern: (felder: {
+    kunde_id: string;
     datum: string;
     leistungsdatum: string;
     zahlungsziel_tage: number;
@@ -370,6 +372,7 @@ interface StammdatenAbschnittProps {
 }
 
 function StammdatenAbschnitt({ beleg, kunden, bearbeitbar, onSpeichern }: StammdatenAbschnittProps) {
+  const [kundeId, setKundeId] = useState(beleg.kunde_id);
   const [datum, setDatum] = useState(beleg.datum);
   const [leistungsdatum, setLeistungsdatum] = useState(beleg.leistungsdatum);
   const [zahlungszielTage, setZahlungszielTage] = useState(beleg.zahlungsziel_tage);
@@ -377,6 +380,7 @@ function StammdatenAbschnitt({ beleg, kunden, bearbeitbar, onSpeichern }: Stammd
   const [fusstext, setFusstext] = useState(beleg.fusstext);
 
   useEffect(() => {
+    setKundeId(beleg.kunde_id);
     setDatum(beleg.datum);
     setLeistungsdatum(beleg.leistungsdatum);
     setZahlungszielTage(beleg.zahlungsziel_tage);
@@ -401,13 +405,31 @@ function StammdatenAbschnitt({ beleg, kunden, bearbeitbar, onSpeichern }: Stammd
   return (
     <section className="karte">
       <h2>Stammdaten</h2>
-      <p>Kunde: {beleg.kunde_snapshot_name ?? kunde?.name ?? beleg.kunde_id}</p>
       <form
         onSubmit={(e) => {
           e.preventDefault();
-          onSpeichern({ datum, leistungsdatum, zahlungsziel_tage: zahlungszielTage, kopftext, fusstext });
+          onSpeichern({
+            kunde_id: kundeId,
+            datum,
+            leistungsdatum,
+            zahlungsziel_tage: zahlungszielTage,
+            kopftext,
+            fusstext,
+          });
         }}
       >
+        {/* Solange der Beleg Entwurf ist, muss sich der Kunde korrigieren lassen —
+            sonst bleibt bei einem Fehlgriff nur, den Entwurf zu verwerfen. */}
+        <label className="feld">
+          Kunde
+          <select value={kundeId} onChange={(e) => setKundeId(e.currentTarget.value)}>
+            {kunden.map((k) => (
+              <option key={k.id} value={k.id}>
+                {k.name}
+              </option>
+            ))}
+          </select>
+        </label>
         <label className="feld">
           Datum
           <input type="date" value={datum} onChange={(e) => setDatum(e.currentTarget.value)} />

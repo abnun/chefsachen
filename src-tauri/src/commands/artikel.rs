@@ -124,6 +124,42 @@ pub async fn kundenpreis_liste(pool: &SqlitePool, artikel_id: String) -> AppResu
         .bind(&artikel_id).fetch_all(pool).await?)
 }
 
+/// Sonderpreis mit dem Artikel, zu dem er gehört. Für die Kundensicht, die
+/// nicht von einem Artikel ausgeht, sondern von einem Kunden.
+#[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
+pub struct KundenpreisMitArtikel {
+    pub id: String,
+    pub artikel_id: String,
+    pub kunde_id: String,
+    pub preis_cent: i64,
+    pub gueltig_ab: Option<String>,
+    pub artikelnummer: String,
+    pub bezeichnung: String,
+    /// Zum Vergleich: Was der Artikel ohne Sonderpreis kosten würde.
+    pub standardpreis_cent: i64,
+}
+
+/// Alle Sonderpreise eines Kunden.
+///
+/// Die Gegenrichtung zu `kundenpreis_liste`: Dort geht man vom Artikel aus, hier
+/// vom Kunden. Ohne diese Abfrage ließe sich „Welche Sonderpreise hat Kunde X?"
+/// nur beantworten, indem man alle Artikel einzeln durchgeht.
+pub async fn kundenpreise_je_kunde(
+    pool: &SqlitePool,
+    kunde_id: String,
+) -> AppResult<Vec<KundenpreisMitArtikel>> {
+    Ok(sqlx::query_as(
+        "SELECT kp.id, kp.artikel_id, kp.kunde_id, kp.preis_cent, kp.gueltig_ab, \
+                a.artikelnummer, a.bezeichnung, a.standardpreis_cent \
+         FROM kundenpreis kp JOIN artikel a ON a.id = kp.artikel_id \
+         WHERE kp.kunde_id = ? AND kp.deleted_at IS NULL AND a.deleted_at IS NULL \
+         ORDER BY a.bezeichnung, kp.gueltig_ab",
+    )
+    .bind(&kunde_id)
+    .fetch_all(pool)
+    .await?)
+}
+
 pub async fn kundenpreis_speichern(pool: &SqlitePool, mut kp: Kundenpreis) -> AppResult<Kundenpreis> {
     if kp.id.is_empty() {
         let vorhanden: (i64,) = sqlx::query_as(
@@ -177,6 +213,13 @@ pub async fn artikel_delete(pool: tauri::State<'_, SqlitePool>, id: String, kund
 #[tauri::command]
 pub async fn kundenpreis_list(pool: tauri::State<'_, SqlitePool>, artikel_id: String) -> AppResult<Vec<Kundenpreis>> {
     kundenpreis_liste(&pool, artikel_id).await
+}
+#[tauri::command]
+pub async fn kundenpreis_list_fuer_kunde(
+    pool: tauri::State<'_, SqlitePool>,
+    kunde_id: String,
+) -> AppResult<Vec<KundenpreisMitArtikel>> {
+    kundenpreise_je_kunde(&pool, kunde_id).await
 }
 #[tauri::command]
 pub async fn kundenpreis_save(pool: tauri::State<'_, SqlitePool>, kp: Kundenpreis) -> AppResult<Kundenpreis> {
@@ -380,5 +423,57 @@ mod tests {
         let roh: (Option<String>,) = sqlx::query_as("SELECT deleted_at FROM kundenpreis WHERE id = ?")
             .bind(&kp.id).fetch_one(&pool).await.unwrap();
         assert!(roh.0.is_some());
+    }
+
+    /// Die Gegenrichtung zur artikelbezogenen Abfrage: Ohne sie ließe sich
+    /// „Welche Sonderpreise hat Kunde X?" nur durch Durchgehen aller Artikel
+    /// beantworten.
+    #[tokio::test]
+    async fn kundenpreise_je_kunde_liefert_artikeldaten_mit() {
+        let (_dir, pool) = test_pool().await;
+        let kunde_id = crate::commands::kunden::create(&pool, crate::commands::kunden::KundeNeu {
+            typ: "firma".into(), name: "ACME GmbH".into(), zahlungsziel_tage: 14,
+            notizen: "".into(), ust_idnr: "".into(), email: "".into(),
+            leitweg_id: "".into(), kaeuferreferenz: "".into(),
+        }).await.unwrap().id;
+        let artikel = create(&pool, ArtikelNeu {
+            bezeichnung: "Beratung".into(), beschreibung: "".into(),
+            einheit_id: "e0000000-0000-0000-0000-000000000001".into(),
+            standardpreis_cent: 12_000,
+        }).await.unwrap();
+        kundenpreis_speichern(&pool, Kundenpreis {
+            id: "".into(), artikel_id: artikel.id.clone(), kunde_id: kunde_id.clone(),
+            preis_cent: 9_000, gueltig_ab: None,
+        }).await.unwrap();
+
+        let preise = kundenpreise_je_kunde(&pool, kunde_id).await.unwrap();
+        assert_eq!(preise.len(), 1);
+        assert_eq!(preise[0].bezeichnung, "Beratung");
+        assert_eq!(preise[0].artikelnummer, artikel.artikelnummer);
+        assert_eq!(preise[0].preis_cent, 9_000);
+        assert_eq!(preise[0].standardpreis_cent, 12_000, "zum Vergleich nötig");
+    }
+
+    /// Ein gelöschter Artikel darf nicht mehr als Sonderpreis auftauchen.
+    #[tokio::test]
+    async fn kundenpreise_je_kunde_uebergeht_geloeschte_artikel() {
+        let (_dir, pool) = test_pool().await;
+        let kunde_id = crate::commands::kunden::create(&pool, crate::commands::kunden::KundeNeu {
+            typ: "firma".into(), name: "ACME GmbH".into(), zahlungsziel_tage: 14,
+            notizen: "".into(), ust_idnr: "".into(), email: "".into(),
+            leitweg_id: "".into(), kaeuferreferenz: "".into(),
+        }).await.unwrap().id;
+        let artikel = create(&pool, ArtikelNeu {
+            bezeichnung: "Alt".into(), beschreibung: "".into(),
+            einheit_id: "e0000000-0000-0000-0000-000000000001".into(),
+            standardpreis_cent: 1_000,
+        }).await.unwrap();
+        kundenpreis_speichern(&pool, Kundenpreis {
+            id: "".into(), artikel_id: artikel.id.clone(), kunde_id: kunde_id.clone(),
+            preis_cent: 500, gueltig_ab: None,
+        }).await.unwrap();
+        delete(&pool, artikel.id, true).await.unwrap();
+
+        assert!(kundenpreise_je_kunde(&pool, kunde_id).await.unwrap().is_empty());
     }
 }

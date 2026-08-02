@@ -73,6 +73,7 @@ pub fn run() {
             commands::artikel::artikel_update,
             commands::artikel::artikel_delete,
             commands::artikel::kundenpreis_list,
+            commands::artikel::kundenpreis_list_fuer_kunde,
             commands::artikel::kundenpreis_save,
             commands::artikel::kundenpreis_delete,
             commands::artikel::preis_ermitteln,

@@ -7,6 +7,7 @@ import {
   type Beleg,
   type Kunde,
   type KundeDetail as KundeDetailTyp,
+  type KundenpreisMitArtikel,
 } from "../api";
 import { formularFehler } from "../formularFehler";
 import { Fehler } from "../components/Fehler";
@@ -27,14 +28,17 @@ const REITER: { id: Reiter; label: string; aktiv: boolean }[] = [
   { id: "stammdaten", label: "Stammdaten", aktiv: true },
   { id: "adressen", label: "Adressen", aktiv: true },
   { id: "ansprechpartner", label: "Ansprechpartner", aktiv: true },
-  { id: "sonderpreise", label: "Sonderpreise", aktiv: false },
+  { id: "sonderpreise", label: "Sonderpreise", aktiv: true },
   { id: "belege", label: "Belege", aktiv: true },
 ];
 
 /**
- * Kundendetailseite mit Reiter-Navigation. "Sonderpreise" wird über die
- * Artikel-Seite gepflegt (Kundenpreise je Artikel, s. Plan 1) und bleibt
- * hier bewusst ein deaktivierter Platzhalter-Reiter.
+ * Kundendetailseite mit Reiter-Navigation.
+ *
+ * Sonderpreise werden weiterhin auf der Artikel-Seite gepflegt — dort gehören
+ * sie hin, weil ein Preis immer zu einem Artikel gehört. Hier sind sie nur
+ * einsehbar, damit die Frage „Welche Sonderpreise hat dieser Kunde?"
+ * beantwortbar ist; bislang war sie es nicht.
  */
 export function KundeDetail({ id, startReiter, onReiterUebernommen, onGeloescht }: KundeDetailProps) {
   const [detail, setDetail] = useState<KundeDetailTyp | null>(null);
@@ -104,15 +108,75 @@ export function KundeDetail({ id, startReiter, onReiterUebernommen, onGeloescht 
           onGeaendert={laden}
         />
       )}
-      {reiter === "sonderpreise" && <PlatzhalterReiter />}
+      {reiter === "sonderpreise" && <SonderpreiseReiter kundeId={id} />}
       {reiter === "belege" && <BelegeReiter kundeId={id} />}
     </div>
   );
 }
 
-function PlatzhalterReiter() {
-  return <p>Folgt in einem späteren Ausbauschritt</p>;
+/**
+ * Zeigt die Sonderpreise eines Kunden. Bewusst nur lesend: Gepflegt werden sie
+ * auf der Artikel-Seite, wo der Zusammenhang zum Artikel sichtbar ist. Zwei
+ * Pflegeorte für dieselben Daten würden nur Verwirrung stiften.
+ */
+function SonderpreiseReiter({ kundeId }: { kundeId: string }) {
+  const [preise, setPreise] = useState<KundenpreisMitArtikel[]>([]);
+  const [fehler, setFehler] = useState<AppFehler | null>(null);
+  const [geladen, setGeladen] = useState(false);
+
+  useEffect(() => {
+    api.artikel
+      .kundenpreiseFuerKunde(kundeId)
+      .then((p) => {
+        setPreise(p);
+        setFehler(null);
+      })
+      .catch((e) => setFehler(e as AppFehler))
+      .finally(() => setGeladen(true));
+  }, [kundeId]);
+
+  if (!geladen) {
+    return <p aria-busy="true">Sonderpreise werden geladen …</p>;
+  }
+
+  return (
+    <section>
+      <Fehler fehler={fehler} />
+      {preise.length === 0 ? (
+        <p>
+          Für diesen Kunden sind keine Sonderpreise hinterlegt. Sie werden auf der
+          Artikel-Seite beim jeweiligen Artikel gepflegt.
+        </p>
+      ) : (
+        <table className="tabelle">
+          <thead>
+            <tr>
+              <th>Artikel</th>
+              <th>Standardpreis</th>
+              <th>Sonderpreis</th>
+              <th>Gültig ab</th>
+            </tr>
+          </thead>
+          <tbody>
+            {preise.map((p) => (
+              <tr key={p.id}>
+                <td>
+                  {p.bezeichnung} <span className="tabelle-num">{p.artikelnummer}</span>
+                </td>
+                <td>{formatCent(p.standardpreis_cent)}</td>
+                <td className={p.preis_cent < p.standardpreis_cent ? "preis-guenstiger" : "preis-teurer"}>
+                  {formatCent(p.preis_cent)}
+                </td>
+                <td>{p.gueltig_ab ?? "immer"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </section>
+  );
 }
+
 
 function BelegeReiter({ kundeId }: { kundeId: string }) {
   const [belege, setBelege] = useState<Beleg[]>([]);

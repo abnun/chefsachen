@@ -9,14 +9,13 @@ Reihenfolge = Empfehlung. Jeder Punkt trägt die Referenz aus dem Review.
 |---|---|
 | 1 — Kaputte Grundfunktionen | ✅ 8/8 |
 | 2 — Rechtliche Korrektheit | ✅ 8/8, P2.9 teilweise |
-| 3 — Fehlende Kernfunktionen | ⬜ 8/11, P3.7 teilweise |
+| 3 — Fehlende Kernfunktionen | ✅ 10/11, P3.7 teilweise |
 | 4 — Robustheit | ⬜ 0/13 |
 | 5 — Produktreife | ⬜ 0/7, P5.2 angefangen |
 | 6 — UX und Code-Qualität | ⬜ 0/11 |
 
-**Nächster Schritt:** P3.2/P3.3 — Bezahlt-Status und Offene-Posten-Sicht. Die
-Dashboard-Kacheln zeigen offene Rechnungen bereits; in der Rechnungsliste fehlt der
-Status weiterhin.
+**Nächster Schritt:** Stufe 4 (Robustheit) — allen voran P4.1/P4.2
+(Nummernvergabe transaktional, Nebenläufigkeit) und P4.9 (IBAN-Prüfung).
 
 ## Entwicklungsumgebung einrichten
 
@@ -198,7 +197,7 @@ Ohne diese Punkte ist die App für die Zielgruppe nicht wertvoll.
 - [x] **P3.5 — Zahlungen löschbar machen** `[A11]` ✅ 2026-08-03
   `api.belege.zahlungDelete` hat 0 Aufrufe. Eine vertippte Zahlung ist derzeit irreversibel.
 
-- [ ] **P3.6 — Kunde im Beleg-Editor änderbar** `[A11]`
+- [x] **P3.6 — Kunde im Beleg-Editor änderbar** `[A11]` ✅ 2026-08-03 (nur solange Entwurf)
   Backend unterstützt `BelegUpdate.kunde_id`, das Frontend rendert nur Text. Falscher Kunde beim Anlegen = unbrauchbarer Entwurf.
 
 - [~] **P3.7 — Automatisches Backup + manueller Export/Import** `[A3]` — teilweise 2026-08-03
@@ -213,7 +212,7 @@ Ohne diese Punkte ist die App für die Zielgruppe nicht wertvoll.
 - [x] **P3.8 — Stornobelege in der Liste kennzeichnen** `[B22]` ✅ 2026-08-03
   Tragen aktuell Status „Gestellt" → die Liste enthält scheinbar doppelte offene Rechnungen mit negativer Summe.
 
-- [ ] **P3.9 — Reiter „Sonderpreise" beim Kunden umsetzen** `[B20]`
+- [x] **P3.9 — Reiter „Sonderpreise" beim Kunden umsetzen** `[B20]` ✅ 2026-08-03 (lesend; gepflegt wird weiter auf der Artikel-Seite)
   Derzeit deaktivierter Platzhalter. „Welche Sonderpreise hat Kunde X?" ist nicht beantwortbar.
 
 - [x] **P3.10 — Logo in den Einstellungen änderbar** `[B21]` ✅ 2026-08-03
