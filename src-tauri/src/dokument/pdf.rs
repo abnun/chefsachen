@@ -112,6 +112,20 @@ fn land_anzeigen(land_kunde: &str, land_firma: &str) -> String {
 /// Kompiliert die Typst-Vorlage zum Dokument. Von `rendern` getrennt, weil der
 /// Schritt „Dokument bauen" und der Schritt „nach PDF exportieren" verschiedene
 /// Fehlerquellen haben und sich so einzeln prüfen lassen.
+/// Fälligkeitsdatum als `TT.MM.JJJJ`.
+///
+/// „Zahlungsziel: 14 Tage" zwingt den Empfänger zum Rechnen, und ab welchem Tag
+/// gezählt wird, steht nirgends. Ein konkretes Datum lässt daran keinen Zweifel.
+/// Bei einem unlesbaren Belegdatum bleibt das Feld leer — die Vorlage lässt die
+/// Zeile dann weg, statt „—" zu drucken.
+fn faellig_am(datum_iso: &str, zahlungsziel_tage: i64) -> String {
+    chrono::NaiveDate::parse_from_str(datum_iso, "%Y-%m-%d")
+        .ok()
+        .and_then(|d| d.checked_add_signed(chrono::Duration::days(zahlungsziel_tage)))
+        .map(|d| d.format("%d.%m.%Y").to_string())
+        .unwrap_or_default()
+}
+
 fn dokument_bauen(
     kontext: &BelegKontext,
     logo: Option<&[u8]>,
@@ -128,8 +142,10 @@ fn dokument_bauen(
         &kontext
             .positionen
             .iter()
-            .map(|p| {
+            .enumerate()
+            .map(|(i, p)| {
                 serde_json::json!({
+                    "nummer": (i + 1).to_string(),
                     "bezeichnung": p.bezeichnung,
                     "menge": format!("{} {}", menge_format(p.menge), p.einheit_kuerzel),
                     "einzelpreis": cent_format(p.einzelpreis_cent),
@@ -161,6 +177,14 @@ fn dokument_bauen(
             "Leistungsdatum".to_string()
         }),
         ("zahlungsziel_tage", kontext.beleg.zahlungsziel_tage.to_string()),
+        // Ein Angebot ist keine Zahlungsaufforderung; dort bleibt das Feld leer
+        // und die Vorlage lässt die Zeile weg.
+        ("faellig_am", if kontext.beleg.typ == "angebot" {
+            String::new()
+        } else {
+            faellig_am(&kontext.beleg.datum, kontext.beleg.zahlungsziel_tage)
+        }),
+        ("storno_von_nummer", kontext.storno_von_nummer.clone().unwrap_or_default()),
         ("kunde_ansprechpartner", kontext.kunde_ansprechpartner.clone()),
         ("kunde_name", kontext.kunde_name.clone()),
         ("kunde_strasse", kontext.adresse_strasse.clone()),
@@ -249,6 +273,148 @@ pub(crate) mod tests {
     fn text(kontext: &BelegKontext) -> String {
         let bytes = rendern(kontext, None).unwrap();
         pdf_extract::extract_text_from_mem(&bytes).unwrap()
+    }
+
+    /// 2×3-Matrix, wie PDF sie für `cm` und `Tm` verwendet: [a b c d e f].
+    type Matrix = [f32; 6];
+
+    const EINHEIT: Matrix = [1.0, 0.0, 0.0, 1.0, 0.0, 0.0];
+
+    /// Verkettet zwei Matrizen — erst `m`, dann `n`.
+    fn mal(m: Matrix, n: Matrix) -> Matrix {
+        [
+            m[0] * n[0] + m[1] * n[2],
+            m[0] * n[1] + m[1] * n[3],
+            m[2] * n[0] + m[3] * n[2],
+            m[2] * n[1] + m[3] * n[3],
+            m[4] * n[0] + m[5] * n[2] + n[4],
+            m[4] * n[1] + m[5] * n[3] + n[5],
+        ]
+    }
+
+    /// Textpositionen der ersten Seite in Punkten, gemessen von der linken
+    /// **unteren** Ecke — so, wie PDF selbst rechnet.
+    ///
+    /// Typst schreibt die Positionen nicht absolut: Es spiegelt zunächst die
+    /// y-Achse (`cm [1 0 0 -1 0 841.89]`, damit von oben gemessen wird) und
+    /// verschiebt danach je Block. Die `Tm`-Werte allein sind daher
+    /// blockrelativ und für sich genommen nichtssagend — die Matrizen müssen
+    /// verkettet werden.
+    fn textpositionen(bytes: &[u8]) -> Vec<(f32, f32)> {
+        let doc = lopdf::Document::load_mem(bytes).unwrap();
+        let (_, seite) = doc.get_pages().into_iter().next().unwrap();
+        let inhalt = lopdf::content::Content::decode(&doc.get_page_content(seite).unwrap()).unwrap();
+
+        let mut ctm = EINHEIT;
+        let mut stapel: Vec<Matrix> = Vec::new();
+        let mut positionen = Vec::new();
+
+        for op in inhalt.operations {
+            let werte = || -> Matrix {
+                let mut m = EINHEIT;
+                for (i, o) in op.operands.iter().take(6).enumerate() {
+                    m[i] = o.as_float().unwrap_or(0.0);
+                }
+                m
+            };
+            match op.operator.as_str() {
+                "q" => stapel.push(ctm),
+                "Q" => ctm = stapel.pop().unwrap_or(EINHEIT),
+                "cm" if op.operands.len() == 6 => ctm = mal(werte(), ctm),
+                "Tm" if op.operands.len() == 6 => {
+                    let m = mal(werte(), ctm);
+                    positionen.push((m[4], m[5]));
+                }
+                _ => {}
+            }
+        }
+        positionen
+    }
+
+    /// DIN 5008 Form A legt das Anschriftfeld auf 20 mm von links und 45 mm von
+    /// oben, 85 mm breit und 40 mm hoch. Nur dort steht die Anschrift im
+    /// Sichtfenster eines gewöhnlichen Umschlags (DIN lang, C6/5).
+    ///
+    /// Gemessen wird am erzeugten PDF, nicht an der Vorlage — sonst prüfte der
+    /// Test die Quelle gegen sich selbst.
+    #[test]
+    fn die_anschrift_liegt_im_sichtfenster_nach_din_5008() {
+        const MM: f32 = 72.0 / 25.4;
+
+        // A4-Höhe. PDF misst von unten, die Norm von oben.
+        const SEITENHOEHE: f32 = 297.0 * MM;
+
+        // Ein Zehntelmillimeter Spiel. Typst rundet die Koordinaten beim
+        // Schreiben, und exakt auf der Kante zu vergleichen ließe den Test an
+        // vier Zehnmillionstel scheitern. Physisch hat ein Umschlagfenster
+        // ohnehin mehr Spiel als das.
+        const SPIEL: f32 = 0.1 * MM;
+
+        let bytes = rendern(&test_kontext(), None).unwrap();
+        let im_fenster: Vec<_> = textpositionen(&bytes)
+            .into_iter()
+            .map(|(x, y)| (x, SEITENHOEHE - y))
+            .filter(|(x, y)| {
+                (20.0 * MM - SPIEL..=105.0 * MM + SPIEL).contains(x)
+                    && (45.0 * MM - SPIEL..=85.0 * MM + SPIEL).contains(y)
+            })
+            .collect();
+
+        // Rücksendeangabe, Name, Straße, Ort — mindestens vier Zeilen.
+        assert!(
+            im_fenster.len() >= 4,
+            "im Anschriftfeld stehen nur {} Zeilen, erwartet sind mindestens 4",
+            im_fenster.len(),
+        );
+
+        // Der Block beginnt exakt an der linken Kante des Feldes.
+        let links = im_fenster.iter().map(|(x, _)| *x).fold(f32::MAX, f32::min);
+        assert!(
+            (links - 20.0 * MM).abs() < 1.0,
+            "linke Kante bei {:.1} mm statt 20 mm",
+            links / MM,
+        );
+    }
+
+    #[test]
+    fn positionen_sind_durchnummeriert() {
+        // Ohne Nummer lässt sich am Telefon nicht auf eine Zeile verweisen
+        // („Position 3 stimmt nicht"), und bei gleichlautenden Bezeichnungen
+        // ist gar nicht klar, welche gemeint ist.
+        let t = text(&test_kontext());
+        assert!(t.contains("Pos."), "Spaltenkopf fehlt:\n{t}");
+        assert!(t.contains("1"), "erste Positionsnummer fehlt:\n{t}");
+    }
+
+    #[test]
+    fn rechnung_nennt_ein_konkretes_faelligkeitsdatum() {
+        // „Zahlungsziel: 14 Tage" zwingt den Empfänger zum Rechnen — und ab
+        // welchem Tag gezählt wird, steht nirgends.
+        let kontext = test_kontext();
+        let t = text(&kontext);
+        assert!(t.contains("Zahlbar bis"), "Fälligkeit fehlt:\n{t}");
+        // Belegdatum 2026-07-11 plus 14 Tage Zahlungsziel.
+        assert!(t.contains("25.07.2026"), "falsches oder fehlendes Datum:\n{t}");
+    }
+
+    #[test]
+    fn ein_angebot_nennt_keine_faelligkeit() {
+        // Ein Angebot ist keine Zahlungsaufforderung.
+        let mut kontext = test_kontext();
+        kontext.beleg.typ = "angebot".into();
+        let t = text(&kontext);
+        assert!(!t.contains("Zahlbar bis"), "Angebot mit Fälligkeit:\n{t}");
+    }
+
+    #[test]
+    fn eine_korrektur_verweist_auf_die_ursprungsrechnung() {
+        // Ohne den Bezug ist eine Rechnungskorrektur für den Empfänger nicht
+        // zuzuordnen — und für dessen Buchhaltung wertlos.
+        let mut kontext = test_kontext();
+        kontext.beleg.storno_von_id = Some("b0".into());
+        kontext.storno_von_nummer = Some("RE-2026-0007".into());
+        let t = text(&kontext);
+        assert!(t.contains("RE-2026-0007"), "Bezug zur Ursprungsrechnung fehlt:\n{t}");
     }
 
     #[test]

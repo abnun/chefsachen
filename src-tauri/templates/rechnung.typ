@@ -27,25 +27,55 @@
   #sys.inputs.firma_plz #sys.inputs.firma_ort
 ]
 
-#v(1cm)
+// Anschriftfeld nach DIN 5008 Form A: 20 mm von links, 45 mm von oben,
+// 85 mm breit. Nur an dieser Stelle steht die Anschrift im Sichtfenster eines
+// gewöhnlichen Umschlags (DIN lang, C6/5). Lag sie im Fluss des Dokuments,
+// verschob sie ein Logo oder eine längere Firmenanschrift so weit, dass die
+// Rechnung von Hand kuvertiert werden musste.
+//
+// `place` nimmt die Angaben relativ zum Seitenrand (hier 2,5 cm), deshalb die
+// Differenz zu den Maßen der Norm.
+#place(
+  top + left,
+  dx: 2cm - 2.5cm,
+  dy: 4.5cm - 2.5cm,
+  block(width: 8.5cm)[
+    // Rücksendeangabe: kleingedruckt über der Anschrift, wie in der Norm
+    // vorgesehen. Sie steht ebenfalls im Fenster und weist den Absender aus,
+    // falls die Sendung nicht zustellbar ist.
+    #text(size: 7pt)[
+      #sys.inputs.firma_name · #sys.inputs.firma_strasse · #sys.inputs.firma_plz #sys.inputs.firma_ort
+    ]
+    #v(0.4cm)
+    #if ist_gesetzt(sys.inputs.kunde_ansprechpartner) [
+      #sys.inputs.kunde_ansprechpartner \
+    ]
+    #sys.inputs.kunde_name \
+    #sys.inputs.kunde_strasse \
+    #sys.inputs.kunde_plz #sys.inputs.kunde_ort
+    #if ist_gesetzt(sys.inputs.kunde_land) [
+      \ #sys.inputs.kunde_land
+    ]
+  ],
+)
 
-#if ist_gesetzt(sys.inputs.kunde_ansprechpartner) [
-  #sys.inputs.kunde_ansprechpartner \
-]
-#sys.inputs.kunde_name \
-#sys.inputs.kunde_strasse \
-#sys.inputs.kunde_plz #sys.inputs.kunde_ort
-#if ist_gesetzt(sys.inputs.kunde_land) [
-  \ #sys.inputs.kunde_land
-]
-
-#v(1cm)
+// Abstand bis unter das Anschriftfeld (45 mm + 40 mm nach Norm).
+#v(8.5cm - 2.5cm)
 
 = #sys.inputs.titel #sys.inputs.nummer
 
 Datum: #sys.inputs.datum \
-#sys.inputs.leistung_beschriftung: #sys.inputs.leistungsdatum \
-Zahlungsziel: #sys.inputs.zahlungsziel_tage Tage
+#sys.inputs.leistung_beschriftung: #sys.inputs.leistungsdatum
+#if ist_gesetzt(sys.inputs.faellig_am) [
+  \ Zahlbar bis #sys.inputs.faellig_am (#sys.inputs.zahlungsziel_tage Tage)
+]
+
+// Eine Rechnungskorrektur ohne Bezug zur ursprünglichen Rechnung ist für die
+// Buchhaltung des Empfängers nicht zuzuordnen.
+#if ist_gesetzt(sys.inputs.storno_von_nummer) [
+  #v(0.3cm)
+  Storno zu Rechnung #sys.inputs.storno_von_nummer
+]
 
 #if ist_gesetzt(sys.inputs.kopftext) [
   #v(0.5cm)
@@ -59,12 +89,12 @@ Zahlungsziel: #sys.inputs.zahlungsziel_tage Tage
 // table.header(repeat: true) wiederholt die Kopfzeile auf Folgeseiten — ohne das
 // stünden bei einer langen Rechnung ab Seite 2 namenlose Zahlenspalten.
 #table(
-  columns: (1fr, auto, auto, auto),
-  align: (left, right, right, right),
+  columns: (auto, 1fr, auto, auto, auto),
+  align: (right, left, right, right, right),
   table.header(
-    [*Bezeichnung*], [*Menge*], [*Einzelpreis*], [*Summe*],
+    [*Pos.*], [*Bezeichnung*], [*Menge*], [*Einzelpreis*], [*Summe*],
   ),
-  ..positionen.map(p => (p.bezeichnung, p.menge, p.einzelpreis, p.summe)).flatten()
+  ..positionen.map(p => (p.nummer, p.bezeichnung, p.menge, p.einzelpreis, p.summe)).flatten()
 )
 
 #align(right)[*Gesamt: #sys.inputs.summe*]

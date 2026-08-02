@@ -8,7 +8,7 @@ Reihenfolge = Empfehlung. Jeder Punkt trägt die Referenz aus dem Review.
 | Stufe | Fortschritt |
 |---|---|
 | 1 — Kaputte Grundfunktionen | ✅ 8/8 |
-| 2 — Rechtliche Korrektheit | ✅ 8/8, P2.9 teilweise |
+| 2 — Rechtliche Korrektheit | ✅ 9/9 |
 | 3 — Fehlende Kernfunktionen | ✅ 10/11, P3.7 teilweise |
 | 4 — Robustheit | ✅ 13/13 |
 | 5 — Produktreife | ⬜ 6/7, P5.6 bewusst zurückgestellt |
@@ -164,11 +164,28 @@ Ohne diese Punkte erzeugt die App formell fehlerhafte Rechnungen.
   die Tests jetzt, was tatsächlich auf der Rechnung steht. Für XRechnung und ZUGFeRD fehlt das
   Gegenstück noch: KoSIT-Schematron für XRechnung, veraPDF für ZUGFeRD. Ohne das wiederholt sich das Muster: Die Tests bestätigen nur, dass der Code tut was er tut, nie dass das Ergebnis normkonform ist.
 
-- [~] **P2.9 — PDF-Vorlage produktionsreif machen** `[A2]` — teilweise erledigt 2026-08-02
-  Erledigt: Seitenzahlen (erst ab Seite 2), Tabellenkopf-Wiederholung, Land im Empfängerblock
-  (nur bei Auslandsrechnung), deutsches Datumsformat, IBAN in Viererblöcken.
-  Offen: DIN-5008-Adressposition für Fensterumschläge, konkretes Fälligkeitsdatum statt „N Tage",
-  Positions- und Artikelnummer in der Tabelle, Verweis auf die Ursprungsrechnung im Storno-PDF.
+- [x] **P2.9 — PDF-Vorlage produktionsreif machen** `[A2]`
+  Seitenzahlen (erst ab Seite 2), Tabellenkopf-Wiederholung, Land nur bei Auslandsrechnung,
+  deutsches Datumsformat, IBAN in Viererblöcken.
+  Ergänzt 2026-08-03:
+  - **Anschriftfeld nach DIN 5008 Form A** — absolut gesetzt auf 20 mm von links, 45 mm von
+    oben, 85 mm breit. Nur dort steht die Anschrift im Sichtfenster eines gewöhnlichen
+    Umschlags. Lag sie im Textfluss, verschob sie ein Logo oder eine längere Firmenanschrift
+    so weit, dass von Hand kuvertiert werden musste. Darüber die Rücksendeangabe, wie in der
+    Norm vorgesehen.
+    Der Test misst am erzeugten PDF, nicht an der Vorlage: Er liest die Textmatrizen aus dem
+    Inhaltsstrom und verkettet sie mit der Transformationsmatrix — Typst schreibt die
+    Positionen blockrelativ, die `Tm`-Werte allein sind nichtssagend. Gegenprobe mit drei
+    Verschiebungen gemacht.
+  - **Konkretes Fälligkeitsdatum** statt „Zahlungsziel: 14 Tage". Ein Angebot bekommt keins —
+    es ist keine Zahlungsaufforderung.
+  - **Positionsnummern** in der Tabelle. Ohne sie lässt sich am Telefon nicht auf eine Zeile
+    verweisen, und bei gleichlautenden Bezeichnungen ist gar nicht klar, welche gemeint ist.
+  - **Verweis auf die Ursprungsrechnung** im Storno-PDF. Ohne ihn ist eine Rechnungskorrektur
+    für die Buchhaltung des Empfängers nicht zuzuordnen.
+  Die Artikelnummer bleibt bewusst weg: Sie steht nicht im eingefrorenen Beleg, müsste also
+  live nachgeladen werden — und stünde damit als möglicherweise veränderter Wert auf einem
+  unveränderlichen Dokument.
   → `src-tauri/templates/rechnung.typ`
 
 ---
