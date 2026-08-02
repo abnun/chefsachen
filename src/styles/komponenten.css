@@ -463,3 +463,128 @@ label.feld textarea {
   justify-content: flex-end;
   margin-top: var(--abstand-l);
 }
+
+/* ── Übersicht ───────────────────────────────────────────────────────────── */
+
+.kennzahl {
+  font-size: 28px;
+  font-weight: 600;
+  margin: var(--abstand-s) 0 0;
+}
+
+.kennzahl-neben {
+  color: var(--text-leise);
+  margin: var(--abstand-xs) 0 var(--abstand-m);
+}
+
+/* Kennzeichnet einen Sonderzustand neben einer Überschrift, etwa das
+   Gründungsjahr, in dem eine andere Umsatzgrenze gilt. */
+.marke {
+  display: inline-block;
+  margin-left: var(--abstand-s);
+  padding: 2px var(--abstand-s);
+  border-radius: var(--radius-pill);
+  background: var(--akzent-leise);
+  color: var(--akzent);
+  font-size: var(--text-s);
+  font-weight: 500;
+  vertical-align: middle;
+}
+
+.grenze {
+  margin-bottom: var(--abstand-xl);
+}
+
+.grenze-kopf {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--abstand-m);
+  flex-wrap: wrap;
+  margin-bottom: var(--abstand-xs);
+}
+
+.grenze-titel {
+  font-weight: 500;
+}
+
+.grenze-zahlen {
+  color: var(--text-leise);
+  font-variant-numeric: tabular-nums;
+}
+
+.grenze-balken {
+  height: 10px;
+  border-radius: var(--radius-pill);
+  background: var(--akzent-leise);
+  overflow: hidden;
+}
+
+.grenze-fuellung {
+  height: 100%;
+  border-radius: var(--radius-pill);
+  background: currentColor;
+}
+
+.grenze-erlaeuterung {
+  margin: var(--abstand-xs) 0 0;
+  color: var(--text-leise);
+  font-size: var(--text-s);
+}
+
+/* Die Farbe sitzt am Container und wird über currentColor an die Füllung
+   vererbt — so bleibt Balken und zugehöriger Text zwangsläufig gleichfarbig. */
+.grenze-keine { color: var(--st-bezahlt-text); }
+.grenze-annaeherung { color: #a8720d; }
+.grenze-kritisch { color: #b4530a; }
+.grenze-ueberschritten { color: var(--fehler-text); }
+
+.hinweis-karte {
+  border: 1px solid currentColor;
+  border-left-width: 4px;
+  border-radius: var(--radius-m);
+  padding: var(--abstand-l);
+  margin-bottom: var(--abstand-l);
+  background: var(--flaeche);
+}
+
+.hinweis-karte h3 {
+  margin: 0 0 var(--abstand-s);
+  font-size: var(--text-l);
+}
+
+/* Fließtext und Listen wieder in der normalen Textfarbe: Die Warnfarbe soll
+   Rahmen und Überschrift markieren, nicht die Lesbarkeit ganzer Absätze mindern. */
+.hinweis-karte p,
+.hinweis-karte ol {
+  color: var(--text);
+}
+
+.hinweis-betrag {
+  background: var(--bg-gedaempft);
+  border-radius: var(--radius-s);
+  padding: var(--abstand-m);
+}
+
+.hinweis-schritte-kopf {
+  margin-bottom: var(--abstand-xs);
+  font-weight: 500;
+}
+
+.hinweis-schritte {
+  margin: 0;
+  padding-left: var(--abstand-xl);
+}
+
+.hinweis-schritte li {
+  margin-bottom: var(--abstand-s);
+}
+
+.ueberfaellig {
+  color: var(--fehler-text);
+  font-weight: 500;
+}
+
+@media (prefers-color-scheme: dark) {
+  .grenze-annaeherung { color: #e0b060; }
+  .grenze-kritisch { color: #f0a070; }
+}

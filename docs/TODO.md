@@ -3,19 +3,20 @@
 Priorisierte Arbeitsliste, abgeleitet aus [MVP-Review vom 2026-08-02](2026-08-02-mvp-review.md).
 Reihenfolge = Empfehlung. Jeder Punkt trägt die Referenz aus dem Review.
 
-## Stand (2026-08-02)
+## Stand (2026-08-03)
 
 | Stufe | Fortschritt |
 |---|---|
 | 1 — Kaputte Grundfunktionen | ✅ 8/8 |
 | 2 — Rechtliche Korrektheit | ✅ 8/8, P2.9 teilweise |
-| 3 — Fehlende Kernfunktionen | ⬜ 0/11 |
+| 3 — Fehlende Kernfunktionen | ⬜ 1/11 |
 | 4 — Robustheit | ⬜ 0/13 |
 | 5 — Produktreife | ⬜ 0/7, P5.2 angefangen |
 | 6 — UX und Code-Qualität | ⬜ 0/11 |
 
-**Nächster Schritt:** P3.1 — Dashboard mit Umsatzgrenzen-Überwachung. Das ist der
-Grund, warum ein Kleinunternehmer dieses Werkzeug überhaupt braucht.
+**Nächster Schritt:** P3.2/P3.3 — Bezahlt-Status und Offene-Posten-Sicht. Die
+Dashboard-Kacheln zeigen offene Rechnungen bereits; in der Rechnungsliste fehlt der
+Status weiterhin.
 
 ## Entwicklungsumgebung einrichten
 
@@ -168,9 +169,17 @@ Ohne diese Punkte erzeugt die App formell fehlerhafte Rechnungen.
 
 Ohne diese Punkte ist die App für die Zielgruppe nicht wertvoll.
 
-- [ ] **P3.1 — Dashboard mit Umsatzgrenzen-Überwachung** `[A9]`
+- [x] **P3.1 — Dashboard mit Umsatzgrenzen-Überwachung** `[A9]` ✅ 2026-08-03
   Der eigentliche USP: 25.000-€-Vorjahres- und 100.000-€-Laufjahresgrenze nach § 19 UStG. Basis = vereinnahmte Zahlungen des Kalenderjahres, Storni negativ. Existiert weder im Backend noch im Frontend.
   Umfang laut Spec: Jahresumsatz mit Fortschrittsbalken und Warnstufen, offene Rechnungen mit Fälligkeit, zuletzt bearbeitete Belege, offene Angebote.
+
+  Umgesetzt mit drei Balken statt einem: Derselbe laufende Umsatz wird an zwei Grenzen
+  gemessen und betrifft dabei zwei verschiedene Jahre. Dazu Migration 0009 für das
+  Gründungsjahr — ohne Vorjahr gilt die 25.000-€-Grenze bereits fürs laufende Jahr.
+  Die Hinweise nennen die geschätzte Nachzahlung und raten zur Rücklage, weil die
+  Steuer beim Kunden nachträglich meist nicht mehr einzutreiben ist.
+  **Noch nicht mit eigenen Augen geprüft** — die Seite ist nur durch Tests abgesichert,
+  ein Lauf der echten App steht aus.
 
 - [ ] **P3.2 — Bezahlt-/Teilbezahlt-Status** `[A10]`
   Existiert nirgends in der Codebasis; vollständig bezahlte Rechnungen bleiben ewig „gestellt".

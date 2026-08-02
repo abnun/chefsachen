@@ -63,6 +63,7 @@ function FirmendatenAbschnitt() {
     "email",
     "telefon",
     "kontakt_name",
+    "gruendungsjahr",
   ]);
 
   if (!firma) {
@@ -180,6 +181,28 @@ function FirmendatenAbschnitt() {
           </label>
           <p className="feld-hinweis">Pflichtangabe für den XRechnung-Export.</p>
           {feldFehler("telefon") && <div role="alert" className="feld-fehler">{feldFehler("telefon")}</div>}
+        </div>
+        <div className="feld">
+          <label>
+            Gründungsjahr
+            <input
+              type="number"
+              value={firma.gruendungsjahr ?? ""}
+              onChange={(e) =>
+                setFirma({
+                  ...firma,
+                  gruendungsjahr: e.currentTarget.value === "" ? null : Number(e.currentTarget.value),
+                })
+              }
+            />
+          </label>
+          <p className="feld-hinweis">
+            Im Gründungsjahr gibt es kein Vorjahr — dann gilt die 25.000-€-Grenze bereits
+            für das laufende Jahr. Ohne Angabe wird vom Regelfall ausgegangen.
+          </p>
+          {feldFehler("gruendungsjahr") && (
+            <div role="alert" className="feld-fehler">{feldFehler("gruendungsjahr")}</div>
+          )}
         </div>
         <div className="feld">
           <label>

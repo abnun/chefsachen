@@ -1,13 +1,22 @@
 import type { ReactNode } from "react";
 import { t } from "../i18n";
 
-export type Seite = "kunden" | "artikel" | "angebote" | "rechnungen" | "eingangsrechnungen" | "einstellungen";
+export type Seite = "uebersicht" | "kunden" | "artikel" | "angebote" | "rechnungen" | "eingangsrechnungen" | "einstellungen";
 
 interface NavEintrag {
   seite: Seite;
   label: string;
   icon: ReactNode;
 }
+
+const ICON_UEBERSICHT = (
+  <svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6">
+    <rect x="2.5" y="2.5" width="6.5" height="6.5" rx="1" />
+    <rect x="11" y="2.5" width="6.5" height="4" rx="1" />
+    <rect x="2.5" y="11" width="6.5" height="6.5" rx="1" />
+    <rect x="11" y="8.5" width="6.5" height="9" rx="1" />
+  </svg>
+);
 
 const ICON_KUNDEN = (
   <svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6">
@@ -56,6 +65,7 @@ const ICON_EINSTELLUNGEN = (
 );
 
 const NAV_EINTRAEGE: NavEintrag[] = [
+  { seite: "uebersicht", label: t("nav.uebersicht"), icon: ICON_UEBERSICHT },
   { seite: "kunden", label: t("nav.kunden"), icon: ICON_KUNDEN },
   { seite: "artikel", label: t("nav.artikel"), icon: ICON_ARTIKEL },
   { seite: "angebote", label: t("nav.angebote"), icon: ICON_ANGEBOTE },

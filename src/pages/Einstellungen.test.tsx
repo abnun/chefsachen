@@ -17,7 +17,7 @@ vi.mock("../api", () => ({
         ust_idnr: "",
         iban: "",
         bic: "",
-        email: "", telefon: "", kontakt_name: "",
+        email: "", telefon: "", kontakt_name: "", gruendungsjahr: null,
         kleinunternehmer: true,
         eingerichtet: true,
       }),
@@ -73,7 +73,7 @@ describe("Einstellungen", () => {
     vi.mocked(api.firma.save).mockResolvedValueOnce({
       id: "1", name: "Musterfirma", strasse: "Musterstr. 1", plz: "12345", ort: "Musterstadt",
       land: "DE", steuernummer: "123/456/789", ust_idnr: "", iban: "", bic: "",
-      email: "", telefon: "", kontakt_name: "",
+      email: "", telefon: "", kontakt_name: "", gruendungsjahr: null,
       kleinunternehmer: true, eingerichtet: true,
     });
     render(<Einstellungen />);

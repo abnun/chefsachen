@@ -1,4 +1,5 @@
 export const translations: Record<string, string> = {
+  "nav.uebersicht": "Übersicht",
   "nav.kunden": "Kunden",
   "nav.artikel": "Artikel & Leistungen",
   "nav.einstellungen": "Einstellungen",

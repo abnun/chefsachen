@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { api, type AppFehler, type Firma } from "./api";
 import { Layout, type Seite } from "./components/Layout";
 import { Fehler } from "./components/Fehler";
+import { Dashboard } from "./pages/Dashboard";
 import { Einrichtung } from "./pages/Einrichtung";
 import { Einstellungen } from "./pages/Einstellungen";
 import { Kunden } from "./pages/Kunden";
@@ -19,7 +20,7 @@ import "./styles/komponenten.css";
 function App() {
   const [firma, setFirma] = useState<Firma | null>(null);
   const [fehler, setFehler] = useState<AppFehler | null>(null);
-  const [seite, setSeite] = useState<Seite>("kunden");
+  const [seite, setSeite] = useState<Seite>("uebersicht");
   const [ausgewaehlterKunde, setAusgewaehlterKunde] = useState<string | null>(null);
   const [kundeDetailStartReiter, setKundeDetailStartReiter] = useState<Reiter | null>(null);
   const [ausgewaehltesAngebot, setAusgewaehltesAngebot] = useState<string | null>(null);
@@ -70,6 +71,19 @@ function App() {
 
   return (
     <Layout aktiveSeite={seite} onNavigiere={navigiere}>
+      {seite === "uebersicht" && (
+        <Dashboard
+          onRechnungOeffnen={(id) => {
+            setAusgewaehlteRechnung(id);
+            setSeite("rechnungen");
+          }}
+          onAngebotOeffnen={(id) => {
+            setAusgewaehltesAngebot(id);
+            setSeite("angebote");
+          }}
+        />
+      )}
+
       {seite === "kunden" &&
         (ausgewaehlterKunde ? (
           <KundeDetail

@@ -78,6 +78,12 @@ export interface Firma {
   telefon: string;
   /** Name des Ansprechpartners (BT-41). Leer bedeutet: Firmenname wird verwendet. */
   kontakt_name: string;
+  /**
+   * Gründungsjahr, sofern bekannt. Entscheidet über die im laufenden Jahr
+   * maßgebliche Umsatzgrenze: Im Gründungsjahr gibt es kein Vorjahr, an dem die
+   * 25.000-€-Grenze ansetzen könnte — sie gilt dann sofort.
+   */
+  gruendungsjahr: number | null;
   kleinunternehmer: boolean;
   eingerichtet: boolean;
 }
@@ -249,6 +255,78 @@ export interface EingangsrechnungOriginal {
   dateiname: string;
   bytes: number[];
 }
+export type Warnstufe = "keine" | "annaeherung" | "kritisch" | "ueberschritten";
+export type Statusbefund = "gegeben" | "entfallen_wegen_vorjahr" | "entfallen_wegen_laufendem_jahr";
+
+export interface Grenze {
+  umsatz_cent: number;
+  grenze_cent: number;
+  anteil_prozent: number;
+  warnstufe: Warnstufe;
+}
+
+export interface Finanzfolge {
+  grundlage_cent: number;
+  betrag_cent: number;
+  erlaeuterung: string;
+}
+
+export interface Hinweis {
+  stufe: Warnstufe;
+  titel: string;
+  bedeutung: string;
+  finanzielle_folge: Finanzfolge | null;
+  handlung: string[];
+}
+
+export interface Umsatzgrenzen {
+  laufendes_jahr_gegen_vorjahresgrenze: Grenze;
+  laufendes_jahr_gegen_jahresgrenze: Grenze;
+  vorjahr_gegen_vorjahresgrenze: Grenze;
+  befund: Statusbefund;
+  ist_gruendungsjahr: boolean;
+  hinweise: Hinweis[];
+}
+
+export interface OffeneRechnung {
+  id: string;
+  nummer: string;
+  kunde_name: string;
+  datum: string;
+  faellig_am: string;
+  /** Negativ bedeutet überfällig. */
+  tage_bis_faellig: number;
+  offener_betrag_cent: number;
+}
+
+export interface OffenesAngebot {
+  id: string;
+  nummer: string;
+  kunde_name: string;
+  datum: string;
+  summe_cent: number;
+}
+
+export interface LetzterBeleg {
+  id: string;
+  typ: string;
+  nummer: string;
+  kunde_name: string;
+  status: string;
+  summe_cent: number;
+}
+
+export interface DashboardDaten {
+  jahr: number;
+  umsatz_laufendes_jahr_cent: number;
+  umsatz_vorjahr_cent: number;
+  /** Null, wenn die Firma nicht als Kleinunternehmer geführt wird. */
+  umsatzgrenzen: Umsatzgrenzen | null;
+  offene_rechnungen: OffeneRechnung[];
+  offene_angebote: OffenesAngebot[];
+  letzte_belege: LetzterBeleg[];
+}
+
 export type AppFehler =
   | { typ: "validation"; feld: string; meldung: string }
   | { typ: "nicht_gefunden"; meldung: string }
@@ -259,6 +337,9 @@ export function istValidierungsfehler(e: unknown): e is Extract<AppFehler, { typ
 }
 
 export const api = {
+  dashboard: {
+    laden: () => invoke<DashboardDaten>("dashboard_laden"),
+  },
   einheiten: {
     list: () => invoke<Einheit[]>("einheit_list"),
     create: (name: string, kuerzel: string) => invoke<Einheit>("einheit_create", { name, kuerzel }),
