@@ -85,9 +85,20 @@ sind Rechnungen zehn Jahre lang.
 
 ## Updates
 
-Die App aktualisiert sich nicht selbst. Für eine neue Version lädst du das
-Installationspaket erneut herunter und installierst darüber — deine Daten
-bleiben dabei erhalten, sie liegen außerhalb der App.
+Die App sucht bei jedem Start nach einer neuen Version. Findet sie eine,
+erscheint unter **Einstellungen → Programmversion** ein Hinweis mit einem
+Knopf **„Jetzt aktualisieren"**. Installiert wird nur, wenn du das anstößt —
+im Hintergrund passiert nichts.
+
+Dort steht auch, welche Version bei dir läuft, und du kannst jederzeit selbst
+nach einer Aktualisierung suchen.
+
+Beim Aktualisieren wird das neue Paket geladen und seine Signatur geprüft;
+passt sie nicht, bricht die App ab und installiert nichts. Danach startet sie
+neu. Deine Daten bleiben unverändert — sie liegen außerhalb des Programms.
+
+Ohne Internetverbindung meldet die App beim Start nichts; die Suche wird
+einfach übersprungen.
 
 ## Wenn etwas nicht funktioniert
 

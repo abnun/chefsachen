@@ -11,11 +11,12 @@ Reihenfolge = Empfehlung. Jeder Punkt trägt die Referenz aus dem Review.
 | 2 — Rechtliche Korrektheit | ✅ 8/8, P2.9 teilweise |
 | 3 — Fehlende Kernfunktionen | ✅ 10/11, P3.7 teilweise |
 | 4 — Robustheit | ✅ 13/13 |
-| 5 — Produktreife | ⬜ 1/7, P5.2 angefangen, P5.6 zurückgestellt |
+| 5 — Produktreife | ⬜ 3/7, P5.2 angefangen, P5.6 zurückgestellt |
 | 6 — UX und Code-Qualität | ⬜ 0/11 |
 
-**Nächster Schritt:** Stufe 5 weiter — P5.7 (CSP) und P5.4 (Logging, Versionsanzeige).
-P5.6 (Signierung) ist bewusst zurückgestellt, die App geht vorerst nur an Family & Friends.
+**Nächster Schritt:** Stufe 5 weiter — P5.4 (Logging; die Versionsanzeige kam mit P5.1)
+und P5.3 (E2E). P5.6 (Signierung) ist bewusst zurückgestellt, die App geht vorerst nur an
+Family & Friends.
 
 ## Entwicklungsumgebung einrichten
 
@@ -295,12 +296,20 @@ Ohne diese Punkte ist die App für die Zielgruppe nicht wertvoll.
 
 ## Stufe 5 — Produktreife (Auslieferung an Dritte)
 
-- [ ] **P5.1 — Auto-Updater einrichten** `[B1]`
-  Ohne ihn erreicht kein Bugfix je einen Bestandsnutzer. Lässt sich nicht folgenlos nachrüsten, da Signaturschlüssel vorausgesetzt werden — daher **vor** der ersten echten Verteilung.
-  Hinweis: Der Updater braucht *nicht* dieselben Zertifikate wie P5.6 — Tauri signiert die
-  Update-Artefakte mit einem selbst erzeugten minisign-Schlüsselpaar. Die Zurückstellung von
-  P5.6 blockiert diesen Punkt also nicht. Bis dahin gilt das manuelle Neuinstallieren,
-  wie in der Installationsanleitung beschrieben.
+- [x] **P5.1 — Auto-Updater einrichten** `[B1]`
+  `tauri-plugin-updater` + `tauri-plugin-process`, minisign-Schlüsselpaar erzeugt, öffentlicher
+  Schlüssel in `tauri.conf.json`, `createUpdaterArtifacts: true`. Endpunkt ist
+  `releases/latest/download/latest.json` auf GitHub.
+  Oberfläche: Abschnitt „Programmversion" in den Einstellungen — zeigt die installierte Version,
+  sucht beim Start still (offline gibt es keine Meldung), meldet Fehlschläge nur bei manueller
+  Suche, und installiert erst auf Knopfdruck.
+  **Noch zu tun, bevor das erste Update ankommt:**
+  1. Repository-Secret `TAURI_SIGNING_PRIVATE_KEY` setzen (Inhalt von
+     `~/.tauri/kleinunternehmer-verwaltung.key`, liegt bewusst außerhalb des Repos).
+  2. Den vom Workflow erzeugten Release-**Entwurf** auf GitHub veröffentlichen —
+     `releases/latest` zeigt nicht auf Entwürfe.
+  3. Der Weg von Version A nach B ist noch nie durchlaufen worden; das geht erst mit
+     zwei echten Releases.
 
 - [~] **P5.2 — CI mit Tests, Clippy, Typecheck, PR-Trigger** `[B4]` — angefangen 2026-08-02
   `release.yml` war der einzige Workflow, Trigger nur auf Tags. Kein Commit wurde je maschinell geprüft.
@@ -332,8 +341,14 @@ Ohne diese Punkte ist die App für die Zielgruppe nicht wertvoll.
   `docs/installation-freunde.md` dokumentiert. Secrets sind in `release.yml` vorbereitet,
   falls die Entscheidung später anders ausfällt.
 
-- [ ] **P5.7 — CSP setzen** `[B13]`
-  Aktuell `null` bei gleichzeitiger Verarbeitung fremder XML-Dateien. Für eine Offline-App praktisch kostenlos.
+- [x] **P5.7 — CSP setzen** `[B13]`
+  `csp` und `devCsp` in `tauri.conf.json`. Ausgeliefert gilt `default-src 'self'` ohne
+  `unsafe-inline`/`unsafe-eval`, dazu `object-src 'none'`, `frame-ancestors 'none'`,
+  `form-action 'none'` und `connect-src` nur für 'self' und die Tauri-IPC-Adressen.
+  Der Entwicklungsmodus ist gesondert und lockerer, weil Vite Inline-Skripte und einen
+  WebSocket für Hot Reload einspritzt.
+  Nebenbei: `index.html` war noch Tauri-Template (`lang="en"`, Titel „Tauri + React +
+  Typescript", vite.svg als Favicon) — auf die App umgestellt.
 
 ---
 

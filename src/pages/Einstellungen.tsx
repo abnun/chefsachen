@@ -13,10 +13,11 @@ import { formularFehler } from "../formularFehler";
 import { Fehler } from "../components/Fehler";
 import { useErfolgsHinweis } from "../hooks/useErfolgsHinweis";
 import { useBestaetigung } from "../hooks/useBestaetigung";
+import { Aktualisierung } from "../components/Aktualisierung";
 
 /**
- * Einstellungsseite mit vier unabhängigen Abschnitten: Firmendaten,
- * Einheiten-Verwaltung, Nummernkreise und Textbausteine. Jeder Abschnitt lädt
+ * Einstellungsseite mit unabhängigen Abschnitten: Firmendaten, Sicherungen,
+ * Einheiten-Verwaltung, Nummernkreise, Textbausteine und Programmversion. Jeder Abschnitt lädt
  * und speichert unabhängig von den anderen — ein Fehler in einem Abschnitt
  * blockiert die anderen nicht.
  */
@@ -29,6 +30,7 @@ export function Einstellungen() {
       <EinheitenAbschnitt />
       <NummernkreiseAbschnitt />
       <TextbausteineAbschnitt />
+      <Aktualisierung />
     </div>
   );
 }

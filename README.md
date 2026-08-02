@@ -30,6 +30,7 @@ kein Konto, keine Cloud.
 - **Zahlungen** mit Teilzahlungen und abgeleitetem Zahlungsstand
 - **Automatische Sicherungen** der Datenbank bei jedem Start (die letzten
   zehn bleiben erhalten)
+- **Aktualisierung** über signierte Update-Pakete, angestoßen vom Nutzer
 
 Die Belegarchivierung folgt den GoBD: Festgeschriebene Belege lassen sich
 nicht mehr ändern, Korrekturen an importierten Eingangsrechnungen werden mit
@@ -41,9 +42,32 @@ Fertige Installationspakete werden über die Releases verteilt. Die Anleitung
 inklusive der Sicherheitswarnung beim ersten Start steht in
 [docs/installation-freunde.md](docs/installation-freunde.md).
 
-Die App ist bewusst **nicht** signiert: Ein Apple-Developer-Zertifikat kostet
-99 $/Jahr, ein Windows-Zertifikat ähnlich viel. Für die Weitergabe im kleinen
-Kreis lohnt sich das nicht — die Warnung ist dafür einmalig zu bestätigen.
+Die App ist bewusst **nicht** mit einem Plattform-Zertifikat signiert: Eine
+Apple Developer ID kostet 99 $/Jahr, ein Windows-Zertifikat ähnlich viel. Für
+die Weitergabe im kleinen Kreis lohnt sich das nicht — die Warnung ist dafür
+einmalig zu bestätigen.
+
+Die **Update-Pakete** sind davon unabhängig sehr wohl signiert, mit einem
+eigenen minisign-Schlüsselpaar. Ein Paket, dessen Signatur nicht zum in
+`tauri.conf.json` hinterlegten öffentlichen Schlüssel passt, wird abgelehnt.
+
+### Eine neue Version veröffentlichen
+
+```bash
+# Version in package.json, src-tauri/Cargo.toml und tauri.conf.json anheben
+git tag v0.2.0 && git push origin v0.2.0
+```
+
+Der Workflow `release.yml` baut Installer für macOS und Windows und legt einen
+**Release-Entwurf** an. Der Updater fragt
+`releases/latest/download/latest.json` ab — diese Adresse zeigt nur auf
+veröffentlichte Releases. **Der Entwurf muss auf GitHub also noch
+veröffentlicht werden**, sonst erfährt kein Bestandsnutzer von der Version.
+
+Voraussetzung dafür ist das Repository-Secret `TAURI_SIGNING_PRIVATE_KEY` mit
+dem privaten Signaturschlüssel. Er liegt **nicht** im Repository; geht er
+verloren, lassen sich für bestehende Installationen keine Updates mehr
+ausliefern.
 
 ## Entwicklung
 
