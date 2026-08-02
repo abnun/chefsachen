@@ -115,7 +115,7 @@ pub fn zeitstempel_jetzt() -> String {
 /// Tauri-Befehle rund um die Sicherungen. Liegen hier statt in `commands/`,
 /// weil sie ohne Datenbankzugriff auskommen — sie arbeiten auf Dateien.
 #[tauri::command]
-pub fn sicherungen_liste(app: tauri::AppHandle) -> AppResult<Vec<Sicherung>> {
+pub fn sicherungen_liste<R: tauri::Runtime>(app: tauri::AppHandle<R>) -> AppResult<Vec<Sicherung>> {
     use tauri::Manager;
     let dir = app.path().app_data_dir().map_err(|e| AppError::Technisch(e.to_string()))?;
     Ok(liste(&dir))
@@ -123,7 +123,7 @@ pub fn sicherungen_liste(app: tauri::AppHandle) -> AppResult<Vec<Sicherung>> {
 
 /// Legt auf Wunsch sofort eine Sicherung an — etwa vor einer größeren Änderung.
 #[tauri::command]
-pub fn sicherung_jetzt(app: tauri::AppHandle) -> AppResult<Sicherung> {
+pub fn sicherung_jetzt<R: tauri::Runtime>(app: tauri::AppHandle<R>) -> AppResult<Sicherung> {
     use tauri::Manager;
     let dir = app.path().app_data_dir().map_err(|e| AppError::Technisch(e.to_string()))?;
     let zeitstempel = zeitstempel_jetzt();

@@ -55,38 +55,45 @@ fn zeige_startfehler(app: &tauri::App, meldung: &str) {
         .blocking_show();
 }
 
-#[cfg_attr(mobile, tauri::mobile_entry_point)]
-pub fn run() {
-    // Vor allem anderen: Was danach schiefgeht, soll aufgezeichnet werden.
-    protokoll::absturzmelder_einrichten();
+/// Der erzeugte Anwendungskontext: Konfiguration, Berechtigungen, Oberfläche.
+///
+/// `generate_context!` darf pro Crate nur einmal stehen — der Test in [`ipc`]
+/// braucht denselben Kontext wie [`run`], damit er gegen die echten
+/// Berechtigungen läuft und nicht gegen leere.
+fn kontext<R: tauri::Runtime>() -> tauri::Context<R> {
+    tauri::generate_context!()
+}
 
-    tauri::Builder::default()
-        .plugin(protokoll::plugin())
+/// Registriert die Plugins, deren Funktionen die Oberfläche aufruft.
+///
+/// Wie [`mit_befehlen`] getrennt gehalten, damit der Test in [`ipc`] dieselbe
+/// Anwendung baut wie [`run`]. Ein Plugin, das nur in `run` steht, ließe den
+/// Test bestehen und das Programm scheitern.
+fn mit_plugins<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri::Builder<R> {
+    let builder = builder
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
-        .plugin(tauri_plugin_fs::init())
+        .plugin(tauri_plugin_fs::init());
+
+    // Aktualisierung und Neustart gibt es auf Mobilgeräten nicht.
+    #[cfg(not(any(target_os = "android", target_os = "ios")))]
+    let builder = builder
         // Der Updater lädt und prüft in Rust, nicht im Webview — die
         // Inhaltsrichtlinie der Oberfläche muss GitHub deshalb nicht kennen.
         .plugin(tauri_plugin_updater::Builder::new().build())
-        .plugin(tauri_plugin_process::init())
-        .setup(|app| {
-            protokoll::startzeile(app.package_info().version.to_string().as_str());
-            match starten(app) {
-                Ok(pool) => {
-                    app.manage(pool);
-                    Ok(())
-                }
-                Err(meldung) => {
-                    // Ohne diesen Dialog beendet sich die App wortlos: Der Nutzer
-                    // klickt doppelt und es passiert nichts. Die Ursache steht
-                    // zusätzlich im Protokoll, der Dialog ist die einzige
-                    // Fassung, die den Nutzer unmittelbar erreicht.
-                    zeige_startfehler(app, &meldung);
-                    Err(meldung.into())
-                }
-            }
-        })
-        .invoke_handler(tauri::generate_handler![
+        .plugin(tauri_plugin_process::init());
+
+    builder
+}
+
+/// Registriert alle Befehle, die die Oberfläche aufrufen darf.
+///
+/// Bewusst getrennt von [`run`]: Der Test in [`ipc`] baut dieselbe Liste über
+/// derselben Grenze auf. Stünde sie fest in `run`, ließe sich nur prüfen, was
+/// die Befehlsfunktionen tun — nicht, ob sie überhaupt erreichbar sind. Genau
+/// daran lag P1.1.
+fn mit_befehlen<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri::Builder<R> {
+    builder.invoke_handler(tauri::generate_handler![
             commands::einheiten::einheit_list,
             commands::einheiten::einheit_create,
             commands::einheiten::einheit_update,
@@ -146,7 +153,41 @@ pub fn run() {
             commands::eingangsrechnungen::eingangsrechnung_aenderungen,
             commands::eingangsrechnungen::eingangsrechnung_original_exportieren,
             protokoll::protokoll_pfad
-        ])
-        .run(tauri::generate_context!())
+    ])
+}
+
+#[cfg_attr(mobile, tauri::mobile_entry_point)]
+pub fn run() {
+    // Vor allem anderen: Was danach schiefgeht, soll aufgezeichnet werden.
+    protokoll::absturzmelder_einrichten();
+
+    // Das Protokoll-Plugin setzt den globalen Logger und steht deshalb nicht
+    // in `mit_plugins`: Ein zweiter Aufruf im selben Prozess bricht ab, und die
+    // Tests bauen mehrere Anwendungen nacheinander.
+    let builder = mit_plugins(tauri::Builder::default().plugin(protokoll::plugin()))
+        .setup(|app| {
+            protokoll::startzeile(app.package_info().version.to_string().as_str());
+            match starten(app) {
+                Ok(pool) => {
+                    app.manage(pool);
+                    Ok(())
+                }
+                Err(meldung) => {
+                    // Ohne diesen Dialog beendet sich die App wortlos: Der Nutzer
+                    // klickt doppelt und es passiert nichts. Die Ursache steht
+                    // zusätzlich im Protokoll, der Dialog ist die einzige
+                    // Fassung, die den Nutzer unmittelbar erreicht.
+                    zeige_startfehler(app, &meldung);
+                    Err(meldung.into())
+                }
+            }
+        })
+        ;
+
+    mit_befehlen(builder)
+        .run(kontext())
         .expect("error while running tauri application");
 }
+
+#[cfg(test)]
+mod ipc;

@@ -42,6 +42,9 @@ tauri-plugin-log = "2.9.0"
 log = "0.4.33"
 
 [dev-dependencies]
+# "test" liefert mock_builder/get_ipc_response — damit lassen sich Befehle über
+# dieselbe Grenze aufrufen, die auch die Oberfläche benutzt.
+tauri = { version = "2", features = ["test"] }
 pdf-extract = "0.12.0"
 tempfile = "3"
 

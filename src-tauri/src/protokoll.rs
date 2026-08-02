@@ -90,7 +90,7 @@ pub fn startzeile(version: &str) {
 /// Protokolle ablegt — auf macOS liegt sie an einer ganz anderen Stelle als
 /// seine Daten.
 #[tauri::command]
-pub fn protokoll_pfad(app: tauri::AppHandle) -> Result<String, String> {
+pub fn protokoll_pfad<R: tauri::Runtime>(app: tauri::AppHandle<R>) -> Result<String, String> {
     use tauri::Manager;
     app.path()
         .app_log_dir()

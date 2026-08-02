@@ -26,7 +26,7 @@ fn ablegen(verzeichnis: &std::path::Path, dateiname: &str, bytes: &[u8]) -> AppR
     Ok(())
 }
 
-fn im_app_verzeichnis_ablegen(app: &tauri::AppHandle, dateiname: &str, bytes: &[u8]) -> AppResult<()> {
+fn im_app_verzeichnis_ablegen<R: tauri::Runtime>(app: &tauri::AppHandle<R>, dateiname: &str, bytes: &[u8]) -> AppResult<()> {
     let verzeichnis = app.path().app_data_dir()
         .map_err(|e| crate::error::AppError::Technisch(e.to_string()))?
         .join("Belege");
@@ -48,8 +48,8 @@ fn pruefe_ist_rechnung(kontext: &crate::dokument::kontext::BelegKontext) -> AppR
 }
 
 #[tauri::command]
-pub async fn beleg_pdf_exportieren(
-    app: tauri::AppHandle,
+pub async fn beleg_pdf_exportieren<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
     pool: tauri::State<'_, SqlitePool>,
     id: String,
 ) -> AppResult<Vec<u8>> {
@@ -62,8 +62,8 @@ pub async fn beleg_pdf_exportieren(
 }
 
 #[tauri::command]
-pub async fn rechnung_xrechnung_exportieren(
-    app: tauri::AppHandle,
+pub async fn rechnung_xrechnung_exportieren<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
     pool: tauri::State<'_, SqlitePool>,
     id: String,
 ) -> AppResult<Vec<u8>> {
@@ -78,8 +78,8 @@ pub async fn rechnung_xrechnung_exportieren(
 }
 
 #[tauri::command]
-pub async fn rechnung_zugferd_exportieren(
-    app: tauri::AppHandle,
+pub async fn rechnung_zugferd_exportieren<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
     pool: tauri::State<'_, SqlitePool>,
     id: String,
 ) -> AppResult<Vec<u8>> {
