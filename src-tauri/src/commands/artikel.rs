@@ -52,7 +52,8 @@ async fn pruefe_artikel(pool: &SqlitePool, bezeichnung: &str, standardpreis_cent
 
 pub async fn create(pool: &SqlitePool, d: ArtikelNeu) -> AppResult<Artikel> {
     pruefe_artikel(pool, &d.bezeichnung, d.standardpreis_cent, &d.einheit_id).await?;
-    let artikelnummer = naechste_nummer(pool, "artikel").await?;
+    let mut tx = pool.begin().await?;
+    let artikelnummer = naechste_nummer(&mut tx, "artikel", None).await?;
     let a = Artikel {
         id: Uuid::new_v4().to_string(),
         artikelnummer,
@@ -65,7 +66,8 @@ pub async fn create(pool: &SqlitePool, d: ArtikelNeu) -> AppResult<Artikel> {
     sqlx::query("INSERT INTO artikel (id, artikelnummer, bezeichnung, beschreibung, einheit_id, standardpreis_cent, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?)")
         .bind(&a.id).bind(&a.artikelnummer).bind(&a.bezeichnung).bind(&a.beschreibung)
         .bind(&a.einheit_id).bind(a.standardpreis_cent).bind(jetzt()).bind(jetzt())
-        .execute(pool).await?;
+        .execute(&mut *tx).await?;
+    tx.commit().await?;
     Ok(a)
 }
 
@@ -160,28 +162,51 @@ pub async fn kundenpreise_je_kunde(
     .await?)
 }
 
+/// Prüft, ob für Artikel, Kunde und Gültig-ab-Datum bereits ein Preis besteht.
+///
+/// `ausser_id` schließt den gerade bearbeiteten Satz aus, damit ein Speichern
+/// ohne Datumsänderung nicht an sich selbst scheitert.
+///
+/// Die Prüfung gehört in **beide** Zweige: Vorher galt sie nur beim Anlegen,
+/// sodass sich über das Ändern des Gültig-ab-Datums eine Dublette erzeugen
+/// ließ. Die Preisfindung nimmt bei mehreren passenden Sätzen einen davon —
+/// welchen, war damit nicht mehr vorhersagbar.
+async fn pruefe_kundenpreis_eindeutig(
+    pool: &SqlitePool,
+    kp: &Kundenpreis,
+    ausser_id: Option<&str>,
+) -> AppResult<()> {
+    let vorhanden: (i64,) = sqlx::query_as(
+        "SELECT COUNT(*) FROM kundenpreis \
+         WHERE artikel_id = ? AND kunde_id = ? AND gueltig_ab IS ? AND deleted_at IS NULL \
+           AND (?4 IS NULL OR id != ?4)")
+        .bind(&kp.artikel_id).bind(&kp.kunde_id).bind(&kp.gueltig_ab).bind(ausser_id)
+        .fetch_one(pool).await?;
+    if vorhanden.0 > 0 {
+        return Err(AppError::Validation {
+            feld: "gueltig_ab".into(),
+            meldung: "Für diesen Kunden und dieses Gültig-ab-Datum existiert bereits ein Kundenpreis".into(),
+        });
+    }
+    Ok(())
+}
+
 pub async fn kundenpreis_speichern(pool: &SqlitePool, mut kp: Kundenpreis) -> AppResult<Kundenpreis> {
     if kp.id.is_empty() {
-        let vorhanden: (i64,) = sqlx::query_as(
-            "SELECT COUNT(*) FROM kundenpreis \
-             WHERE artikel_id = ? AND kunde_id = ? AND gueltig_ab IS ? AND deleted_at IS NULL")
-            .bind(&kp.artikel_id).bind(&kp.kunde_id).bind(&kp.gueltig_ab)
-            .fetch_one(pool).await?;
-        if vorhanden.0 > 0 {
-            return Err(AppError::Validation {
-                feld: "gueltig_ab".into(),
-                meldung: "Für diesen Kunden und dieses Gültig-ab-Datum existiert bereits ein Kundenpreis".into(),
-            });
-        }
+        pruefe_kundenpreis_eindeutig(pool, &kp, None).await?;
         kp.id = Uuid::new_v4().to_string();
         sqlx::query("INSERT INTO kundenpreis (id, artikel_id, kunde_id, preis_cent, gueltig_ab, created_at, updated_at) VALUES (?,?,?,?,?,?,?)")
             .bind(&kp.id).bind(&kp.artikel_id).bind(&kp.kunde_id).bind(kp.preis_cent)
             .bind(&kp.gueltig_ab).bind(jetzt()).bind(jetzt())
             .execute(pool).await?;
     } else {
-        sqlx::query("UPDATE kundenpreis SET preis_cent=?, gueltig_ab=?, updated_at=? WHERE id=? AND deleted_at IS NULL")
+        pruefe_kundenpreis_eindeutig(pool, &kp, Some(&kp.id)).await?;
+        let r = sqlx::query("UPDATE kundenpreis SET preis_cent=?, gueltig_ab=?, updated_at=? WHERE id=? AND deleted_at IS NULL")
             .bind(kp.preis_cent).bind(&kp.gueltig_ab).bind(jetzt()).bind(&kp.id)
             .execute(pool).await?;
+        if r.rows_affected() == 0 {
+            return Err(AppError::NichtGefunden);
+        }
     }
     Ok(kp)
 }
@@ -344,7 +369,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn kundenpreis_update_umgeht_eindeutigkeitspruefung() {
+    async fn kundenpreis_aendern_ohne_datumswechsel_gelingt() {
         let (_dir, pool) = test_pool().await;
         let a = create(&pool, neu("Beratung")).await.unwrap();
         let k = kunde(&pool, "ACME GmbH").await;
@@ -358,6 +383,47 @@ mod tests {
         }).await.unwrap();
         assert_eq!(kp2.id, kp.id);
         assert_eq!(kp2.preis_cent, 8500);
+    }
+
+    /// Die Eindeutigkeitsprüfung griff nur beim Anlegen. Über das Ändern des
+    /// Gültig-ab-Datums ließ sich deshalb eine Dublette erzeugen — und die
+    /// Preisfindung nimmt bei mehreren passenden Sätzen einen davon, ohne dass
+    /// vorhersagbar wäre, welchen.
+    #[tokio::test]
+    async fn kundenpreis_darf_nicht_auf_ein_belegtes_datum_geaendert_werden() {
+        let (_dir, pool) = test_pool().await;
+        let a = create(&pool, neu("Beratung")).await.unwrap();
+        let k = kunde(&pool, "ACME GmbH").await;
+        kundenpreis_speichern(&pool, Kundenpreis {
+            id: "".into(), artikel_id: a.id.clone(), kunde_id: k.clone(),
+            preis_cent: 8000, gueltig_ab: Some("2026-01-01".into()),
+        }).await.unwrap();
+        let zweiter = kundenpreis_speichern(&pool, Kundenpreis {
+            id: "".into(), artikel_id: a.id.clone(), kunde_id: k.clone(),
+            preis_cent: 9000, gueltig_ab: Some("2026-06-01".into()),
+        }).await.unwrap();
+
+        let err = kundenpreis_speichern(&pool, Kundenpreis {
+            id: zweiter.id, artikel_id: a.id.clone(), kunde_id: k.clone(),
+            preis_cent: 9000, gueltig_ab: Some("2026-01-01".into()),
+        }).await.unwrap_err();
+
+        assert!(
+            matches!(&err, AppError::Validation { feld, .. } if feld == "gueltig_ab"),
+            "Dublette über den Änderungspfad wurde zugelassen, war: {err:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn kundenpreis_update_auf_unbekannte_id_meldet_nicht_gefunden() {
+        let (_dir, pool) = test_pool().await;
+        let a = create(&pool, neu("Beratung")).await.unwrap();
+        let k = kunde(&pool, "ACME GmbH").await;
+        let err = kundenpreis_speichern(&pool, Kundenpreis {
+            id: "gibt-es-nicht".into(), artikel_id: a.id, kunde_id: k,
+            preis_cent: 100, gueltig_ab: None,
+        }).await.unwrap_err();
+        assert!(matches!(err, AppError::NichtGefunden));
     }
 
     #[tokio::test]

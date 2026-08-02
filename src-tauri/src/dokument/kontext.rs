@@ -180,7 +180,7 @@ mod tests {
         let mut firma = crate::commands::firma::get(&pool).await.unwrap();
         firma.name = "Umbenannte Firma".into();
         firma.strasse = "Neue Strasse 99".into();
-        firma.iban = "DE99999999999999999999".into();
+        firma.iban = "AT611904300234573201".into();
         // pruefe_firma verlangt eine Steuernummer; die Seed-Firma hat noch keine.
         firma.steuernummer = "99/999/99999".into();
         crate::commands::firma::save(&pool, firma).await.unwrap();

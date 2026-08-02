@@ -204,7 +204,9 @@ mod tests {
     async fn nummernkreis_update_laesst_zaehler_unangetastet() {
         let (_dir, pool) = test_pool().await;
         // Zähler auf einen bekannten Wert hochzählen
-        let n1 = crate::domain::nummernkreis::naechste_nummer(&pool, "kunde").await.unwrap();
+        let mut conn = pool.acquire().await.unwrap();
+        let n1 = crate::domain::nummernkreis::naechste_nummer(&mut conn, "kunde", None).await.unwrap();
+        drop(conn);
         assert_eq!(n1, "KD-0001");
         // Format/jahres_reset ändern
         nummernkreis_update_intern(&pool, "kunde".into(), "K-{lfd:5}".into(), true).await.unwrap();

@@ -44,6 +44,11 @@ fn pruefe_firma(firma: &Firma) -> AppResult<()> {
             meldung: "Steuernummer oder USt-IdNr. ist erforderlich".into(),
         });
     }
+    // Eine falsche IBAN fällt sonst erst auf, wenn der Kunde nicht zahlen kann —
+    // oder gar nicht: Der XRechnung-Validator lehnt das Dokument schon bei einer
+    // syntaktisch falschen IBAN ab (BR-DE-19).
+    crate::domain::bankverbindung::pruefe_iban(&firma.iban)?;
+    crate::domain::bankverbindung::pruefe_bic(&firma.bic)?;
     Ok(())
 }
 

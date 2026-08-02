@@ -1,12 +1,19 @@
 use crate::error::AppResult;
 use sqlx::SqlitePool;
 
+/// Ermittelt den für ein Belegdatum geltenden Preis: Kundenpreis vor Standardpreis.
+///
+/// Die Sortierung endet auf `id`, damit das Ergebnis auch dann eindeutig ist,
+/// wenn wider Erwarten zwei Sätze mit demselben Gültig-ab-Datum existieren.
+/// Verhindert werden solche Dubletten seit P4.6 beim Speichern; der Tiebreaker
+/// ist die zweite Verteidigungslinie — ein Preis darf unter keinen Umständen
+/// vom Zufall abhängen.
 pub async fn effektiver_preis(pool: &SqlitePool, artikel_id: &str, kunde_id: &str, belegdatum: &str) -> AppResult<i64> {
     let kp: Option<(i64,)> = sqlx::query_as(
         "SELECT preis_cent FROM kundenpreis \
          WHERE artikel_id = ? AND kunde_id = ? AND deleted_at IS NULL \
            AND (gueltig_ab IS NULL OR gueltig_ab <= ?) \
-         ORDER BY gueltig_ab IS NULL, gueltig_ab DESC LIMIT 1")
+         ORDER BY gueltig_ab IS NULL, gueltig_ab DESC, id LIMIT 1")
         .bind(artikel_id).bind(kunde_id).bind(belegdatum)
         .fetch_optional(pool).await?;
     if let Some((preis,)) = kp { return Ok(preis); }

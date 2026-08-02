@@ -59,7 +59,8 @@ fn pruefe_kunde(name: &str, typ: &str) -> AppResult<()> {
 
 pub async fn create(pool: &SqlitePool, d: KundeNeu) -> AppResult<Kunde> {
     pruefe_kunde(&d.name, &d.typ)?;
-    let kundennummer = naechste_nummer(pool, "kunde").await?;
+    let mut tx = pool.begin().await?;
+    let kundennummer = naechste_nummer(&mut tx, "kunde", None).await?;
     let k = Kunde { id: Uuid::new_v4().to_string(), typ: d.typ, name: d.name.trim().into(),
         kundennummer, zahlungsziel_tage: d.zahlungsziel_tage, notizen: d.notizen,
         ust_idnr: d.ust_idnr, email: d.email, leitweg_id: d.leitweg_id,
@@ -69,7 +70,8 @@ pub async fn create(pool: &SqlitePool, d: KundeNeu) -> AppResult<Kunde> {
         .bind(&k.id).bind(&k.typ).bind(&k.name).bind(&k.kundennummer)
         .bind(k.zahlungsziel_tage).bind(&k.notizen).bind(&k.ust_idnr).bind(&k.email)
         .bind(&k.leitweg_id).bind(&k.kaeuferreferenz).bind(jetzt()).bind(jetzt())
-        .execute(pool).await?;
+        .execute(&mut *tx).await?;
+    tx.commit().await?;
     Ok(k)
 }
 
@@ -168,9 +170,15 @@ pub async fn adresse_speichern(pool: &SqlitePool, mut a: Adresse) -> AppResult<A
             .bind(&a.ort).bind(&a.land).bind(a.ist_standard).bind(jetzt()).bind(jetzt())
             .execute(&mut *tx).await?;
     } else {
-        sqlx::query("UPDATE adresse SET typ=?, strasse=?, plz=?, ort=?, land=?, ist_standard=?, updated_at=? WHERE id=? AND deleted_at IS NULL")
+        // rows_affected prüfen: Ohne das meldet ein Update auf eine unbekannte
+        // oder gelöschte Id Erfolg, das Formular zeigt „gespeichert" — und
+        // gespeichert wurde nichts.
+        let r = sqlx::query("UPDATE adresse SET typ=?, strasse=?, plz=?, ort=?, land=?, ist_standard=?, updated_at=? WHERE id=? AND deleted_at IS NULL")
             .bind(&a.typ).bind(&a.strasse).bind(&a.plz).bind(&a.ort).bind(&a.land)
             .bind(a.ist_standard).bind(jetzt()).bind(&a.id).execute(&mut *tx).await?;
+        if r.rows_affected() == 0 {
+            return Err(AppError::NichtGefunden);
+        }
     }
     tx.commit().await?;
     Ok(a)
@@ -198,9 +206,12 @@ pub async fn ansprechpartner_speichern(pool: &SqlitePool, mut ap: Ansprechpartne
             .bind(&ap.email).bind(&ap.telefon).bind(ap.ist_standard).bind(jetzt()).bind(jetzt())
             .execute(&mut *tx).await?;
     } else {
-        sqlx::query("UPDATE ansprechpartner SET name=?, rolle=?, email=?, telefon=?, ist_standard=?, updated_at=? WHERE id=? AND deleted_at IS NULL")
+        let r = sqlx::query("UPDATE ansprechpartner SET name=?, rolle=?, email=?, telefon=?, ist_standard=?, updated_at=? WHERE id=? AND deleted_at IS NULL")
             .bind(&ap.name).bind(&ap.rolle).bind(&ap.email).bind(&ap.telefon)
             .bind(ap.ist_standard).bind(jetzt()).bind(&ap.id).execute(&mut *tx).await?;
+        if r.rows_affected() == 0 {
+            return Err(AppError::NichtGefunden);
+        }
     }
     tx.commit().await?;
     Ok(ap)

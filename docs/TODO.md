@@ -10,7 +10,7 @@ Reihenfolge = Empfehlung. Jeder Punkt trägt die Referenz aus dem Review.
 | 1 — Kaputte Grundfunktionen | ✅ 8/8 |
 | 2 — Rechtliche Korrektheit | ✅ 8/8, P2.9 teilweise |
 | 3 — Fehlende Kernfunktionen | ✅ 10/11, P3.7 teilweise |
-| 4 — Robustheit | ⬜ 0/13 |
+| 4 — Robustheit | ⬜ 6/13 |
 | 5 — Produktreife | ⬜ 0/7, P5.2 angefangen |
 | 6 — UX und Code-Qualität | ⬜ 0/11 |
 
@@ -230,11 +230,13 @@ Ohne diese Punkte ist die App für die Zielgruppe nicht wertvoll.
 
 ## Stufe 4 — Robustheit und Datenintegrität
 
-- [ ] **P4.1 — Nummernvergabe und Belegschreibung in eine Transaktion** `[B8]`
+- [x] **P4.1 — Nummernvergabe und Belegschreibung in eine Transaktion** `[B8]` ✅ 2026-08-03
+  → Nummer und Beleg-UPDATE in einer Transaktion; die Vergabe läuft als atomares UPDATE … RETURNING
   Bei Abbruch entsteht eine Nummernlücke. Spec fordert ausdrücklich „keine Duplikate **oder Lücken**".
   → `belege.rs:355`, `belege.rs:467`
 
-- [ ] **P4.2 — Nebenläufigkeit absichern** `[B9]`
+- [x] **P4.2 — Nebenläufigkeit absichern** `[B9]` ✅ 2026-08-03
+  → WAL, busy_timeout und atomare Vergabe — max_connections(1) ist keine Voraussetzung für die Korrektheit mehr
   Schutz hängt tragend an `max_connections(1)` plus Kommentar. WAL-Modus, `busy_timeout` und ein atomares `UPDATE … SET zaehler = zaehler + 1 … RETURNING` würden die Kopplung auflösen.
   → `src-tauri/src/db.rs:8-13`
 
@@ -245,20 +247,24 @@ Ohne diese Punkte ist die App für die Zielgruppe nicht wertvoll.
 - [ ] **P4.4 — Echte Namespace-Auflösung im XML-Parser** `[B11]`
   Präfixe werden wörtlich verglichen (`"ram:"`, `"cbc:"`) → eine valide Rechnung mit `<ns2:CrossIndustryInvoice>` wird komplett abgelehnt.
 
-- [ ] **P4.5 — `rows_affected` prüfen** `[B26]`
+- [x] **P4.5 — `rows_affected` prüfen** `[B26]` ✅ 2026-08-03
+  → adresse_speichern, ansprechpartner_speichern und kundenpreis_speichern prüfen rows_affected
   Unbekannte ID meldet aktuell Erfolg, gespeichert wurde nichts.
   → `kunden.rs:170,200`, `artikel.rs:146`
 
-- [ ] **P4.6 — Kundenpreis-Dublette über den Update-Pfad verhindern** `[B25]`
+- [x] **P4.6 — Kundenpreis-Dublette über den Update-Pfad verhindern** `[B25]` ✅ 2026-08-03
+  → Eindeutigkeitsprüfung jetzt in beiden Zweigen; Preisfindung zusätzlich mit deterministischem Tiebreaker
   Führt zu nicht-deterministischer Preisfindung (`LIMIT 1` ohne Tiebreaker). Ein Test zementiert das Verhalten derzeit sogar.
 
-- [ ] **P4.7 — Jahr aus Belegdatum statt `Utc::now()`, lokale Zeitzone** `[B28]`
+- [x] **P4.7 — Jahr aus Belegdatum statt `Utc::now()`, lokale Zeitzone** `[B28]` ✅ 2026-08-03
+  → Jahr aus dem Belegdatum, sonst lokale Zeit statt UTC
   Eine am 01.01. gestellte Rechnung bekommt `RE-2027-…`; in DE-Sommerzeit liefert `jetzt()` ab 22:00 Uhr das Datum des Folgetages.
 
 - [ ] **P4.8 — Startfehler bedienbar machen** `[B3]`
   `.expect("app_data_dir")` und `?` im `setup`-Hook → App startet bei DB-/Migrationsfehler wortlos nicht.
 
-- [ ] **P4.9 — IBAN-/BIC-Validierung** `[B14]`
+- [x] **P4.9 — IBAN-/BIC-Validierung** `[B14]` ✅ 2026-08-03
+  → IBAN mit Prüfsumme nach ISO 13616, BIC nach Form (ISO 9362)
   Weder Frontend noch Backend. Tippfehler landen auf jeder Rechnung und in der XRechnung.
   Durch die Normprüfung bestätigt: Eine syntaktisch falsche IBAN löst BR-DE-19 aus, und die
   KoSIT-Konfiguration lehnt das Dokument schon bei dieser Warnung ab. Eine Prüfung der

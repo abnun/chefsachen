@@ -429,18 +429,24 @@ pub async fn stellen(pool: &SqlitePool, id: String) -> AppResult<Beleg> {
     let firma = crate::commands::firma::get(pool).await?;
     let snapshot = kunde_snapshot_json(&kunde.kunde, standardadresse, &firma);
 
-    let nummer = naechste_nummer(pool, &beleg.typ).await?;
+    // Nummernvergabe und Beleg-UPDATE in einer Transaktion: Schlägt das UPDATE
+    // fehl — etwa weil der Beleg zwischenzeitlich gestellt wurde —, wird auch
+    // die Nummer zurückgerollt. Vorher war sie verbraucht und der Nummernkreis
+    // hatte eine Lücke.
+    let mut tx = pool.begin().await?;
+    let nummer = naechste_nummer(&mut tx, &beleg.typ, Some(&beleg.datum)).await?;
     let neuer_status = if beleg.typ == "angebot" { "versendet" } else { "gestellt" };
     let ergebnis = sqlx::query(
         "UPDATE beleg SET nummer=?, status=?, kunde_snapshot=?, updated_at=? WHERE id=? AND status = 'entwurf'")
         .bind(&nummer).bind(neuer_status).bind(&snapshot).bind(jetzt()).bind(&id)
-        .execute(pool).await?;
+        .execute(&mut *tx).await?;
     if ergebnis.rows_affected() == 0 {
         return Err(AppError::Validation {
             feld: "status".into(),
             meldung: "Beleg wurde zwischenzeitlich bereits gestellt".into(),
         });
     }
+    tx.commit().await?;
     lade_beleg(pool, &id).await
 }
 
@@ -546,14 +552,12 @@ pub async fn storniere_rechnung(pool: &SqlitePool, id: String) -> AppResult<Bele
     }
 
     let heute = jetzt()[..10].to_string();
-    // naechste_nummer nimmt &SqlitePool entgegen und öffnet intern eine eigene
-    // Transaktion. Unter max_connections(1) würde ein Aufruf von innerhalb einer
-    // bereits offenen Transaktion auf dieser Connection deadlocken (siehe Task 3).
-    // Deshalb wird die Nummer hier VOR dem Öffnen der eigenen Transaktion vergeben,
-    // genau wie lade_beleg() in angebot_ueberfuehren() vor deren Transaktion steht.
-    let nummer = naechste_nummer(pool, "rechnung").await?;
     let snapshot: (String,) = sqlx::query_as("SELECT kunde_snapshot FROM beleg WHERE id = ?")
         .bind(&rechnung.id).fetch_one(pool).await?;
+    let mut tx = pool.begin().await?;
+    // Nummer innerhalb der Transaktion: Bricht das Storno ab, wird auch sie
+    // zurückgerollt statt verbraucht.
+    let nummer = naechste_nummer(&mut tx, "rechnung", Some(&heute)).await?;
     let storno = Beleg {
         id: Uuid::new_v4().to_string(), typ: "rechnung".into(), nummer: Some(nummer), status: "gestellt".into(),
         kunde_id: rechnung.kunde_id.clone(), datum: heute, leistungsdatum: rechnung.leistungsdatum.clone(),
@@ -571,9 +575,7 @@ pub async fn storniere_rechnung(pool: &SqlitePool, id: String) -> AppResult<Bele
     // für denselben Vorgang hinterlassen — gleiche Risikoklasse wie bei
     // position_speichern/position_loeschen (Task 3) und angebot_ueberfuehren (Task 5).
     // Alle Aufrufe innerhalb dieser Transaktion nehmen &mut SqliteConnection statt
-    // &SqlitePool entgegen, es gibt also keine verschachtelten Pool-Aufrufe und damit
-    // keine Deadlock-Gefahr unter max_connections(1).
-    let mut tx = pool.begin().await?;
+    // &SqlitePool entgegen, es gibt also keine verschachtelten Pool-Aufrufe.
 
     sqlx::query("INSERT INTO beleg (id, typ, nummer, status, kunde_id, datum, leistungsdatum, zahlungsziel_tage, kopftext, fusstext, summe_cent, ursprungsangebot_id, storno_von_id, kunde_snapshot, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
         .bind(&storno.id).bind(&storno.typ).bind(&storno.nummer).bind(&storno.status).bind(&storno.kunde_id)
