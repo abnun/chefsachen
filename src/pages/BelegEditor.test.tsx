@@ -655,4 +655,35 @@ describe("BelegEditor – Erfolgs-Hinweis", () => {
     fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Löschen" }));
     await waitFor(() => expect(screen.getByText("Position gelöscht")).toBeTruthy());
   });
+
+  /// § 14 Abs. 4 Nr. 6 UStG lässt Zeitpunkt „oder Zeitraum" zu. Bei einer
+  /// Monatsabrechnung wäre ein Einzeldatum sachlich falsch.
+  it("speichert einen Leistungszeitraum", async () => {
+    vi.mocked(api.belege.get).mockResolvedValue(rechnungGestellt({ status: "entwurf", nummer: null }));
+    render(<BelegEditor id="b1" />);
+    await waitFor(() => expect(screen.getByLabelText("Leistungsdatum")).toBeTruthy());
+    fireEvent.change(screen.getByLabelText("Leistung bis (bei Zeitraum)"), {
+      target: { value: "2026-07-31" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Speichern" }));
+    await waitFor(() =>
+      expect(api.belege.update).toHaveBeenCalledWith(
+        expect.objectContaining({ leistungsdatum_bis: "2026-07-31" }),
+      ),
+    );
+  });
+
+  /// Leer bedeutet Einzeldatum — der Regelfall darf nicht als leerer Zeitraum
+  /// im Beleg landen.
+  it("sendet ohne Zeitraum null statt eines leeren Textes", async () => {
+    vi.mocked(api.belege.get).mockResolvedValue(rechnungGestellt({ status: "entwurf", nummer: null }));
+    render(<BelegEditor id="b1" />);
+    await waitFor(() => expect(screen.getByRole("button", { name: "Speichern" })).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Speichern" }));
+    await waitFor(() =>
+      expect(api.belege.update).toHaveBeenCalledWith(
+        expect.objectContaining({ leistungsdatum_bis: null }),
+      ),
+    );
+  });
 });

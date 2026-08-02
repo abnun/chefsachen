@@ -15,6 +15,7 @@ import { Fehler } from "../components/Fehler";
 import { useErfolgsHinweis } from "../hooks/useErfolgsHinweis";
 import { useBestaetigung } from "../hooks/useBestaetigung";
 import { formatCent, formatMenge, parseEuro, parseMenge } from "../geld";
+import { datumDeutsch } from "../datum";
 
 interface BelegEditorProps {
   id: string;
@@ -83,6 +84,7 @@ export function BelegEditor({ id, onGeaendert, onRechnungErstellt, onGeloescht }
     kunde_id: string;
     datum: string;
     leistungsdatum: string;
+    leistungsdatum_bis: string | null;
     zahlungsziel_tage: number;
     kopftext: string;
     fusstext: string;
@@ -365,6 +367,7 @@ interface StammdatenAbschnittProps {
     kunde_id: string;
     datum: string;
     leistungsdatum: string;
+    leistungsdatum_bis: string | null;
     zahlungsziel_tage: number;
     kopftext: string;
     fusstext: string;
@@ -375,6 +378,7 @@ function StammdatenAbschnitt({ beleg, kunden, bearbeitbar, onSpeichern }: Stammd
   const [kundeId, setKundeId] = useState(beleg.kunde_id);
   const [datum, setDatum] = useState(beleg.datum);
   const [leistungsdatum, setLeistungsdatum] = useState(beleg.leistungsdatum);
+  const [leistungsdatumBis, setLeistungsdatumBis] = useState(beleg.leistungsdatum_bis ?? "");
   const [zahlungszielTage, setZahlungszielTage] = useState(beleg.zahlungsziel_tage);
   const [kopftext, setKopftext] = useState(beleg.kopftext);
   const [fusstext, setFusstext] = useState(beleg.fusstext);
@@ -383,6 +387,7 @@ function StammdatenAbschnitt({ beleg, kunden, bearbeitbar, onSpeichern }: Stammd
     setKundeId(beleg.kunde_id);
     setDatum(beleg.datum);
     setLeistungsdatum(beleg.leistungsdatum);
+    setLeistungsdatumBis(beleg.leistungsdatum_bis ?? "");
     setZahlungszielTage(beleg.zahlungsziel_tage);
     setKopftext(beleg.kopftext);
     setFusstext(beleg.fusstext);
@@ -395,8 +400,12 @@ function StammdatenAbschnitt({ beleg, kunden, bearbeitbar, onSpeichern }: Stammd
       <section className="karte">
         <h2>Stammdaten</h2>
         <p>Kunde: {beleg.kunde_snapshot_name ?? kunde?.name ?? beleg.kunde_id}</p>
-        <p>Datum: {beleg.datum}</p>
-        <p>Leistungsdatum: {beleg.leistungsdatum}</p>
+        <p>Datum: {datumDeutsch(beleg.datum)}</p>
+        <p>
+          {beleg.leistungsdatum_bis
+            ? `Leistungszeitraum: ${datumDeutsch(beleg.leistungsdatum)} – ${datumDeutsch(beleg.leistungsdatum_bis)}`
+            : `Leistungsdatum: ${datumDeutsch(beleg.leistungsdatum)}`}
+        </p>
         <p>Zahlungsziel: {beleg.zahlungsziel_tage} Tage</p>
       </section>
     );
@@ -412,6 +421,7 @@ function StammdatenAbschnitt({ beleg, kunden, bearbeitbar, onSpeichern }: Stammd
             kunde_id: kundeId,
             datum,
             leistungsdatum,
+            leistungsdatum_bis: leistungsdatumBis === "" ? null : leistungsdatumBis,
             zahlungsziel_tage: zahlungszielTage,
             kopftext,
             fusstext,
@@ -435,8 +445,20 @@ function StammdatenAbschnitt({ beleg, kunden, bearbeitbar, onSpeichern }: Stammd
           <input type="date" value={datum} onChange={(e) => setDatum(e.currentTarget.value)} />
         </label>
         <label className="feld">
-          Leistungsdatum
+          {leistungsdatumBis === "" ? "Leistungsdatum" : "Leistung von"}
           <input type="date" value={leistungsdatum} onChange={(e) => setLeistungsdatum(e.currentTarget.value)} />
+        </label>
+        {/* § 14 Abs. 4 Nr. 6 UStG lässt Zeitpunkt „oder Zeitraum" zu. Leer heißt
+            Einzeldatum — der Regelfall; für Monatsabrechnungen und andere
+            Dauerleistungen wäre ein Einzeldatum sachlich falsch. */}
+        <label className="feld">
+          Leistung bis (bei Zeitraum)
+          <input
+            type="date"
+            min={leistungsdatum}
+            value={leistungsdatumBis}
+            onChange={(e) => setLeistungsdatumBis(e.currentTarget.value)}
+          />
         </label>
         <label className="feld">
           Zahlungsziel (Tage)

@@ -342,7 +342,7 @@ mod tests {
 
         crate::commands::belege::create(&pool, crate::commands::belege::BelegNeu {
             typ: "angebot".into(), kunde_id: kunde_id.clone(), datum: "2026-07-10".into(),
-            leistungsdatum: "2026-07-10".into(), zahlungsziel_tage: 14,
+            leistungsdatum: "2026-07-10".into(), leistungsdatum_bis: None, zahlungsziel_tage: 14,
             kopftext: "".into(), fusstext: "".into(),
         }).await.unwrap();
 
@@ -356,7 +356,7 @@ mod tests {
         let kunde_id = create(&pool, neu("ACME GmbH")).await.unwrap().id;
         crate::commands::belege::create(&pool, crate::commands::belege::BelegNeu {
             typ: "angebot".into(), kunde_id: kunde_id.clone(), datum: "2026-07-10".into(),
-            leistungsdatum: "2026-07-10".into(), zahlungsziel_tage: 14,
+            leistungsdatum: "2026-07-10".into(), leistungsdatum_bis: None, zahlungsziel_tage: 14,
             kopftext: "".into(), fusstext: "".into(),
         }).await.unwrap();
 
@@ -381,7 +381,7 @@ mod tests {
         }).await.unwrap().id;
         let beleg = crate::commands::belege::create(&pool, crate::commands::belege::BelegNeu {
             typ: "angebot".into(), kunde_id: kunde_id.clone(), datum: "2026-07-10".into(),
-            leistungsdatum: "2026-07-10".into(), zahlungsziel_tage: 14,
+            leistungsdatum: "2026-07-10".into(), leistungsdatum_bis: None, zahlungsziel_tage: 14,
             kopftext: "".into(), fusstext: "".into(),
         }).await.unwrap();
         crate::commands::belege::position_speichern(&pool, crate::commands::belege::BelegpositionNeu {

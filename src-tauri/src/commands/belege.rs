@@ -16,6 +16,12 @@ pub struct Beleg {
     pub kunde_id: String,
     pub datum: String,
     pub leistungsdatum: String,
+    /// Ende eines Leistungszeitraums. § 14 Abs. 4 Nr. 6 UStG verlangt den
+    /// Zeitpunkt der Leistung „oder den Zeitraum" — bei Dauerleistungen und
+    /// Monatsabrechnungen wäre ein Einzeldatum sachlich falsch.
+    #[sqlx(default)]
+    #[serde(default)]
+    pub leistungsdatum_bis: Option<String>,
     pub zahlungsziel_tage: i64,
     pub kopftext: String,
     pub fusstext: String,
@@ -57,7 +63,11 @@ pub struct BelegNeu {
     pub typ: String,
     pub kunde_id: String,
     pub datum: String,
+    /// Leistungsdatum, bei einem Zeitraum dessen Beginn.
     pub leistungsdatum: String,
+    /// Ende eines Leistungszeitraums; `None` bedeutet Einzeldatum.
+    #[serde(default)]
+    pub leistungsdatum_bis: Option<String>,
     pub zahlungsziel_tage: i64,
     pub kopftext: String,
     pub fusstext: String,
@@ -69,6 +79,8 @@ pub struct BelegUpdate {
     pub kunde_id: String,
     pub datum: String,
     pub leistungsdatum: String,
+    #[serde(default)]
+    pub leistungsdatum_bis: Option<String>,
     pub zahlungsziel_tage: i64,
     pub kopftext: String,
     pub fusstext: String,
@@ -116,9 +128,15 @@ pub struct Zahlung {
     pub notiz: String,
 }
 
-pub(crate) const BELEG_SPALTEN: &str = "id, typ, nummer, status, kunde_id, datum, leistungsdatum, zahlungsziel_tage, kopftext, fusstext, summe_cent, ursprungsangebot_id, storno_von_id, kunde_snapshot";
+pub(crate) const BELEG_SPALTEN: &str = "id, typ, nummer, status, kunde_id, datum, leistungsdatum, leistungsdatum_bis, zahlungsziel_tage, kopftext, fusstext, summe_cent, ursprungsangebot_id, storno_von_id, kunde_snapshot";
 
-fn pruefe_beleg_neu(typ: &str, datum: &str, leistungsdatum: &str, zahlungsziel_tage: i64) -> AppResult<()> {
+fn pruefe_beleg_neu(
+    typ: &str,
+    datum: &str,
+    leistungsdatum: &str,
+    leistungsdatum_bis: Option<&str>,
+    zahlungsziel_tage: i64,
+) -> AppResult<()> {
     if !["angebot", "rechnung"].contains(&typ) {
         return Err(AppError::Validation { feld: "typ".into(), meldung: "Ungültiger Belegtyp".into() });
     }
@@ -130,6 +148,17 @@ fn pruefe_beleg_neu(typ: &str, datum: &str, leistungsdatum: &str, zahlungsziel_t
     }
     if zahlungsziel_tage < 0 {
         return Err(AppError::Validation { feld: "zahlungsziel_tage".into(), meldung: "Zahlungsziel darf nicht negativ sein".into() });
+    }
+    // Ein Zeitraum, dessen Ende vor dem Beginn liegt, ist keine gültige Angabe.
+    // Der Vergleich läuft über die ISO-Schreibweise, die sich lexikografisch
+    // ordnen lässt.
+    if let Some(bis) = leistungsdatum_bis.map(str::trim).filter(|b| !b.is_empty()) {
+        if bis < leistungsdatum.trim() {
+            return Err(AppError::Validation {
+                feld: "leistungsdatum_bis".into(),
+                meldung: "Das Ende des Leistungszeitraums darf nicht vor dem Beginn liegen".into(),
+            });
+        }
     }
     Ok(())
 }
@@ -151,7 +180,7 @@ fn pruefe_ist_entwurf(beleg: &Beleg) -> AppResult<()> {
 }
 
 pub async fn create(pool: &SqlitePool, d: BelegNeu) -> AppResult<Beleg> {
-    pruefe_beleg_neu(&d.typ, &d.datum, &d.leistungsdatum, d.zahlungsziel_tage)?;
+    pruefe_beleg_neu(&d.typ, &d.datum, &d.leistungsdatum, d.leistungsdatum_bis.as_deref(), d.zahlungsziel_tage)?;
     let kunde_existiert: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM kunde WHERE id = ? AND deleted_at IS NULL")
         .bind(&d.kunde_id).fetch_one(pool).await?;
     if kunde_existiert.0 == 0 {
@@ -159,15 +188,15 @@ pub async fn create(pool: &SqlitePool, d: BelegNeu) -> AppResult<Beleg> {
     }
     let beleg = Beleg {
         id: Uuid::new_v4().to_string(), typ: d.typ, nummer: None, status: "entwurf".into(),
-        kunde_id: d.kunde_id, datum: d.datum, leistungsdatum: d.leistungsdatum,
+        kunde_id: d.kunde_id, datum: d.datum, leistungsdatum: d.leistungsdatum, leistungsdatum_bis: None,
         zahlungsziel_tage: d.zahlungsziel_tage, kopftext: d.kopftext, fusstext: d.fusstext,
         summe_cent: 0, ursprungsangebot_id: None, storno_von_id: None,
         kunde_snapshot: String::new(), kunde_snapshot_name: None,
                 bezahlt_cent: 0, zahlungsstand: None, faellig_am: None,
     };
-    sqlx::query("INSERT INTO beleg (id, typ, nummer, status, kunde_id, datum, leistungsdatum, zahlungsziel_tage, kopftext, fusstext, summe_cent, ursprungsangebot_id, storno_von_id, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
+    sqlx::query("INSERT INTO beleg (id, typ, nummer, status, kunde_id, datum, leistungsdatum, leistungsdatum_bis, zahlungsziel_tage, kopftext, fusstext, summe_cent, ursprungsangebot_id, storno_von_id, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
         .bind(&beleg.id).bind(&beleg.typ).bind(&beleg.nummer).bind(&beleg.status).bind(&beleg.kunde_id)
-        .bind(&beleg.datum).bind(&beleg.leistungsdatum).bind(beleg.zahlungsziel_tage)
+        .bind(&beleg.datum).bind(&beleg.leistungsdatum).bind(&beleg.leistungsdatum_bis).bind(beleg.zahlungsziel_tage)
         .bind(&beleg.kopftext).bind(&beleg.fusstext).bind(beleg.summe_cent)
         .bind(&beleg.ursprungsangebot_id).bind(&beleg.storno_von_id).bind(jetzt()).bind(jetzt())
         .execute(pool).await?;
@@ -214,9 +243,9 @@ pub async fn get(pool: &SqlitePool, id: String) -> AppResult<BelegDetail> {
 pub async fn update(pool: &SqlitePool, d: BelegUpdate) -> AppResult<Beleg> {
     let beleg = lade_beleg(pool, &d.id).await?;
     pruefe_ist_entwurf(&beleg)?;
-    pruefe_beleg_neu(&beleg.typ, &d.datum, &d.leistungsdatum, d.zahlungsziel_tage)?;
-    sqlx::query("UPDATE beleg SET kunde_id=?, datum=?, leistungsdatum=?, zahlungsziel_tage=?, kopftext=?, fusstext=?, updated_at=? WHERE id=?")
-        .bind(&d.kunde_id).bind(&d.datum).bind(&d.leistungsdatum).bind(d.zahlungsziel_tage)
+    pruefe_beleg_neu(&beleg.typ, &d.datum, &d.leistungsdatum, d.leistungsdatum_bis.as_deref(), d.zahlungsziel_tage)?;
+    sqlx::query("UPDATE beleg SET kunde_id=?, datum=?, leistungsdatum=?, leistungsdatum_bis=?, zahlungsziel_tage=?, kopftext=?, fusstext=?, updated_at=? WHERE id=?")
+        .bind(&d.kunde_id).bind(&d.datum).bind(&d.leistungsdatum).bind(&d.leistungsdatum_bis).bind(d.zahlungsziel_tage)
         .bind(&d.kopftext).bind(&d.fusstext).bind(jetzt()).bind(&d.id)
         .execute(pool).await?;
     lade_beleg(pool, &d.id).await
@@ -480,7 +509,7 @@ pub async fn angebot_ueberfuehren(pool: &SqlitePool, angebot_id: String) -> AppR
     let heute = jetzt()[..10].to_string();
     let rechnung = Beleg {
         id: Uuid::new_v4().to_string(), typ: "rechnung".into(), nummer: None, status: "entwurf".into(),
-        kunde_id: angebot.kunde_id.clone(), datum: heute, leistungsdatum: angebot.leistungsdatum.clone(),
+        kunde_id: angebot.kunde_id.clone(), datum: heute, leistungsdatum: angebot.leistungsdatum.clone(), leistungsdatum_bis: None,
         zahlungsziel_tage: angebot.zahlungsziel_tage, kopftext: angebot.kopftext.clone(), fusstext: angebot.fusstext.clone(),
         summe_cent: angebot.summe_cent, ursprungsangebot_id: Some(angebot.id.clone()), storno_von_id: None,
         kunde_snapshot: String::new(), kunde_snapshot_name: None,
@@ -510,9 +539,9 @@ pub async fn angebot_ueberfuehren(pool: &SqlitePool, angebot_id: String) -> AppR
         });
     }
 
-    sqlx::query("INSERT INTO beleg (id, typ, nummer, status, kunde_id, datum, leistungsdatum, zahlungsziel_tage, kopftext, fusstext, summe_cent, ursprungsangebot_id, storno_von_id, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
+    sqlx::query("INSERT INTO beleg (id, typ, nummer, status, kunde_id, datum, leistungsdatum, leistungsdatum_bis, zahlungsziel_tage, kopftext, fusstext, summe_cent, ursprungsangebot_id, storno_von_id, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
         .bind(&rechnung.id).bind(&rechnung.typ).bind(&rechnung.nummer).bind(&rechnung.status).bind(&rechnung.kunde_id)
-        .bind(&rechnung.datum).bind(&rechnung.leistungsdatum).bind(rechnung.zahlungsziel_tage)
+        .bind(&rechnung.datum).bind(&rechnung.leistungsdatum).bind(&rechnung.leistungsdatum_bis).bind(rechnung.zahlungsziel_tage)
         .bind(&rechnung.kopftext).bind(&rechnung.fusstext).bind(rechnung.summe_cent)
         .bind(&rechnung.ursprungsangebot_id).bind(&rechnung.storno_von_id).bind(jetzt()).bind(jetzt())
         .execute(&mut *tx).await?;
@@ -560,7 +589,7 @@ pub async fn storniere_rechnung(pool: &SqlitePool, id: String) -> AppResult<Bele
     let nummer = naechste_nummer(&mut tx, "rechnung", Some(&heute)).await?;
     let storno = Beleg {
         id: Uuid::new_v4().to_string(), typ: "rechnung".into(), nummer: Some(nummer), status: "gestellt".into(),
-        kunde_id: rechnung.kunde_id.clone(), datum: heute, leistungsdatum: rechnung.leistungsdatum.clone(),
+        kunde_id: rechnung.kunde_id.clone(), datum: heute, leistungsdatum: rechnung.leistungsdatum.clone(), leistungsdatum_bis: None,
         zahlungsziel_tage: rechnung.zahlungsziel_tage, kopftext: rechnung.kopftext.clone(),
         fusstext: format!("Stornierung zu Rechnung {}", rechnung.nummer.clone().unwrap_or_default()),
         summe_cent: -rechnung.summe_cent, ursprungsangebot_id: None, storno_von_id: Some(rechnung.id.clone()),
@@ -577,9 +606,9 @@ pub async fn storniere_rechnung(pool: &SqlitePool, id: String) -> AppResult<Bele
     // Alle Aufrufe innerhalb dieser Transaktion nehmen &mut SqliteConnection statt
     // &SqlitePool entgegen, es gibt also keine verschachtelten Pool-Aufrufe.
 
-    sqlx::query("INSERT INTO beleg (id, typ, nummer, status, kunde_id, datum, leistungsdatum, zahlungsziel_tage, kopftext, fusstext, summe_cent, ursprungsangebot_id, storno_von_id, kunde_snapshot, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
+    sqlx::query("INSERT INTO beleg (id, typ, nummer, status, kunde_id, datum, leistungsdatum, leistungsdatum_bis, zahlungsziel_tage, kopftext, fusstext, summe_cent, ursprungsangebot_id, storno_von_id, kunde_snapshot, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
         .bind(&storno.id).bind(&storno.typ).bind(&storno.nummer).bind(&storno.status).bind(&storno.kunde_id)
-        .bind(&storno.datum).bind(&storno.leistungsdatum).bind(storno.zahlungsziel_tage)
+        .bind(&storno.datum).bind(&storno.leistungsdatum).bind(&storno.leistungsdatum_bis).bind(storno.zahlungsziel_tage)
         .bind(&storno.kopftext).bind(&storno.fusstext).bind(storno.summe_cent)
         .bind(&storno.ursprungsangebot_id).bind(&storno.storno_von_id).bind(&snapshot.0).bind(jetzt()).bind(jetzt())
         .execute(&mut *tx).await?;
@@ -782,7 +811,7 @@ mod tests {
 
     fn beleg_neu(typ: &str, kunde_id: &str) -> BelegNeu {
         BelegNeu { typ: typ.into(), kunde_id: kunde_id.into(), datum: "2026-07-10".into(),
-            leistungsdatum: "2026-07-10".into(), zahlungsziel_tage: 14,
+            leistungsdatum: "2026-07-10".into(), leistungsdatum_bis: None, zahlungsziel_tage: 14,
             kopftext: "".into(), fusstext: "".into() }
     }
 
@@ -870,7 +899,7 @@ mod tests {
         let beleg = create(&pool, beleg_neu("angebot", &kunde_id)).await.unwrap();
         let aktualisiert = update(&pool, BelegUpdate {
             id: beleg.id.clone(), kunde_id: kunde_id.clone(), datum: "2026-07-11".into(),
-            leistungsdatum: "2026-07-11".into(), zahlungsziel_tage: 30,
+            leistungsdatum: "2026-07-11".into(), leistungsdatum_bis: None, zahlungsziel_tage: 30,
             kopftext: "Hallo".into(), fusstext: "".into(),
         }).await.unwrap();
         assert_eq!(aktualisiert.datum, "2026-07-11");
@@ -885,7 +914,7 @@ mod tests {
         sqlx::query("UPDATE beleg SET status = 'versendet' WHERE id = ?")
             .bind(&beleg.id).execute(&pool).await.unwrap();
         let err = update(&pool, BelegUpdate {
-            id: beleg.id, kunde_id, datum: "2026-07-11".into(), leistungsdatum: "2026-07-11".into(),
+            id: beleg.id, kunde_id, datum: "2026-07-11".into(), leistungsdatum: "2026-07-11".into(), leistungsdatum_bis: None,
             zahlungsziel_tage: 14, kopftext: "".into(), fusstext: "".into(),
         }).await.unwrap_err();
         assert!(matches!(err, AppError::Validation { .. }));
@@ -1035,7 +1064,7 @@ mod tests {
         assert_eq!(gestellt.nummer, Some(format!("AN-{jahr}-0001")));
         let err = update(&pool, BelegUpdate {
             id: gestellt.id.clone(), kunde_id, datum: gestellt.datum.clone(),
-            leistungsdatum: gestellt.leistungsdatum.clone(), zahlungsziel_tage: 14,
+            leistungsdatum: gestellt.leistungsdatum.clone(), leistungsdatum_bis: None, zahlungsziel_tage: 14,
             kopftext: "".into(), fusstext: "".into(),
         }).await.unwrap_err();
         assert!(matches!(err, AppError::Validation { .. }), "gestellter Beleg darf nicht mehr editierbar sein");

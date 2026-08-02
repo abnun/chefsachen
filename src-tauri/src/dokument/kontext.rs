@@ -210,7 +210,7 @@ mod tests {
         }).await.unwrap();
         let beleg = crate::commands::belege::create(pool, crate::commands::belege::BelegNeu {
             typ: "rechnung".into(), kunde_id: kunde.id.clone(), datum: "2026-07-11".into(),
-            leistungsdatum: "2026-07-11".into(), zahlungsziel_tage: 14,
+            leistungsdatum: "2026-07-11".into(), leistungsdatum_bis: None, zahlungsziel_tage: 14,
             kopftext: "".into(), fusstext: "Vielen Dank.".into(),
         }).await.unwrap();
         crate::commands::belege::position_speichern(pool, crate::commands::belege::BelegpositionNeu {
@@ -251,7 +251,7 @@ mod tests {
         }).await.unwrap();
         let beleg = crate::commands::belege::create(&pool, crate::commands::belege::BelegNeu {
             typ: "rechnung".into(), kunde_id: kunde.id.clone(), datum: "2026-07-11".into(),
-            leistungsdatum: "2026-07-11".into(), zahlungsziel_tage: 14,
+            leistungsdatum: "2026-07-11".into(), leistungsdatum_bis: None, zahlungsziel_tage: 14,
             kopftext: "".into(), fusstext: "".into(),
         }).await.unwrap();
         crate::commands::belege::position_speichern(&pool, crate::commands::belege::BelegpositionNeu {
@@ -288,7 +288,7 @@ mod tests {
         }).await.unwrap();
         let beleg = crate::commands::belege::create(&pool, crate::commands::belege::BelegNeu {
             typ: "rechnung".into(), kunde_id: kunde.id, datum: "2026-07-11".into(),
-            leistungsdatum: "2026-07-11".into(), zahlungsziel_tage: 14,
+            leistungsdatum: "2026-07-11".into(), leistungsdatum_bis: None, zahlungsziel_tage: 14,
             kopftext: "".into(), fusstext: "".into(),
         }).await.unwrap();
         let err = kontext_aus_beleg(&pool, beleg.id).await.unwrap_err();

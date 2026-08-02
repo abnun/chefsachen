@@ -293,6 +293,24 @@ pub fn xml_erzeugen(kontext: &BelegKontext) -> AppResult<String> {
     schreibe_text(&mut writer, "ram:RateApplicablePercent", "0.00");
     writer.write_event(Event::End(BytesEnd::new("ram:ApplicableTradeTax"))).unwrap();
 
+    // BG-14: Bei einem Leistungszeitraum gehört die Spanne in den
+    // Abrechnungszeitraum. Sie steht laut CII-Schema vor den Zahlungsbedingungen.
+    if let Some(bis) = kontext.beleg.leistungsdatum_bis.as_deref().filter(|b| !b.trim().is_empty()) {
+        writer.write_event(Event::Start(BytesStart::new("ram:BillingSpecifiedPeriod"))).unwrap();
+        for (tag, wert) in [
+            ("ram:StartDateTime", kontext.beleg.leistungsdatum.as_str()),
+            ("ram:EndDateTime", bis),
+        ] {
+            writer.write_event(Event::Start(BytesStart::new(tag))).unwrap();
+            writer.write_event(Event::Start(BytesStart::new("udt:DateTimeString")
+                .with_attributes([("format", "102")]))).unwrap();
+            writer.write_event(Event::Text(BytesText::new(&wert.replace('-', "")))).unwrap();
+            writer.write_event(Event::End(BytesEnd::new("udt:DateTimeString"))).unwrap();
+            writer.write_event(Event::End(BytesEnd::new(tag))).unwrap();
+        }
+        writer.write_event(Event::End(BytesEnd::new("ram:BillingSpecifiedPeriod"))).unwrap();
+    }
+
     writer.write_event(Event::Start(BytesStart::new("ram:SpecifiedTradePaymentTerms"))).unwrap();
     schreibe_text(&mut writer, "ram:Description",
         &format!("Zahlbar innerhalb von {} Tagen", kontext.beleg.zahlungsziel_tage));
@@ -369,7 +387,7 @@ pub(crate) mod tests {
             beleg: Beleg {
                 id: "b1".into(), typ: "rechnung".into(), nummer: Some("RE-2026-0001".into()),
                 status: "gestellt".into(), kunde_id: "k1".into(), datum: "2026-07-11".into(),
-                leistungsdatum: "2026-07-11".into(), zahlungsziel_tage: 14,
+                leistungsdatum: "2026-07-11".into(), leistungsdatum_bis: None, zahlungsziel_tage: 14,
                 kopftext: "".into(), fusstext: "".into(), summe_cent,
                 ursprungsangebot_id: None, storno_von_id: storno_von.map(String::from),
                 kunde_snapshot: String::new(), kunde_snapshot_name: None,
@@ -432,6 +450,29 @@ pub(crate) mod tests {
         assert!(
             bericht.gueltig,
             "Die erzeugte Storno-XRechnung wurde abgelehnt. Befunde ({}):\n{}",
+            bericht.befunde().len(),
+            bericht.befunde().iter().map(|v| format!("  - {v}")).collect::<Vec<_>>().join("\n")
+        );
+    }
+
+    /// Auch mit Leistungszeitraum muss die Datei normkonform bleiben — BG-14
+    /// hat im CII-Schema eine feste Position.
+    #[test]
+    fn xrechnung_mit_leistungszeitraum_ist_normkonform() {
+        if let Some(grund) = crate::dokument::kosit::nicht_verfuegbar_weil() {
+            eprintln!("übersprungen: {grund}");
+            return;
+        }
+        let mut kontext = test_kontext(None, 9500);
+        kontext.beleg.leistungsdatum = "2026-07-01".into();
+        kontext.beleg.leistungsdatum_bis = Some("2026-07-31".into());
+        let xml = xml_erzeugen(&kontext).unwrap();
+        assert!(xml.contains("<ram:BillingSpecifiedPeriod>"), "BG-14 fehlt");
+
+        let bericht = crate::dokument::kosit::validieren(&xml).expect("Validator-Aufruf");
+        assert!(
+            bericht.gueltig,
+            "Abgelehnt. Befunde ({}):\n{}",
             bericht.befunde().len(),
             bericht.befunde().iter().map(|v| format!("  - {v}")).collect::<Vec<_>>().join("\n")
         );

@@ -78,6 +78,15 @@ fn datum_format(iso: &str) -> String {
     }
 }
 
+/// Leistungsangabe für die Rechnung: Einzeldatum oder Zeitraum.
+fn leistung_anzeigen(kontext: &BelegKontext) -> String {
+    let von = datum_format(&kontext.beleg.leistungsdatum);
+    match kontext.beleg.leistungsdatum_bis.as_deref().filter(|b| !b.trim().is_empty()) {
+        Some(bis) => format!("{von} – {}", datum_format(bis)),
+        None => von,
+    }
+}
+
 /// Gruppiert eine IBAN in Viererblöcke, wie sie üblicherweise gedruckt wird.
 /// Das erleichtert das Abtippen und die Sichtprüfung erheblich.
 fn iban_format(iban: &str) -> String {
@@ -143,7 +152,14 @@ fn dokument_bauen(
         ("titel", titel.to_string()),
         ("nummer", kontext.beleg.nummer.clone().unwrap_or_default()),
         ("datum", datum_format(&kontext.beleg.datum)),
-        ("leistungsdatum", datum_format(&kontext.beleg.leistungsdatum)),
+        // Bei einem Zeitraum die Spanne ausweisen. § 14 Abs. 4 Nr. 6 UStG lässt
+        // beides zu; ein Einzeldatum wäre bei einer Monatsabrechnung falsch.
+        ("leistungsdatum", leistung_anzeigen(kontext)),
+        ("leistung_beschriftung", if kontext.beleg.leistungsdatum_bis.is_some() {
+            "Leistungszeitraum".to_string()
+        } else {
+            "Leistungsdatum".to_string()
+        }),
         ("zahlungsziel_tage", kontext.beleg.zahlungsziel_tage.to_string()),
         ("kunde_name", kontext.kunde_name.clone()),
         ("kunde_strasse", kontext.adresse_strasse.clone()),
@@ -198,7 +214,7 @@ pub(crate) mod tests {
             beleg: Beleg {
                 id: "b1".into(), typ: "rechnung".into(), nummer: Some("RE-2026-0001".into()),
                 status: "gestellt".into(), kunde_id: "k1".into(), datum: "2026-07-11".into(),
-                leistungsdatum: "2026-07-11".into(), zahlungsziel_tage: 14,
+                leistungsdatum: "2026-07-11".into(), leistungsdatum_bis: None, zahlungsziel_tage: 14,
                 kopftext: "Wie besprochen stelle ich Ihnen in Rechnung:".into(),
                 fusstext: "Danke für Ihren Auftrag.".into(), summe_cent: 9500,
                 ursprungsangebot_id: None, storno_von_id: None,
@@ -283,6 +299,26 @@ pub(crate) mod tests {
         assert_eq!(land_anzeigen("de", "DE"), "");
         assert_eq!(land_anzeigen("", "DE"), "");
         assert_eq!(land_anzeigen("AT", "DE"), "AT");
+    }
+
+    /// § 14 Abs. 4 Nr. 6 UStG lässt Zeitpunkt „oder Zeitraum" zu. Bei einer
+    /// Monatsabrechnung wäre ein Einzeldatum sachlich falsch.
+    #[test]
+    fn leistungszeitraum_wird_als_spanne_ausgewiesen() {
+        let mut kontext = test_kontext();
+        kontext.beleg.leistungsdatum = "2026-07-01".into();
+        kontext.beleg.leistungsdatum_bis = Some("2026-07-31".into());
+        let t = text(&kontext);
+        assert!(t.contains("Leistungszeitraum"), "Beschriftung fehlt.\n\nText:\n{t}");
+        assert!(t.contains("01.07.2026"), "Beginn fehlt");
+        assert!(t.contains("31.07.2026"), "Ende fehlt");
+    }
+
+    #[test]
+    fn ohne_zeitraum_bleibt_es_beim_einzeldatum() {
+        let t = text(&test_kontext());
+        assert!(t.contains("Leistungsdatum"), "Beschriftung fehlt.\n\nText:\n{t}");
+        assert!(!t.contains("Leistungszeitraum"));
     }
 
     /// Ohne Bankverbindung kann der Empfänger die Rechnung nicht bezahlen.

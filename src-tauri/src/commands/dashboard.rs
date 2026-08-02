@@ -261,7 +261,7 @@ mod tests {
         }).await.unwrap().id;
         let beleg = beleg_create(pool, BelegNeu {
             typ: "rechnung".into(), kunde_id, datum: datum.into(),
-            leistungsdatum: datum.into(), zahlungsziel_tage: 14,
+            leistungsdatum: datum.into(), leistungsdatum_bis: None, zahlungsziel_tage: 14,
             kopftext: "".into(), fusstext: "".into(),
         }).await.unwrap();
         position_speichern(pool, BelegpositionNeu {

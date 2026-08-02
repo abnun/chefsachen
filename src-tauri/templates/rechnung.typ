@@ -41,7 +41,7 @@
 = #sys.inputs.titel #sys.inputs.nummer
 
 Datum: #sys.inputs.datum \
-Leistungsdatum: #sys.inputs.leistungsdatum \
+#sys.inputs.leistung_beschriftung: #sys.inputs.leistungsdatum \
 Zahlungsziel: #sys.inputs.zahlungsziel_tage Tage
 
 #if ist_gesetzt(sys.inputs.kopftext) [

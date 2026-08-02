@@ -112,7 +112,14 @@ export interface Beleg {
   status: string;
   kunde_id: string;
   datum: string;
+  /** Leistungsdatum, bei einem Zeitraum dessen Beginn. */
   leistungsdatum: string;
+  /**
+   * Ende eines Leistungszeitraums; null bedeutet Einzeldatum. § 14 Abs. 4 Nr. 6
+   * UStG lässt Zeitpunkt „oder Zeitraum" zu — bei Dauerleistungen wäre ein
+   * Einzeldatum sachlich falsch.
+   */
+  leistungsdatum_bis?: string | null;
   zahlungsziel_tage: number;
   kopftext: string;
   fusstext: string;
@@ -140,7 +147,14 @@ export interface BelegUpdate {
   id: string;
   kunde_id: string;
   datum: string;
+  /** Leistungsdatum, bei einem Zeitraum dessen Beginn. */
   leistungsdatum: string;
+  /**
+   * Ende eines Leistungszeitraums; null bedeutet Einzeldatum. § 14 Abs. 4 Nr. 6
+   * UStG lässt Zeitpunkt „oder Zeitraum" zu — bei Dauerleistungen wäre ein
+   * Einzeldatum sachlich falsch.
+   */
+  leistungsdatum_bis?: string | null;
   zahlungsziel_tage: number;
   kopftext: string;
   fusstext: string;
