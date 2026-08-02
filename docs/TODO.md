@@ -12,9 +12,10 @@ Reihenfolge = Empfehlung. Jeder Punkt trägt die Referenz aus dem Review.
 | 3 — Fehlende Kernfunktionen | ✅ 10/11, P3.7 teilweise |
 | 4 — Robustheit | ✅ 13/13 |
 | 5 — Produktreife | ⬜ 5/7, P5.2 angefangen, P5.6 zurückgestellt |
-| 6 — UX und Code-Qualität | ⬜ 10/11 |
+| 6 — UX und Code-Qualität | ✅ 11/11 |
 
-**Nächster Schritt:** Stufe 6 (UX und Code-Qualität). Von Stufe 5 bleibt P5.2 offen —
+**Nächster Schritt:** Alle sechs Stufen sind durch bis auf P5.2 (CI noch nie gelaufen),
+P5.6 (Signierung, bewusst zurückgestellt) und die Teilpunkte P2.9, P3.7. Von Stufe 5 bleibt P5.2 offen —
 die CI ist noch nie gelaufen und klärt sich beim ersten Push von selbst; P5.6 (Signierung)
 ist bewusst zurückgestellt, die App geht vorerst nur an Family & Friends.
 
@@ -479,7 +480,29 @@ Ohne diese Punkte ist die App für die Zielgruppe nicht wertvoll.
   entfernt: Eine dritte, noch leisere Stufe kann auf dieser Palette nicht zugleich existieren
   und 4,5:1 erreichen. Die drei Verwendungen (Tabellenkopf, Belegnummer, Preisdatum) waren
   ohnehin Inhalt, kein Zierrat.
-- [ ] **P6.11 — Aufräumen** — `greet`-Template-Command, ~60 `.unwrap()` im XRechnung-Produktivcode, fehlende Indizes auf Fremdschlüsseln, i18n nur 6 Nav-Keys
+- [x] **P6.11 — Aufräumen**
+  - `greet`-Template-Command: bereits mit P5.4 entfernt.
+  - **`.unwrap()` im XRechnung-Erzeuger:** tatsächlich 118, nicht ~60. Alle standen auf
+    `writer.write_event(…)`, das in einen Puffer im Arbeitsspeicher schreibt und dort nicht
+    fehlschlagen kann. Statt 118 Stellen einzeln umzubauen: eine dünne Hülle `Xml` mit
+    `auf`/`zu`/`text`/`feld`, in der die Annahme genau einmal steht — mit Begründung.
+    Übrig sind zwei `expect` mit erklärendem Text. Der Erzeuger ist dabei deutlich lesbarer
+    geworden.
+    **Nachweis:** Die erzeugte XRechnung wurde vor und nach dem Umbau abgelegt und ist
+    byteweise identisch — für einen reinen Umbau der stärkere Nachweis als ein erneuter
+    Validatorlauf, der dieselben Bytes prüfen würde.
+  - **Indizes:** Migration 0013 legt zwölf Indizes auf den Fremdschlüsseln an, jeweils
+    zusammen mit `deleted_at`, weil jede Abfrage `AND deleted_at IS NULL` anhängt.
+    Aufgenommen ist nur, wonach der Code wirklich filtert — ein ungenutzter Index kostet
+    Schreibzeit und Platz. `db.rs` prüft über `EXPLAIN QUERY PLAN`, dass die sieben
+    häufigsten Abfragen keinen vollständigen Tabellendurchlauf mehr machen.
+  - **i18n entfernt.** Das Modul kannte nur die sieben Navigationspunkte, jeder andere
+    sichtbare Text war fest verdrahtet. Damit versprach es Übersetzbarkeit, die es nicht
+    gab. Die Anwendung ist auf deutsches Steuerrecht zugeschnitten und trägt auch im
+    Fachcode deutsche Bezeichner; eine zweite Sprache ist nicht vorgesehen. Kommt sie
+    einmal, ist ein eingeführtes Werkzeug die bessere Grundlage als sieben Schlüssel.
+    (Der ursprüngliche Plan von 2026-07-06 sah vor, *alle* Strings darüber zu führen —
+    das ist nie geschehen. Falls das doch gewollt ist, bitte melden.)
 
 ---
 

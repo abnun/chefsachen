@@ -65,102 +65,164 @@ fn faelligkeit_yyyymmdd(datum_iso: &str, zahlungsziel_tage: i64) -> Option<Strin
     Some(faellig.format("%Y%m%d").to_string())
 }
 
+
+/// Dünne Hülle um den XML-Schreiber.
+///
+/// Geschrieben wird in einen Puffer im Arbeitsspeicher. Ein Schreibfehler kann
+/// dort nicht auftreten — `quick_xml` gibt trotzdem ein `Result` zurück, weil
+/// es auch auf Dateien und Netzverbindungen schreiben kann.
+///
+/// Das führte im Erzeuger zu über hundert `.unwrap()`. Jedes einzelne wäre ein
+/// Absturz des Programms, und über hundert Stellen liest niemand darauf durch,
+/// ob eine davon doch erreichbar ist. Hier steht die Annahme an genau einer
+/// Stelle, mit Begründung — und der Erzeuger wird nebenbei lesbar.
+struct Xml {
+    writer: Writer<Cursor<Vec<u8>>>,
+}
+
+impl Xml {
+    fn neu() -> Self {
+        Self { writer: Writer::new_with_indent(Cursor::new(Vec::new()), b' ', 2) }
+    }
+
+    /// Der einzige Punkt, an dem die Unfehlbarkeit des Schreibens angenommen wird.
+    fn schreibe(&mut self, ereignis: Event<'_>) {
+        self.writer
+            .write_event(ereignis)
+            .expect("Schreiben in einen Vec<u8> kann nicht fehlschlagen");
+    }
+
+    fn deklaration(&mut self) {
+        self.schreibe(Event::Decl(BytesDecl::new("1.0", Some("UTF-8"), None)));
+    }
+
+    /// Öffnendes Element.
+    fn auf(&mut self, tag: &str) {
+        self.schreibe(Event::Start(BytesStart::new(tag)));
+    }
+
+    /// Öffnendes Element mit Attributen.
+    fn auf_mit(&mut self, tag: &str, attribute: &[(&str, &str)]) {
+        self.schreibe(Event::Start(
+            BytesStart::new(tag).with_attributes(attribute.iter().copied()),
+        ));
+    }
+
+    /// Schließendes Element.
+    fn zu(&mut self, tag: &str) {
+        self.schreibe(Event::End(BytesEnd::new(tag)));
+    }
+
+    fn text(&mut self, inhalt: &str) {
+        self.schreibe(Event::Text(BytesText::new(inhalt)));
+    }
+
+    /// Element mit Textinhalt in einem Zug.
+    fn feld(&mut self, tag: &str, inhalt: &str) {
+        self.auf(tag);
+        self.text(inhalt);
+        self.zu(tag);
+    }
+
+
+    fn fertig(self) -> String {
+        String::from_utf8(self.writer.into_inner().into_inner())
+            .expect("erzeugtes XML besteht aus gültigem UTF-8")
+    }
+}
+
 /// Schreibt eine Betragsangabe.
 ///
 /// In der CII-Syntax trägt ausschließlich `ram:TaxTotalAmount` das Attribut
 /// `currencyID`; an allen anderen Betragselementen ist es untersagt
 /// (Regel CII-DT-031). Die UBL-Syntax handhabt das genau umgekehrt — eine
 /// Verwechslung, die ohne normkonformen Prüfer kaum auffällt.
-fn schreibe_betrag(writer: &mut Writer<Cursor<Vec<u8>>>, tag: &str, cent: i64) {
-    writer.write_event(Event::Start(BytesStart::new(tag))).unwrap();
-    writer.write_event(Event::Text(BytesText::new(&cent_zu_dezimal(cent)))).unwrap();
-    writer.write_event(Event::End(BytesEnd::new(tag))).unwrap();
+fn schreibe_betrag(xml: &mut Xml, tag: &str, cent: i64) {
+    xml.auf(tag);
+    xml.text(&cent_zu_dezimal(cent));
+    xml.zu(tag);
 }
 
 /// Schreibt `ram:TaxTotalAmount` — das einzige Betragselement in CII, das
 /// `currencyID` tragen muss.
-fn schreibe_steuersumme(writer: &mut Writer<Cursor<Vec<u8>>>, cent: i64) {
-    writer.write_event(Event::Start(BytesStart::new("ram:TaxTotalAmount")
-        .with_attributes([("currencyID", "EUR")]))).unwrap();
-    writer.write_event(Event::Text(BytesText::new(&cent_zu_dezimal(cent)))).unwrap();
-    writer.write_event(Event::End(BytesEnd::new("ram:TaxTotalAmount"))).unwrap();
+fn schreibe_steuersumme(xml: &mut Xml, cent: i64) {
+    xml.auf_mit("ram:TaxTotalAmount", &[("currencyID", "EUR")]);
+    xml.text(&cent_zu_dezimal(cent));
+    xml.zu("ram:TaxTotalAmount");
 }
 
 pub fn xml_erzeugen(kontext: &BelegKontext) -> AppResult<String> {
-    let mut writer = Writer::new_with_indent(Cursor::new(Vec::new()), b' ', 2);
+    let mut xml = Xml::neu();
     let type_code = if kontext.beleg.storno_von_id.is_some() { "384" } else { "380" };
 
-    writer.write_event(Event::Decl(BytesDecl::new("1.0", Some("UTF-8"), None))).unwrap();
-    writer.write_event(Event::Start(BytesStart::new("rsm:CrossIndustryInvoice")
-        .with_attributes([
+    xml.deklaration();
+    xml.auf_mit("rsm:CrossIndustryInvoice", &[
             ("xmlns:rsm", "urn:un:unece:uncefact:data:standard:CrossIndustryInvoice:100"),
             ("xmlns:ram", "urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100"),
             ("xmlns:udt", "urn:un:unece:uncefact:data:standard:UnqualifiedDataType:100"),
-        ]))).unwrap();
+        ]);
 
     // ExchangedDocumentContext MUSS laut CII-Schema das erste Kind sein und
     // trägt die Profilkennung (BT-24). Fehlt sie, ordnet kein Empfängersystem
     // die Datei einem Regelwerk zu.
-    writer.write_event(Event::Start(BytesStart::new("rsm:ExchangedDocumentContext"))).unwrap();
-    writer.write_event(Event::Start(BytesStart::new("ram:BusinessProcessSpecifiedDocumentContextParameter"))).unwrap();
-    schreibe_text(&mut writer, "ram:ID", GESCHAEFTSPROZESS);
-    writer.write_event(Event::End(BytesEnd::new("ram:BusinessProcessSpecifiedDocumentContextParameter"))).unwrap();
-    writer.write_event(Event::Start(BytesStart::new("ram:GuidelineSpecifiedDocumentContextParameter"))).unwrap();
-    schreibe_text(&mut writer, "ram:ID", PROFIL_KENNUNG);
-    writer.write_event(Event::End(BytesEnd::new("ram:GuidelineSpecifiedDocumentContextParameter"))).unwrap();
-    writer.write_event(Event::End(BytesEnd::new("rsm:ExchangedDocumentContext"))).unwrap();
+    xml.auf("rsm:ExchangedDocumentContext");
+    xml.auf("ram:BusinessProcessSpecifiedDocumentContextParameter");
+    xml.feld( "ram:ID", GESCHAEFTSPROZESS);
+    xml.zu("ram:BusinessProcessSpecifiedDocumentContextParameter");
+    xml.auf("ram:GuidelineSpecifiedDocumentContextParameter");
+    xml.feld( "ram:ID", PROFIL_KENNUNG);
+    xml.zu("ram:GuidelineSpecifiedDocumentContextParameter");
+    xml.zu("rsm:ExchangedDocumentContext");
 
     // ExchangedDocument: Belegkopf
-    writer.write_event(Event::Start(BytesStart::new("rsm:ExchangedDocument"))).unwrap();
-    schreibe_text(&mut writer, "ram:ID", kontext.beleg.nummer.as_deref().unwrap_or(""));
-    schreibe_text(&mut writer, "ram:TypeCode", type_code);
-    writer.write_event(Event::Start(BytesStart::new("ram:IssueDateTime"))).unwrap();
-    writer.write_event(Event::Start(BytesStart::new("udt:DateTimeString")
-        .with_attributes([("format", "102")]))).unwrap();
-    writer.write_event(Event::Text(BytesText::new(&kontext.beleg.datum.replace('-', "")))).unwrap();
-    writer.write_event(Event::End(BytesEnd::new("udt:DateTimeString"))).unwrap();
-    writer.write_event(Event::End(BytesEnd::new("ram:IssueDateTime"))).unwrap();
-    writer.write_event(Event::End(BytesEnd::new("rsm:ExchangedDocument"))).unwrap();
+    xml.auf("rsm:ExchangedDocument");
+    xml.feld( "ram:ID", kontext.beleg.nummer.as_deref().unwrap_or(""));
+    xml.feld( "ram:TypeCode", type_code);
+    xml.auf("ram:IssueDateTime");
+    xml.auf_mit("udt:DateTimeString", &[("format", "102")]);
+    xml.text(&kontext.beleg.datum.replace('-', ""));
+    xml.zu("udt:DateTimeString");
+    xml.zu("ram:IssueDateTime");
+    xml.zu("rsm:ExchangedDocument");
 
     // SupplyChainTradeTransaction: Positionen, Parteien, Summen, Zahlungsbedingungen
-    writer.write_event(Event::Start(BytesStart::new("rsm:SupplyChainTradeTransaction"))).unwrap();
+    xml.auf("rsm:SupplyChainTradeTransaction");
 
     for (i, pos) in kontext.positionen.iter().enumerate() {
-        writer.write_event(Event::Start(BytesStart::new("ram:IncludedSupplyChainTradeLineItem"))).unwrap();
-        writer.write_event(Event::Start(BytesStart::new("ram:AssociatedDocumentLineDocument"))).unwrap();
-        schreibe_text(&mut writer, "ram:LineID", &(i + 1).to_string());
-        writer.write_event(Event::End(BytesEnd::new("ram:AssociatedDocumentLineDocument"))).unwrap();
-        writer.write_event(Event::Start(BytesStart::new("ram:SpecifiedTradeProduct"))).unwrap();
-        schreibe_text(&mut writer, "ram:Name", &pos.bezeichnung);
-        writer.write_event(Event::End(BytesEnd::new("ram:SpecifiedTradeProduct"))).unwrap();
-        writer.write_event(Event::Start(BytesStart::new("ram:SpecifiedLineTradeAgreement"))).unwrap();
-        writer.write_event(Event::Start(BytesStart::new("ram:NetPriceProductTradePrice"))).unwrap();
+        xml.auf("ram:IncludedSupplyChainTradeLineItem");
+        xml.auf("ram:AssociatedDocumentLineDocument");
+        xml.feld( "ram:LineID", &(i + 1).to_string());
+        xml.zu("ram:AssociatedDocumentLineDocument");
+        xml.auf("ram:SpecifiedTradeProduct");
+        xml.feld( "ram:Name", &pos.bezeichnung);
+        xml.zu("ram:SpecifiedTradeProduct");
+        xml.auf("ram:SpecifiedLineTradeAgreement");
+        xml.auf("ram:NetPriceProductTradePrice");
         // BR-27: Der Einzelpreis darf nicht negativ sein. Bei einer Korrektur
         // (TypeCode 384) trägt der Beleg negierte Preise; die Norm erwartet dort
         // positive Beträge, die Korrektur-Semantik steckt im TypeCode.
-        schreibe_betrag(&mut writer, "ram:ChargeAmount", pos.einzelpreis_cent.abs());
-        writer.write_event(Event::End(BytesEnd::new("ram:NetPriceProductTradePrice"))).unwrap();
-        writer.write_event(Event::End(BytesEnd::new("ram:SpecifiedLineTradeAgreement"))).unwrap();
-        writer.write_event(Event::Start(BytesStart::new("ram:SpecifiedLineTradeDelivery"))).unwrap();
-        writer.write_event(Event::Start(BytesStart::new("ram:BilledQuantity")
-            .with_attributes([("unitCode", einheit_zu_unece(&pos.einheit_kuerzel))]))).unwrap();
-        writer.write_event(Event::Text(BytesText::new(&menge_zu_dezimal(pos.menge)))).unwrap();
-        writer.write_event(Event::End(BytesEnd::new("ram:BilledQuantity"))).unwrap();
-        writer.write_event(Event::End(BytesEnd::new("ram:SpecifiedLineTradeDelivery"))).unwrap();
-        writer.write_event(Event::Start(BytesStart::new("ram:SpecifiedLineTradeSettlement"))).unwrap();
-        writer.write_event(Event::Start(BytesStart::new("ram:ApplicableTradeTax"))).unwrap();
-        schreibe_text(&mut writer, "ram:TypeCode", "VAT");
-        schreibe_text(&mut writer, "ram:CategoryCode", "E");
-        schreibe_text(&mut writer, "ram:RateApplicablePercent", "0.00");
-        writer.write_event(Event::End(BytesEnd::new("ram:ApplicableTradeTax"))).unwrap();
-        writer.write_event(Event::Start(BytesStart::new("ram:SpecifiedTradeSettlementLineMonetarySummation"))).unwrap();
-        schreibe_betrag(&mut writer, "ram:LineTotalAmount", pos.positionssumme_cent.abs());
-        writer.write_event(Event::End(BytesEnd::new("ram:SpecifiedTradeSettlementLineMonetarySummation"))).unwrap();
-        writer.write_event(Event::End(BytesEnd::new("ram:SpecifiedLineTradeSettlement"))).unwrap();
-        writer.write_event(Event::End(BytesEnd::new("ram:IncludedSupplyChainTradeLineItem"))).unwrap();
+        schreibe_betrag(&mut xml, "ram:ChargeAmount", pos.einzelpreis_cent.abs());
+        xml.zu("ram:NetPriceProductTradePrice");
+        xml.zu("ram:SpecifiedLineTradeAgreement");
+        xml.auf("ram:SpecifiedLineTradeDelivery");
+        xml.auf_mit("ram:BilledQuantity", &[("unitCode", einheit_zu_unece(&pos.einheit_kuerzel))]);
+        xml.text(&menge_zu_dezimal(pos.menge));
+        xml.zu("ram:BilledQuantity");
+        xml.zu("ram:SpecifiedLineTradeDelivery");
+        xml.auf("ram:SpecifiedLineTradeSettlement");
+        xml.auf("ram:ApplicableTradeTax");
+        xml.feld( "ram:TypeCode", "VAT");
+        xml.feld( "ram:CategoryCode", "E");
+        xml.feld( "ram:RateApplicablePercent", "0.00");
+        xml.zu("ram:ApplicableTradeTax");
+        xml.auf("ram:SpecifiedTradeSettlementLineMonetarySummation");
+        schreibe_betrag(&mut xml, "ram:LineTotalAmount", pos.positionssumme_cent.abs());
+        xml.zu("ram:SpecifiedTradeSettlementLineMonetarySummation");
+        xml.zu("ram:SpecifiedLineTradeSettlement");
+        xml.zu("ram:IncludedSupplyChainTradeLineItem");
     }
 
-    writer.write_event(Event::Start(BytesStart::new("ram:ApplicableHeaderTradeAgreement"))).unwrap();
+    xml.auf("ram:ApplicableHeaderTradeAgreement");
     // BT-10 (BuyerReference): Bei XRechnung an öffentliche Auftraggeber gehört die
     // Leitweg-ID in BT-10 — sie hat Vorrang; ohne Leitweg-ID wird die Käuferreferenz gesendet.
     let buyer_reference = if kontext.kunde_leitweg_id.is_empty() {
@@ -168,40 +230,39 @@ pub fn xml_erzeugen(kontext: &BelegKontext) -> AppResult<String> {
     } else {
         &kontext.kunde_leitweg_id
     };
-    schreibe_text(&mut writer, "ram:BuyerReference", buyer_reference);
-    writer.write_event(Event::Start(BytesStart::new("ram:SellerTradeParty"))).unwrap();
-    schreibe_text(&mut writer, "ram:Name", &kontext.firma.name);
+    xml.feld( "ram:BuyerReference", buyer_reference);
+    xml.auf("ram:SellerTradeParty");
+    xml.feld( "ram:Name", &kontext.firma.name);
     // SELLER CONTACT (BG-6) — in XRechnung Pflicht (BR-DE-2). Im CII-Schema
     // steht der Kontakt vor der Anschrift.
-    writer.write_event(Event::Start(BytesStart::new("ram:DefinedTradeContact"))).unwrap();
+    xml.auf("ram:DefinedTradeContact");
     let kontakt = if kontext.firma.kontakt_name.trim().is_empty() {
         kontext.firma.name.trim()
     } else {
         kontext.firma.kontakt_name.trim()
     };
-    schreibe_text(&mut writer, "ram:PersonName", kontakt);
-    writer.write_event(Event::Start(BytesStart::new("ram:TelephoneUniversalCommunication"))).unwrap();
-    schreibe_text(&mut writer, "ram:CompleteNumber", kontext.firma.telefon.trim());
-    writer.write_event(Event::End(BytesEnd::new("ram:TelephoneUniversalCommunication"))).unwrap();
-    writer.write_event(Event::Start(BytesStart::new("ram:EmailURIUniversalCommunication"))).unwrap();
-    schreibe_text(&mut writer, "ram:URIID", kontext.firma.email.trim());
-    writer.write_event(Event::End(BytesEnd::new("ram:EmailURIUniversalCommunication"))).unwrap();
-    writer.write_event(Event::End(BytesEnd::new("ram:DefinedTradeContact"))).unwrap();
-    writer.write_event(Event::Start(BytesStart::new("ram:PostalTradeAddress"))).unwrap();
-    schreibe_text(&mut writer, "ram:PostcodeCode", &kontext.firma.plz);
-    schreibe_text(&mut writer, "ram:LineOne", &kontext.firma.strasse);
-    schreibe_text(&mut writer, "ram:CityName", &kontext.firma.ort);
-    schreibe_text(&mut writer, "ram:CountryID", &kontext.firma.land);
-    writer.write_event(Event::End(BytesEnd::new("ram:PostalTradeAddress"))).unwrap();
+    xml.feld( "ram:PersonName", kontakt);
+    xml.auf("ram:TelephoneUniversalCommunication");
+    xml.feld( "ram:CompleteNumber", kontext.firma.telefon.trim());
+    xml.zu("ram:TelephoneUniversalCommunication");
+    xml.auf("ram:EmailURIUniversalCommunication");
+    xml.feld( "ram:URIID", kontext.firma.email.trim());
+    xml.zu("ram:EmailURIUniversalCommunication");
+    xml.zu("ram:DefinedTradeContact");
+    xml.auf("ram:PostalTradeAddress");
+    xml.feld( "ram:PostcodeCode", &kontext.firma.plz);
+    xml.feld( "ram:LineOne", &kontext.firma.strasse);
+    xml.feld( "ram:CityName", &kontext.firma.ort);
+    xml.feld( "ram:CountryID", &kontext.firma.land);
+    xml.zu("ram:PostalTradeAddress");
     // BT-34: elektronische Adresse des Verkäufers, in XRechnung Pflicht (BR-DE-5).
     // scheme EM = E-Mail.
     if !kontext.firma.email.trim().is_empty() {
-        writer.write_event(Event::Start(BytesStart::new("ram:URIUniversalCommunication"))).unwrap();
-        writer.write_event(Event::Start(BytesStart::new("ram:URIID")
-            .with_attributes([("schemeID", "EM")]))).unwrap();
-        writer.write_event(Event::Text(BytesText::new(kontext.firma.email.trim()))).unwrap();
-        writer.write_event(Event::End(BytesEnd::new("ram:URIID"))).unwrap();
-        writer.write_event(Event::End(BytesEnd::new("ram:URIUniversalCommunication"))).unwrap();
+        xml.auf("ram:URIUniversalCommunication");
+        xml.auf_mit("ram:URIID", &[("schemeID", "EM")]);
+        xml.text(kontext.firma.email.trim());
+        xml.zu("ram:URIID");
+        xml.zu("ram:URIUniversalCommunication");
     }
     // BT-31/BT-32: Die USt-IdNr. trägt schemeID "VA", die Steuernummer "FC".
     // Vorher war das Element hart auf ust_idnr verdrahtet — ein Kleinunternehmer
@@ -212,153 +273,142 @@ pub fn xml_erzeugen(kontext: &BelegKontext) -> AppResult<String> {
         (kontext.firma.steuernummer.as_str(), "FC")
     };
     if !steuer_id.trim().is_empty() {
-        writer.write_event(Event::Start(BytesStart::new("ram:SpecifiedTaxRegistration"))).unwrap();
-        writer.write_event(Event::Start(BytesStart::new("ram:ID")
-            .with_attributes([("schemeID", steuer_schema)]))).unwrap();
-        writer.write_event(Event::Text(BytesText::new(steuer_id))).unwrap();
-        writer.write_event(Event::End(BytesEnd::new("ram:ID"))).unwrap();
-        writer.write_event(Event::End(BytesEnd::new("ram:SpecifiedTaxRegistration"))).unwrap();
+        xml.auf("ram:SpecifiedTaxRegistration");
+        xml.auf_mit("ram:ID", &[("schemeID", steuer_schema)]);
+        xml.text(steuer_id);
+        xml.zu("ram:ID");
+        xml.zu("ram:SpecifiedTaxRegistration");
     }
-    writer.write_event(Event::End(BytesEnd::new("ram:SellerTradeParty"))).unwrap();
-    writer.write_event(Event::Start(BytesStart::new("ram:BuyerTradeParty"))).unwrap();
-    schreibe_text(&mut writer, "ram:Name", &kontext.kunde_name);
-    writer.write_event(Event::Start(BytesStart::new("ram:PostalTradeAddress"))).unwrap();
-    schreibe_text(&mut writer, "ram:PostcodeCode", &kontext.adresse_plz);
-    schreibe_text(&mut writer, "ram:LineOne", &kontext.adresse_strasse);
-    schreibe_text(&mut writer, "ram:CityName", &kontext.adresse_ort);
-    schreibe_text(&mut writer, "ram:CountryID", &kontext.adresse_land);
-    writer.write_event(Event::End(BytesEnd::new("ram:PostalTradeAddress"))).unwrap();
+    xml.zu("ram:SellerTradeParty");
+    xml.auf("ram:BuyerTradeParty");
+    xml.feld( "ram:Name", &kontext.kunde_name);
+    xml.auf("ram:PostalTradeAddress");
+    xml.feld( "ram:PostcodeCode", &kontext.adresse_plz);
+    xml.feld( "ram:LineOne", &kontext.adresse_strasse);
+    xml.feld( "ram:CityName", &kontext.adresse_ort);
+    xml.feld( "ram:CountryID", &kontext.adresse_land);
+    xml.zu("ram:PostalTradeAddress");
     // BT-49: elektronische Adresse des Käufers, in XRechnung Pflicht (BR-DE-6).
     if !kontext.kunde_email.trim().is_empty() {
-        writer.write_event(Event::Start(BytesStart::new("ram:URIUniversalCommunication"))).unwrap();
-        writer.write_event(Event::Start(BytesStart::new("ram:URIID")
-            .with_attributes([("schemeID", "EM")]))).unwrap();
-        writer.write_event(Event::Text(BytesText::new(kontext.kunde_email.trim()))).unwrap();
-        writer.write_event(Event::End(BytesEnd::new("ram:URIID"))).unwrap();
-        writer.write_event(Event::End(BytesEnd::new("ram:URIUniversalCommunication"))).unwrap();
+        xml.auf("ram:URIUniversalCommunication");
+        xml.auf_mit("ram:URIID", &[("schemeID", "EM")]);
+        xml.text(kontext.kunde_email.trim());
+        xml.zu("ram:URIID");
+        xml.zu("ram:URIUniversalCommunication");
     }
-    writer.write_event(Event::End(BytesEnd::new("ram:BuyerTradeParty"))).unwrap();
+    xml.zu("ram:BuyerTradeParty");
     if !kontext.kunde_leitweg_id.is_empty() && !kontext.kunde_kaeuferreferenz.is_empty() {
         // Wenn die Leitweg-ID BT-10 belegt, bleibt die Käuferreferenz als Bestellreferenz erhalten.
-        writer.write_event(Event::Start(BytesStart::new("ram:BuyerOrderReferencedDocument"))).unwrap();
-        schreibe_text(&mut writer, "ram:IssuerAssignedID", &kontext.kunde_kaeuferreferenz);
-        writer.write_event(Event::End(BytesEnd::new("ram:BuyerOrderReferencedDocument"))).unwrap();
+        xml.auf("ram:BuyerOrderReferencedDocument");
+        xml.feld( "ram:IssuerAssignedID", &kontext.kunde_kaeuferreferenz);
+        xml.zu("ram:BuyerOrderReferencedDocument");
     }
-    writer.write_event(Event::End(BytesEnd::new("ram:ApplicableHeaderTradeAgreement"))).unwrap();
+    xml.zu("ram:ApplicableHeaderTradeAgreement");
 
     // ApplicableHeaderTradeDelivery ist im CII-Schema Pflicht (minOccurs=1) und
     // trägt das Leistungsdatum (BT-72) — dieselbe Pflichtangabe nach § 14 UStG,
     // die der eigene Eingangsrechnungs-Parser bei fremden Rechnungen ausliest.
-    writer.write_event(Event::Start(BytesStart::new("ram:ApplicableHeaderTradeDelivery"))).unwrap();
-    writer.write_event(Event::Start(BytesStart::new("ram:ActualDeliverySupplyChainEvent"))).unwrap();
-    writer.write_event(Event::Start(BytesStart::new("ram:OccurrenceDateTime"))).unwrap();
-    writer.write_event(Event::Start(BytesStart::new("udt:DateTimeString")
-        .with_attributes([("format", "102")]))).unwrap();
-    writer.write_event(Event::Text(BytesText::new(&kontext.beleg.leistungsdatum.replace('-', "")))).unwrap();
-    writer.write_event(Event::End(BytesEnd::new("udt:DateTimeString"))).unwrap();
-    writer.write_event(Event::End(BytesEnd::new("ram:OccurrenceDateTime"))).unwrap();
-    writer.write_event(Event::End(BytesEnd::new("ram:ActualDeliverySupplyChainEvent"))).unwrap();
-    writer.write_event(Event::End(BytesEnd::new("ram:ApplicableHeaderTradeDelivery"))).unwrap();
+    xml.auf("ram:ApplicableHeaderTradeDelivery");
+    xml.auf("ram:ActualDeliverySupplyChainEvent");
+    xml.auf("ram:OccurrenceDateTime");
+    xml.auf_mit("udt:DateTimeString", &[("format", "102")]);
+    xml.text(&kontext.beleg.leistungsdatum.replace('-', ""));
+    xml.zu("udt:DateTimeString");
+    xml.zu("ram:OccurrenceDateTime");
+    xml.zu("ram:ActualDeliverySupplyChainEvent");
+    xml.zu("ram:ApplicableHeaderTradeDelivery");
 
-    writer.write_event(Event::Start(BytesStart::new("ram:ApplicableHeaderTradeSettlement"))).unwrap();
-    schreibe_text(&mut writer, "ram:InvoiceCurrencyCode", "EUR");
+    xml.auf("ram:ApplicableHeaderTradeSettlement");
+    xml.feld( "ram:InvoiceCurrencyCode", "EUR");
     // ram:SpecifiedTradeSettlementPaymentMeans steht laut CII-Schema vor
     // ram:SpecifiedTradePaymentTerms (Reihenfolge innerhalb von ApplicableHeaderTradeSettlement:
     // ...PaymentReference?, InvoiceCurrencyCode, PayeeTradeParty?, SpecifiedTradeSettlementPaymentMeans*,
     // ApplicableTradeTax*, ..., SpecifiedTradePaymentTerms*, ...). IBAN ist Pflicht für den Block,
     // BIC optional — bei leerer IBAN wird der gesamte Block ausgelassen statt eines leeren Elements.
     if !kontext.firma.iban.trim().is_empty() {
-        writer.write_event(Event::Start(BytesStart::new("ram:SpecifiedTradeSettlementPaymentMeans"))).unwrap();
-        schreibe_text(&mut writer, "ram:TypeCode", "58");
-        writer.write_event(Event::Start(BytesStart::new("ram:PayeePartyCreditorFinancialAccount"))).unwrap();
-        schreibe_text(&mut writer, "ram:IBANID", &kontext.firma.iban);
-        writer.write_event(Event::End(BytesEnd::new("ram:PayeePartyCreditorFinancialAccount"))).unwrap();
+        xml.auf("ram:SpecifiedTradeSettlementPaymentMeans");
+        xml.feld( "ram:TypeCode", "58");
+        xml.auf("ram:PayeePartyCreditorFinancialAccount");
+        xml.feld( "ram:IBANID", &kontext.firma.iban);
+        xml.zu("ram:PayeePartyCreditorFinancialAccount");
         if !kontext.firma.bic.trim().is_empty() {
-            writer.write_event(Event::Start(BytesStart::new("ram:PayeeSpecifiedCreditorFinancialInstitution"))).unwrap();
-            schreibe_text(&mut writer, "ram:BICID", &kontext.firma.bic);
-            writer.write_event(Event::End(BytesEnd::new("ram:PayeeSpecifiedCreditorFinancialInstitution"))).unwrap();
+            xml.auf("ram:PayeeSpecifiedCreditorFinancialInstitution");
+            xml.feld( "ram:BICID", &kontext.firma.bic);
+            xml.zu("ram:PayeeSpecifiedCreditorFinancialInstitution");
         }
-        writer.write_event(Event::End(BytesEnd::new("ram:SpecifiedTradeSettlementPaymentMeans"))).unwrap();
+        xml.zu("ram:SpecifiedTradeSettlementPaymentMeans");
     }
     // Kopf-Steuerzeile (BG-23). Hier — nicht auf Positionsebene — werten
     // Empfängersysteme die Steuerbefreiung aus. Ohne diesen Block ist die
     // Kleinunternehmer-Kennzeichnung faktisch nicht vorhanden (BR-E-1, BR-E-10).
     let netto = kontext.beleg.summe_cent.abs();
-    writer.write_event(Event::Start(BytesStart::new("ram:ApplicableTradeTax"))).unwrap();
-    schreibe_betrag(&mut writer, "ram:CalculatedAmount", 0);
-    schreibe_text(&mut writer, "ram:TypeCode", "VAT");
-    schreibe_text(&mut writer, "ram:ExemptionReason", BEFREIUNGSGRUND);
-    schreibe_betrag(&mut writer, "ram:BasisAmount", netto);
-    schreibe_text(&mut writer, "ram:CategoryCode", "E");
-    schreibe_text(&mut writer, "ram:RateApplicablePercent", "0.00");
-    writer.write_event(Event::End(BytesEnd::new("ram:ApplicableTradeTax"))).unwrap();
+    xml.auf("ram:ApplicableTradeTax");
+    schreibe_betrag(&mut xml, "ram:CalculatedAmount", 0);
+    xml.feld( "ram:TypeCode", "VAT");
+    xml.feld( "ram:ExemptionReason", BEFREIUNGSGRUND);
+    schreibe_betrag(&mut xml, "ram:BasisAmount", netto);
+    xml.feld( "ram:CategoryCode", "E");
+    xml.feld( "ram:RateApplicablePercent", "0.00");
+    xml.zu("ram:ApplicableTradeTax");
 
     // BG-14: Bei einem Leistungszeitraum gehört die Spanne in den
     // Abrechnungszeitraum. Sie steht laut CII-Schema vor den Zahlungsbedingungen.
     if let Some(bis) = kontext.beleg.leistungsdatum_bis.as_deref().filter(|b| !b.trim().is_empty()) {
-        writer.write_event(Event::Start(BytesStart::new("ram:BillingSpecifiedPeriod"))).unwrap();
+        xml.auf("ram:BillingSpecifiedPeriod");
         for (tag, wert) in [
             ("ram:StartDateTime", kontext.beleg.leistungsdatum.as_str()),
             ("ram:EndDateTime", bis),
         ] {
-            writer.write_event(Event::Start(BytesStart::new(tag))).unwrap();
-            writer.write_event(Event::Start(BytesStart::new("udt:DateTimeString")
-                .with_attributes([("format", "102")]))).unwrap();
-            writer.write_event(Event::Text(BytesText::new(&wert.replace('-', "")))).unwrap();
-            writer.write_event(Event::End(BytesEnd::new("udt:DateTimeString"))).unwrap();
-            writer.write_event(Event::End(BytesEnd::new(tag))).unwrap();
+            xml.auf(tag);
+            xml.auf_mit("udt:DateTimeString", &[("format", "102")]);
+            xml.text(&wert.replace('-', ""));
+            xml.zu("udt:DateTimeString");
+            xml.zu(tag);
         }
-        writer.write_event(Event::End(BytesEnd::new("ram:BillingSpecifiedPeriod"))).unwrap();
+        xml.zu("ram:BillingSpecifiedPeriod");
     }
 
-    writer.write_event(Event::Start(BytesStart::new("ram:SpecifiedTradePaymentTerms"))).unwrap();
-    schreibe_text(&mut writer, "ram:Description",
+    xml.auf("ram:SpecifiedTradePaymentTerms");
+    xml.feld( "ram:Description",
         &format!("Zahlbar innerhalb von {} Tagen", kontext.beleg.zahlungsziel_tage));
     // BT-9: konkretes Fälligkeitsdatum. Das Datenmodell kennt nur das
     // Zahlungsziel in Tagen; die Norm erwartet ein Datum.
     if let Some(faellig) = faelligkeit_yyyymmdd(&kontext.beleg.datum, kontext.beleg.zahlungsziel_tage) {
-        writer.write_event(Event::Start(BytesStart::new("ram:DueDateDateTime"))).unwrap();
-        writer.write_event(Event::Start(BytesStart::new("udt:DateTimeString")
-            .with_attributes([("format", "102")]))).unwrap();
-        writer.write_event(Event::Text(BytesText::new(&faellig))).unwrap();
-        writer.write_event(Event::End(BytesEnd::new("udt:DateTimeString"))).unwrap();
-        writer.write_event(Event::End(BytesEnd::new("ram:DueDateDateTime"))).unwrap();
+        xml.auf("ram:DueDateDateTime");
+        xml.auf_mit("udt:DateTimeString", &[("format", "102")]);
+        xml.text(&faellig);
+        xml.zu("udt:DateTimeString");
+        xml.zu("ram:DueDateDateTime");
     }
-    writer.write_event(Event::End(BytesEnd::new("ram:SpecifiedTradePaymentTerms"))).unwrap();
+    xml.zu("ram:SpecifiedTradePaymentTerms");
 
-    writer.write_event(Event::Start(BytesStart::new("ram:SpecifiedTradeSettlementHeaderMonetarySummation"))).unwrap();
+    xml.auf("ram:SpecifiedTradeSettlementHeaderMonetarySummation");
     // BT-106 fehlte bisher ganz — ohne sie ist die Summenprobe BR-CO-10 verletzt.
     let positionssumme: i64 = kontext.positionen.iter().map(|p| p.positionssumme_cent.abs()).sum();
-    schreibe_betrag(&mut writer, "ram:LineTotalAmount", positionssumme);
-    schreibe_betrag(&mut writer, "ram:TaxBasisTotalAmount", netto);
-    schreibe_steuersumme(&mut writer, 0);
-    schreibe_betrag(&mut writer, "ram:GrandTotalAmount", netto);
-    schreibe_betrag(&mut writer, "ram:DuePayableAmount", netto);
-    writer.write_event(Event::End(BytesEnd::new("ram:SpecifiedTradeSettlementHeaderMonetarySummation"))).unwrap();
+    schreibe_betrag(&mut xml, "ram:LineTotalAmount", positionssumme);
+    schreibe_betrag(&mut xml, "ram:TaxBasisTotalAmount", netto);
+    schreibe_steuersumme(&mut xml, 0);
+    schreibe_betrag(&mut xml, "ram:GrandTotalAmount", netto);
+    schreibe_betrag(&mut xml, "ram:DuePayableAmount", netto);
+    xml.zu("ram:SpecifiedTradeSettlementHeaderMonetarySummation");
 
     // BG-3: Bei einer Korrektur (TypeCode 384) muss auf die Vorrechnung
     // verwiesen werden — sonst ist nicht erkennbar, was korrigiert wird.
     if let Some(nummer) = &kontext.storno_von_nummer {
-        writer.write_event(Event::Start(BytesStart::new("ram:InvoiceReferencedDocument"))).unwrap();
-        schreibe_text(&mut writer, "ram:IssuerAssignedID", nummer);
-        writer.write_event(Event::End(BytesEnd::new("ram:InvoiceReferencedDocument"))).unwrap();
+        xml.auf("ram:InvoiceReferencedDocument");
+        xml.feld( "ram:IssuerAssignedID", nummer);
+        xml.zu("ram:InvoiceReferencedDocument");
     }
-    writer.write_event(Event::End(BytesEnd::new("ram:ApplicableHeaderTradeSettlement"))).unwrap();
+    xml.zu("ram:ApplicableHeaderTradeSettlement");
 
-    writer.write_event(Event::End(BytesEnd::new("rsm:SupplyChainTradeTransaction"))).unwrap();
-    writer.write_event(Event::End(BytesEnd::new("rsm:CrossIndustryInvoice"))).unwrap();
+    xml.zu("rsm:SupplyChainTradeTransaction");
+    xml.zu("rsm:CrossIndustryInvoice");
     // Die Elementreihenfolge folgt dem CII-Schema; abgesichert durch den
     // Normkonformitätstest gegen den amtlichen KoSIT-Validator.
 
-    let bytes = writer.into_inner().into_inner();
-    Ok(String::from_utf8(bytes).unwrap())
+    Ok(xml.fertig())
 }
 
-fn schreibe_text(writer: &mut Writer<Cursor<Vec<u8>>>, tag: &str, text: &str) {
-    writer.write_event(Event::Start(BytesStart::new(tag))).unwrap();
-    writer.write_event(Event::Text(BytesText::new(text))).unwrap();
-    writer.write_event(Event::End(BytesEnd::new(tag))).unwrap();
-}
 
 pub fn pruefe_exportierbarkeit(kontext: &BelegKontext) -> AppResult<()> {
     if kontext.firma.steuernummer.trim().is_empty() && kontext.firma.ust_idnr.trim().is_empty() {
@@ -562,3 +612,4 @@ pub(crate) mod tests {
         assert!(pruefe_exportierbarkeit(&test_kontext(None, 9500)).is_ok());
     }
 }
+

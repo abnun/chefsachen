@@ -1,8 +1,18 @@
 import type { ReactNode } from "react";
-import { t } from "../i18n";
 
 export type Seite = "uebersicht" | "kunden" | "artikel" | "angebote" | "rechnungen" | "eingangsrechnungen" | "einstellungen";
 
+/*
+ * Die Beschriftungen stehen hier unmittelbar. Es gab dafür ein Modul `i18n.ts`,
+ * das aber nur diese sieben Einträge kannte — jeder andere sichtbare Text im
+ * Programm war fest verdrahtet. Damit versprach es Übersetzbarkeit, die es
+ * nicht gab, und verleitete dazu, sie für erledigt zu halten.
+ *
+ * Die Anwendung ist auf deutsches Steuerrecht zugeschnitten: § 19 UStG, GoBD,
+ * XRechnung. Auch der Fachcode trägt durchgängig deutsche Bezeichner. Eine
+ * zweite Sprache ist nicht vorgesehen; sollte sie einmal kommen, ist ein
+ * eingeführtes Werkzeug die bessere Grundlage als sieben Schlüssel.
+ */
 interface NavEintrag {
   seite: Seite;
   label: string;
@@ -65,13 +75,13 @@ const ICON_EINSTELLUNGEN = (
 );
 
 const NAV_EINTRAEGE: NavEintrag[] = [
-  { seite: "uebersicht", label: t("nav.uebersicht"), icon: ICON_UEBERSICHT },
-  { seite: "kunden", label: t("nav.kunden"), icon: ICON_KUNDEN },
-  { seite: "artikel", label: t("nav.artikel"), icon: ICON_ARTIKEL },
-  { seite: "angebote", label: t("nav.angebote"), icon: ICON_ANGEBOTE },
-  { seite: "rechnungen", label: t("nav.rechnungen"), icon: ICON_RECHNUNGEN },
-  { seite: "eingangsrechnungen", label: t("nav.eingangsrechnungen"), icon: ICON_EINGANGSRECHNUNGEN },
-  { seite: "einstellungen", label: t("nav.einstellungen"), icon: ICON_EINSTELLUNGEN },
+  { seite: "uebersicht", label: "Übersicht", icon: ICON_UEBERSICHT },
+  { seite: "kunden", label: "Kunden", icon: ICON_KUNDEN },
+  { seite: "artikel", label: "Artikel & Leistungen", icon: ICON_ARTIKEL },
+  { seite: "angebote", label: "Angebote", icon: ICON_ANGEBOTE },
+  { seite: "rechnungen", label: "Rechnungen", icon: ICON_RECHNUNGEN },
+  { seite: "eingangsrechnungen", label: "Eingangsrechnungen", icon: ICON_EINGANGSRECHNUNGEN },
+  { seite: "einstellungen", label: "Einstellungen", icon: ICON_EINSTELLUNGEN },
 ];
 
 interface LayoutProps {

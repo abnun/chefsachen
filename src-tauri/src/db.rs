@@ -36,6 +36,51 @@ pub fn jetzt() -> String {
 mod tests {
     use super::*;
 
+    /// Die Abfragen, die beim Öffnen eines Belegs und einer Kundenseite laufen,
+    /// müssen über einen Index gehen.
+    ///
+    /// SQLite legt Indizes für Fremdschlüssel nicht von selbst an; ohne sie
+    /// liest jede dieser Abfragen die ganze Tabelle. Das fällt bei wenigen
+    /// hundert Zeilen nicht auf und wächst über zehn Jahre
+    /// Aufbewahrungspflicht stetig — also besser hier festhalten als später
+    /// beim Nutzer messen.
+    ///
+    /// Geprüft wird über EXPLAIN QUERY PLAN: „SCAN" heißt vollständiger
+    /// Durchlauf, „SEARCH ... USING INDEX" heißt gezielter Zugriff.
+    #[tokio::test]
+    async fn haeufige_abfragen_nutzen_einen_index() {
+        let dir = tempfile::tempdir().unwrap();
+        let pool = init_db(&dir.path().join("test.db")).await.unwrap();
+
+        let abfragen = [
+            ("Positionen eines Belegs",
+             "SELECT id FROM belegposition WHERE beleg_id = 'x' AND deleted_at IS NULL"),
+            ("Zahlungen einer Rechnung",
+             "SELECT id FROM zahlung WHERE rechnung_id = 'x' AND deleted_at IS NULL"),
+            ("Belege eines Kunden",
+             "SELECT id FROM beleg WHERE kunde_id = 'x' AND deleted_at IS NULL"),
+            ("Adressen eines Kunden",
+             "SELECT id FROM adresse WHERE kunde_id = 'x' AND deleted_at IS NULL"),
+            ("Ansprechpartner eines Kunden",
+             "SELECT id FROM ansprechpartner WHERE kunde_id = 'x' AND deleted_at IS NULL"),
+            ("Kundenpreis eines Artikels",
+             "SELECT id FROM kundenpreis WHERE artikel_id = 'x' AND kunde_id = 'y' AND deleted_at IS NULL"),
+            ("Positionen einer Eingangsrechnung",
+             "SELECT id FROM eingangsrechnungposition WHERE eingangsrechnung_id = 'x'"),
+        ];
+
+        for (was, sql) in abfragen {
+            let plan: Vec<(i64, i64, i64, String)> =
+                sqlx::query_as(&format!("EXPLAIN QUERY PLAN {sql}"))
+                    .fetch_all(&pool).await.unwrap();
+            let text = plan.iter().map(|z| z.3.as_str()).collect::<Vec<_>>().join(" | ");
+            assert!(
+                text.contains("USING INDEX") || text.contains("USING COVERING INDEX"),
+                "{was}: kein Index im Abfrageplan — {text}",
+            );
+        }
+    }
+
     /// Ohne WAL und Wartezeit scheitert ein Zugriff sofort mit SQLITE_BUSY,
     /// sobald eine zweite Programminstanz schreibt.
     #[tokio::test]
