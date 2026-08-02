@@ -139,6 +139,60 @@ export function Einrichtung({ onFertig }: EinrichtungProps) {
               <input value={firma.bic} onChange={(e) => setFirma({ ...firma, bic: e.currentTarget.value })} />
             </label>
           </div>
+          {/* E-Mail, Telefon und Ansprechpartner sind für eine gültige XRechnung
+              Pflicht (BT-34, BG-6). Fehlten sie hier, liefe der erste
+              XRechnung-Export ins Leere, ohne dass etwas darauf hinweist. */}
+          <div className="feld">
+            <label>
+              E-Mail
+              <input
+                type="email"
+                value={firma.email}
+                onChange={(e) => setFirma({ ...firma, email: e.currentTarget.value })}
+              />
+            </label>
+            <p className="feld-hinweis">Wird für den XRechnung-Export benötigt.</p>
+            {feldFehler("email") && <div className="feld-fehler" role="alert">{feldFehler("email")}</div>}
+          </div>
+          <div className="feld">
+            <label>
+              Telefon
+              <input
+                value={firma.telefon}
+                onChange={(e) => setFirma({ ...firma, telefon: e.currentTarget.value })}
+              />
+            </label>
+            <p className="feld-hinweis">Wird für den XRechnung-Export benötigt.</p>
+            {feldFehler("telefon") && <div className="feld-fehler" role="alert">{feldFehler("telefon")}</div>}
+          </div>
+          <div className="feld">
+            <label>
+              Ansprechpartner
+              <input
+                value={firma.kontakt_name}
+                onChange={(e) => setFirma({ ...firma, kontakt_name: e.currentTarget.value })}
+              />
+            </label>
+            <p className="feld-hinweis">Ohne Angabe wird der Firmenname verwendet.</p>
+          </div>
+          <div className="feld">
+            <label>
+              Gründungsjahr
+              <input
+                type="number"
+                value={firma.gruendungsjahr ?? ""}
+                onChange={(e) =>
+                  setFirma({
+                    ...firma,
+                    gruendungsjahr: e.currentTarget.value === "" ? null : Number(e.currentTarget.value),
+                  })
+                }
+              />
+            </label>
+            <p className="feld-hinweis">
+              Im Gründungsjahr gilt für die Kleinunternehmergrenze bereits das laufende Jahr.
+            </p>
+          </div>
           <button type="button" className="btn btn-primaer" onClick={() => setSchritt(2)}>
             Weiter
           </button>

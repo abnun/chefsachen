@@ -588,3 +588,11 @@ label.feld textarea {
   .grenze-annaeherung { color: #e0b060; }
   .grenze-kritisch { color: #f0a070; }
 }
+
+/* Beschriftung eines Bereichs, der kein Eingabefeld umschließt (etwa das Logo
+   mit seinen Knöpfen) — optisch gleich wie ein <label> im Formular. */
+.feld-beschriftung {
+  font-size: var(--text-s);
+  font-weight: 500;
+  color: var(--text-leise);
+}

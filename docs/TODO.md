@@ -9,7 +9,7 @@ Reihenfolge = Empfehlung. Jeder Punkt trägt die Referenz aus dem Review.
 |---|---|
 | 1 — Kaputte Grundfunktionen | ✅ 8/8 |
 | 2 — Rechtliche Korrektheit | ✅ 8/8, P2.9 teilweise |
-| 3 — Fehlende Kernfunktionen | ⬜ 6/11 |
+| 3 — Fehlende Kernfunktionen | ⬜ 8/11 |
 | 4 — Robustheit | ⬜ 0/13 |
 | 5 — Produktreife | ⬜ 0/7, P5.2 angefangen |
 | 6 — UX und Code-Qualität | ⬜ 0/11 |
@@ -211,10 +211,10 @@ Ohne diese Punkte ist die App für die Zielgruppe nicht wertvoll.
 - [ ] **P3.9 — Reiter „Sonderpreise" beim Kunden umsetzen** `[B20]`
   Derzeit deaktivierter Platzhalter. „Welche Sonderpreise hat Kunde X?" ist nicht beantwortbar.
 
-- [ ] **P3.10 — Logo in den Einstellungen änderbar** `[B21]`
+- [x] **P3.10 — Logo in den Einstellungen änderbar** `[B21]` ✅ 2026-08-03
   Der Einrichtungsassistent sagt es ausdrücklich zu, die Einstellungsseite bietet es nicht.
 
-- [ ] **P3.11 — Kontaktfelder in den Einrichtungsassistenten** — neu aufgetaucht 2026-08-02
+- [x] **P3.11 — Kontaktfelder in den Einrichtungsassistenten** ✅ 2026-08-03 — neu aufgetaucht 2026-08-02
   E-Mail, Telefon und Ansprechpartner der Firma sind seit P2.6 Pflicht für eine gültige
   XRechnung (BT-34, BG-6), stehen aber nur in den Einstellungen. Wer die App neu aufsetzt,
   muss sie nachtragen, bevor ein XRechnung-Export gelingt — ohne dass ihn etwas darauf hinweist.

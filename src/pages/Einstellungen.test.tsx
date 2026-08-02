@@ -1,8 +1,16 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  // Ohne das sehen spätere Tests die Aufrufe der früheren. clearAllMocks setzt
+  // nur die Aufrufliste zurück, nicht die bei der Deklaration gesetzten
+  // Rückgabewerte — die übrigen Tests bleiben davon unberührt.
+  vi.clearAllMocks();
+});
 
+vi.mock("@tauri-apps/plugin-dialog", () => ({ open: vi.fn().mockResolvedValue(null) }));
+vi.mock("@tauri-apps/plugin-fs", () => ({ readFile: vi.fn().mockResolvedValue(new Uint8Array()) }));
 vi.mock("../api", () => ({
   api: {
     firma: {
@@ -22,6 +30,8 @@ vi.mock("../api", () => ({
         eingerichtet: true,
       }),
       save: vi.fn(),
+      logoGet: vi.fn().mockResolvedValue(null),
+      logoSet: vi.fn().mockResolvedValue(undefined),
     },
     einheiten: {
       list: vi.fn().mockResolvedValue([{ id: "e1", name: "Stunde", kuerzel: "Std" }]),
@@ -130,5 +140,37 @@ describe("Einstellungen", () => {
     // Rechnungs-Fußtext (3), Angebots-Fußtext (4).
     fireEvent.click(screen.getAllByRole("button", { name: "Speichern" })[3]);
     await waitFor(() => expect(screen.getByText("Rechnungs-Fußtext gespeichert")).toBeTruthy());
+  });
+
+  /// Der Einrichtungsassistent sagt ausdrücklich zu, das Logo lasse sich später
+  /// in den Einstellungen ändern — bislang gab es dafür keine Möglichkeit.
+  it("hinterlegt ein Logo und lässt es wieder entfernen", async () => {
+    const { api } = await import("../api");
+    const { open } = await import("@tauri-apps/plugin-dialog");
+    const { readFile } = await import("@tauri-apps/plugin-fs");
+    vi.mocked(api.firma.logoGet).mockResolvedValue(null);
+    render(<Einstellungen />);
+    await waitFor(() => expect(screen.getByText(/Kein Logo hinterlegt/)).toBeTruthy());
+
+    vi.mocked(open).mockResolvedValueOnce("/pfad/logo.png");
+    vi.mocked(readFile).mockResolvedValueOnce(new Uint8Array([1, 2, 3, 4]));
+    fireEvent.click(screen.getByRole("button", { name: "Logo wählen" }));
+    await waitFor(() => expect(api.firma.logoSet).toHaveBeenCalledWith([1, 2, 3, 4]));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Logo entfernen" })).toBeTruthy());
+
+    fireEvent.click(screen.getByRole("button", { name: "Logo entfernen" }));
+    await waitFor(() => expect(api.firma.logoSet).toHaveBeenLastCalledWith([]));
+    await waitFor(() => expect(screen.getByText(/Kein Logo hinterlegt/)).toBeTruthy());
+  });
+
+  it("bricht die Logo-Auswahl ohne Fehler ab, wenn kein Bild gewählt wurde", async () => {
+    const { api } = await import("../api");
+    const { open } = await import("@tauri-apps/plugin-dialog");
+    vi.mocked(api.firma.logoGet).mockResolvedValue(null);
+    render(<Einstellungen />);
+    await waitFor(() => expect(screen.getByRole("button", { name: "Logo wählen" })).toBeTruthy());
+    vi.mocked(open).mockResolvedValueOnce(null);
+    fireEvent.click(screen.getByRole("button", { name: "Logo wählen" }));
+    await waitFor(() => expect(api.firma.logoSet).not.toHaveBeenCalled());
   });
 });

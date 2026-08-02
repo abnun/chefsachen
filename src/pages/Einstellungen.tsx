@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { open } from "@tauri-apps/plugin-dialog";
+import { readFile } from "@tauri-apps/plugin-fs";
 import {
   api,
   type AppFehler,
@@ -32,11 +34,46 @@ export function Einstellungen() {
 function FirmendatenAbschnitt() {
   const [firma, setFirma] = useState<Firma | null>(null);
   const [fehler, setFehler] = useState<AppFehler | null>(null);
+  const [logoGroesse, setLogoGroesse] = useState<number | null>(null);
   const { zeigen, hinweis } = useErfolgsHinweis();
 
   useEffect(() => {
     api.firma.get().then(setFirma).catch((e) => setFehler(e as AppFehler));
+    api.firma.logoGet().then((b) => setLogoGroesse(b ? b.length : null)).catch(() => {});
   }, []);
+
+  /**
+   * Der Einrichtungsassistent sagt zu, das Logo lasse sich später hier ändern —
+   * bislang gab es dafür keine Möglichkeit.
+   */
+  async function logoWaehlen() {
+    setFehler(null);
+    try {
+      const pfad = await open({
+        multiple: false,
+        filters: [{ name: "Bild", extensions: ["png", "jpg", "jpeg"] }],
+      });
+      if (!pfad || typeof pfad !== "string") return;
+      const bytes = Array.from(await readFile(pfad));
+      await api.firma.logoSet(bytes);
+      setLogoGroesse(bytes.length);
+      zeigen("Logo gespeichert");
+    } catch (e) {
+      setFehler(e as AppFehler);
+    }
+  }
+
+  async function logoEntfernen() {
+    setFehler(null);
+    try {
+      // Ein leeres Feld entfernt das Logo — das Backend kennt keinen eigenen Befehl dafür.
+      await api.firma.logoSet([]);
+      setLogoGroesse(null);
+      zeigen("Logo entfernt");
+    } catch (e) {
+      setFehler(e as AppFehler);
+    }
+  }
 
   async function speichern() {
     if (!firma) return;
@@ -214,6 +251,24 @@ function FirmendatenAbschnitt() {
           </label>
           <p className="feld-hinweis">Ohne Angabe wird der Firmenname verwendet.</p>
           {feldFehler("kontakt_name") && <div role="alert" className="feld-fehler">{feldFehler("kontakt_name")}</div>}
+        </div>
+        <div className="feld">
+          <span className="feld-beschriftung">Logo</span>
+          <p className="feld-hinweis">
+            {logoGroesse === null
+              ? "Kein Logo hinterlegt — die Rechnungen erscheinen ohne."
+              : `Logo hinterlegt (${Math.round(logoGroesse / 1024)} KB).`}
+          </p>
+          <div className="werkzeugleiste">
+            <button type="button" className="btn" onClick={logoWaehlen}>
+              {logoGroesse === null ? "Logo wählen" : "Logo ersetzen"}
+            </button>
+            {logoGroesse !== null && (
+              <button type="button" className="btn btn-gefahr" onClick={logoEntfernen}>
+                Logo entfernen
+              </button>
+            )}
+          </div>
         </div>
         <label className="feld-checkbox">
           <input
