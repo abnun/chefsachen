@@ -823,3 +823,35 @@ label.feld textarea {
   flex-shrink: 0;
   align-self: center;
 }
+
+/* Änderungstext einer Veröffentlichung */
+.aenderungstext h3 {
+  /* Zwischenüberschriften in einem Fließtext, nicht Titel eines Abschnitts —
+     deshalb nur wenig größer als der Text und mit Abstand nach oben. */
+  font-size: var(--text-m);
+  margin: var(--abstand-m) 0 var(--abstand-s);
+}
+
+.aenderungstext > :first-child {
+  margin-top: 0;
+}
+
+.aenderungstext p {
+  margin: 0 0 var(--abstand-s);
+}
+
+.aenderungstext ul {
+  margin: 0 0 var(--abstand-s);
+  padding-left: 1.2em;
+}
+
+.aenderungstext li {
+  margin-bottom: 4px;
+}
+
+/* Ein langer Änderungstext soll den Dialog nicht über den Bildschirm hinaus
+   wachsen lassen. */
+.versions-notizen {
+  max-height: 50vh;
+  overflow-y: auto;
+}

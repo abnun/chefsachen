@@ -3,6 +3,7 @@ import { getVersion } from "@tauri-apps/api/app";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { api } from "../api";
 import { Dialog } from "./Dialog";
+import { Aenderungstext } from "./Aenderungstext";
 
 /** Zuletzt gesehene Programmversion. */
 const SCHLUESSEL_VERSION = "version.zuletzt_gesehen";
@@ -69,6 +70,9 @@ export function VersionsHinweis() {
   return (
     <Dialog
       titel={`Aktualisiert auf Version ${wechsel.version}`}
+      // Der Änderungstext hat Zwischenüberschriften und Aufzählungen; in der
+      // schmalen Rückfrage-Breite bräche jeder zweite Punkt um.
+      breit
       onSchliessen={() => setWechsel(null)}
       aktionen={
         <>
@@ -86,7 +90,9 @@ export function VersionsHinweis() {
       }
     >
       {wechsel.notizen ? (
-        <p className="versions-notizen">{wechsel.notizen}</p>
+        <div className="versions-notizen">
+          <Aenderungstext text={wechsel.notizen} />
+        </div>
       ) : (
         <p>Die Änderungen stehen in der Veröffentlichung auf GitHub.</p>
       )}
