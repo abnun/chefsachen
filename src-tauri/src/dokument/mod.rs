@@ -9,6 +9,8 @@ pub mod kosit;
 #[cfg(test)]
 pub mod verapdf;
 pub mod pdf;
+pub mod vorlage;
+pub mod vorschau;
 pub mod xrechnung;
 pub mod zugferd;
 

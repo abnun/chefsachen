@@ -800,7 +800,7 @@ mod tests {
     /// oder als reines PDF erhaltenes Dokument war bislang gar nicht archivierbar.
     #[test]
     fn pdf_ohne_eingebettetes_xml_wird_als_pdf_erkannt_und_erklaert() {
-        let reines_pdf = crate::dokument::pdf::rendern(&crate::dokument::pdf::tests::test_kontext(), None).unwrap();
+        let reines_pdf = crate::dokument::pdf::rendern(&crate::dokument::pdf::tests::test_kontext(), None, &crate::dokument::vorlage::Vorlage::default()).unwrap();
         let (format, ergebnis) = verarbeite_datei(&reines_pdf);
         assert_eq!(format, "pdf");
         let err = ergebnis.unwrap_err();
@@ -828,7 +828,7 @@ mod tests {
 
     #[test]
     fn xml_extrahieren_liest_eingebettete_xml_wieder_aus() {
-        let minimales_pdf = crate::dokument::pdf::rendern(&crate::dokument::pdf::tests::test_kontext(), None).unwrap();
+        let minimales_pdf = crate::dokument::pdf::rendern(&crate::dokument::pdf::tests::test_kontext(), None, &crate::dokument::vorlage::Vorlage::default()).unwrap();
         let xml = "<rsm:CrossIndustryInvoice><rsm:ExchangedDocument><ram:ID>RE-1</ram:ID></rsm:ExchangedDocument></rsm:CrossIndustryInvoice>";
         let pdf_mit_anhang = crate::dokument::zugferd::einbetten(minimales_pdf, xml).unwrap();
         let extrahiert = xml_extrahieren(&pdf_mit_anhang).unwrap();
@@ -846,7 +846,7 @@ mod tests {
 
     #[test]
     fn verarbeite_datei_erkennt_zugferd_und_parst() {
-        let minimales_pdf = crate::dokument::pdf::rendern(&crate::dokument::pdf::tests::test_kontext(), None).unwrap();
+        let minimales_pdf = crate::dokument::pdf::rendern(&crate::dokument::pdf::tests::test_kontext(), None, &crate::dokument::vorlage::Vorlage::default()).unwrap();
         let kontext = crate::dokument::xrechnung::tests::test_kontext(None, 9500);
         let cii_xml = crate::dokument::xrechnung::xml_erzeugen(&kontext).unwrap();
         let pdf_mit_anhang = crate::dokument::zugferd::einbetten(minimales_pdf, &cii_xml).unwrap();

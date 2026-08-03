@@ -33,7 +33,7 @@ fn im_app_verzeichnis_ablegen<R: tauri::Runtime>(app: &tauri::AppHandle<R>, date
     ablegen(&verzeichnis, dateiname, bytes)
 }
 
-async fn firma_logo(pool: &SqlitePool) -> AppResult<Option<Vec<u8>>> {
+pub(crate) async fn firma_logo(pool: &SqlitePool) -> AppResult<Option<Vec<u8>>> {
     crate::commands::firma::logo_get(pool).await
 }
 
@@ -55,7 +55,8 @@ pub async fn beleg_pdf_exportieren<R: tauri::Runtime>(
 ) -> AppResult<Vec<u8>> {
     let kontext = kontext_aus_beleg(&pool, id).await?;
     let logo = firma_logo(&pool).await?;
-    let bytes = pdf::rendern(&kontext, logo.as_deref())?;
+    let vorlage = crate::dokument::vorlage::Vorlage::laden(&pool).await?;
+    let bytes = pdf::rendern(&kontext, logo.as_deref(), &vorlage)?;
     let nummer = kontext.beleg.nummer.clone().unwrap_or_else(|| kontext.beleg.id.clone());
     im_app_verzeichnis_ablegen(&app, &format!("{}.pdf", dateiname_sicher(&nummer)), &bytes)?;
     Ok(bytes)
@@ -87,7 +88,8 @@ pub async fn rechnung_zugferd_exportieren<R: tauri::Runtime>(
     pruefe_ist_rechnung(&kontext)?;
     xrechnung::pruefe_exportierbarkeit(&kontext)?;
     let logo = firma_logo(&pool).await?;
-    let pdf_bytes = pdf::rendern(&kontext, logo.as_deref())?;
+    let vorlage = crate::dokument::vorlage::Vorlage::laden(&pool).await?;
+    let pdf_bytes = pdf::rendern(&kontext, logo.as_deref(), &vorlage)?;
     let xml = xrechnung::xml_erzeugen(&kontext)?;
     let bytes = zugferd::einbetten(pdf_bytes, &xml)?;
     let nummer = kontext.beleg.nummer.clone().unwrap_or_else(|| kontext.beleg.id.clone());

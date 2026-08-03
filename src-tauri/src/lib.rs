@@ -143,6 +143,7 @@ fn mit_befehlen<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri::Builder
             commands::artikel::kundenpreis_save,
             commands::artikel::kundenpreis_delete,
             commands::artikel::preis_ermitteln,
+            dokument::vorschau::vorlage_vorschau,
             commands::firma::firma_get,
             commands::firma::firma_save,
             commands::firma::firma_pruefen,

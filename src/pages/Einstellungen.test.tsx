@@ -58,7 +58,12 @@ vi.mock("../api", () => ({
       update: vi.fn(),
       delete: vi.fn(),
     },
+    // Die Belegvorlage liest alle Einstellungen auf einmal und lässt sich eine
+    // Vorschau zeichnen. Beides ist für die Zusicherungen hier ohne Belang;
+    // geprüft wird der Abschnitt in Belegvorlage.test.tsx.
+    vorlage: { vorschau: vi.fn().mockResolvedValue("<svg></svg>") },
     einstellungen: {
+      list: vi.fn().mockResolvedValue([]),
       nummernkreise: vi.fn().mockResolvedValue([
         { art: "rechnung", format: "R-{jahr}-{nr}", zaehler: 5, jahres_reset: true },
       ]),

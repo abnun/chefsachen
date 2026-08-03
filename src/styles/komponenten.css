@@ -408,9 +408,9 @@ label.feld textarea {
   color: var(--preis-teurer-text);
 }
 
-.kundenpreis-einleitung {
-  /* `.feld-hinweis` zieht sich mit negativem Rand an ein Eingabefeld heran;
-     hier steht der Satz für sich und braucht den Abstand. */
+/* Ein Hinweis, der für sich steht statt unter einem Eingabefeld zu kleben:
+   `.feld-hinweis` zieht sich mit negativem Rand an das Feld darüber heran. */
+.hinweis-absatz {
   margin: 0 0 var(--abstand-m);
 }
 
@@ -889,4 +889,39 @@ label.feld textarea {
 /* Ein Kundenpreis ist die Abweichung vom Erwarteten und darf auffallen. */
 .preis-herkunft.kundenpreis {
   color: var(--preis-guenstiger-text);
+}
+
+/* Belegvorlage: Schalter links, Vorschau rechts */
+.vorlage-layout {
+  display: grid;
+  /* Die Vorschau ist ein DIN-A4-Blatt und braucht Breite; darunter wird sie
+     unleserlich, dann besser untereinander. */
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--abstand-l);
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .vorlage-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.vorlage-schalter .feld,
+.vorlage-schalter .feld-checkbox {
+  margin-bottom: var(--abstand-s);
+}
+
+.vorlage-vorschau {
+  position: sticky;
+  top: var(--abstand-l);
+}
+
+.vorlage-vorschau img {
+  width: 100%;
+  height: auto;
+  background: var(--flaeche);
+  border: 1px solid var(--rand);
+  border-radius: var(--radius-s);
+  box-shadow: var(--schatten);
 }

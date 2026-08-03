@@ -112,9 +112,10 @@ fn land_anzeigen(land_kunde: &str, land_firma: &str) -> String {
 /// Kompiliert die Typst-Vorlage zum Dokument. Von `rendern` getrennt, weil der
 /// Schritt „Dokument bauen" und der Schritt „nach PDF exportieren" verschiedene
 /// Fehlerquellen haben und sich so einzeln prüfen lassen.
-fn dokument_bauen(
+pub(crate) fn dokument_bauen(
     kontext: &BelegKontext,
     logo: Option<&[u8]>,
+    vorlage: &crate::dokument::vorlage::Vorlage,
 ) -> AppResult<typst::layout::PagedDocument> {
     let titel = if kontext.beleg.typ == "angebot" {
         "Angebot"
@@ -133,7 +134,11 @@ fn dokument_bauen(
                 serde_json::json!({
                     "nummer": (i + 1).to_string(),
                     "bezeichnung": p.bezeichnung,
-                    "menge": format!("{} {}", menge_format(p.menge), p.einheit_kuerzel),
+                    // Getrennt, damit die Vorlage entscheiden kann, ob die
+                    // Einheit eine eigene Spalte bekommt oder hinter der Menge
+                    // steht. Zusammengesetzt ließe sie sich nicht mehr trennen.
+                    "menge": menge_format(p.menge),
+                    "einheit": p.einheit_kuerzel.clone(),
                     "einzelpreis": cent_format(p.einzelpreis_cent),
                     "summe": cent_format(p.positionssumme_cent),
                 })
@@ -142,7 +147,11 @@ fn dokument_bauen(
     )
     .map_err(|e| AppError::Technisch(e.to_string()))?;
 
-    let logo_dateiname = logo.map(logo_dateiname).unwrap_or("");
+    let logo_dateiname = if vorlage.logo_position == crate::dokument::vorlage::LogoPosition::Keins {
+        ""
+    } else {
+        logo.map(logo_dateiname).unwrap_or("")
+    };
 
     let mut builder = TypstEngine::builder().main_file(VORLAGE).fonts([SCHRIFT]);
     if let Some(bytes) = logo {
@@ -150,7 +159,7 @@ fn dokument_bauen(
     }
     let engine = builder.build();
 
-    let eingabe = dict_aus_feldern([
+    let mut felder: Vec<(&'static str, String)> = vec![
         ("titel", titel.to_string()),
         ("nummer", kontext.beleg.nummer.clone().unwrap_or_default()),
         ("datum", datum_format(&kontext.beleg.datum)),
@@ -193,7 +202,9 @@ fn dokument_bauen(
         ("fusstext", kontext.beleg.fusstext.clone()),
         ("hat_logo", logo_dateiname.to_string()),
         ("kleinunternehmer", kleinunternehmer_flag(&kontext.firma).to_string()),
-    ]);
+    ];
+    felder.extend(vorlage.als_eingaben());
+    let eingabe = dict_aus_feldern(felder);
 
     engine
         .compile_with_input(eingabe)
@@ -201,8 +212,12 @@ fn dokument_bauen(
         .map_err(|e| AppError::Technisch(format!("Typst-Rendering fehlgeschlagen: {e:?}")))
 }
 
-pub fn rendern(kontext: &BelegKontext, logo: Option<&[u8]>) -> AppResult<Vec<u8>> {
-    let dokument = dokument_bauen(kontext, logo)?;
+pub fn rendern(
+    kontext: &BelegKontext,
+    logo: Option<&[u8]>,
+    vorlage: &crate::dokument::vorlage::Vorlage,
+) -> AppResult<Vec<u8>> {
+    let dokument = dokument_bauen(kontext, logo, vorlage)?;
     // PDF/A-3b anfordern: ZUGFeRD verlangt es, und ohne die Vorgabe hinge die
     // Konformität davon ab, dass die Vorlage zufällig nichts PDF/A-Widriges
     // enthält (etwa Transparenz oder eine nicht eingebettete Schrift).
@@ -256,7 +271,7 @@ pub(crate) mod tests {
 
     /// Extrahiert den sichtbaren Text der gerenderten Rechnung.
     fn text(kontext: &BelegKontext) -> String {
-        let bytes = rendern(kontext, None).unwrap();
+        let bytes = rendern(kontext, None, &crate::dokument::vorlage::Vorlage::default()).unwrap();
         pdf_extract::extract_text_from_mem(&bytes).unwrap()
     }
 
@@ -335,7 +350,7 @@ pub(crate) mod tests {
         // ohnehin mehr Spiel als das.
         const SPIEL: f32 = 0.1 * MM;
 
-        let bytes = rendern(&test_kontext(), None).unwrap();
+        let bytes = rendern(&test_kontext(), None, &crate::dokument::vorlage::Vorlage::default()).unwrap();
         let im_fenster: Vec<_> = textpositionen(&bytes)
             .into_iter()
             .map(|(x, y)| (x, SEITENHOEHE - y))
@@ -359,6 +374,83 @@ pub(crate) mod tests {
             "linke Kante bei {:.1} mm statt 20 mm",
             links / MM,
         );
+    }
+
+    /// Dasselbe mit geänderten Seitenrändern.
+    ///
+    /// Das Anschriftfeld wird relativ zum Seitenrand platziert; die Vorlage
+    /// rechnet die Normmaße dagegen. Käme der Rand an zwei Stellen aus
+    /// verschiedenen Größen, verschöbe eine Randänderung das Feld aus dem
+    /// Umschlagfenster — sichtbar erst, wenn die Post zurückkommt. Der Test
+    /// oben prüft nur die Vorgabe und fiele darauf nicht herein.
+    #[test]
+    fn die_anschrift_bleibt_im_fenster_auch_bei_anderen_seitenraendern() {
+        const MM: f32 = 72.0 / 25.4;
+        const SEITENHOEHE: f32 = 297.0 * MM;
+        const SPIEL: f32 = 0.1 * MM;
+
+        for (oben, seitlich) in [(20.0, 15.0), (40.0, 30.0), (32.0, 18.0)] {
+            let vorlage = crate::dokument::vorlage::Vorlage {
+                rand_oben_mm: oben,
+                rand_seitlich_mm: seitlich,
+                ..Default::default()
+            };
+            let bytes = rendern(&test_kontext(), None, &vorlage).unwrap();
+            let im_fenster: Vec<_> = textpositionen(&bytes)
+                .into_iter()
+                .map(|(x, y)| (x, SEITENHOEHE - y))
+                .filter(|(x, y)| {
+                    (20.0 * MM - SPIEL..=105.0 * MM + SPIEL).contains(x)
+                        && (45.0 * MM - SPIEL..=85.0 * MM + SPIEL).contains(y)
+                })
+                .collect();
+
+            assert!(
+                im_fenster.len() >= 4,
+                "bei Rand oben {oben} mm / seitlich {seitlich} mm stehen nur {} Zeilen im Fenster",
+                im_fenster.len(),
+            );
+            let links = im_fenster.iter().map(|(x, _)| *x).fold(f32::MAX, f32::min);
+            assert!(
+                (links - 20.0 * MM).abs() < 1.0,
+                "bei Rand seitlich {seitlich} mm liegt die linke Kante bei {:.1} mm statt 20 mm",
+                links / MM,
+            );
+        }
+    }
+
+    /// Was sich abschalten lässt, verschwindet — und was nicht, bleibt.
+    #[test]
+    fn einstellungen_wirken_auf_den_beleg() {
+        use crate::dokument::vorlage::{BankPosition, Vorlage};
+
+        let ohne = Vorlage {
+            spalte_nummer: false,
+            spalte_einzelpreis: false,
+            absenderzeile: false,
+            ..Default::default()
+        };
+        let bytes = rendern(&test_kontext(), None, &ohne).unwrap();
+        let t = pdf_extract::extract_text_from_mem(&bytes).unwrap();
+        assert!(!t.contains("Pos."), "Positionsspalte trotz Abwahl:\n{t}");
+        assert!(!t.contains("Einzelpreis"), "Einzelpreisspalte trotz Abwahl:\n{t}");
+
+        // Pflichtangaben nach § 14 Abs. 4 Nr. 5 UStG lassen sich nicht abwählen.
+        assert!(t.contains("Menge"), "Mengenspalte fehlt:\n{t}");
+        assert!(t.contains("Beratung"), "Bezeichnung fehlt:\n{t}");
+        assert!(t.contains("Summe"), "Summenspalte fehlt:\n{t}");
+
+        // Eigene Einheitenspalte statt hinter der Menge.
+        let mit_einheit = Vorlage { einheit_eigene_spalte: true, ..Default::default() };
+        let t2 = pdf_extract::extract_text_from_mem(
+            &rendern(&test_kontext(), None, &mit_einheit).unwrap()).unwrap();
+        assert!(t2.contains("Einheit"), "Einheitenspalte fehlt:\n{t2}");
+
+        // Die Bankverbindung wandert, verschwindet aber nicht.
+        let nach_summe = Vorlage { bankverbindung: BankPosition::NachSumme, ..Default::default() };
+        let t3 = pdf_extract::extract_text_from_mem(
+            &rendern(&test_kontext(), None, &nach_summe).unwrap()).unwrap();
+        assert!(t3.contains("Bankverbindung"), "Bankverbindung fehlt:\n{t3}");
     }
 
     #[test]
@@ -543,7 +635,7 @@ pub(crate) mod tests {
 
     #[test]
     fn rendern_mit_position_erzeugt_gueltige_pdf_bytes() {
-        let bytes = rendern(&test_kontext(), None).unwrap();
+        let bytes = rendern(&test_kontext(), None, &crate::dokument::vorlage::Vorlage::default()).unwrap();
         assert!(bytes.starts_with(b"%PDF-"), "Ausgabe beginnt nicht mit der PDF-Signatur");
         assert!(bytes.len() > 500, "PDF wirkt verdächtig klein");
     }
@@ -576,7 +668,7 @@ pub(crate) mod tests {
     fn rendern_mit_kleinunternehmer_flag_erzeugt_gueltige_pdf_bytes() {
         let mut kontext = test_kontext();
         kontext.firma.kleinunternehmer = true;
-        let bytes = rendern(&kontext, None).unwrap();
+        let bytes = rendern(&kontext, None, &crate::dokument::vorlage::Vorlage::default()).unwrap();
         assert!(bytes.starts_with(b"%PDF-"));
     }
 
@@ -584,7 +676,7 @@ pub(crate) mod tests {
     fn rendern_ohne_kleinunternehmer_flag_erzeugt_gueltige_pdf_bytes() {
         let mut kontext = test_kontext();
         kontext.firma.kleinunternehmer = false;
-        let bytes = rendern(&kontext, None).unwrap();
+        let bytes = rendern(&kontext, None, &crate::dokument::vorlage::Vorlage::default()).unwrap();
         assert!(bytes.starts_with(b"%PDF-"));
     }
 
@@ -593,21 +685,21 @@ pub(crate) mod tests {
         let mut kontext = test_kontext();
         kontext.beleg.storno_von_id = Some("r1".into());
         kontext.beleg.summe_cent = -9500;
-        let bytes = rendern(&kontext, None).unwrap();
+        let bytes = rendern(&kontext, None, &crate::dokument::vorlage::Vorlage::default()).unwrap();
         assert!(bytes.starts_with(b"%PDF-"));
     }
 
     #[test]
     fn rendern_mit_logo_erzeugt_gueltige_pdf_bytes() {
         const LOGO: &[u8] = include_bytes!("../../resources/test/logo_1x1.png");
-        let bytes = rendern(&test_kontext(), Some(LOGO)).unwrap();
+        let bytes = rendern(&test_kontext(), Some(LOGO), &crate::dokument::vorlage::Vorlage::default()).unwrap();
         assert!(bytes.starts_with(b"%PDF-"));
     }
 
     #[test]
     fn rendern_mit_jpeg_logo_erzeugt_gueltige_pdf_bytes() {
         const LOGO: &[u8] = include_bytes!("../../resources/test/logo_1x1.jpg");
-        let bytes = rendern(&test_kontext(), Some(LOGO)).unwrap();
+        let bytes = rendern(&test_kontext(), Some(LOGO), &crate::dokument::vorlage::Vorlage::default()).unwrap();
         assert!(bytes.starts_with(b"%PDF-"));
     }
 
@@ -643,7 +735,7 @@ mod muster {
             eprintln!("übersprungen: MUSTER_PFAD nicht gesetzt");
             return;
         };
-        let bytes = super::rendern(&super::tests::test_kontext(), None).unwrap();
+        let bytes = super::rendern(&super::tests::test_kontext(), None, &crate::dokument::vorlage::Vorlage::default()).unwrap();
         std::fs::write(pfad, bytes).unwrap();
     }
 }

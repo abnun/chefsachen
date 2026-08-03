@@ -1,12 +1,21 @@
 #set text(font: "Inter", size: 10pt)
 
 #let ist_gesetzt(wert) = wert != none and wert != ""
+#let ja(wert) = wert == "ja"
+
+// Einstellbares aus `dokument::vorlage`. Die Vorgaben dort bilden das
+// ursprüngliche Aussehen ab; hier steht nur, wie die Werte wirken.
+#let mass(name) = float(name) * 1mm
+#let rand_oben = mass(sys.inputs.v_rand_oben_mm)
+#let rand_unten = mass(sys.inputs.v_rand_unten_mm)
+#let rand_seitlich = mass(sys.inputs.v_rand_seitlich_mm)
+#let akzent = rgb(sys.inputs.v_akzentfarbe)
 
 // Fußzeile mit Seitenzahl: Bei einer mehrseitigen Rechnung muss der Empfänger
 // erkennen können, ob das Dokument vollständig ist. Sie erscheint erst ab
 // Seite 2 — auf einer einseitigen Rechnung wäre "Seite 1 von 1" nur Ballast.
 #set page(
-  margin: 2.5cm,
+  margin: (top: rand_oben, bottom: rand_unten, x: rand_seitlich),
   footer: context {
     let seiten = counter(page).final().first()
     if seiten > 1 {
@@ -17,14 +26,28 @@
   },
 )
 
-#if ist_gesetzt(sys.inputs.hat_logo) [
-  #image(sys.inputs.hat_logo, width: 3cm)
-]
+#set heading(numbering: none)
+#show heading: it => text(fill: akzent, it)
 
-#align(right)[
+// Logo und Absenderanschrift teilen sich die Kopfzeile. Steht das Logo rechts,
+// rückt die Anschrift nach links — sonst überlagerten sie einander.
+#let logo = if ist_gesetzt(sys.inputs.hat_logo) {
+  image(sys.inputs.hat_logo, height: mass(sys.inputs.v_logo_hoehe_mm))
+} else { none }
+
+#let firma_block = align(if sys.inputs.v_logo_position == "rechts" { left } else { right })[
   #sys.inputs.firma_name \
   #sys.inputs.firma_strasse \
   #sys.inputs.firma_plz #sys.inputs.firma_ort
+]
+
+#if logo == none [
+  #firma_block
+] else if sys.inputs.v_logo_position == "rechts" [
+  #grid(columns: (1fr, auto), align: (left + horizon, right), firma_block, logo)
+] else [
+  #logo
+  #firma_block
 ]
 
 // Anschriftfeld nach DIN 5008 Form A: 20 mm von links, 45 mm von oben,
@@ -33,20 +56,23 @@
 // verschob sie ein Logo oder eine längere Firmenanschrift so weit, dass die
 // Rechnung von Hand kuvertiert werden musste.
 //
-// `place` nimmt die Angaben relativ zum Seitenrand (hier 2,5 cm), deshalb die
-// Differenz zu den Maßen der Norm.
+// `place` nimmt die Angaben relativ zum Seitenrand, deshalb die Differenz zu
+// den Maßen der Norm. Beide Ränder kommen aus derselben Größe wie oben — wären
+// es zwei, verschöbe eine Randänderung das Feld aus dem Fenster.
 #place(
   top + left,
-  dx: 2cm - 2.5cm,
-  dy: 4.5cm - 2.5cm,
-  block(width: 8.5cm)[
+  dx: 20mm - rand_seitlich,
+  dy: 45mm - rand_oben,
+  block(width: 85mm)[
     // Rücksendeangabe: kleingedruckt über der Anschrift, wie in der Norm
     // vorgesehen. Sie steht ebenfalls im Fenster und weist den Absender aus,
     // falls die Sendung nicht zustellbar ist.
-    #text(size: 7pt)[
-      #sys.inputs.firma_name · #sys.inputs.firma_strasse · #sys.inputs.firma_plz #sys.inputs.firma_ort
+    #if ja(sys.inputs.v_absenderzeile) [
+      #text(size: 7pt)[
+        #sys.inputs.firma_name · #sys.inputs.firma_strasse · #sys.inputs.firma_plz #sys.inputs.firma_ort
+      ]
+      #v(0.4cm)
     ]
-    #v(0.4cm)
     #if ist_gesetzt(sys.inputs.kunde_ansprechpartner) [
       #sys.inputs.kunde_ansprechpartner \
     ]
@@ -60,7 +86,7 @@
 )
 
 // Abstand bis unter das Anschriftfeld (45 mm + 40 mm nach Norm).
-#v(8.5cm - 2.5cm)
+#v(85mm - rand_oben)
 
 = #sys.inputs.titel #sys.inputs.nummer
 
@@ -86,15 +112,60 @@ Datum: #sys.inputs.datum \
 
 #let positionen = json(bytes(sys.inputs.positionen_json))
 
+// Spalten je nach Einstellung. Bezeichnung, Menge und Summe stehen immer:
+// Menge und Bezeichnung sind Pflichtangaben nach § 14 Abs. 4 Nr. 5 UStG, und
+// ohne die Summe je Position ergibt die Gesamtsumme keinen nachvollziehbaren
+// Zusammenhang.
+#let mit_nummer = ja(sys.inputs.v_spalte_nummer)
+#let mit_einheit = ja(sys.inputs.v_einheit_eigene_spalte)
+#let mit_einzelpreis = ja(sys.inputs.v_spalte_einzelpreis)
+
+#let spalten = (
+  ..if mit_nummer { (auto,) } else { () },
+  1fr,
+  auto,
+  ..if mit_einheit { (auto,) } else { () },
+  ..if mit_einzelpreis { (auto,) } else { () },
+  auto,
+)
+
+#let ausrichtung = (
+  ..if mit_nummer { (right,) } else { () },
+  left,
+  right,
+  ..if mit_einheit { (left,) } else { () },
+  ..if mit_einzelpreis { (right,) } else { () },
+  right,
+)
+
+#let kopfzeile = (
+  ..if mit_nummer { ([*Pos.*],) } else { () },
+  [*Bezeichnung*],
+  [*Menge*],
+  ..if mit_einheit { ([*Einheit*],) } else { () },
+  ..if mit_einzelpreis { ([*Einzelpreis*],) } else { () },
+  [*Summe*],
+)
+
+#let zeile(p) = (
+  ..if mit_nummer { (p.nummer,) } else { () },
+  p.bezeichnung,
+  // Ohne eigene Spalte gehört die Einheit hinter die Menge — sonst stünde dort
+  // eine nackte Zahl.
+  if mit_einheit { p.menge } else { p.menge + " " + p.einheit },
+  ..if mit_einheit { (p.einheit,) } else { () },
+  ..if mit_einzelpreis { (p.einzelpreis,) } else { () },
+  p.summe,
+)
+
 // table.header(repeat: true) wiederholt die Kopfzeile auf Folgeseiten — ohne das
 // stünden bei einer langen Rechnung ab Seite 2 namenlose Zahlenspalten.
 #table(
-  columns: (auto, 1fr, auto, auto, auto),
-  align: (right, left, right, right, right),
-  table.header(
-    [*Pos.*], [*Bezeichnung*], [*Menge*], [*Einzelpreis*], [*Summe*],
-  ),
-  ..positionen.map(p => (p.nummer, p.bezeichnung, p.menge, p.einzelpreis, p.summe)).flatten()
+  columns: spalten,
+  align: ausrichtung,
+  stroke: (x, y) => if y == 0 { (bottom: 0.6pt + akzent) } else { (bottom: 0.4pt + rgb("#dddddd")) },
+  table.header(..kopfzeile),
+  ..positionen.map(zeile).flatten()
 )
 
 #align(right)[*Gesamt: #sys.inputs.summe*]
@@ -104,14 +175,9 @@ Datum: #sys.inputs.datum \
   Gemäß § 19 UStG wird keine Umsatzsteuer berechnet.
 ]
 
-#if ist_gesetzt(sys.inputs.fusstext) [
-  #v(0.5cm)
-  #sys.inputs.fusstext
-]
-
 // Bankverbindung: gesetzlich nicht vorgeschrieben, aber ohne sie kann der
 // Empfänger die Rechnung nicht bezahlen.
-#if ist_gesetzt(sys.inputs.firma_iban) [
+#let bankverbindung = if ist_gesetzt(sys.inputs.firma_iban) [
   #v(0.5cm)
   #text(size: 9pt)[
     *Bankverbindung* \
@@ -120,6 +186,19 @@ Datum: #sys.inputs.datum \
       \ BIC: #sys.inputs.firma_bic
     ]
   ]
+] else { none }
+
+#if sys.inputs.v_bankverbindung == "nach_summe" and bankverbindung != none [
+  #bankverbindung
+]
+
+#if ist_gesetzt(sys.inputs.fusstext) [
+  #v(0.5cm)
+  #sys.inputs.fusstext
+]
+
+#if sys.inputs.v_bankverbindung != "nach_summe" and bankverbindung != none [
+  #bankverbindung
 ]
 
 // Pflichtangabe nach § 14 Abs. 4 Nr. 2 UStG: Steuernummer oder USt-IdNr. des

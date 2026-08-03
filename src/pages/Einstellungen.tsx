@@ -16,6 +16,7 @@ import { useErfolgsHinweis } from "../hooks/useErfolgsHinweis";
 import { useBestaetigung } from "../hooks/useBestaetigung";
 import { useUngespeichert } from "../hooks/useUngespeichert";
 import { Aktualisierung } from "../components/Aktualisierung";
+import { Belegvorlage } from "../components/Belegvorlage";
 
 /**
  * Einstellungsseite mit unabhängigen Abschnitten: Firmendaten, Sicherungen,
@@ -32,6 +33,10 @@ export function Einstellungen() {
       <EinheitenAbschnitt />
       <NummernkreiseAbschnitt />
       <TextbausteineAbschnitt />
+      {/* Nach den Textbausteinen: Die Vorschau zeigt sie mit, und wer beides
+          einstellt, arbeitet von innen nach außen — erst der Inhalt, dann das
+          Aussehen. */}
+      <Belegvorlage />
       <Aktualisierung />
     </div>
   );

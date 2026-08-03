@@ -161,7 +161,7 @@ mod tests {
             return;
         }
         let kontext = crate::dokument::pdf::tests::test_kontext();
-        let pdf = crate::dokument::pdf::rendern(&kontext, None).unwrap();
+        let pdf = crate::dokument::pdf::rendern(&kontext, None, &crate::dokument::vorlage::Vorlage::default()).unwrap();
         let xml = crate::dokument::xrechnung::xml_erzeugen(&kontext).unwrap();
         let zugferd = einbetten(pdf, &xml).unwrap();
 
@@ -179,7 +179,7 @@ mod tests {
     #[test]
     fn einbetten_fuegt_anhang_und_metadaten_hinzu() {
         let minimales_pdf =
-            crate::dokument::pdf::rendern(&crate::dokument::pdf::tests::test_kontext(), None)
+            crate::dokument::pdf::rendern(&crate::dokument::pdf::tests::test_kontext(), None, &crate::dokument::vorlage::Vorlage::default())
                 .unwrap();
         let xml = "<rsm:CrossIndustryInvoice></rsm:CrossIndustryInvoice>";
         let ergebnis = einbetten(minimales_pdf, xml).unwrap();

@@ -34,6 +34,10 @@ tauri-plugin-dialog = "2.7.1"
 tauri-plugin-fs = "2.5.1"
 typst = "0.13"
 typst-pdf = "0.13"
+# Für die Vorschau der Belegvorlage. SVG statt PDF, weil die
+# Inhaltsrichtlinie eingebettete PDFs verbietet (object-src 'none') und ein
+# Bild über eine data:-URL ohne Aufweichung der Richtlinie auskommt.
+typst-svg = "0.13"
 typst-as-lib = "0.14"
 lopdf = "0.35"
 xmp-writer = "0.3"

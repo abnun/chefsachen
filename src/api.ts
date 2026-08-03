@@ -413,6 +413,17 @@ export const api = {
     update: (e: Einheit) => invoke<Einheit>("einheit_update", { id: e.id, name: e.name, kuerzel: e.kuerzel }),
     delete: (id: string) => invoke<void>("einheit_delete", { id }),
   },
+  vorlage: {
+    /**
+     * Vorschau der Belegvorlage als SVG.
+     *
+     * Bekommt die Einstellungen mit, auch die noch nicht gespeicherten — sonst
+     * müsste man erst speichern, um zu sehen, was man einstellt, und jeder
+     * Versuch änderte die laufende Geschäftspost.
+     */
+    vorschau: (einstellungen: [string, string][]) =>
+      invoke<string>("vorlage_vorschau", { einstellungen }),
+  },
   kunden: {
     list: (suche?: string) => invoke<Kunde[]>("kunde_list", { suche: suche ?? null }),
     get: (id: string) => invoke<KundeDetail>("kunde_get", { id }),
@@ -449,6 +460,8 @@ export const api = {
   },
   einstellungen: {
     get: (key: string) => invoke<string | null>("einstellung_get", { key }),
+    /** Alle Einstellungen als Paare. Für Abschnitte, die viele auf einmal lesen. */
+    list: () => invoke<[string, string][]>("einstellung_list"),
     set: (key: string, value: string) => invoke<void>("einstellung_set", { key, value }),
     nummernkreise: () => invoke<Nummernkreis[]>("nummernkreis_list"),
     nummernkreisUpdate: (art: string, format: string, jahresReset: boolean) =>

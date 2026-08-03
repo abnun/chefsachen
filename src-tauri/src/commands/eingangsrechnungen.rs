@@ -536,7 +536,7 @@ mod tests {
         // Kein `format`-Parameter im Command — auch bei einer .xml-benannten Datei
         // mit PDF-Inhalt wird das tatsächliche Format aus den Bytes bestimmt.
         let (_dir, pool) = test_pool().await;
-        let reines_pdf = crate::dokument::pdf::rendern(&crate::dokument::pdf::tests::test_kontext(), None).unwrap();
+        let reines_pdf = crate::dokument::pdf::rendern(&crate::dokument::pdf::tests::test_kontext(), None, &crate::dokument::vorlage::Vorlage::default()).unwrap();
         let felder = EingangsrechnungFelderNeu { waehrung: "EUR".into(), ..Default::default() };
         let gespeichert = speichern(&pool, reines_pdf.clone(), "täuschung.xml".into(), felder).await.unwrap();
         // Ohne eingebettetes XML ist es kein ZUGFeRD, sondern eine gewöhnliche
@@ -556,7 +556,7 @@ mod tests {
     #[tokio::test]
     async fn reines_pdf_laesst_sich_mit_handeingaben_archivieren() {
         let (_dir, pool) = test_pool().await;
-        let reines_pdf = crate::dokument::pdf::rendern(&crate::dokument::pdf::tests::test_kontext(), None).unwrap();
+        let reines_pdf = crate::dokument::pdf::rendern(&crate::dokument::pdf::tests::test_kontext(), None, &crate::dokument::vorlage::Vorlage::default()).unwrap();
         let felder = EingangsrechnungFelderNeu {
             rechnungssteller_name: "Papierlieferant GmbH".into(),
             rechnungsnummer: "2026-0815".into(),

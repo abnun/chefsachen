@@ -133,7 +133,7 @@ export function KundenpreiseDialog({
         </button>
       }
     >
-      <p className="feld-hinweis kundenpreis-einleitung">
+      <p className="feld-hinweis hinweis-absatz">
         Standardpreis {formatCent(standardpreisCent)}. Wer hier steht, bekommt einen anderen
         Preis — alle übrigen Kunden den Standardpreis.
       </p>
