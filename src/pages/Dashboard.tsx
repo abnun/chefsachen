@@ -1,14 +1,17 @@
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { api, type AppFehler, type DashboardDaten, type Grenze, type Hinweis, type Warnstufe } from "../api";
 import { Fehler } from "../components/Fehler";
 import { Laden } from "../components/Laden";
 import { ZeilenKnopf } from "../components/ZeilenKnopf";
+import { ErsteSchritte, type Schritt } from "../components/ErsteSchritte";
 import { formatCent } from "../geld";
 import { datumDeutsch } from "../datum";
 
 interface DashboardProps {
   onRechnungOeffnen: (id: string) => void;
   onAngebotOeffnen: (id: string) => void;
+  /** Sprung aus der Kachel „Erste Schritte" an die Stelle, wo es weitergeht. */
+  onErsterSchritt: (schritt: Schritt) => void;
 }
 
 const WARN_KLASSE: Record<Warnstufe, string> = {
@@ -77,9 +80,13 @@ function GrenzenBalken({ titel, erlaeuterung, grenze }: GrenzenBalkenProps) {
 }
 
 function HinweisKarte({ hinweis }: { hinweis: Hinweis }) {
+  // `useId` statt einer aus dem Titel gebauten ID: Titel enthalten Leerzeichen,
+  // und `aria-labelledby` liest die als mehrere ID-Verweise. Keiner davon
+  // existierte, die Karte hatte damit gar keinen zugänglichen Namen.
+  const titelId = useId();
   return (
-    <section className={`hinweis-karte ${WARN_KLASSE[hinweis.stufe]}`} aria-labelledby={`h-${hinweis.titel}`}>
-      <h3 id={`h-${hinweis.titel}`}>{hinweis.titel}</h3>
+    <section className={`hinweis-karte ${WARN_KLASSE[hinweis.stufe]}`} aria-labelledby={titelId}>
+      <h3 id={titelId}>{hinweis.titel}</h3>
       <p>{hinweis.bedeutung}</p>
       {hinweis.finanzielle_folge && (
         <p className="hinweis-betrag">
@@ -104,7 +111,7 @@ function HinweisKarte({ hinweis }: { hinweis: Hinweis }) {
  * Kleinunternehmer geführt wird — bei Regelbesteuerung liefert das Backend sie
  * gar nicht erst.
  */
-export function Dashboard({ onRechnungOeffnen, onAngebotOeffnen }: DashboardProps) {
+export function Dashboard({ onRechnungOeffnen, onAngebotOeffnen, onErsterSchritt }: DashboardProps) {
   const [daten, setDaten] = useState<DashboardDaten | null>(null);
   const [fehler, setFehler] = useState<AppFehler | null>(null);
 
@@ -141,6 +148,10 @@ export function Dashboard({ onRechnungOeffnen, onAngebotOeffnen }: DashboardProp
   return (
     <div>
       <h1 className="seiten-kopf">Übersicht {daten.jahr}</h1>
+
+      {/* Ganz oben: Wer noch am Anfang steht, soll nicht erst an Umsatzzahlen
+          vorbeiscrollen, die alle auf null stehen. */}
+      <ErsteSchritte hatBelege={daten.letzte_belege.length > 0} onStarten={onErsterSchritt} />
 
       <section className="karte">
         <h2>Vereinnahmter Umsatz</h2>

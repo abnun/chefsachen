@@ -114,6 +114,11 @@ function App() {
             setAusgewaehltesAngebot(id);
             setSeite("angebote");
           }}
+          onErsterSchritt={(schritt) => {
+            if (schritt === "kunde") return navigiereMitFormular("kunden");
+            if (schritt === "artikel") return navigiereMitFormular("artikel");
+            return navigiere("angebote");
+          }}
         />
       )}
 

@@ -780,3 +780,52 @@ label.feld textarea {
   text-align: right;
   margin-bottom: var(--abstand-l);
 }
+
+/* Erste Schritte */
+.schritt-liste {
+  list-style: none;
+  margin: var(--abstand-m) 0 0;
+  padding: 0;
+}
+
+.schritt {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--abstand-m);
+  padding: var(--abstand-m) 0;
+  border-top: 1px solid var(--rand);
+}
+
+.schritt:first-child {
+  border-top: none;
+}
+
+.schritt-marke {
+  flex-shrink: 0;
+  width: 1.5em;
+  text-align: center;
+  color: var(--text-leise);
+}
+
+.schritt.erledigt .schritt-marke {
+  color: var(--akzent);
+}
+
+.schritt-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  /* Ohne `min-width: 0` diktiert der längste Satz die Breite der Kachel. */
+  min-width: 0;
+  flex: 1;
+}
+
+/* Erledigtes tritt zurück, ohne unlesbar zu werden — der Kontrast bleibt. */
+.schritt.erledigt .schritt-text strong {
+  font-weight: 400;
+}
+
+.schritt .btn {
+  flex-shrink: 0;
+  align-self: center;
+}

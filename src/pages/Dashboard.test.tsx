@@ -1,10 +1,17 @@
 import "@testing-library/jest-dom/vitest";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../api", () => ({
-  api: { dashboard: { laden: vi.fn() } },
+  api: {
+    dashboard: { laden: vi.fn() },
+    // Für die Kachel „Erste Schritte". Hier durchweg mit Bestand, damit sie
+    // sich ausblendet und die Zusicherungen dieser Datei nicht stört; geprüft
+    // wird sie in ErsteSchritte.test.tsx.
+    kunden: { list: vi.fn().mockResolvedValue([{ id: "k1" }]) },
+    artikel: { list: vi.fn().mockResolvedValue([{ id: "a1" }]) },
+  },
 }));
 import { api } from "../api";
 import type { DashboardDaten, Umsatzgrenzen, Warnstufe } from "../api";
@@ -49,7 +56,7 @@ function mitGrenzen(zusatz: { umsatzgrenzen?: Umsatzgrenzen } = {}): DashboardDa
 }
 
 const laden = () => vi.mocked(api.dashboard.laden);
-const props = { onRechnungOeffnen: vi.fn(), onAngebotOeffnen: vi.fn() };
+const props = { onRechnungOeffnen: vi.fn(), onAngebotOeffnen: vi.fn(), onErsterSchritt: vi.fn() };
 
 describe("Dashboard", () => {
   it("zeigt den vereinnahmten Umsatz mit Vorjahresvergleich", async () => {
@@ -136,7 +143,10 @@ describe("Dashboard", () => {
     render(<Dashboard {...props} />);
     await waitFor(() => expect(screen.getByText(/unterjährig entfallen/)).toBeTruthy());
     expect(screen.getByText(/1.596,64 €/)).toBeTruthy();
-    const schritte = screen.getAllByRole("listitem");
+    // Auf die Hinweiskarte eingegrenzt: Die Übersicht enthält noch andere
+    // Listen, und eine seitenweite Abfrage zählte irgendwann deren Einträge mit.
+    const karte = within(screen.getByRole("region", { name: /unterjährig entfallen/ }));
+    const schritte = karte.getAllByRole("listitem");
     expect(schritte).toHaveLength(3);
     expect(schritte[0]).toHaveTextContent("Rücklage bilden.");
   });
