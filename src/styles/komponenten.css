@@ -326,6 +326,20 @@ label.feld textarea {
   flex: 1;
   padding: var(--abstand-xl);
   max-width: 960px;
+  /*
+   * `min-width: 0` hebt die Voreinstellung `auto` auf, mit der ein Flex-Element
+   * nie schmaler wird als die Mindestbreite seines Inhalts. Eine breite Tabelle
+   * zog damit die gesamte Seite über den Fensterrand hinaus — und mit ihr die
+   * Kopfleiste. Deren Knöpfe standen dann außerhalb des Fensters: sichtbar
+   * waren sie nur nach waagerechtem Scrollen, und ein Klick darauf traf ins
+   * Leere, ohne jede Meldung.
+   *
+   * `overflow-x: auto` gibt der breiten Tabelle einen eigenen Schiebebereich,
+   * statt die Seite mitzuziehen. Alles andere — Überschriften, Kopfleiste,
+   * Formulare — bleibt damit immer im Fenster.
+   */
+  min-width: 0;
+  overflow-x: auto;
 }
 
 /* Einrichtungs-Assistent */

@@ -26,6 +26,20 @@ async function klick(text) {
   await k.click();
 }
 
+/**
+ * Öffnet ein Anlegeformular, falls es nicht schon offen ist.
+ *
+ * Der Assistent schickt nach „Ersten Kunden anlegen" direkt auf die
+ * Kundenseite und klappt das Formular gleich auf. Ein Klick auf „Neuer Kunde"
+ * hätte es dann wieder zugeklappt — der Knopf schaltet um, er öffnet nicht.
+ */
+async function formularOeffnen(knopfText, feldName) {
+  const feldSchon = await feld(feldName);
+  if (await feldSchon.isDisplayed().catch(() => false)) return;
+  await klick(knopfText);
+  await (await feld(feldName)).waitForDisplayed({ timeout: 20000 });
+}
+
 async function nav(ziel) {
   const k = await $(`//button[contains(@class,"app-nav-eintrag")][contains(., "${ziel}")]`);
   await k.waitForClickable({ timeout: 20000 });
@@ -77,7 +91,7 @@ describe("Ein Durchgang durch die Anwendung", () => {
 
   it("legt einen Kunden an", async () => {
     await nav("Kunden");
-    await klick("Neuer Kunde");
+    await formularOeffnen("Neuer Kunde", "Name");
     await (await feld("Name")).setValue("Lanius Natur");
     await klick("Speichern");
     await (await $('//td[contains(., "Lanius Natur")]')).waitForDisplayed({ timeout: 20000 });
@@ -85,8 +99,11 @@ describe("Ein Durchgang durch die Anwendung", () => {
 
   it("legt einen Artikel an", async () => {
     await nav("Artikel");
-    await klick("Neuer Artikel");
+    await formularOeffnen("Neuer Artikel", "Bezeichnung");
     await (await feld("Bezeichnung")).setValue("Homepage-Erweiterung");
+    // Die Einheit ist Pflicht — ohne sie blockt der Browser das Absenden, und
+    // der Klick auf „Speichern" täte wortlos nichts.
+    await (await feld("Einheit")).selectByVisibleText("Stunde (Std.)");
     await (await feld("Standardpreis")).setValue("39,00");
     await klick("Speichern");
     await (await $('//td[contains(., "Homepage-Erweiterung")]')).waitForDisplayed({
@@ -97,6 +114,9 @@ describe("Ein Durchgang durch die Anwendung", () => {
   it("legt ein Angebot mit einer Position an", async () => {
     await nav("Angebote");
     await klick("Neues Angebot");
+    // Ohne Kunde lehnt das Anlegen ab — der Beleg braucht ihn für den
+    // Snapshot, der beim Festschreiben eingefroren wird.
+    await (await feld("Kunde")).selectByVisibleText("Lanius Natur");
     await klick("Anlegen");
 
     const artikel = await feld("Artikel");
@@ -110,11 +130,56 @@ describe("Ein Durchgang durch die Anwendung", () => {
   });
 
   it("schreibt das Angebot über den Dialog fest", async () => {
-    // Genau hier hakte es: Der Dialog erschien, seine Knöpfe waren aber nicht
-    // zu treffen, solange die Seite gescrollt war.
-    await klick("Festschreiben");
-    await (await $('[role="dialog"]')).waitForDisplayed({ timeout: 20000 });
-    await klick("Festschreiben");
+    // Genau hier hakte es lange, und zwar an einer Stelle, die kein Klick
+    // aufdeckt: Die Kopfleiste stand außerhalb des Fensters (siehe unten).
+    const knopf = await $('//button[normalize-space(text())="Festschreiben"]');
+    await knopf.waitForDisplayed({ timeout: 20000 });
+
+    // Ein deaktivierter Knopf lässt sich anklicken, ohne dass etwas geschieht —
+    // WebdriverIO meldet das nicht. Ohne diese Prüfung scheiterte der Test
+    // später am fehlenden Dialog und verschwieg den Grund.
+    if (await knopf.getAttribute("disabled")) {
+      throw new Error(`Festschreiben-Knopf ist abgeblendet: ${await knopf.getAttribute("title")}`);
+    }
+
+    /*
+     * Nichts darf über den rechten Fensterrand hinausragen.
+     *
+     * Genau daran scheiterte dieser Durchgang lange: Die Kopfleiste stand bei
+     * schmalem Fenster außerhalb, weil eine breite Tabelle die Seite aufzog.
+     * Der Knopf war anklickbar und ohne Wirkung — keine Meldung, nichts. Ein
+     * Klick prüft das nicht, diese Zusicherung schon.
+     */
+    const lage = await browser.execute(() => {
+      const b = [...document.querySelectorAll("button")].find(
+        (x) => x.textContent.trim() === "Festschreiben",
+      );
+      const r = b.getBoundingClientRect();
+      return {
+        // Waagerecht scrollt allenfalls eine breite Tabelle in ihrem eigenen
+        // Bereich — das Dokument selbst nie.
+        dokumentBreiter: document.documentElement.scrollWidth > window.innerWidth + 1,
+        knopfDraussen: r.right > window.innerWidth + 1 || r.left < 0,
+      };
+    });
+    if (lage.dokumentBreiter) throw new Error("Das Dokument scrollt waagerecht.");
+    if (lage.knopfDraussen) throw new Error("Der Festschreiben-Knopf liegt außerhalb des Fensters.");
+
+    await knopf.click();
+    const dialog = await $('[role="dialog"]');
+    await dialog.waitForDisplayed({ timeout: 5000 });
+    // Im Dialog, nicht auf der Seite: Beide Knöpfe heißen „Festschreiben", und
+    // der auf der Seite liegt jetzt unter dem Overlay.
+    await (await dialog.$('.//button[normalize-space(text())="Festschreiben"]')).click();
+    await browser.waitUntil(
+      async () => !(await (await $('[role="dialog"]')).isDisplayed().catch(() => false)),
+      { timeout: 10000, timeoutMsg: "Der Dialog bleibt nach dem Bestätigen offen." },
+    );
+    // Festgeschrieben heißt: eine Nummer, und der Knopf ist fort.
+    await browser.waitUntil(
+      async () => !(await $('//button[normalize-space(text())="Festschreiben"]').isExisting()),
+      { timeout: 10000, timeoutMsg: "Festschreiben-Knopf ist nach dem Festschreiben noch da." },
+    );
 
     await expect(await $(".status")).toHaveText("Versendet", { wait: 20000 });
   });
