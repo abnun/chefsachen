@@ -410,6 +410,8 @@ export function BelegEditor({ id, onZurueck, onGeaendert, onRechnungErstellt, on
 
       <PositionenAbschnitt
         belegId={beleg.id}
+        kundeId={beleg.kunde_id}
+        belegdatum={beleg.datum}
         positionen={positionen}
         artikelListe={artikelListe}
         bearbeitbar={istEntwurf}
@@ -658,6 +660,9 @@ function StammdatenAbschnitt({ beleg, kunden, bearbeitbar, onSpeichern }: Stammd
 
 interface PositionenAbschnittProps {
   belegId: string;
+  /** Kunde und Datum bestimmen, welcher Preis für einen Artikel gilt. */
+  kundeId: string;
+  belegdatum: string;
   positionen: Belegposition[];
   artikelListe: Artikel[];
   bearbeitbar: boolean;
@@ -667,6 +672,8 @@ interface PositionenAbschnittProps {
 
 function PositionenAbschnitt({
   belegId,
+  kundeId,
+  belegdatum,
   artikelListe,
   positionen,
   bearbeitbar,
@@ -682,8 +689,50 @@ function PositionenAbschnitt({
   /** Id der Position, die gerade bearbeitet wird; leer beim Anlegen. */
   const [bearbeiteId, setBearbeiteId] = useState("");
   const [fehler, setFehler] = useState<AppFehler | null>(null);
+  /**
+   * Der Preis, der für den gewählten Artikel gilt — beim Kunden, am Belegdatum.
+   *
+   * Bisher stand hier „Preis wird beim Speichern ermittelt": Ob ein Kundenpreis
+   * greift, erfuhr man erst, nachdem die Position schon in der Liste stand. Der
+   * Befehl dafür gab es längst, er wurde nur nirgends aufgerufen.
+   */
+  const [geltenderPreis, setGeltenderPreis] = useState<number | null>(null);
   const { zeigen, hinweis } = useErfolgsHinweis();
   const { bestaetigen, dialog } = useBestaetigung();
+
+  const gewaehlterArtikel = artikelListe.find((a) => a.id === artikelId);
+
+  useEffect(() => {
+    if (freitext || !artikelId || !kundeId) {
+      setGeltenderPreis(null);
+      return;
+    }
+    let abgebaut = false;
+    api.artikel
+      .preisErmitteln(artikelId, kundeId, belegdatum)
+      .then((cent) => {
+        if (!abgebaut) setGeltenderPreis(cent);
+      })
+      // Scheitert die Abfrage, bleibt es beim bisherigen Verhalten: Der Preis
+      // entsteht beim Speichern. Eine Fehlermeldung an dieser Stelle wäre
+      // lauter als der Nutzen.
+      .catch(() => {
+        if (!abgebaut) setGeltenderPreis(null);
+      });
+    return () => {
+      abgebaut = true;
+    };
+  }, [artikelId, kundeId, belegdatum, freitext]);
+
+  /**
+   * Weicht der geltende Preis vom Standardpreis des Artikels ab, greift ein
+   * Kundenpreis. Der Vergleich ist verlässlich, weil beide Zahlen aus derselben
+   * Quelle stammen — der Artikelliste und der Preisermittlung des Backends.
+   */
+  const kundenpreisGreift =
+    geltenderPreis !== null &&
+    gewaehlterArtikel !== undefined &&
+    geltenderPreis !== gewaehlterArtikel.standardpreis_cent;
 
   function formularLeeren() {
     setBearbeiteId("");
@@ -721,9 +770,12 @@ function PositionenAbschnitt({
     const preisCent = einzelpreis.trim() === "" ? null : parseEuro(einzelpreis);
     if (mengeX1000 === null) return { text: "Menge unklar", betrag: null };
     if (preisCent === null) {
-      return einzelpreis.trim() === "" && !freitext
-        ? { text: "Preis wird beim Speichern ermittelt", betrag: null }
-        : { text: "Preis unklar", betrag: null };
+      if (einzelpreis.trim() === "" && !freitext) {
+        return geltenderPreis === null
+          ? { text: "Preis wird beim Speichern ermittelt", betrag: null }
+          : { text: "", betrag: Math.round((mengeX1000 * geltenderPreis) / 1000) };
+      }
+      return { text: "Preis unklar", betrag: null };
     }
     return { text: "", betrag: Math.round((mengeX1000 * preisCent) / 1000) };
   })();
@@ -876,6 +928,22 @@ function PositionenAbschnitt({
                 artikelId={artikelId}
                 onArtikelId={setArtikelId}
               />
+              {/* Welcher Preis gilt — und ob er vom Standardpreis abweicht.
+                  Ohne diese Zeile erfuhr man einen Kundenpreis erst, wenn die
+                  Position schon in der Liste stand. */}
+              {geltenderPreis !== null && gewaehlterArtikel && (
+                <p className={kundenpreisGreift ? "preis-herkunft kundenpreis" : "preis-herkunft"}>
+                  {kundenpreisGreift ? (
+                    <>
+                      <strong>Kundenpreis {formatCent(geltenderPreis)}</strong> statt{" "}
+                      {formatCent(gewaehlterArtikel.standardpreis_cent)} — für diesen Kunden
+                      hinterlegt.
+                    </>
+                  ) : (
+                    <>Standardpreis {formatCent(geltenderPreis)} — kein Kundenpreis hinterlegt.</>
+                  )}
+                </p>
+              )}
               <label className="feld">
                 Preis überschreiben (optional)
                 <input value={einzelpreis} onChange={(e) => setEinzelpreis(e.currentTarget.value)} placeholder="automatisch" />

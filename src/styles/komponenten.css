@@ -878,3 +878,15 @@ label.feld textarea {
   max-height: 6em;
   overflow-y: auto;
 }
+
+/* Herkunft des Preises im Positionsformular */
+.preis-herkunft {
+  margin: -6px 0 var(--abstand-m);
+  font-size: var(--text-s);
+  color: var(--text-leise);
+}
+
+/* Ein Kundenpreis ist die Abweichung vom Erwarteten und darf auffallen. */
+.preis-herkunft.kundenpreis {
+  color: var(--preis-guenstiger-text);
+}

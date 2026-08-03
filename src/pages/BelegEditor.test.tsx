@@ -62,7 +62,12 @@ vi.mock("../api", () => ({
       // Auswahl in den Stammdaten.
       get: vi.fn().mockResolvedValue({ kunde: {}, adressen: [], ansprechpartner: [] }),
     },
-    artikel: { list: vi.fn().mockResolvedValue([]) },
+    artikel: {
+      list: vi.fn().mockResolvedValue([]),
+      // Liefert den Preis, der für Kunde und Belegdatum gilt. Ohne Kundenpreis
+      // ist das der Standardpreis des Artikels.
+      preisErmitteln: vi.fn().mockResolvedValue(9550),
+    },
   },
 }));
 vi.mock("@tauri-apps/plugin-dialog", () => ({ save: vi.fn().mockResolvedValue("/pfad/rechnung.pdf") }));
@@ -109,6 +114,87 @@ describe("BelegEditor", () => {
     });
     render(<BelegEditor id="b1" />);
     await waitFor(() => expect(screen.getByText("Kunde: ACME GmbH (alter Name)")).toBeTruthy());
+  });
+});
+
+describe("BelegEditor – Herkunft des Preises", () => {
+  /*
+   * Ob für einen Artikel ein Kundenpreis greift, war beim Erfassen nicht zu
+   * sehen. Im Formular stand „Preis wird beim Speichern ermittelt" — man erfuhr
+   * den Preis also erst, wenn die Position schon in der Liste stand. Der Befehl
+   * zur Preisermittlung gab es längst, er wurde nur nirgends aufgerufen.
+   */
+  function entwurfMitArtikel() {
+    vi.mocked(api.belege.get).mockResolvedValue({
+      beleg: {
+        id: "b1", typ: "angebot", nummer: null, status: "entwurf", kunde_id: "k1",
+        datum: "2026-07-10", leistungsdatum: "2026-07-10", zahlungsziel_tage: 14,
+        kopftext: "", fusstext: "", summe_cent: 0, ursprungsangebot_id: null, storno_von_id: null,
+      },
+      positionen: [], zahlungen: [], bezahlt_cent: 0, offener_betrag_cent: 0,
+    } as never);
+    vi.mocked(api.artikel.list).mockResolvedValue([
+      {
+        id: "a1", artikelnummer: "ART-0001", bezeichnung: "Beratung",
+        beschreibung: "", einheit_id: "e1", standardpreis_cent: 9550, kundenpreise_anzahl: 1,
+      },
+    ] as never);
+  }
+
+  it("weist einen greifenden Kundenpreis samt Standardpreis aus", async () => {
+    entwurfMitArtikel();
+    vi.mocked(api.artikel.preisErmitteln).mockResolvedValue(6500);
+    render(<BelegEditor id="b1" />);
+    await waitFor(() => expect(screen.getByLabelText("Artikel")).toBeTruthy());
+    fireEvent.change(screen.getByLabelText("Artikel"), { target: { value: "Beratung" } });
+
+    // Beide Zahlen: Ohne den Standardpreis daneben sagt „Kundenpreis 65,00 €"
+    // nichts darüber, ob das viel oder wenig ist.
+    await waitFor(() => expect(screen.getByText(/Kundenpreis 65,00 €/)).toBeTruthy());
+    // Auf den Absatz eingegrenzt: Die Artikelauswahl nennt denselben Betrag,
+    // eine seitenweite Suche träfe also auch sie.
+    const zeile = screen.getByText(/Kundenpreis 65,00 €/).closest("p");
+    expect(zeile).toHaveTextContent("95,50 €");
+  });
+
+  it("sagt ausdrücklich, wenn kein Kundenpreis hinterlegt ist", async () => {
+    // Schweigen ließe offen, ob geprüft wurde.
+    entwurfMitArtikel();
+    vi.mocked(api.artikel.preisErmitteln).mockResolvedValue(9550);
+    render(<BelegEditor id="b1" />);
+    await waitFor(() => expect(screen.getByLabelText("Artikel")).toBeTruthy());
+    fireEvent.change(screen.getByLabelText("Artikel"), { target: { value: "Beratung" } });
+
+    await waitFor(() =>
+      expect(screen.getByText(/Standardpreis 95,50 € — kein Kundenpreis hinterlegt/)).toBeTruthy(),
+    );
+  });
+
+  it("rechnet die Positionssumme mit dem geltenden Preis vor", async () => {
+    // Vorher stand hier „Preis wird beim Speichern ermittelt" — der Betrag war
+    // bis zum Absenden unbekannt.
+    entwurfMitArtikel();
+    vi.mocked(api.artikel.preisErmitteln).mockResolvedValue(6500);
+    render(<BelegEditor id="b1" />);
+    await waitFor(() => expect(screen.getByLabelText("Artikel")).toBeTruthy());
+    fireEvent.change(screen.getByLabelText("Artikel"), { target: { value: "Beratung" } });
+    fireEvent.change(screen.getByLabelText("Menge"), { target: { value: "4" } });
+
+    await waitFor(() => expect(screen.getByText("Positionssumme: 260,00 €")).toBeTruthy());
+  });
+
+  it("bleibt bei der alten Auskunft, wenn die Ermittlung scheitert", async () => {
+    // Eine Fehlermeldung wäre hier lauter als der Nutzen: Der Preis entsteht
+    // beim Speichern ohnehin im Rust-Teil.
+    entwurfMitArtikel();
+    vi.mocked(api.artikel.preisErmitteln).mockRejectedValue(new Error("weg"));
+    render(<BelegEditor id="b1" />);
+    await waitFor(() => expect(screen.getByLabelText("Artikel")).toBeTruthy());
+    fireEvent.change(screen.getByLabelText("Artikel"), { target: { value: "Beratung" } });
+
+    await waitFor(() =>
+      expect(screen.getByText("Preis wird beim Speichern ermittelt")).toBeTruthy(),
+    );
   });
 });
 
