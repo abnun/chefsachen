@@ -855,3 +855,26 @@ label.feld textarea {
   max-height: 50vh;
   overflow-y: auto;
 }
+
+/* Vorschau in der Rückfrage vor dem Festschreiben */
+.festschreiben-vorschau {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: var(--abstand-s) var(--abstand-m);
+  margin: var(--abstand-m) 0 0;
+  font-size: var(--text-s);
+}
+
+.festschreiben-vorschau dt {
+  color: var(--text-leise);
+  font-weight: 600;
+}
+
+.festschreiben-vorschau dd {
+  margin: 0;
+  /* Kopf- und Fußtext enthalten Absätze; ohne das stünde alles in einer Zeile. */
+  white-space: pre-wrap;
+  /* Ein langer Text soll die Rückfrage nicht zur Textwand machen. */
+  max-height: 6em;
+  overflow-y: auto;
+}

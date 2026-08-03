@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { Bestaetigungsdialog } from "../components/Bestaetigungsdialog";
 
 /**
@@ -17,16 +17,27 @@ export function useBestaetigung() {
   const [anfrage, setAnfrage] = useState<{
     text: string;
     bestaetigenLabel?: string;
+    zusatz?: ReactNode;
     aufloesen: (ergebnis: boolean) => void;
   } | null>(null);
 
-  function bestaetigen(text: string, bestaetigenLabel?: string): Promise<boolean> {
-    return new Promise((aufloesen) => setAnfrage({ text, bestaetigenLabel, aufloesen }));
+  /**
+   * `zusatz` zeigt im Dialog, worum es geht — etwa die Texte, die gleich
+   * unveränderbar werden. Ohne ihn fragt die Rückfrage nur nach
+   * Entschlossenheit, nicht nach Richtigkeit.
+   */
+  function bestaetigen(
+    text: string,
+    bestaetigenLabel?: string,
+    zusatz?: ReactNode,
+  ): Promise<boolean> {
+    return new Promise((aufloesen) => setAnfrage({ text, bestaetigenLabel, zusatz, aufloesen }));
   }
 
   const dialog = anfrage && (
     <Bestaetigungsdialog
       text={anfrage.text}
+      zusatz={anfrage.zusatz}
       bestaetigenLabel={anfrage.bestaetigenLabel}
       onAbbrechen={() => {
         anfrage.aufloesen(false);

@@ -67,15 +67,20 @@ export function useBelegListe(typ: "angebot" | "rechnung", onOeffnen: (id: strin
       return;
     }
     try {
-      const fusstext = (await api.einstellungen.get(`text.${typ}.fuss`)) ?? "";
+      // Beide Texte aus den Bausteinen der jeweiligen Belegart. Der Kopftext
+      // blieb bisher leer und wurde jedes Mal neu von Hand geschrieben.
+      const [kopftext, fusstext] = await Promise.all([
+        api.einstellungen.get(`text.${typ}.kopf`),
+        api.einstellungen.get(`text.${typ}.fuss`),
+      ]);
       const beleg = await api.belege.create({
         typ,
         kunde_id: kundeId,
         datum,
         leistungsdatum: datum,
         zahlungsziel_tage: kunde.zahlungsziel_tage,
-        kopftext: "",
-        fusstext,
+        kopftext: kopftext ?? "",
+        fusstext: fusstext ?? "",
       });
       setZeigeFormular(false);
       onOeffnen(beleg.id);

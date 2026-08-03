@@ -117,7 +117,25 @@ export function BelegEditor({ id, onZurueck, onGeaendert, onRechnungErstellt, on
         "ändern. Verschickt wird nichts — dafür exportierst du es als PDF und schickst es selbst."
       : "Rechnung stellen? Sie erhält eine feste Nummer und ist danach nicht mehr änderbar — " +
         "eine Korrektur ist nur noch per Storno möglich. Verschickt wird nichts.";
-    if (!(await bestaetigen(frage, istAngebot ? "Festschreiben" : "Stellen"))) return;
+    // Was gleich unveränderbar wird, gehört vor die Zusage. Gerade die Texte
+    // sieht man beim Klick nicht — sie stehen weiter oben oder sind
+    // weggescrollt, und in einer überführten Rechnung stand früher der
+    // Wortlaut des Angebots.
+    const vorschau = (
+      <dl className="festschreiben-vorschau">
+        <dt>Kunde</dt>
+        <dd>{kunden.find((k) => k.id === beleg.kunde_id)?.name ?? beleg.kunde_id}</dd>
+        <dt>Positionen</dt>
+        <dd>
+          {positionen.length}, Summe {formatCent(beleg.summe_cent)}
+        </dd>
+        <dt>Kopftext</dt>
+        <dd>{beleg.kopftext.trim() || <em>leer</em>}</dd>
+        <dt>Fußtext</dt>
+        <dd>{beleg.fusstext.trim() || <em>leer</em>}</dd>
+      </dl>
+    );
+    if (!(await bestaetigen(frage, istAngebot ? "Festschreiben" : "Stellen", vorschau))) return;
     setFehler(null);
     setLaeuft(true);
     try {
@@ -608,10 +626,20 @@ function StammdatenAbschnitt({ beleg, kunden, bearbeitbar, onSpeichern }: Stammd
           Zahlungsziel (Tage)
           <input
             type="number"
+            min={0}
             value={zahlungszielTage}
             onChange={(e) => setZahlungszielTage(Number(e.currentTarget.value))}
           />
         </label>
+        {/* Ohne diesen Satz ist „sofort" nicht auffindbar: Man müsste raten,
+            dass eine Null dafür steht. Der genaue Wortlaut auf dem Beleg steht
+            hier bewusst nicht — er entsteht im Rust-Teil, und ihn hier ein
+            zweites Mal zu formulieren hieße, zwei Fassungen zu pflegen. */}
+        <p className="feld-hinweis">
+          {zahlungszielTage === 0
+            ? "Die Rechnung weist den Betrag als sofort zahlbar aus."
+            : "Die Rechnung nennt daraus ein Fälligkeitsdatum. 0 Tage heißt: sofort zahlbar."}
+        </p>
         <label className="feld">
           Kopftext
           <textarea value={kopftext} onChange={(e) => setKopftext(e.currentTarget.value)} />

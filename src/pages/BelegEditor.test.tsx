@@ -863,4 +863,52 @@ describe("BelegEditor – Anschrift und Ansprechpartner", () => {
       ),
     );
   });
+
+  /*
+   * Vor dem Festschreiben zeigen, was festgeschrieben wird.
+   *
+   * Eine Rückfrage, die nur „Wirklich?" fragt, prüft die Entschlossenheit. Bei
+   * einem Schritt, der den Beleg unveränderbar macht, ist die eigentliche
+   * Frage aber, ob der Inhalt stimmt — und den hat man beim Klick nicht vor
+   * Augen. In einer überführten Rechnung stand früher der Wortlaut des
+   * Angebots, und genau das fiel erst hinterher auf.
+   */
+  function entwurfMitTexten(kopftext: string, fusstext: string) {
+    vi.mocked(api.belege.get).mockResolvedValue({
+      beleg: {
+        id: "b1", typ: "angebot", nummer: null, status: "entwurf", kunde_id: "k1",
+        datum: "2026-07-10", leistungsdatum: "2026-07-10", zahlungsziel_tage: 14,
+        kopftext, fusstext, summe_cent: 9550, ursprungsangebot_id: null, storno_von_id: null,
+      },
+      positionen: [
+        { id: "p1", beleg_id: "b1", artikel_id: null, bezeichnung: "Konzept",
+          einheit_kuerzel: "Std", einzelpreis_cent: 9550, menge: 1000,
+          positionssumme_cent: 9550, reihenfolge: 1 },
+      ],
+      zahlungen: [], bezahlt_cent: 0, offener_betrag_cent: 0,
+    } as never);
+  }
+
+  it("zeigt Kopf- und Fußtext in der Rückfrage vor dem Festschreiben", async () => {
+    entwurfMitTexten("Sehr geehrte Damen und Herren,", "Dieses Angebot ist 30 Tage gültig.");
+    render(<BelegEditor id="b1" />);
+    await waitFor(() => expect(screen.getByRole("button", { name: "Festschreiben" })).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Festschreiben" }));
+
+    const dialog = await screen.findByRole("dialog");
+    expect(dialog).toHaveTextContent("Sehr geehrte Damen und Herren,");
+    expect(dialog).toHaveTextContent("Dieses Angebot ist 30 Tage gültig.");
+  });
+
+  it("nennt einen leeren Text als leer, statt die Zeile wegzulassen", async () => {
+    // Eine fehlende Zeile sähe aus wie „nicht vorgesehen"; leer ist aber eine
+    // Aussage — und oft ein Versehen, das genau hier auffallen soll.
+    entwurfMitTexten("", "  ");
+    render(<BelegEditor id="b1" />);
+    await waitFor(() => expect(screen.getByRole("button", { name: "Festschreiben" })).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Festschreiben" }));
+
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getAllByText("leer")).toHaveLength(2);
+  });
 });

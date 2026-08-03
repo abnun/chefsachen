@@ -653,8 +653,13 @@ function NummernkreiseAbschnitt() {
 
 const TEXTBAUSTEIN_LABEL: Record<string, string> = {
   "text.kleinunternehmer": "Kleinunternehmer-Hinweis",
-  "text.rechnung.fuss": "Rechnungs-Fußtext",
+  // Je Belegart ein eigenes Paar. Ohne das landete beim Überführen eines
+  // Angebots dessen Wortlaut in der Rechnung — samt „anbei erhalten Sie das
+  // gewünschte Angebot".
+  "text.angebot.kopf": "Angebots-Kopftext",
   "text.angebot.fuss": "Angebots-Fußtext",
+  "text.rechnung.kopf": "Rechnungs-Kopftext",
+  "text.rechnung.fuss": "Rechnungs-Fußtext",
 };
 
 const TEXTBAUSTEIN_KEYS = Object.keys(TEXTBAUSTEIN_LABEL);

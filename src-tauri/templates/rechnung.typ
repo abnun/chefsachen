@@ -66,8 +66,8 @@
 
 Datum: #sys.inputs.datum \
 #sys.inputs.leistung_beschriftung: #sys.inputs.leistungsdatum
-#if ist_gesetzt(sys.inputs.faellig_am) [
-  \ Zahlbar bis #sys.inputs.faellig_am (#sys.inputs.zahlungsziel_tage Tage)
+#if ist_gesetzt(sys.inputs.zahlungsbedingung) [
+  \ #sys.inputs.zahlungsbedingung
 ]
 
 // Eine Rechnungskorrektur ohne Bezug zur ursprünglichen Rechnung ist für die

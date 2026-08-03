@@ -632,6 +632,16 @@ pub async fn setze_angebot_status(pool: &SqlitePool, id: String, status: String)
     lade_beleg(pool, &id).await
 }
 
+/// Liest einen Textbaustein aus den Einstellungen.
+///
+/// Fehlt er, bleibt das Feld leer statt eines erfundenen Platzhaltertexts —
+/// ein leeres Feld sieht man und füllt es, einen falschen Text übersieht man.
+async fn baustein(pool: &SqlitePool, schluessel: &str) -> AppResult<String> {
+    Ok(crate::commands::einstellungen::get(pool, schluessel.to_string())
+        .await?
+        .unwrap_or_default())
+}
+
 pub async fn angebot_ueberfuehren(pool: &SqlitePool, angebot_id: String) -> AppResult<Beleg> {
     let angebot = lade_beleg(pool, &angebot_id).await?;
     if angebot.typ != "angebot" {
@@ -645,7 +655,13 @@ pub async fn angebot_ueberfuehren(pool: &SqlitePool, angebot_id: String) -> AppR
     let rechnung = Beleg {
         id: Uuid::new_v4().to_string(), typ: "rechnung".into(), nummer: None, status: "entwurf".into(),
         kunde_id: angebot.kunde_id.clone(), datum: heute, leistungsdatum: angebot.leistungsdatum.clone(), leistungsdatum_bis: None,
-        zahlungsziel_tage: angebot.zahlungsziel_tage, kopftext: angebot.kopftext.clone(), fusstext: angebot.fusstext.clone(),
+        zahlungsziel_tage: angebot.zahlungsziel_tage,
+        // Nicht die Texte des Angebots übernehmen: Dort steht „anbei erhalten
+        // Sie das gewünschte Angebot" und „dieses Angebot ist 30 Tage gültig".
+        // In einer Rechnung ist das falsch, und niemand rechnet damit, dass es
+        // dort landet. Die Rechnung bekommt deshalb ihre eigenen Bausteine.
+        kopftext: baustein(pool, "text.rechnung.kopf").await?,
+        fusstext: baustein(pool, "text.rechnung.fuss").await?,
         summe_cent: angebot.summe_cent, ursprungsangebot_id: Some(angebot.id.clone()), storno_von_id: None,
         kunde_snapshot: String::new(), kunde_snapshot_name: None,
         // Wer die Anschrift schon am Angebot gewählt hat, meint sie auch für
@@ -927,6 +943,43 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let p = crate::db::init_db(&dir.path().join("t.db")).await.unwrap();
         (dir, p)
+    }
+
+    /// Eine überführte Rechnung darf nicht die Texte des Angebots erben.
+    ///
+    /// Vorher wurden Kopf- und Fußtext wörtlich mitkopiert. In der Rechnung
+    /// stand dann „anbei erhalten Sie das gewünschte Angebot" und „dieses
+    /// Angebot ist 30 Tage gültig" — und niemand rechnet damit, dass der Text
+    /// aus dem Angebot dort landet, also fiel es erst beim Kunden auf.
+    #[tokio::test]
+    async fn ueberfuehrung_nimmt_die_texte_der_rechnung() {
+        let (_d, pool) = test_pool().await;
+        let kunde = kunde_anlegen(&pool).await;
+        let angebot = create(&pool, beleg_neu("angebot", &kunde)).await.unwrap();
+        let artikel = artikel_anlegen(&pool, 5000).await;
+        position_speichern(&pool, BelegpositionNeu {
+            id: "".into(), beleg_id: angebot.id.clone(), artikel_id: Some(artikel),
+            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000,
+        }).await.unwrap();
+        update(&pool, BelegUpdate {
+            id: angebot.id.clone(), kunde_id: kunde.clone(),
+            datum: angebot.datum.clone(), leistungsdatum: angebot.leistungsdatum.clone(),
+            leistungsdatum_bis: None, zahlungsziel_tage: 14,
+            kopftext: "Gern unterbreiten wir Ihnen folgendes Angebot.".into(),
+            fusstext: "Dieses Angebot ist 30 Tage gültig.".into(),
+            adresse_id: None, ansprechpartner_id: None,
+        }).await.unwrap();
+        stellen(&pool, angebot.id.clone()).await.unwrap();
+
+        let rechnung = angebot_ueberfuehren(&pool, angebot.id.clone()).await.unwrap();
+
+        let erwartet_kopf = crate::commands::einstellungen::get(&pool, "text.rechnung.kopf".into())
+            .await.unwrap().unwrap();
+        let erwartet_fuss = crate::commands::einstellungen::get(&pool, "text.rechnung.fuss".into())
+            .await.unwrap().unwrap();
+        assert_eq!(rechnung.kopftext, erwartet_kopf);
+        assert_eq!(rechnung.fusstext, erwartet_fuss);
+        assert!(!rechnung.fusstext.contains("Angebot"), "Angebotstext in der Rechnung: {}", rechnung.fusstext);
     }
 
     /// Die Umstellung bestehender Angebote von „versendet" auf

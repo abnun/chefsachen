@@ -112,20 +112,6 @@ fn land_anzeigen(land_kunde: &str, land_firma: &str) -> String {
 /// Kompiliert die Typst-Vorlage zum Dokument. Von `rendern` getrennt, weil der
 /// Schritt „Dokument bauen" und der Schritt „nach PDF exportieren" verschiedene
 /// Fehlerquellen haben und sich so einzeln prüfen lassen.
-/// Fälligkeitsdatum als `TT.MM.JJJJ`.
-///
-/// „Zahlungsziel: 14 Tage" zwingt den Empfänger zum Rechnen, und ab welchem Tag
-/// gezählt wird, steht nirgends. Ein konkretes Datum lässt daran keinen Zweifel.
-/// Bei einem unlesbaren Belegdatum bleibt das Feld leer — die Vorlage lässt die
-/// Zeile dann weg, statt „—" zu drucken.
-fn faellig_am(datum_iso: &str, zahlungsziel_tage: i64) -> String {
-    chrono::NaiveDate::parse_from_str(datum_iso, "%Y-%m-%d")
-        .ok()
-        .and_then(|d| d.checked_add_signed(chrono::Duration::days(zahlungsziel_tage)))
-        .map(|d| d.format("%d.%m.%Y").to_string())
-        .unwrap_or_default()
-}
-
 fn dokument_bauen(
     kontext: &BelegKontext,
     logo: Option<&[u8]>,
@@ -176,13 +162,12 @@ fn dokument_bauen(
         } else {
             "Leistungsdatum".to_string()
         }),
-        ("zahlungsziel_tage", kontext.beleg.zahlungsziel_tage.to_string()),
         // Ein Angebot ist keine Zahlungsaufforderung; dort bleibt das Feld leer
         // und die Vorlage lässt die Zeile weg.
-        ("faellig_am", if kontext.beleg.typ == "angebot" {
+        ("zahlungsbedingung", if kontext.beleg.typ == "angebot" {
             String::new()
         } else {
-            faellig_am(&kontext.beleg.datum, kontext.beleg.zahlungsziel_tage)
+            crate::dokument::zahlungsbedingung(&kontext.beleg.datum, kontext.beleg.zahlungsziel_tage)
         }),
         ("storno_von_nummer", kontext.storno_von_nummer.clone().unwrap_or_default()),
         ("kunde_ansprechpartner", kontext.kunde_ansprechpartner.clone()),
@@ -392,7 +377,7 @@ pub(crate) mod tests {
         // welchem Tag gezählt wird, steht nirgends.
         let kontext = test_kontext();
         let t = text(&kontext);
-        assert!(t.contains("Zahlbar bis"), "Fälligkeit fehlt:\n{t}");
+        assert!(t.contains("Zahlbar ohne Abzug bis zum"), "Zahlungsbedingung fehlt:\n{t}");
         // Belegdatum 2026-07-11 plus 14 Tage Zahlungsziel.
         assert!(t.contains("25.07.2026"), "falsches oder fehlendes Datum:\n{t}");
     }
@@ -403,7 +388,7 @@ pub(crate) mod tests {
         let mut kontext = test_kontext();
         kontext.beleg.typ = "angebot".into();
         let t = text(&kontext);
-        assert!(!t.contains("Zahlbar bis"), "Angebot mit Fälligkeit:\n{t}");
+        assert!(!t.contains("Zahlbar"), "Angebot mit Zahlungsaufforderung:\n{t}");
     }
 
     #[test]

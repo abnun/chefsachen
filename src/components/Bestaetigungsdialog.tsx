@@ -1,7 +1,17 @@
+import { type ReactNode } from "react";
 import { Dialog } from "./Dialog";
 
 interface BestaetigungsdialogProps {
   text: string;
+  /**
+   * Was der Schritt betrifft, zum Nachsehen vor der Zusage.
+   *
+   * Eine Rückfrage, die nur „Wirklich?" fragt, prüft nur die Entschlossenheit.
+   * Bei einem Schritt, der etwas unveränderbar macht, ist die eigentliche
+   * Frage aber, ob der Inhalt stimmt — und den hat man in dem Moment nicht vor
+   * Augen.
+   */
+  zusatz?: ReactNode;
   bestaetigenLabel?: string;
   onAbbrechen: () => void;
   onBestaetigen: () => void;
@@ -20,6 +30,7 @@ interface BestaetigungsdialogProps {
  */
 export function Bestaetigungsdialog({
   text,
+  zusatz,
   bestaetigenLabel,
   onAbbrechen,
   onBestaetigen,
@@ -27,6 +38,7 @@ export function Bestaetigungsdialog({
   return (
     <Dialog
       titel={text}
+      breit={Boolean(zusatz)}
       onSchliessen={onAbbrechen}
       aktionen={
         <>
@@ -39,7 +51,7 @@ export function Bestaetigungsdialog({
         </>
       }
     >
-      {null}
+      {zusatz}
     </Dialog>
   );
 }

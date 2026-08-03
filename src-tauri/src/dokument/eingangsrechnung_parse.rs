@@ -514,7 +514,12 @@ mod tests {
         assert_eq!(ergebnis.verkaeufer_steuernummer, "DE123456789");
         assert_eq!(ergebnis.bestellnummer, "PO-42");
         assert_eq!(ergebnis.leitweg_id, "991-12345-67");
-        assert_eq!(ergebnis.zahlungsbedingungen, "Zahlbar innerhalb von 14 Tagen");
+        // Der Wortlaut stammt aus `dokument::zahlungsbedingung` — dieselbe
+        // Stelle, die ihn auf die PDF schreibt.
+        assert_eq!(
+            ergebnis.zahlungsbedingungen,
+            "Zahlbar ohne Abzug bis zum 25.07.2026 (14 Tage)."
+        );
         assert_eq!(ergebnis.iban, "DE02120300000000202051");
         assert_eq!(ergebnis.bic, "BYLADEM1001");
 

@@ -369,8 +369,11 @@ pub fn xml_erzeugen(kontext: &BelegKontext) -> AppResult<String> {
     }
 
     xml.auf("ram:SpecifiedTradePaymentTerms");
-    xml.feld( "ram:Description",
-        &format!("Zahlbar innerhalb von {} Tagen", kontext.beleg.zahlungsziel_tage));
+    // Derselbe Wortlaut wie auf der PDF. Zwei Formulierungen desselben
+    // Sachverhalts laufen auseinander, sobald eine davon angefasst wird — und
+    // beide beschreiben hier dieselbe Zahl.
+    xml.feld("ram:Description",
+        &crate::dokument::zahlungsbedingung(&kontext.beleg.datum, kontext.beleg.zahlungsziel_tage));
     // BT-9: konkretes Fälligkeitsdatum. Das Datenmodell kennt nur das
     // Zahlungsziel in Tagen; die Norm erwartet ein Datum.
     if let Some(faellig) = faelligkeit_yyyymmdd(&kontext.beleg.datum, kontext.beleg.zahlungsziel_tage) {
