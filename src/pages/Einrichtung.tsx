@@ -234,14 +234,16 @@ export function Einrichtung({ onFertig }: EinrichtungProps) {
               Im Gründungsjahr gilt für die Kleinunternehmergrenze bereits das laufende Jahr.
             </p>
           </div>
-          <button
-            type="button"
-            className="btn btn-primaer"
-            disabled={prueft}
-            onClick={weiterVonSchritt1}
-          >
-            Weiter
-          </button>
+          <div className="aktionen aktionen-formular">
+            <button
+              type="button"
+              className="btn btn-primaer"
+              disabled={prueft}
+              onClick={weiterVonSchritt1}
+            >
+              Weiter
+            </button>
+          </div>
         </section>
       )}
 
@@ -254,7 +256,7 @@ export function Einrichtung({ onFertig }: EinrichtungProps) {
             Datei wählen
           </button>
           {logoBytes && <p>Logo ausgewählt ({logoBytes.length} Bytes).</p>}
-          <div className="werkzeugleiste">
+          <div className="aktionen aktionen-formular">
             <button type="button" className="btn btn-leise" onClick={() => setSchritt(1)}>
               Zurück
             </button>
@@ -282,7 +284,7 @@ export function Einrichtung({ onFertig }: EinrichtungProps) {
             />
             Ich falle unter die Kleinunternehmerregelung
           </label>
-          <div className="werkzeugleiste">
+          <div className="aktionen aktionen-formular">
             <button type="button" className="btn btn-leise" onClick={() => setSchritt(2)}>
               Zurück
             </button>
@@ -305,7 +307,7 @@ export function Einrichtung({ onFertig }: EinrichtungProps) {
             <li>Angebote: AN-{new Date().getFullYear()}-0001</li>
             <li>Rechnungen: RE-{new Date().getFullYear()}-0001</li>
           </ul>
-          <div className="werkzeugleiste">
+          <div className="aktionen aktionen-formular">
             <button type="button" className="btn btn-leise" onClick={() => setSchritt(3)}>
               Zurück
             </button>
@@ -320,7 +322,7 @@ export function Einrichtung({ onFertig }: EinrichtungProps) {
         <section className="karte">
           <h2>Fertig!</h2>
           <p>Womit möchtest du starten?</p>
-          <div className="werkzeugleiste">
+          <div className="aktionen aktionen-formular">
             <button type="button" className="btn btn-primaer" onClick={() => onFertig("kunden")}>
               Ersten Kunden anlegen
             </button>

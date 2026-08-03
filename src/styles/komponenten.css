@@ -440,9 +440,9 @@ label.feld textarea {
   border-radius: var(--radius-m);
 }
 
-.kundenpreis-formular-aktionen {
-  display: flex;
-  gap: var(--abstand-s);
+/* Im Kundenpreis-Formular sitzt die Reihe innerhalb eines abgesetzten
+   Kastens; der Abstand nach unten gehört dort dazu. */
+.kundenpreis-formular .aktionen {
   margin-bottom: var(--abstand-m);
 }
 
@@ -474,12 +474,7 @@ label.feld textarea {
   overflow-y: auto;
 }
 
-.bestaetigung-aktionen {
-  display: flex;
-  gap: var(--abstand-s);
-  justify-content: flex-end;
-  margin-top: var(--abstand-l);
-}
+
 
 /* ── Übersicht ───────────────────────────────────────────────────────────── */
 
@@ -697,10 +692,31 @@ label.feld textarea {
 }
 
 /* Aktionen in einer Positionszeile — nebeneinander, nicht untereinander. */
-.zeilen-aktionen {
+/*
+ * Eine Reihe von Schaltflächen — in einer Tabellenzeile, am Fuß eines
+ * Formulars, im Kopf eines Belegs oder in einem Dialog.
+ *
+ * Vorher gab es dafür vier fast gleiche Klassen (.zeilen-aktionen,
+ * .beleg-aktionen, .bestaetigung-aktionen und eine für die Kundenpreise), die
+ * sich um jeweils eine Eigenschaft unterschieden. Das Ergebnis war, dass
+ * dieselbe Knopfreihe je nach Seite anders umbrach und anders eng stand.
+ */
+.aktionen {
   display: flex;
+  flex-wrap: wrap;
   gap: var(--abstand-s);
   align-items: center;
+}
+
+/* Am Fuß eines Formulars: Abstand zum letzten Eingabefeld. Ohne den klebt der
+   Knopf an der Beschriftung darüber. */
+.aktionen-formular {
+  margin-top: var(--abstand-l);
+}
+
+/* In einem Dialog stehen die Schaltflächen rechts, wo der Blick endet. */
+.aktionen-rechts {
+  justify-content: flex-end;
 }
 
 /* Die Zeile, die gerade im Formular darunter bearbeitet wird. */
@@ -750,12 +766,6 @@ label.feld textarea {
 
 .beleg-status {
   color: var(--text-leise);
-}
-
-.beleg-aktionen {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--abstand-s);
 }
 
 .beleg-summe {

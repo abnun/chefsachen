@@ -169,7 +169,7 @@ export function KundenpreiseDialog({
                     {formatCent(kp.preis_cent)}
                     {ab && <span className={`kundenpreis-badge ${ab.klasse}`}>{ab.text}</span>}
                   </td>
-                  <td className="zeilen-aktionen">
+                  <td className="aktionen">
                     {entfernenId === kp.id ? (
                       <>
                         <button
@@ -256,7 +256,7 @@ export function KundenpreiseDialog({
               was es bedeutet, nichts einzutragen. */}
           <p className="feld-hinweis">Leer lassen heißt: gilt ab sofort.</p>
 
-          <div className="kundenpreis-formular-aktionen">
+          <div className="aktionen aktionen-formular">
             <button type="submit" className="btn btn-primaer">
               Speichern
             </button>

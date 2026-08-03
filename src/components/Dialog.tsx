@@ -96,7 +96,7 @@ export function Dialog({ titel, children, aktionen, onSchliessen, breit }: Dialo
       >
         <p id={titelId}>{titel}</p>
         {children}
-        <div className="bestaetigung-aktionen">{aktionen}</div>
+        <div className="aktionen aktionen-rechts aktionen-formular">{aktionen}</div>
       </div>
     </div>
   );

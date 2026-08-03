@@ -187,7 +187,7 @@ export function Kunden({
           <button
             type="button"
             className="btn btn-primaer"
-            onClick={() => setZeigeFormular((v) => !v)}
+            onClick={() => setZeigeFormular(true)}
           >
             Neuer Kunde
           </button>
@@ -290,7 +290,12 @@ export function Kunden({
               />
             </label>
           </div>
-          <button type="submit" className="btn btn-primaer">Speichern</button>
+          <div className="aktionen aktionen-formular">
+            <button type="submit" className="btn btn-primaer">Speichern</button>
+            <button type="button" className="btn" onClick={() => setZeigeFormular(false)}>
+              Abbrechen
+            </button>
+          </div>
         </form>
       )}
 

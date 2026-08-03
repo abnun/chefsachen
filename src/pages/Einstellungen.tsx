@@ -297,7 +297,9 @@ function FirmendatenAbschnitt() {
           />
           Kleinunternehmer (§19 UStG)
         </label>
-        <button type="submit" className="btn btn-primaer">Speichern</button>
+        <div className="aktionen aktionen-formular">
+          <button type="submit" className="btn btn-primaer">Speichern</button>
+        </div>
       </form>
     </section>
   );
@@ -439,7 +441,7 @@ function SicherungenAbschnitt() {
               <tr key={s.zeitstempel}>
                 <td>{zeitpunkt(s.zeitstempel)}</td>
                 <td>{Math.max(1, Math.round(s.groesse_bytes / 1024))} KB</td>
-                <td className="zeilen-aktionen">
+                <td className="aktionen">
                   <button type="button" className="btn" onClick={() => exportieren(s)}>
                     Speichern unter …
                   </button>
@@ -562,7 +564,11 @@ function EinheitenAbschnitt() {
           Kürzel
           <input value={kuerzel} onChange={(e) => setKuerzel(e.currentTarget.value)} />
         </label>
-        <button type="submit" className="btn btn-primaer">{bearbeiteId ? "Aktualisieren" : "Hinzufügen"}</button>
+        <div className="aktionen aktionen-formular">
+          <button type="submit" className="btn btn-primaer">
+            {bearbeiteId ? "Aktualisieren" : "Hinzufügen"}
+          </button>
+        </div>
       </form>
     </section>
   );
@@ -636,7 +642,9 @@ function NummernkreiseAbschnitt() {
             Jährlicher Reset
           </label>
           <p>Aktueller Zähler: {nk.zaehler}</p>
-          <button type="submit" className="btn btn-primaer">Speichern</button>
+          <div className="aktionen aktionen-formular">
+            <button type="submit" className="btn btn-primaer">Speichern</button>
+          </div>
         </form>
       ))}
     </section>
@@ -701,7 +709,9 @@ function TextbausteineAbschnitt() {
             {TEXTBAUSTEIN_LABEL[key]}
             <textarea value={werte[key] ?? ""} onChange={(e) => aendere(key, e.currentTarget.value)} />
           </label>
-          <button type="submit" className="btn btn-primaer">Speichern</button>
+          <div className="aktionen aktionen-formular">
+            <button type="submit" className="btn btn-primaer">Speichern</button>
+          </div>
         </form>
       ))}
     </section>

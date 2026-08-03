@@ -271,7 +271,7 @@ export function BelegEditor({ id, onZurueck, onGeaendert, onRechnungErstellt, on
           Status: <StatusMarke status={beleg.status} />
         </span>
 
-        <div className="beleg-aktionen">
+        <div className="aktionen">
           {istEntwurf && (
             <button
               type="button"
@@ -615,7 +615,9 @@ function StammdatenAbschnitt({ beleg, kunden, bearbeitbar, onSpeichern }: Stammd
           Fußtext
           <textarea value={fusstext} onChange={(e) => setFusstext(e.currentTarget.value)} />
         </label>
-        <button type="submit" className="btn btn-primaer">Speichern</button>
+        <div className="aktionen aktionen-formular">
+          <button type="submit" className="btn btn-primaer">Speichern</button>
+        </div>
       </form>
     </section>
   );
@@ -765,7 +767,7 @@ function PositionenAbschnitt({
               <td>{p.einheit_kuerzel}</td>
               <td>{formatCent(p.einzelpreis_cent)}</td>
               <td>{formatCent(p.positionssumme_cent)}</td>
-              <td className="zeilen-aktionen">
+              <td className="aktionen">
                 {bearbeitbar && (
                   <>
                     <button
@@ -856,14 +858,16 @@ function PositionenAbschnitt({
             {vorschau.betrag === null ? vorschau.text : `Positionssumme: ${formatCent(vorschau.betrag)}`}
           </p>
 
-          <button type="submit" className="btn btn-primaer">
-            {bearbeiteId ? "Änderung speichern" : "Position hinzufügen"}
-          </button>
-          {bearbeiteId && (
-            <button type="button" className="btn" onClick={formularLeeren}>
-              Abbrechen
+          <div className="aktionen aktionen-formular">
+            <button type="submit" className="btn btn-primaer">
+              {bearbeiteId ? "Änderung speichern" : "Position hinzufügen"}
             </button>
-          )}
+            {bearbeiteId && (
+              <button type="button" className="btn" onClick={formularLeeren}>
+                Abbrechen
+              </button>
+            )}
+          </div>
         </form>
       )}
     </section>
@@ -988,7 +992,11 @@ function ZahlungenAbschnitt({ rechnungId, zahlungen, offenerBetragCent, onGeaend
           Notiz
           <input value={notiz} onChange={(e) => setNotiz(e.currentTarget.value)} />
         </label>
-        <button type="submit" className="btn btn-primaer" disabled={laeuft}>Zahlung erfassen</button>
+        <div className="aktionen aktionen-formular">
+          <button type="submit" className="btn btn-primaer" disabled={laeuft}>
+            Zahlung erfassen
+          </button>
+        </div>
       </form>
     </section>
   );

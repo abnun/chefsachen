@@ -268,7 +268,12 @@ export function Artikel({ zeigeFormularBeimStart, onFormularUebernommen, onZuKun
               </div>
             )}
           </div>
-          <button type="submit" className="btn btn-primaer">Speichern</button>
+          <div className="aktionen aktionen-formular">
+            <button type="submit" className="btn btn-primaer">Speichern</button>
+            <button type="button" className="btn" onClick={() => setZeigeFormular(false)}>
+              Abbrechen
+            </button>
+          </div>
         </form>
       )}
 
@@ -323,7 +328,7 @@ export function Artikel({ zeigeFormularBeimStart, onFormularUebernommen, onZuKun
                     : `${a.kundenpreise_anzahl} ${a.kundenpreise_anzahl === 1 ? "Ausnahme" : "Ausnahmen"}`}
                 </button>
               </td>
-              <td className="zeilen-aktionen">
+              <td className="aktionen">
                 <button type="button" className="btn" onClick={() => bearbeiten(a)}>
                   Bearbeiten
                 </button>

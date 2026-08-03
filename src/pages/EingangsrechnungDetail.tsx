@@ -145,8 +145,10 @@ export function EingangsrechnungDetail({ id, onZurueck }: EingangsrechnungDetail
             Betrag ({waehrung})
             <input value={betrag} onChange={(e) => setBetrag(e.currentTarget.value)} placeholder="95,00" />
           </label>
-          <button type="submit" className="btn btn-primaer">Speichern</button>
-          <button type="button" className="btn" onClick={bearbeitenAbbrechen}>Abbrechen</button>
+          <div className="aktionen aktionen-formular">
+            <button type="submit" className="btn btn-primaer">Speichern</button>
+            <button type="button" className="btn" onClick={bearbeitenAbbrechen}>Abbrechen</button>
+          </div>
         </form>
       ) : (
         <div className="karte">

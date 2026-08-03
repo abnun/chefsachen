@@ -412,9 +412,11 @@ function StammdatenReiter({ kunde, onGespeichert, onGeloescht }: StammdatenReite
             />
           </label>
         </div>
-        <button type="submit" className="btn btn-primaer">
-          Speichern
-        </button>
+        <div className="aktionen aktionen-formular">
+          <button type="submit" className="btn btn-primaer">
+            Speichern
+          </button>
+        </div>
       </form>
       <button
         type="button"
@@ -558,9 +560,11 @@ function AdressenReiter({ kundeId, adressen, onGeaendert }: AdressenReiterProps)
           />
           Standardadresse
         </label>
-        <button type="submit" className="btn btn-primaer">
-          {form.id ? "Aktualisieren" : "Hinzufügen"}
-        </button>
+        <div className="aktionen aktionen-formular">
+          <button type="submit" className="btn btn-primaer">
+            {form.id ? "Aktualisieren" : "Hinzufügen"}
+          </button>
+        </div>
       </form>
     </section>
   );
@@ -689,9 +693,11 @@ function AnsprechpartnerReiter({ kundeId, ansprechpartner, onGeaendert }: Anspre
           />
           Standard-Ansprechpartner
         </label>
-        <button type="submit" className="btn btn-primaer">
-          {form.id ? "Aktualisieren" : "Hinzufügen"}
-        </button>
+        <div className="aktionen aktionen-formular">
+          <button type="submit" className="btn btn-primaer">
+            {form.id ? "Aktualisieren" : "Hinzufügen"}
+          </button>
+        </div>
       </form>
     </section>
   );
