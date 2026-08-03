@@ -18,7 +18,7 @@ export const RECHNUNG_STATUS = ["entwurf", "gestellt", "storniert"] as const;
 
 const LABEL: Record<string, string> = {
   entwurf: "Entwurf",
-  versendet: "Versendet",
+  versendet: "Versendet",  // vom Nutzer verschickt, nicht von der Anwendung
   angenommen: "Angenommen",
   abgelehnt: "Abgelehnt",
   abgelaufen: "Abgelaufen",

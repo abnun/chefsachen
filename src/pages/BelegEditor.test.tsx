@@ -203,8 +203,11 @@ describe("BelegEditor – Stellen", () => {
     const stellenButton = screen.getByRole("button", { name: "Stellen" });
     expect(stellenButton).not.toBeDisabled();
     fireEvent.click(stellenButton);
-    // Angebot: der bestätigende Knopf heißt „Versenden", nicht „Stellen".
-    fireEvent.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "Versenden" }));
+    // Angebot: der bestätigende Knopf heißt „Festschreiben", nicht „Stellen" —
+    // die Anwendung verschickt nichts, sie hält nur fest.
+    fireEvent.click(
+      within(await screen.findByRole("dialog")).getByRole("button", { name: "Festschreiben" }),
+    );
 
     await waitFor(() => expect(api.belege.stellen).toHaveBeenCalledWith("b1"));
     await waitFor(() => expect(vi.mocked(api.belege.get).mock.calls.length).toBeGreaterThanOrEqual(2));

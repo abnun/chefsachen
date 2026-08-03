@@ -10,6 +10,7 @@ export default defineConfig(async () => ({
 
   test: {
     environment: "jsdom",
+    setupFiles: ["./src/testAufbau.ts"],
     // .worktrees liegt innerhalb des Projektverzeichnisses (siehe .gitignore) und
     // hat eigene node_modules — ohne Exclude lädt Vitest doppelte React-Kopien.
     exclude: ["**/node_modules/**", "**/dist/**", "**/.worktrees/**"],

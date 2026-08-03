@@ -99,19 +99,28 @@ export function BelegEditor({ id, onZurueck, onGeaendert, onRechnungErstellt, on
     }
   }
 
+  /**
+   * Schreibt den Beleg fest.
+   *
+   * Die Beschriftung sagt ausdrücklich, dass nichts verschickt wird. „Angebot
+   * versenden?" ließ genau das offen — die Anwendung kennt weder Postfach noch
+   * Mailkonto, sie hält nur fest, dass *du* es verschickt hast.
+   */
   async function stellen() {
     const istAngebot = beleg.typ === "angebot";
     const frage = istAngebot
-      ? "Angebot versenden? Danach ist es nicht mehr änderbar."
-      : "Rechnung stellen? Sie erhält eine feste Nummer und ist danach nicht mehr änderbar — eine Korrektur ist nur noch per Storno möglich.";
-    if (!(await bestaetigen(frage, istAngebot ? "Versenden" : "Stellen"))) return;
+      ? "Angebot festschreiben? Es bekommt eine Nummer und lässt sich danach nicht mehr " +
+        "ändern. Verschickt wird nichts — dafür exportierst du es als PDF und schickst es selbst."
+      : "Rechnung stellen? Sie erhält eine feste Nummer und ist danach nicht mehr änderbar — " +
+        "eine Korrektur ist nur noch per Storno möglich. Verschickt wird nichts.";
+    if (!(await bestaetigen(frage, istAngebot ? "Festschreiben" : "Stellen"))) return;
     setFehler(null);
     setLaeuft(true);
     try {
       await api.belege.stellen(beleg.id);
       laden();
       onGeaendert?.();
-      zeigen(istAngebot ? "Angebot versendet" : "Rechnung gestellt");
+      zeigen(istAngebot ? "Angebot festgeschrieben" : "Rechnung gestellt");
     } catch (e) {
       setFehler(e as AppFehler);
     } finally {

@@ -71,13 +71,21 @@ export const config = {
       await new Promise((w) => setTimeout(w, 1000));
     }
 
-    // Ein eigener HOME sorgt für einen leeren Datenordner je Lauf. Ohne das
-    // liefe der Test gegen die Datenbank des vorherigen Laufs und wäre je nach
-    // Reihenfolge grün oder rot.
-    process.env.HOME = mkdtempSync(join(tmpdir(), "kuv-e2e-"));
-
     treiber = starteImHintergrund("tauri-driver", []);
     await warteAufPort(PORT, 20);
+  },
+
+  /**
+   * Jede Spec-Datei bekommt einen eigenen Datenordner.
+   *
+   * Die Anwendung legt ihre Datenbank unter HOME an. Teilen sich zwei Specs
+   * einen HOME, läuft die zweite gegen die Daten der ersten — die
+   * Ersteinrichtung erschiene dann gar nicht mehr, und der Test fiele aus
+   * einem Grund durch, der nichts mit seinem Gegenstand zu tun hat. Genau das
+   * ist beim Hinzufügen der zweiten Datei passiert.
+   */
+  beforeSession: () => {
+    process.env.HOME = mkdtempSync(join(tmpdir(), "kuv-e2e-"));
   },
 
   onComplete: () => {

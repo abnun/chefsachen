@@ -57,6 +57,28 @@ export function Dialog({ titel, children, aktionen, onSchliessen }: DialogProps)
   }, [onSchliessen]);
 
   useEffect(() => {
+    /*
+     * Scrollen sperren, solange der Dialog offen ist.
+     *
+     * Nicht nur der Ordnung halber: In der WebKit-Webview der Anwendung wurde
+     * ein `position: fixed`-Overlay über einer *gescrollten* Seite zwar an der
+     * richtigen Stelle gezeichnet, der Klick aber gegen eine veraltete Position
+     * geprüft. Die Trefferfläche lag um den Scrollbetrag verschoben — der
+     * Dialog war sichtbar und keiner seiner Knöpfe reagierte, ohne jede
+     * Meldung. Ganz oben auf der Seite trat es nicht auf, in Chrome nie.
+     *
+     * Steht die Seite still, kann die Trefferfläche nicht verrutschen. Und der
+     * Hintergrund soll sich ohnehin nicht bewegen, während jemand eine
+     * Rückfrage beantwortet.
+     */
+    const vorher = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = vorher;
+    };
+  }, []);
+
+  useEffect(() => {
     // Der Fokus wird hier gesetzt statt über `autoFocus`: Das Attribut greift
     // beim Einhängen ins Dokument, also *vor* diesem Effekt — der Dialog merkte
     // sich sonst seinen eigenen Knopf als Rücksprungziel, und der ist beim
