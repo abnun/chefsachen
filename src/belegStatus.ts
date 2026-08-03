@@ -11,14 +11,17 @@
  */
 
 /** Statuswerte, die ein Angebot annehmen kann — in der Reihenfolge des Ablaufs. */
-export const ANGEBOT_STATUS = ["entwurf", "versendet", "angenommen", "abgelehnt", "abgelaufen"] as const;
+export const ANGEBOT_STATUS = ["entwurf", "festgeschrieben", "angenommen", "abgelehnt", "abgelaufen"] as const;
 
 /** Statuswerte, die eine Rechnung annehmen kann. */
 export const RECHNUNG_STATUS = ["entwurf", "gestellt", "storniert"] as const;
 
 const LABEL: Record<string, string> = {
   entwurf: "Entwurf",
-  versendet: "Versendet",  // vom Nutzer verschickt, nicht von der Anwendung
+  // Nicht „Versendet": Die Anwendung verschickt nichts. Sie vergibt eine Nummer
+  // und macht den Beleg unveränderbar — genau das sagt auch die Rückfrage davor,
+  // und ein Status „Versendet" widersprach ihr.
+  festgeschrieben: "Festgeschrieben",
   angenommen: "Angenommen",
   abgelehnt: "Abgelehnt",
   abgelaufen: "Abgelaufen",
@@ -30,7 +33,7 @@ const KLASSE: Record<string, string> = {
   entwurf: "status-entwurf",
   // Ein abgelaufenes Angebot ist so wenig verbindlich wie ein Entwurf.
   abgelaufen: "status-entwurf",
-  versendet: "status-gestellt",
+  festgeschrieben: "status-gestellt",
   gestellt: "status-gestellt",
   angenommen: "status-bezahlt",
   abgelehnt: "status-storniert",

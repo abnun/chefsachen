@@ -181,7 +181,7 @@ describe("Ein Durchgang durch die Anwendung", () => {
       { timeout: 10000, timeoutMsg: "Festschreiben-Knopf ist nach dem Festschreiben noch da." },
     );
 
-    await expect(await $(".status")).toHaveText("Versendet", { wait: 20000 });
+    await expect(await $(".status")).toHaveText("Festgeschrieben", { wait: 20000 });
   });
 
   it("meldet keine Verstöße gegen die Inhaltsrichtlinie", async () => {

@@ -77,7 +77,7 @@ vi.mock("../api", () => ({
           id: "b2",
           typ: "angebot",
           nummer: "AN-2026-0003",
-          status: "versendet",
+          status: "festgeschrieben",
           kunde_id: "anderer-kunde",
           datum: "2026-07-01",
           leistungsdatum: "2026-07-01",

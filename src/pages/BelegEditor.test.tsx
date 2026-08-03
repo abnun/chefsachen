@@ -40,7 +40,7 @@ vi.mock("../api", () => ({
         kopftext: "", fusstext: "", summe_cent: 9550, ursprungsangebot_id: null, storno_von_id: null,
       }),
       stellen: vi.fn().mockResolvedValue({
-        id: "b1", typ: "angebot", nummer: "A-2026-0001", status: "versendet", kunde_id: "k1",
+        id: "b1", typ: "angebot", nummer: "A-2026-0001", status: "festgeschrieben", kunde_id: "k1",
         datum: "2026-07-10", leistungsdatum: "2026-07-10", zahlungsziel_tage: 14,
         kopftext: "", fusstext: "", summe_cent: 0, ursprungsangebot_id: null, storno_von_id: null,
       }),
@@ -397,7 +397,7 @@ describe("BelegEditor – Export", () => {
   it("zeigt XRechnung/ZUGFeRD-Buttons nicht für Angebote an", async () => {
     vi.mocked(api.belege.get).mockResolvedValue({
       beleg: {
-        id: "b1", typ: "angebot", nummer: "A-2026-0001", status: "versendet", kunde_id: "k1",
+        id: "b1", typ: "angebot", nummer: "A-2026-0001", status: "festgeschrieben", kunde_id: "k1",
         datum: "2026-07-11", leistungsdatum: "2026-07-11", zahlungsziel_tage: 14,
         kopftext: "", fusstext: "", summe_cent: 9500, ursprungsangebot_id: null, storno_von_id: null,
       },
@@ -423,7 +423,7 @@ describe("BelegEditor – Erfolgs-Hinweis", () => {
     render(<BelegEditor id="b1" />);
     await waitFor(() => expect(screen.getByRole("button", { name: "Speichern" })).toBeTruthy());
     fireEvent.click(screen.getByRole("button", { name: "Speichern" }));
-    await waitFor(() => expect(screen.getByText("Angebot gespeichert")).toBeTruthy());
+    await waitFor(() => expect(screen.getByText("Stammdaten gespeichert")).toBeTruthy());
   });
 
   it("zeigt nach dem Stellen einen Erfolgs-Hinweis", async () => {
@@ -453,7 +453,7 @@ describe("BelegEditor – Erfolgs-Hinweis", () => {
   it("zeigt nach dem Setzen des Angebot-Status einen Erfolgs-Hinweis", async () => {
     vi.mocked(api.belege.get).mockResolvedValue({
       beleg: {
-        id: "b1", typ: "angebot", nummer: "A-2026-0001", status: "versendet", kunde_id: "k1",
+        id: "b1", typ: "angebot", nummer: "A-2026-0001", status: "festgeschrieben", kunde_id: "k1",
         datum: "2026-07-10", leistungsdatum: "2026-07-10", zahlungsziel_tage: 14,
         kopftext: "", fusstext: "", summe_cent: 9550, ursprungsangebot_id: null, storno_von_id: null,
       },
@@ -528,7 +528,7 @@ describe("BelegEditor – Erfolgs-Hinweis", () => {
 
   it('fragt vor Abgelehnt nach, aber nicht vor Angenommen', async () => {
     vi.mocked(api.belege.get).mockResolvedValue({
-      ...rechnungGestellt({ typ: "angebot", status: "versendet", nummer: "A-2026-0001" }),
+      ...rechnungGestellt({ typ: "angebot", status: "festgeschrieben", nummer: "A-2026-0001" }),
     });
     render(<BelegEditor id="b1" />);
     fireEvent.click(await screen.findByRole("button", { name: "Angenommen" }));

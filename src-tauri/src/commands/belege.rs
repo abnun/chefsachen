@@ -597,7 +597,9 @@ pub async fn stellen(pool: &SqlitePool, id: String) -> AppResult<Beleg> {
     // hatte eine Lücke.
     let mut tx = pool.begin().await?;
     let nummer = naechste_nummer(&mut tx, &beleg.typ, Some(&beleg.datum)).await?;
-    let neuer_status = if beleg.typ == "angebot" { "versendet" } else { "gestellt" };
+    // Ein Angebot ist mit dem Festschreiben nicht verschickt — das tut der
+    // Nutzer selbst. Eine Rechnung ist damit dagegen tatsächlich gestellt.
+    let neuer_status = if beleg.typ == "angebot" { "festgeschrieben" } else { "gestellt" };
     let ergebnis = sqlx::query(
         "UPDATE beleg SET nummer=?, status=?, kunde_snapshot=?, updated_at=? WHERE id=? AND status = 'entwurf'")
         .bind(&nummer).bind(neuer_status).bind(&snapshot).bind(jetzt()).bind(&id)
@@ -619,8 +621,8 @@ pub async fn setze_angebot_status(pool: &SqlitePool, id: String, status: String)
     if beleg.typ != "angebot" {
         return Err(AppError::Validation { feld: "typ".into(), meldung: "Nur Angebote haben diesen Status".into() });
     }
-    if beleg.status != "versendet" {
-        return Err(AppError::Validation { feld: "status".into(), meldung: "Nur versendete Angebote können einen Abschlussstatus erhalten".into() });
+    if beleg.status != "festgeschrieben" {
+        return Err(AppError::Validation { feld: "status".into(), meldung: "Nur festgeschriebene Angebote können einen Abschlussstatus erhalten".into() });
     }
     if !ANGEBOT_ABSCHLUSS_STATUS.contains(&status.as_str()) {
         return Err(AppError::Validation { feld: "status".into(), meldung: "Ungültiger Angebotsstatus".into() });
@@ -635,8 +637,8 @@ pub async fn angebot_ueberfuehren(pool: &SqlitePool, angebot_id: String) -> AppR
     if angebot.typ != "angebot" {
         return Err(AppError::Validation { feld: "typ".into(), meldung: "Nur Angebote können in Rechnungen überführt werden".into() });
     }
-    if !["versendet", "angenommen"].contains(&angebot.status.as_str()) {
-        return Err(AppError::Validation { feld: "status".into(), meldung: "Nur versendete oder angenommene Angebote können überführt werden".into() });
+    if !["festgeschrieben", "angenommen"].contains(&angebot.status.as_str()) {
+        return Err(AppError::Validation { feld: "status".into(), meldung: "Nur festgeschriebene oder angenommene Angebote können überführt werden".into() });
     }
 
     let heute = jetzt()[..10].to_string();
@@ -925,6 +927,52 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let p = crate::db::init_db(&dir.path().join("t.db")).await.unwrap();
         (dir, p)
+    }
+
+    /// Die Umstellung bestehender Angebote von „versendet" auf
+    /// „festgeschrieben".
+    ///
+    /// Alle übrigen Tests laufen auf einer frischen Datenbank und legen ihre
+    /// Belege mit dem neuen Wert an — sie sagen deshalb nichts darüber, was mit
+    /// den Belegen geschieht, die schon da sind. Genau das ist der Teil, der
+    /// nur ein einziges Mal läuft und den niemand wiederholen kann.
+    ///
+    /// Der Text kommt aus der Migrationsdatei selbst; eine abgeschriebene
+    /// Fassung im Test bewiese nur, dass die Abschrift funktioniert.
+    #[tokio::test]
+    async fn migration_stellt_versendete_angebote_um() {
+        let (_d, pool) = test_pool().await;
+        let kunde = kunde_anlegen(&pool).await;
+
+        // Zwei Belege im Zustand vor der Umstellung.
+        for (id, typ, status, nummer) in [
+            ("alt-angebot", "angebot", "versendet", "AN-2026-0001"),
+            ("alt-rechnung", "rechnung", "gestellt", "RE-2026-0001"),
+        ] {
+            sqlx::query(
+                "INSERT INTO beleg (id, typ, nummer, status, kunde_id, datum, leistungsdatum, \
+                 zahlungsziel_tage, kopftext, fusstext, created_at, updated_at) \
+                 VALUES (?, ?, ?, ?, ?, '2026-01-01', '2026-01-01', 14, '', '', '', '')",
+            )
+            .bind(id).bind(typ).bind(nummer).bind(status).bind(&kunde)
+            .execute(&pool).await.unwrap();
+        }
+
+        // Am Stück ausführen, so wie sqlx es beim Start tut. An Semikolons zu
+        // trennen ginge schief, sobald eines in einem Kommentar steht.
+        let migration = include_str!("../../migrations/0014_angebot_festgeschrieben.sql");
+        sqlx::raw_sql(migration).execute(&pool).await.unwrap();
+
+        let status = |id: &'static str| {
+            let pool = pool.clone();
+            async move {
+                sqlx::query_scalar::<_, String>("SELECT status FROM beleg WHERE id = ?")
+                    .bind(id).fetch_one(&pool).await.unwrap()
+            }
+        };
+        assert_eq!(status("alt-angebot").await, "festgeschrieben");
+        // Bei einer Rechnung trifft „gestellt" zu — sie darf nicht mitwandern.
+        assert_eq!(status("alt-rechnung").await, "gestellt");
     }
 
     /// Legt einen Kunden samt Standard-Rechnungsadresse an — der Normalfall für
@@ -1296,7 +1344,7 @@ mod tests {
         let (_dir, pool) = test_pool().await;
         let kunde_id = kunde_anlegen(&pool).await;
         let beleg = create(&pool, beleg_neu("angebot", &kunde_id)).await.unwrap();
-        sqlx::query("UPDATE beleg SET status = 'versendet' WHERE id = ?")
+        sqlx::query("UPDATE beleg SET status = 'festgeschrieben' WHERE id = ?")
             .bind(&beleg.id).execute(&pool).await.unwrap();
         let err = update(&pool, BelegUpdate {
             id: beleg.id, kunde_id, datum: "2026-07-11".into(), leistungsdatum: "2026-07-11".into(), leistungsdatum_bis: None,
@@ -1315,7 +1363,7 @@ mod tests {
         assert!(matches!(get(&pool, beleg.id).await.unwrap_err(), AppError::NichtGefunden));
 
         let beleg2 = create(&pool, beleg_neu("angebot", &kunde_id)).await.unwrap();
-        sqlx::query("UPDATE beleg SET status = 'versendet' WHERE id = ?")
+        sqlx::query("UPDATE beleg SET status = 'festgeschrieben' WHERE id = ?")
             .bind(&beleg2.id).execute(&pool).await.unwrap();
         let err = delete(&pool, beleg2.id).await.unwrap_err();
         assert!(matches!(err, AppError::Validation { .. }));
@@ -1409,7 +1457,7 @@ mod tests {
         let kunde_id = kunde_anlegen(&pool).await;
         let artikel_id = artikel_anlegen(&pool, 5000).await;
         let beleg = create(&pool, beleg_neu("angebot", &kunde_id)).await.unwrap();
-        sqlx::query("UPDATE beleg SET status = 'versendet' WHERE id = ?")
+        sqlx::query("UPDATE beleg SET status = 'festgeschrieben' WHERE id = ?")
             .bind(&beleg.id).execute(&pool).await.unwrap();
         let err = position_speichern(&pool, BelegpositionNeu {
             id: "".into(), beleg_id: beleg.id, artikel_id: Some(artikel_id),
@@ -1428,7 +1476,7 @@ mod tests {
             id: "".into(), beleg_id: beleg.id.clone(), artikel_id: Some(artikel_id),
             bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000,
         }).await.unwrap();
-        sqlx::query("UPDATE beleg SET status = 'versendet' WHERE id = ?")
+        sqlx::query("UPDATE beleg SET status = 'festgeschrieben' WHERE id = ?")
             .bind(&beleg.id).execute(&pool).await.unwrap();
         let err = position_loeschen(&pool, pos.id).await.unwrap_err();
         assert!(matches!(err, AppError::Validation { .. }));
@@ -1445,7 +1493,7 @@ mod tests {
             bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000,
         }).await.unwrap();
         let gestellt = stellen(&pool, beleg.id).await.unwrap();
-        assert_eq!(gestellt.status, "versendet");
+        assert_eq!(gestellt.status, "festgeschrieben");
         let jahr = chrono::Utc::now().format("%Y").to_string();
         assert_eq!(gestellt.nummer, Some(format!("AN-{jahr}-0001")));
         let err = update(&pool, BelegUpdate {
@@ -1545,7 +1593,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn angebot_status_setzen_erlaubt_nur_nach_versendet() {
+    async fn angebot_status_setzen_erlaubt_nur_nach_festschreiben() {
         let (_dir, pool) = test_pool().await;
         let kunde_id = kunde_anlegen(&pool).await;
         let beleg = create(&pool, beleg_neu("angebot", &kunde_id)).await.unwrap();
@@ -1845,7 +1893,7 @@ mod tests {
         }).await.unwrap();
 
         let gestellt = stellen(&pool, angebot.id).await.unwrap();
-        assert_eq!(gestellt.status, "versendet");
+        assert_eq!(gestellt.status, "festgeschrieben");
     }
 
     /// Der Stornobeleg ist selbst eine gestellte Rechnung und käme sonst durch

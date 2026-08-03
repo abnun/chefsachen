@@ -8,10 +8,10 @@ vi.mock("../api", () => ({
   api: {
     belege: {
       list: vi.fn().mockResolvedValue([
-        { id: "1", typ: "angebot", nummer: "AN-2026-0001", status: "versendet", kunde_id: "k1",
+        { id: "1", typ: "angebot", nummer: "AN-2026-0001", status: "festgeschrieben", kunde_id: "k1",
           datum: "2026-07-10", leistungsdatum: "2026-07-10", zahlungsziel_tage: 14,
           kopftext: "", fusstext: "", summe_cent: 9500, ursprungsangebot_id: null, storno_von_id: null },
-        { id: "2", typ: "angebot", nummer: "AN-2026-0002", status: "versendet", kunde_id: "k1",
+        { id: "2", typ: "angebot", nummer: "AN-2026-0002", status: "festgeschrieben", kunde_id: "k1",
           datum: "2026-07-11", leistungsdatum: "2026-07-11", zahlungsziel_tage: 14,
           kopftext: "", fusstext: "", summe_cent: 5000, ursprungsangebot_id: null, storno_von_id: null,
           kunde_snapshot_name: "ACME GmbH (alter Name)" },
@@ -57,6 +57,6 @@ describe("Angebote", () => {
 
   it("beschriftet den Status, statt den Datenbankschlüssel zu zeigen", async () => {
     render(<Angebote onOeffnen={() => {}} />);
-    await waitFor(() => expect(screen.getAllByText("Versendet", { selector: ".status" })).toHaveLength(2));
+    await waitFor(() => expect(screen.getAllByText("Festgeschrieben", { selector: ".status" })).toHaveLength(2));
   });
 });

@@ -93,7 +93,11 @@ export function BelegEditor({ id, onZurueck, onGeaendert, onRechnungErstellt, on
     try {
       await api.belege.update({ id: beleg.id, ...felder });
       laden();
-      zeigen(beleg.typ === "angebot" ? "Angebot gespeichert" : "Rechnung gespeichert");
+      // Nicht „Angebot gespeichert": Der Knopf gehört zur Karte „Stammdaten"
+      // und speichert genau die. Der Beleg als Ganzes ist damit weder fertig
+      // noch festgeschrieben — die Positionen darunter haben ihre eigenen
+      // Knöpfe, und das Festschreiben ist ein eigener Schritt.
+      zeigen("Stammdaten gespeichert");
     } catch (e) {
       setFehler(e as AppFehler);
     }
@@ -131,7 +135,8 @@ export function BelegEditor({ id, onZurueck, onGeaendert, onRechnungErstellt, on
   async function angebotStatus(status: string) {
     // „Angenommen" führt den Normalweg fort und bleibt ohne Rückfrage.
     // „Abgelehnt"/„Abgelaufen" versperren dagegen dauerhaft die Überführung in
-    // eine Rechnung — das Backend lässt einen Statuswechsel nur aus „versendet" zu.
+    // eine Rechnung — das Backend lässt einen Statuswechsel nur aus
+    // „festgeschrieben" zu.
     if (status !== "angenommen") {
       const label = status === "abgelehnt" ? "Abgelehnt" : "Abgelaufen";
       const frage = `Angebot als „${label}" markieren? Es lässt sich danach nicht mehr in eine Rechnung überführen.`;
@@ -284,7 +289,7 @@ export function BelegEditor({ id, onZurueck, onGeaendert, onRechnungErstellt, on
             </button>
           )}
 
-          {beleg.typ === "angebot" && ["versendet", "angenommen"].includes(beleg.status) && (
+          {beleg.typ === "angebot" && ["festgeschrieben", "angenommen"].includes(beleg.status) && (
             <button
               type="button"
               className="btn btn-primaer"
@@ -329,7 +334,7 @@ export function BelegEditor({ id, onZurueck, onGeaendert, onRechnungErstellt, on
             </>
           )}
 
-          {beleg.typ === "angebot" && beleg.status === "versendet" &&
+          {beleg.typ === "angebot" && beleg.status === "festgeschrieben" &&
             ANGEBOT_ABSCHLUSS_STATUS.map((z) => (
               <button
                 key={z.wert}

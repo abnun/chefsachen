@@ -179,7 +179,7 @@ pub async fn laden(pool: &SqlitePool, heute: chrono::NaiveDate) -> AppResult<Das
         crate::commands::belege::list(pool, Some("angebot".into()), None, None).await?;
     let offene_angebote = angebote
         .into_iter()
-        .filter(|b| ["versendet", "angenommen"].contains(&b.status.as_str()))
+        .filter(|b| ["festgeschrieben", "angenommen"].contains(&b.status.as_str()))
         .map(|b| OffenesAngebot {
             id: b.id,
             nummer: b.nummer.unwrap_or_default(),

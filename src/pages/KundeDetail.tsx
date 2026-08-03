@@ -260,7 +260,7 @@ function BelegeReiter({ kundeId }: { kundeId: string }) {
 const STATUS_BADGE_KLASSE: Record<string, string> = {
   entwurf: "status-entwurf",
   abgelaufen: "status-entwurf",
-  versendet: "status-gestellt",
+  festgeschrieben: "status-gestellt",
   gestellt: "status-gestellt",
   angenommen: "status-bezahlt",
   abgelehnt: "status-storniert",
