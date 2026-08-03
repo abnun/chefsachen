@@ -68,6 +68,32 @@ jobs:
       - name: Frontend-Abhängigkeiten installieren
         run: npm ci
 
+      # Der Text landet als `notes` in der latest.json und ist genau das, was
+      # der Aktualisierungsdialog dem Nutzer als „was ist neu" zeigt. Er muss
+      # deshalb *vor* dem Bau feststehen — die Beschreibung des Releases auf
+      # GitHub nachträglich zu ändern, ändert die latest.json nicht mehr.
+      - name: Änderungstext aus dem CHANGELOG lesen
+        id: notizen
+        shell: bash
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          text=$(awk -v v="## $version" '
+            $0 == v { drin = 1; next }
+            drin && /^## / { exit }
+            drin { print }
+          ' docs/CHANGELOG.md)
+          if [ -z "$(echo "$text" | tr -d '[:space:]')" ]; then
+            echo "Kein Abschnitt \"## $version\" in docs/CHANGELOG.md gefunden." >&2
+            exit 1
+          fi
+          {
+            echo "text<<CHANGELOG_ENDE"
+            echo "$text"
+            echo ""
+            echo "Installationsanleitung: siehe docs/installation-freunde.md"
+            echo "CHANGELOG_ENDE"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Tauri-App bauen und Release erstellen
         uses: tauri-apps/tauri-action@v0
         env:
@@ -89,7 +115,7 @@ jobs:
         with:
           tagName: ${{ github.ref_name }}
           releaseName: "Kleinunternehmer-Verwaltung ${{ github.ref_name }}"
-          releaseBody: "Installationsanleitung: siehe docs/installation-freunde.md"
+          releaseBody: ${{ steps.notizen.outputs.text }}
           includeUpdaterJson: true
           releaseDraft: true
           prerelease: false
