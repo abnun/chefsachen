@@ -121,6 +121,34 @@ pub fn sicherungen_liste<R: tauri::Runtime>(app: tauri::AppHandle<R>) -> AppResu
     Ok(liste(&dir))
 }
 
+/// Merkt eine Sicherung zum Zurückspielen vor. Wirksam beim nächsten Start.
+#[tauri::command]
+pub fn sicherung_wiederherstellen<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    zeitstempel: String,
+) -> AppResult<()> {
+    use tauri::Manager;
+    let dir = app.path().app_data_dir().map_err(|e| AppError::Technisch(e.to_string()))?;
+    vormerken(&dir, &zeitstempel)
+}
+
+/// Liest eine Sicherung als Bytes, damit die Oberfläche sie an einen selbst
+/// gewählten Ort speichern kann.
+///
+/// Die automatischen Sicherungen liegen neben der Datenbank — auf derselben
+/// Platte. Bei einem Defekt sind sie mit weg; erst eine Kopie woandershin ist
+/// eine Sicherung im eigentlichen Sinn.
+#[tauri::command]
+pub fn sicherung_exportieren<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    zeitstempel: String,
+) -> AppResult<Vec<u8>> {
+    use tauri::Manager;
+    let dir = app.path().app_data_dir().map_err(|e| AppError::Technisch(e.to_string()))?;
+    let pfad = verzeichnis(&dir).join(format!("{PRAEFIX}{zeitstempel}{ENDUNG}"));
+    std::fs::read(&pfad).map_err(|e| AppError::Technisch(format!("Sicherung nicht lesbar: {e}")))
+}
+
 /// Legt auf Wunsch sofort eine Sicherung an — etwa vor einer größeren Änderung.
 #[tauri::command]
 pub fn sicherung_jetzt<R: tauri::Runtime>(app: tauri::AppHandle<R>) -> AppResult<Sicherung> {
@@ -135,6 +163,62 @@ pub fn sicherung_jetzt<R: tauri::Runtime>(app: tauri::AppHandle<R>) -> AppResult
         .ok_or_else(|| AppError::Technisch("Sicherung wurde angelegt, ist aber nicht auffindbar.".into()))
 }
 
+/// Name der Datei, die einen vorgemerkten Wiederherstellungswunsch trägt.
+const VORMERKUNG: &str = "wiederherstellen.db";
+
+/// Merkt eine Sicherung zum Zurückspielen beim nächsten Start vor.
+///
+/// Die Datenbank ist im laufenden Betrieb geöffnet — sie einfach zu
+/// überschreiben, während Verbindungen darauf zeigen, führt zu einem halb
+/// gelesenen Zustand oder zu einer beschädigten Datei. Statt gegen die offene
+/// Verbindung zu arbeiten, wird die gewählte Sicherung danebengelegt und beim
+/// nächsten Start eingespielt, bevor überhaupt eine Verbindung entsteht.
+pub fn vormerken(app_data_dir: &Path, zeitstempel: &str) -> AppResult<()> {
+    let quelle = verzeichnis(app_data_dir).join(format!("{PRAEFIX}{zeitstempel}{ENDUNG}"));
+    if !quelle.is_file() {
+        return Err(AppError::Validation {
+            feld: "zeitstempel".into(),
+            meldung: "Diese Sicherung gibt es nicht.".into(),
+        });
+    }
+    std::fs::copy(&quelle, app_data_dir.join(VORMERKUNG))
+        .map_err(|e| AppError::Technisch(format!("Sicherung nicht vorbereitbar: {e}")))?;
+    Ok(())
+}
+
+/// Spielt eine vorgemerkte Sicherung ein. Beim Start aufzurufen, **bevor** die
+/// Datenbank geöffnet wird.
+///
+/// Gibt zurück, ob etwas eingespielt wurde.
+///
+/// Vor dem Überschreiben entsteht eine Sicherung des aktuellen Standes. Ohne
+/// sie wäre ein versehentliches Zurückspielen unumkehrbar — und genau das
+/// passiert, wenn jemand den falschen Zeitpunkt anklickt.
+pub fn vorgemerkte_einspielen(datenbank: &Path, app_data_dir: &Path, zeitstempel: &str) -> AppResult<bool> {
+    let vormerkung = app_data_dir.join(VORMERKUNG);
+    if !vormerkung.is_file() {
+        return Ok(false);
+    }
+
+    sichern(datenbank, app_data_dir, zeitstempel)?;
+
+    std::fs::rename(&vormerkung, datenbank)
+        .map_err(|e| AppError::Technisch(format!("Wiederherstellung fehlgeschlagen: {e}")))?;
+
+    // WAL und Shared-Memory gehören zur *alten* Datei. Bleiben sie liegen,
+    // mischt SQLite Änderungen hinein, die es in der zurückgespielten Datenbank
+    // nie gab — im günstigen Fall gibt es einen Fehler, im ungünstigen stille
+    // Vermischung.
+    for endung in ["-wal", "-shm"] {
+        let pfad = datenbank.with_file_name(format!(
+            "{}{endung}",
+            datenbank.file_name().unwrap_or_default().to_string_lossy()
+        ));
+        let _ = std::fs::remove_file(pfad);
+    }
+    Ok(true)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -143,6 +227,79 @@ mod tests {
         let pfad = dir.join("daten.db");
         std::fs::write(&pfad, inhalt).unwrap();
         pfad
+    }
+
+    #[test]
+    fn vormerken_lehnt_eine_unbekannte_sicherung_ab() {
+        let dir = tempfile::tempdir().unwrap();
+        let fehler = vormerken(dir.path(), "2026-01-01_00-00-00");
+        assert!(matches!(fehler, Err(AppError::Validation { .. })), "{fehler:?}");
+    }
+
+    #[test]
+    fn eine_vorgemerkte_sicherung_wird_beim_start_eingespielt() {
+        let dir = tempfile::tempdir().unwrap();
+        let datenbank = dir.path().join("daten.db");
+        datenbank_anlegen(dir.path(), "aktueller Stand");
+        sichern(&datenbank, dir.path(), "2026-08-01_10-00-00").unwrap();
+
+        // Stand ändert sich, dann soll die alte Sicherung zurück.
+        datenbank_anlegen(dir.path(), "neuerer, unerwünschter Stand");
+        vormerken(dir.path(), "2026-08-01_10-00-00").unwrap();
+
+        let eingespielt =
+            vorgemerkte_einspielen(&datenbank, dir.path(), "2026-08-03_12-00-00").unwrap();
+        assert!(eingespielt);
+        assert_eq!(std::fs::read_to_string(&datenbank).unwrap(), "aktueller Stand");
+    }
+
+    #[test]
+    fn der_ueberschriebene_stand_bleibt_als_sicherung_erhalten() {
+        // Wer den falschen Zeitpunkt anklickt, soll nicht alles verlieren.
+        let dir = tempfile::tempdir().unwrap();
+        let datenbank = dir.path().join("daten.db");
+        datenbank_anlegen(dir.path(), "alt");
+        sichern(&datenbank, dir.path(), "2026-08-01_10-00-00").unwrap();
+        datenbank_anlegen(dir.path(), "der Stand, der gleich überschrieben wird");
+
+        vormerken(dir.path(), "2026-08-01_10-00-00").unwrap();
+        vorgemerkte_einspielen(&datenbank, dir.path(), "2026-08-03_12-00-00").unwrap();
+
+        let rettung = verzeichnis(dir.path()).join("daten-2026-08-03_12-00-00.db");
+        assert_eq!(
+            std::fs::read_to_string(rettung).unwrap(),
+            "der Stand, der gleich überschrieben wird",
+        );
+    }
+
+    #[test]
+    fn ohne_vormerkung_passiert_nichts() {
+        let dir = tempfile::tempdir().unwrap();
+        let datenbank = dir.path().join("daten.db");
+        datenbank_anlegen(dir.path(), "unberührt");
+
+        assert!(!vorgemerkte_einspielen(&datenbank, dir.path(), "2026-08-03_12-00-00").unwrap());
+        assert_eq!(std::fs::read_to_string(&datenbank).unwrap(), "unberührt");
+    }
+
+    #[test]
+    fn wal_und_shm_der_alten_datenbank_werden_entfernt() {
+        // Sie gehören zur überschriebenen Datei. Bleiben sie liegen, mischt
+        // SQLite Änderungen hinein, die es in der zurückgespielten Datenbank
+        // nie gab.
+        let dir = tempfile::tempdir().unwrap();
+        let datenbank = dir.path().join("daten.db");
+        datenbank_anlegen(dir.path(), "alt");
+        sichern(&datenbank, dir.path(), "2026-08-01_10-00-00").unwrap();
+        datenbank_anlegen(dir.path(), "neu");
+        std::fs::write(dir.path().join("daten.db-wal"), "journal").unwrap();
+        std::fs::write(dir.path().join("daten.db-shm"), "gemeinsamer speicher").unwrap();
+
+        vormerken(dir.path(), "2026-08-01_10-00-00").unwrap();
+        vorgemerkte_einspielen(&datenbank, dir.path(), "2026-08-03_12-00-00").unwrap();
+
+        assert!(!dir.path().join("daten.db-wal").exists());
+        assert!(!dir.path().join("daten.db-shm").exists());
     }
 
     #[test]

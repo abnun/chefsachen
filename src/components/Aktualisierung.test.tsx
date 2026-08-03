@@ -23,7 +23,6 @@ function update(overrides: Record<string, unknown> = {}) {
     body: "Fehler in der Rechnungsnummer behoben",
     downloadAndInstall: vi.fn().mockResolvedValue(undefined),
     ...overrides,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as any;
 }
 

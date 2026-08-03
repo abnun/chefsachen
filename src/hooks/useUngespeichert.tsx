@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { Bestaetigungsdialog } from "../components/Bestaetigungsdialog";
 
 /**
@@ -12,6 +13,10 @@ import { Bestaetigungsdialog } from "../components/Bestaetigungsdialog";
  * Formulare melden über [`useUngespeichert`] an, dass sie ungesicherte
  * Eingaben halten. Die Navigation fragt über [`useVerlassenPruefen`] nach,
  * bevor sie wechselt.
+ *
+ * Dasselbe gilt für das Schließen des Fensters. Das läuft nicht über die
+ * Webview, sondern über das Betriebssystem — ohne `onCloseRequested` wäre alles
+ * Eingetippte beim Klick auf das Schließkreuz weg.
  */
 interface UngespeichertWert {
   anmelden: (schluessel: symbol) => void;
@@ -44,6 +49,28 @@ export function UngespeichertProvider({ children }: { children: ReactNode }) {
     frage?.(antwort);
     setFrage(null);
   }
+
+  useEffect(() => {
+    // In einer Testumgebung ohne Tauri wirft `getCurrentWindow()` sofort —
+    // nicht als abgelehnte Promise, sondern beim Aufruf. Ein `.catch()` allein
+    // fängt das nicht. Dort bleibt es beim reinen Navigationsschutz.
+    let abmelden: (() => void) | undefined;
+    try {
+      getCurrentWindow()
+        .onCloseRequested(async (ereignis) => {
+          if (!(await pruefen())) {
+            ereignis.preventDefault();
+          }
+        })
+        .then((f) => {
+          abmelden = f;
+        })
+        .catch(() => {});
+    } catch {
+      // Kein Fenster vorhanden.
+    }
+    return () => abmelden?.();
+  }, [pruefen]);
 
   return (
     <Kontext.Provider value={{ anmelden, abmelden, pruefen }}>

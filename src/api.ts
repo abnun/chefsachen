@@ -402,6 +402,10 @@ export const api = {
   sicherungen: {
     liste: () => invoke<Sicherung[]>("sicherungen_liste"),
     jetzt: () => invoke<Sicherung>("sicherung_jetzt"),
+    /** Merkt eine Sicherung zum Zurückspielen vor — wirksam beim nächsten Start. */
+    wiederherstellen: (zeitstempel: string) =>
+      invoke<void>("sicherung_wiederherstellen", { zeitstempel }),
+    exportieren: (zeitstempel: string) => invoke<number[]>("sicherung_exportieren", { zeitstempel }),
   },
   einheiten: {
     list: () => invoke<Einheit[]>("einheit_list"),

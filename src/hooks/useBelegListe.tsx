@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { api, type AppFehler, type Beleg, type Kunde } from "../api";
 import { type Richtung } from "../components/SortierKopf";
 
@@ -93,10 +93,19 @@ export function useBelegListe(typ: "angebot" | "rechnung", onOeffnen: (id: strin
     }
   }
 
-  /** Name des Kunden zum Beleg — der festgeschriebene geht dem aktuellen vor. */
-  function kundeName(beleg: Beleg): string {
-    return beleg.kunde_snapshot_name ?? kunden.find((k) => k.id === beleg.kunde_id)?.name ?? beleg.kunde_id;
-  }
+  /**
+   * Name des Kunden zum Beleg — der festgeschriebene geht dem aktuellen vor.
+   *
+   * In `useCallback` gefasst, weil die Sortierung ihn benutzt: Als gewöhnliche
+   * Funktion entstünde sie bei jedem Rendern neu, und das Memo müsste bei jedem
+   * Rendern neu sortieren — oder es führte sie gar nicht als Abhängigkeit und
+   * arbeitete irgendwann mit veralteten Namen.
+   */
+  const kundeName = useCallback(
+    (beleg: Beleg): string =>
+      beleg.kunde_snapshot_name ?? kunden.find((k) => k.id === beleg.kunde_id)?.name ?? beleg.kunde_id,
+    [kunden],
+  );
 
   /** Klick auf einen Spaltenkopf: gleiche Spalte kehrt um, neue beginnt aufsteigend. */
   function sortieren(spalte: string) {
@@ -136,7 +145,7 @@ export function useBelegListe(typ: "angebot" | "rechnung", onOeffnen: (id: strin
       if (x === y) return 0;
       return (x < y ? -1 : 1) * richtung;
     });
-  }, [belege, sortierung, kunden]);
+  }, [belege, sortierung, kundeName]);
 
   const SEITENGROESSE = 25;
   const seitenAnzahl = Math.max(1, Math.ceil(sortiert.length / SEITENGROESSE));

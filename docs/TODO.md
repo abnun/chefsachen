@@ -9,22 +9,18 @@ Reihenfolge = Empfehlung. Jeder Punkt trägt die Referenz aus dem Review.
 |---|---|
 | 1 — Kaputte Grundfunktionen | ✅ 8/8 |
 | 2 — Rechtliche Korrektheit | ✅ 9/9 |
-| 3 — Fehlende Kernfunktionen | ✅ 10/11, P3.7 teilweise |
+| 3 — Fehlende Kernfunktionen | ✅ 11/11 |
 | 4 — Robustheit | ✅ 13/13 |
 | 5 — Produktreife | ⬜ 6/7, P5.6 bewusst zurückgestellt |
 | 6 — UX und Code-Qualität | ✅ 11/11 |
 
 **Stand:** Alle sechs Stufen sind abgearbeitet, die CI läuft und ist grün. Offen bleiben:
-- **P0** — das Projekt liegt weiter auf iCloud Drive. Am 2026-08-02 zweimal konkret
-  aufgeschlagen (npm-Dublette `esbuild 2/`, von iCloud ausgelagerte Dateien beim Kopieren).
+- **P0 — iCloud Drive: bewusste Entscheidung (2026-08-03), es bleibt dabei.**
+  Bekannte Folgen: `npm ci` kann an Dubletten wie `node_modules/esbuild 2/` scheitern
+  (Abhilfe: `npm install` statt `npm ci`), und Werkzeuge, die den Ordner durchlaufen, stolpern
+  über ausgelagerte Dateien („Resource deadlock avoided"). Der Container-Lauf des Durchstichs
+  umgeht das bereits mit `--ignore-failed-read`.
 - **P5.6** — Signierung, bewusst zurückgestellt (Family & Friends).
-- Teilpunkte: **P2.9** (DIN-5008-Adressposition, Positionsnummern im PDF),
-  **P3.7** (Sicherung in der App zurückspielen), **P6.4** (Fensterschließen),
-  ESLint aus P5.2.
-
-**P0 ist zweimal konkret aufgeschlagen** (2026-08-02): `npm ci` scheiterte an der
-iCloud-Dublette `node_modules/esbuild 2/`, `tar` an Dateien, deren Inhalt iCloud ausgelagert
-hatte („Resource deadlock avoided"). Das Projekt gehört von iCloud Drive weg.
 
 ## Entwicklungsumgebung einrichten
 
@@ -226,14 +222,21 @@ Ohne diese Punkte ist die App für die Zielgruppe nicht wertvoll.
 - [x] **P3.6 — Kunde im Beleg-Editor änderbar** `[A11]` ✅ 2026-08-03 (nur solange Entwurf)
   Backend unterstützt `BelegUpdate.kunde_id`, das Frontend rendert nur Text. Falscher Kunde beim Anlegen = unbrauchbarer Entwurf.
 
-- [~] **P3.7 — Automatisches Backup + manueller Export/Import** `[A3]` — teilweise 2026-08-03
-  Spec: rotierendes Start-Backup (letzte 10) plus Export/Import in den Einstellungen.
-  Erledigt: Sicherung bei jedem Start **vor** den Migrationen, zehn jüngste bleiben erhalten,
-  sichtbar in den Einstellungen samt Knopf für eine sofortige Sicherung. Ein Fehler beim
-  Sichern verhindert den Start nicht — die App wäre sonst wegen einer Vorsichtsmaßnahme
-  unbenutzbar.
-  Offen: Wiederherstellung aus der App heraus (derzeit nur durch Ersetzen der Datei bei
-  geschlossenem Programm) und Export an einen selbst gewählten Ort.
+- [x] **P3.7 — Automatisches Backup + manueller Export/Import** `[A3]`
+  Sicherung bei jedem Start **vor** den Migrationen, zehn jüngste bleiben erhalten, sichtbar
+  in den Einstellungen samt Knopf für eine sofortige Sicherung. Ein Fehler beim Sichern
+  verhindert den Start nicht — die App wäre sonst wegen einer Vorsichtsmaßnahme unbenutzbar.
+  Ergänzt 2026-08-03:
+  - **Zurückspielen aus der Anwendung.** Die Datenbank ist im Betrieb geöffnet; sie unter der
+    offenen Verbindung auszutauschen ergibt eine beschädigte Datei. Statt gegen die
+    Verbindung zu arbeiten, wird die gewählte Sicherung danebengelegt und beim nächsten Start
+    eingespielt, bevor überhaupt eine Verbindung entsteht. Der jetzige Stand wird dabei
+    zuerst gesichert — ohne das wäre ein Fehlgriff unumkehrbar.
+    WAL und Shared-Memory der alten Datei werden entfernt: Bleiben sie liegen, mischt SQLite
+    Änderungen hinein, die es in der zurückgespielten Datenbank nie gab.
+  - **Speichern unter …** je Sicherung. Die automatischen Kopien liegen neben der Datenbank,
+    auf derselben Platte — bei einem Defekt sind sie mit weg. Erst eine Kopie woandershin ist
+    eine Sicherung im eigentlichen Sinn; der Hinweistext sagt das jetzt auch.
 
 - [x] **P3.8 — Stornobelege in der Liste kennzeichnen** `[B22]` ✅ 2026-08-03
   Tragen aktuell Status „Gestellt" → die Liste enthält scheinbar doppelte offene Rechnungen mit negativer Summe.
@@ -350,7 +353,19 @@ Ohne diese Punkte ist die App für die Zielgruppe nicht wertvoll.
   `zugferd_pdf_ist_pdfa3_konform` stehen namentlich im Protokoll.
   Laufzeiten: Frontend 1 min, Durchstich 9 min, Backend 13 min (davon rund 4 min Download der
   Prüfwerkzeuge; der Cache war beim ersten Lauf leer und greift ab jetzt).
-  Weiterhin offen: ESLint ist nicht eingerichtet.
+  ESLint ergänzt 2026-08-03: `eslint.config.js` mit den Regeln, die Fehler finden statt
+  Geschmack abzubilden — vor allem `react-hooks/exhaustive-deps`. Der erste Lauf meldete
+  3000 Befunde, davon 2962 aus `.worktrees/` (fremder Code) und 31 aus fehlenden Globals im
+  Durchstich; im eigentlichen Projektcode waren es sieben.
+  Davon war einer echt: Die Sortierung in `useBelegListe` benutzte `kundeName`, führte es
+  aber nicht als Abhängigkeit — die Funktion entstand bei jedem Rendern neu, das Memo hätte
+  also entweder ständig neu sortiert oder mit veralteten Namen gearbeitet. Jetzt in
+  `useCallback`.
+  `react-hooks/set-state-in-effect` ist abgeschaltet: Die Regel stammt aus dem Regelsatz des
+  React-Compilers und zielt auf einen zusätzlichen Renderdurchlauf. Alle fünf Fundstellen
+  sind das übliche „Formularzustand zurücksetzen, wenn sich die Vorlage ändert". Als Fehler
+  gemeldet, ginge die Prüfung nie durch und würde bald ignoriert.
+  Läuft in der CI als eigener Schritt.
 
 - [x] **P5.3 — E2E-Durchstich via `tauri-driver`** `[B5]`
   Zwei Ebenen, weil eine allein nicht reicht:
@@ -451,8 +466,11 @@ Ohne diese Punkte ist die App für die Zielgruppe nicht wertvoll.
   Wert ändert und zurücksetzt, soll nicht gefragt werden. Ohne Provider (in Tests, die nur
   eine Seite rendern) ist die Antwort immer „weiter", sonst stünde dort jede Navigation still.
   Angemeldet sind Belegstammdaten, Kundenstammdaten und Firmendaten.
-  **Offen:** Das Schließen des Programmfensters ist nicht abgedeckt — das läuft an der
-  Webview vorbei und bräuchte `onCloseRequested` auf der Rust-Seite.
+  Ergänzt 2026-08-03: Auch das Schließen des Fensters fragt nach (`onCloseRequested`). Das
+  läuft über das Betriebssystem, nicht über die Webview — ohne diesen Weg wäre alles
+  Eingetippte beim Klick auf das Schließkreuz weg. In einer Testumgebung ohne Tauri wirft
+  `getCurrentWindow()` sofort und nicht als abgelehnte Promise; ein `.catch()` allein fängt
+  das nicht.
 - [x] **P6.5 — Duplizierung auflösen**
   `src/belegStatus.ts` als einzige Quelle für Beschriftung und Einfärbung aller Statuswerte,
   dazu die Komponente `StatusMarke`. Gemeinsame Listenlogik in `useBelegListe`, das
@@ -535,5 +553,13 @@ Ohne diese Punkte ist die App für die Zielgruppe nicht wertvoll.
 
 ## Umgebung
 
-- [ ] **P0 — Repo von iCloud Drive auf lokale Platte verschieben** `[B30]`
-  `npm test` braucht 112 s statt ~5 s; zusätzlich Risiko der Git-Index-Korruption durch Eviction. Lädt nicht zum Testen vor dem Commit ein — was gut erklärt, wie P1.1 durchrutschen konnte.
+- [–] **P0 — Repo von iCloud Drive auf lokale Platte verschieben** `[B30]` — **bewusste
+  Entscheidung (2026-08-03): Es bleibt bei iCloud.**
+  Der Befund bleibt bestehen: `npm test` braucht zeitweise 112 s statt ~5 s, und der
+  Git-Index kann durch Auslagern beschädigt werden.
+  Zweimal konkret aufgeschlagen: `npm ci` scheiterte an der Dublette
+  `node_modules/esbuild 2/` (Abhilfe: `npm install` statt `npm ci`), und `tar` an Dateien,
+  deren Inhalt iCloud ausgelagert hatte („Resource deadlock avoided"). Der Container-Lauf des
+  Durchstichs umgeht Letzteres mit `--ignore-failed-read`.
+  Wer hier künftig auf Merkwürdigkeiten stößt — fehlende Dateien, doppelte Ordner mit
+  Leerzeichen im Namen, unerklärlich langsame Läufe —, sollte diese Ursache zuerst prüfen.

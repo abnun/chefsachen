@@ -27,6 +27,8 @@ jobs:
       - run: npm ci
       - name: Typprüfung
         run: npx tsc --noEmit
+      - name: ESLint
+        run: npm run lint
       - name: Tests
         run: npm test
 

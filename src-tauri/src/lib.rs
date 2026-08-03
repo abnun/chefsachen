@@ -23,6 +23,14 @@ fn starten(app: &tauri::App) -> Result<sqlx::SqlitePool, String> {
     })?;
     let datenbank = dir.join("daten.db");
 
+    // Eine vorgemerkte Wiederherstellung zuerst: Sie muss geschehen, bevor
+    // irgendeine Verbindung auf die Datei zeigt.
+    match backup::vorgemerkte_einspielen(&datenbank, &dir, &backup::zeitstempel_jetzt()) {
+        Ok(true) => log::info!("Vorgemerkte Sicherung eingespielt"),
+        Ok(false) => {}
+        Err(e) => log::error!("Wiederherstellung fehlgeschlagen: {e:?}"),
+    }
+
     // Vor den Migrationen sichern: Bricht eine Migration ab oder verändert sie
     // Daten fehlerhaft, ist der Stand davor noch vorhanden. Ein Fehler beim
     // Sichern darf den Start nicht verhindern — dann wäre die App wegen einer
@@ -141,6 +149,8 @@ fn mit_befehlen<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri::Builder
             commands::dashboard::dashboard_laden,
             backup::sicherungen_liste,
             backup::sicherung_jetzt,
+            backup::sicherung_wiederherstellen,
+            backup::sicherung_exportieren,
             commands::einstellungen::einstellung_get,
             commands::einstellungen::einstellung_set,
             commands::einstellungen::einstellung_list,

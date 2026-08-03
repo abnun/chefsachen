@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
-import { open } from "@tauri-apps/plugin-dialog";
-import { readFile } from "@tauri-apps/plugin-fs";
+import { open, save } from "@tauri-apps/plugin-dialog";
+import { readFile, writeFile } from "@tauri-apps/plugin-fs";
+import { relaunch } from "@tauri-apps/plugin-process";
 import {
   api,
   type AppFehler,
@@ -313,7 +314,10 @@ function SicherungenAbschnitt() {
   const [sicherungen, setSicherungen] = useState<Sicherung[]>([]);
   const [fehler, setFehler] = useState<AppFehler | null>(null);
   const [laeuft, setLaeuft] = useState(false);
+  /** Gesetzt, sobald eine Wiederherstellung vorgemerkt ist. */
+  const [neustartNoetig, setNeustartNoetig] = useState(false);
   const { zeigen, hinweis } = useErfolgsHinweis();
+  const { bestaetigen, dialog } = useBestaetigung();
 
   function laden() {
     api.sicherungen.liste().then(setSicherungen).catch((e) => setFehler(e as AppFehler));
@@ -336,6 +340,48 @@ function SicherungenAbschnitt() {
     }
   }
 
+  /**
+   * Spielt eine Sicherung zurück.
+   *
+   * Wirksam wird das erst beim nächsten Start: Die Datenbank ist im laufenden
+   * Betrieb geöffnet, und sie unter der offenen Verbindung auszutauschen führt
+   * zu einer beschädigten Datei.
+   */
+  async function wiederherstellen(s: Sicherung) {
+    const text =
+      `Den Stand von ${zeitpunkt(s.zeitstempel)} zurückspielen? ` +
+      "Alles, was seitdem eingegeben wurde, verschwindet aus der Anwendung. " +
+      "Der jetzige Stand wird vorher automatisch gesichert.";
+    if (!(await bestaetigen(text, "Zurückspielen"))) return;
+    setFehler(null);
+    try {
+      await api.sicherungen.wiederherstellen(s.zeitstempel);
+      setNeustartNoetig(true);
+    } catch (e) {
+      setFehler(e as AppFehler);
+    }
+  }
+
+  /**
+   * Legt eine Sicherung an einem selbst gewählten Ort ab.
+   *
+   * Die automatischen Kopien liegen neben der Datenbank, auf derselben Platte.
+   * Bei einem Defekt sind sie mit weg — erst eine Kopie woandershin ist eine
+   * Sicherung im eigentlichen Sinn.
+   */
+  async function exportieren(s: Sicherung) {
+    setFehler(null);
+    try {
+      const bytes = await api.sicherungen.exportieren(s.zeitstempel);
+      const ziel = await save({ defaultPath: `kleinunternehmer-${s.zeitstempel}.db` });
+      if (!ziel) return;
+      await writeFile(ziel, new Uint8Array(bytes));
+      zeigen("Sicherung gespeichert");
+    } catch (e) {
+      setFehler(e as AppFehler);
+    }
+  }
+
   /** "2026-08-03_10-15-00" → "03.08.2026, 10:15 Uhr" */
   function zeitpunkt(zeitstempel: string): string {
     const [datum, uhrzeit] = zeitstempel.split("_");
@@ -350,12 +396,30 @@ function SicherungenAbschnitt() {
       <h2>Sicherungen</h2>
       <Fehler fehler={fehler} />
       {hinweis}
+      {dialog}
       <p className="feld-hinweis">
         Bei jedem Programmstart wird die Datenbank kopiert, bevor Änderungen an ihrer
-        Struktur vorgenommen werden. Die zehn jüngsten Kopien bleiben erhalten. Zum
-        Wiederherstellen ersetzen Sie die Datei <code>daten.db</code> durch eine Sicherung —
-        bei geschlossenem Programm.
+        Struktur vorgenommen werden. Die zehn jüngsten Kopien bleiben erhalten.
       </p>
+      <p className="feld-hinweis">
+        Diese Kopien liegen neben der Datenbank, also auf derselben Festplatte. Bei einem
+        Defekt sind sie mit weg — sichere zusätzlich woandershin, etwa mit „Speichern
+        unter".
+      </p>
+
+      {neustartNoetig && (
+        <div className="hinweis-karte" role="status">
+          <h3>Die Wiederherstellung ist vorgemerkt</h3>
+          <p>
+            Sie wird beim nächsten Start eingespielt — die Datenbank ist gerade geöffnet und
+            lässt sich im laufenden Betrieb nicht austauschen. Der jetzige Stand wird dabei
+            zuerst gesichert.
+          </p>
+          <button type="button" className="btn btn-primaer" onClick={() => relaunch()}>
+            Jetzt neu starten
+          </button>
+        </div>
+      )}
       <button type="button" className="btn" disabled={laeuft} onClick={jetztSichern}>
         Jetzt sichern
       </button>
@@ -367,7 +431,7 @@ function SicherungenAbschnitt() {
             <tr>
               <th>Zeitpunkt</th>
               <th>Größe</th>
-              <th>Ablage</th>
+              <th />
             </tr>
           </thead>
           <tbody>
@@ -375,7 +439,14 @@ function SicherungenAbschnitt() {
               <tr key={s.zeitstempel}>
                 <td>{zeitpunkt(s.zeitstempel)}</td>
                 <td>{Math.max(1, Math.round(s.groesse_bytes / 1024))} KB</td>
-                <td className="tabelle-num">{s.pfad}</td>
+                <td className="zeilen-aktionen">
+                  <button type="button" className="btn" onClick={() => exportieren(s)}>
+                    Speichern unter …
+                  </button>
+                  <button type="button" className="btn" onClick={() => wiederherstellen(s)}>
+                    Zurückspielen
+                  </button>
+                </td>
               </tr>
             ))}
           </tbody>
