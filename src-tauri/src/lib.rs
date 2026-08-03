@@ -210,4 +210,6 @@ pub fn run() {
 }
 
 #[cfg(test)]
+mod aktualisierung;
+#[cfg(test)]
 mod ipc;

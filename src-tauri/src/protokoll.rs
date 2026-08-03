@@ -55,7 +55,14 @@ pub fn plugin<R: tauri::Runtime>() -> tauri::plugin::TauriPlugin<R> {
 /// Deshalb: eigene Meldungen immer, fremde erst ab Warnung. Ein Problem in
 /// einer Abhängigkeit bleibt so sichtbar, ihr Alltagsgeplauder nicht.
 fn soll_protokollieren(ziel: &str, stufe: log::Level) -> bool {
-    ziel.starts_with("kleinunternehmer_verwaltung") || stufe <= log::Level::Warn
+    ziel.starts_with("kleinunternehmer_verwaltung")
+        // Meldungen aus der Oberfläche zählen wie eigene. Ohne diesen Zweig
+        // fielen sie unterhalb von „Warnung" durch — und damit gerade die
+        // Aufzeichnung der Aktualisierungssuche, die im Webview stattfindet.
+        // Sie fehlte genau dann, wenn man sie gebraucht hätte: Die Anwendung
+        // meldete „auf dem neuesten Stand", und das Protokoll schwieg dazu.
+        || ziel == tauri_plugin_log::WEBVIEW_TARGET
+        || stufe <= log::Level::Warn
 }
 
 /// Meldet ungefangene Programmabstürze ins Protokoll.

@@ -6,6 +6,10 @@ vi.mock("@tauri-apps/api/app", () => ({ getVersion: vi.fn().mockResolvedValue("0
 vi.mock("@tauri-apps/plugin-updater", () => ({ check: vi.fn() }));
 vi.mock("@tauri-apps/plugin-process", () => ({ relaunch: vi.fn().mockResolvedValue(undefined) }));
 vi.mock("@tauri-apps/plugin-opener", () => ({ revealItemInDir: vi.fn().mockResolvedValue(undefined) }));
+vi.mock("@tauri-apps/plugin-log", () => ({
+  info: vi.fn().mockResolvedValue(undefined),
+  warn: vi.fn().mockResolvedValue(undefined),
+}));
 vi.mock("../api", () => ({
   api: {
     protokoll: { pfad: vi.fn().mockResolvedValue("/Users/test/Library/Logs/app/app.log") },
@@ -19,6 +23,7 @@ vi.mock("../api", () => ({
 import { check } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
+import { info, warn } from "@tauri-apps/plugin-log";
 import { api } from "../api";
 import { Aktualisierung } from "./Aktualisierung";
 
@@ -37,6 +42,8 @@ function update(overrides: Record<string, unknown> = {}) {
 // führte, der wie eine geworfene Ausnahme des Tests aussah.
 beforeEach(() => {
   vi.mocked(check).mockReset();
+  vi.mocked(info).mockClear();
+  vi.mocked(warn).mockClear();
 });
 afterEach(cleanup);
 
@@ -172,6 +179,40 @@ describe("Aktualisierung", () => {
     fireEvent.click(screen.getByLabelText(/Beim Programmstart/));
     await waitFor(() =>
       expect(api.einstellungen.set).toHaveBeenCalledWith("aktualisierung.beim_start_suchen", "nein"),
+    );
+  });
+
+  /*
+   * Das Ergebnis der Suche muss ins Protokoll.
+   *
+   * „Auf dem neuesten Stand" ist die einzige Meldung der Anwendung, die richtig
+   * aussieht und trotzdem falsch sein kann — sie stimmt immer, bezogen auf das,
+   * was die Abfrage zu sehen bekam. Genau das war einmal etwas anderes als
+   * erwartet, und die Protokolldatei schwieg dazu.
+   */
+  it("hält im Protokoll fest, dass nichts Neueres gefunden wurde", async () => {
+    vi.mocked(check).mockResolvedValue(null);
+    render(<Aktualisierung />);
+    await waitFor(() =>
+      expect(info).toHaveBeenCalledWith("Aktualisierungssuche: nichts Neueres gefunden"),
+    );
+  });
+
+  it("hält im Protokoll fest, welche Version gefunden wurde", async () => {
+    vi.mocked(check).mockResolvedValue(update({ version: "0.3.0" }));
+    render(<Aktualisierung />);
+    await waitFor(() =>
+      expect(info).toHaveBeenCalledWith("Aktualisierungssuche: Version 0.3.0 gefunden"),
+    );
+  });
+
+  it("hält eine fehlgeschlagene Suche fest, auch wenn sie stumm bleibt", async () => {
+    // Beim Programmstart bekommt der Nutzer davon nichts zu sehen. Ohne diese
+    // Zeile bliebe eine dauerhaft scheiternde Suche vollkommen unbemerkt.
+    vi.mocked(check).mockRejectedValue(new Error("kein Netz"));
+    render(<Aktualisierung />);
+    await waitFor(() =>
+      expect(warn).toHaveBeenCalledWith("Aktualisierungssuche fehlgeschlagen: kein Netz"),
     );
   });
 });

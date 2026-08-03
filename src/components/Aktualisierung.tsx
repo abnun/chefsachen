@@ -3,8 +3,10 @@ import { getVersion } from "@tauri-apps/api/app";
 import { check, type Update } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
+import { info, warn } from "@tauri-apps/plugin-log";
 import { api } from "../api";
 import { SCHLUESSEL_NOTIZEN } from "./VersionsHinweis";
+import { Aenderungstext } from "./Aenderungstext";
 
 /**
  * Suche nach neuen Programmversionen.
@@ -67,8 +69,26 @@ export function Aktualisierung() {
     setStand({ art: "sucht" });
     try {
       const update = await check();
+      /*
+       * Das Ergebnis gehört ins Protokoll.
+       *
+       * „Auf dem neuesten Stand" ist die einzige Meldung der Anwendung, die
+       * richtig aussieht und trotzdem falsch sein kann — etwa weil die
+       * Veröffentlichung auf der Gegenseite noch nicht umgeschaltet war. Ohne
+       * diese Zeile ließ sich hinterher nicht unterscheiden, ob wirklich
+       * nichts da war oder ob die Abfrage etwas anderes zu sehen bekam.
+       */
+      // Die installierte Version steht bereits im Protokollkopf; sie hier zu
+      // wiederholen hieße, sie in diese Funktion hineinzuziehen, bevor sie
+      // geladen ist.
+      info(
+        update
+          ? `Aktualisierungssuche: Version ${update.version} gefunden`
+          : "Aktualisierungssuche: nichts Neueres gefunden",
+      ).catch(() => {});
       setStand(update ? { art: "verfuegbar", update } : { art: "aktuell" });
     } catch (e) {
+      warn(`Aktualisierungssuche fehlgeschlagen: ${fehlertext(e)}`).catch(() => {});
       // Ohne Netz schlägt die Suche fehl. Beim Programmstart ist das kein
       // Ereignis, über das der Nutzer etwas erfahren müsste.
       setStand(manuell ? { art: "fehler", meldung: fehlertext(e) } : { art: "unbekannt" });
@@ -129,7 +149,7 @@ export function Aktualisierung() {
       {stand.art === "verfuegbar" && (
         <div className="hinweis-karte">
           <h3>Version {stand.update.version} ist verfügbar</h3>
-          {stand.update.body && <p>{stand.update.body}</p>}
+          {stand.update.body && <Aenderungstext text={stand.update.body} />}
           <p>
             Die Aktualisierung wird geladen, geprüft und eingespielt. Danach startet die
             Anwendung neu. Deine Daten bleiben dabei unverändert — sie liegen außerhalb
