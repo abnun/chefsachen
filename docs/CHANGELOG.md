@@ -7,6 +7,36 @@ auf GitHub ändert daran nichts mehr.
 
 Deshalb hier in der Sprache der Anwender, nicht in der der Commits.
 
+## 0.2.2
+
+**Behoben: Schaltflächen ließen sich nicht anklicken**
+- Bei schmalem Fenster schob eine breite Tabelle die ganze Seite über den
+  rechten Rand hinaus. Die Schaltflächen darüber standen dann außerhalb des
+  Fensters: sichtbar nur nach seitlichem Schieben, und ein Klick darauf traf
+  ins Leere — ohne jede Meldung. Am deutlichsten beim Festschreiben eines
+  Angebots mit mehreren Positionen. Eine zu breite Tabelle bekommt jetzt einen
+  eigenen Schiebebereich, alles andere bleibt im Fenster.
+
+**Erste Schritte**
+- Die Übersicht führt nach der Ersteinrichtung weiter: erster Kunde, erster
+  Artikel, erstes Angebot oder erste Rechnung. Die Kachel verschwindet, sobald
+  alles steht.
+
+**Kundenpreise**
+- Sie öffnen sich jetzt in einem eigenen Fenster, statt die Artikeltabelle
+  mitten entzwei zu klappen. Das Eingabeformular erscheint erst, wenn du einen
+  Preis hinzufügen willst.
+- Ein Kundenpreis lässt sich entfernen. Bisher ließ er sich nur anlegen.
+- Das Gültig-ab-Datum steht deutsch da statt in der Form „2026-01-01". Ohne
+  Datum steht „sofort".
+- In der Artikelliste haben die Kundenpreise eine eigene, sortierbare Spalte.
+
+**Einheitlichere Oberfläche**
+- Schaltflächen kleben nicht mehr am darüberliegenden Eingabefeld und stehen
+  auf allen Seiten gleich.
+- „Neuer Kunde" öffnet das Formular immer. Bisher schloss derselbe Knopf es
+  wieder, ohne das anzuzeigen; geschlossen wird jetzt über „Abbrechen".
+
 ## 0.2.1
 
 **Ersteinrichtung**
