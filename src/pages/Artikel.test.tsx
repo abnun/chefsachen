@@ -210,4 +210,44 @@ describe("Artikel", () => {
     fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Löschen" }));
     await waitFor(() => expect(vi.mocked(api.artikel.delete)).toHaveBeenCalledWith("a1", true));
   });
+
+  /*
+   * Pflichtfelder melden sich wie alle anderen Feldfehler.
+   *
+   * Bezeichnung und Einheit hingen zuvor an `required`. Die eingebaute Blase
+   * des Browsers steht in der Sprache des Systems, sieht anders aus als jede
+   * andere Meldung der Anwendung und verschwindet beim nächsten Klick — in
+   * einem Formular, das sonst deutsche Feldfehler zeigt, ein Fremdkörper.
+   */
+  it("weist eine fehlende Einheit am Feld aus", async () => {
+    const { api } = await import("../api");
+    vi.mocked(api.artikel.create).mockRejectedValueOnce({
+      typ: "validation", feld: "einheit_id", meldung: "Bitte eine Einheit wählen",
+    });
+    render(<Artikel />);
+    await waitFor(() => expect(screen.getByRole("button", { name: "Neuer Artikel" })).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Neuer Artikel" }));
+    fireEvent.change(screen.getByLabelText("Bezeichnung"), { target: { value: "Konzeption" } });
+    fireEvent.change(screen.getByLabelText("Standardpreis (€)"), { target: { value: "50,00" } });
+    fireEvent.click(screen.getByRole("button", { name: "Speichern" }));
+
+    await waitFor(() => expect(screen.getByText("Bitte eine Einheit wählen")).toBeTruthy());
+  });
+
+  it("kommt bis zum Absenden, auch wenn die Bezeichnung fehlt", async () => {
+    // Ohne diesen Weg bliebe der Fehler beim Browser hängen und die eigene
+    // Meldung erschiene nie.
+    const { api } = await import("../api");
+    vi.mocked(api.artikel.create).mockRejectedValueOnce({
+      typ: "validation", feld: "bezeichnung", meldung: "Bezeichnung darf nicht leer sein",
+    });
+    render(<Artikel />);
+    await waitFor(() => expect(screen.getByRole("button", { name: "Neuer Artikel" })).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Neuer Artikel" }));
+    fireEvent.change(screen.getByLabelText("Einheit"), { target: { value: "e1" } });
+    fireEvent.change(screen.getByLabelText("Standardpreis (€)"), { target: { value: "50,00" } });
+    fireEvent.click(screen.getByRole("button", { name: "Speichern" }));
+
+    await waitFor(() => expect(screen.getByText("Bezeichnung darf nicht leer sein")).toBeTruthy());
+  });
 });

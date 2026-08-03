@@ -41,6 +41,12 @@ async fn pruefe_artikel(pool: &SqlitePool, bezeichnung: &str, standardpreis_cent
     if standardpreis_cent < 0 {
         return Err(AppError::Validation { feld: "standardpreis_cent".into(), meldung: "Standardpreis darf nicht negativ sein".into() });
     }
+    // Nichts gewählt und „gibt es nicht" sind zwei verschiedene Lagen. Der Satz
+    // „Einheit existiert nicht" ist für den häufigen Fall — das Auswahlfeld
+    // steht noch auf dem Strich — schlicht verwirrend.
+    if einheit_id.trim().is_empty() {
+        return Err(AppError::Validation { feld: "einheit_id".into(), meldung: "Bitte eine Einheit wählen".into() });
+    }
     let einheit_existiert: (i64,) = sqlx::query_as(
         "SELECT COUNT(*) FROM einheit WHERE id = ? AND deleted_at IS NULL")
         .bind(einheit_id).fetch_one(pool).await?;
@@ -284,6 +290,26 @@ mod tests {
             notizen: "".into(), ust_idnr: "".into(), email: "".into(),
             leitweg_id: "".into(), kaeuferreferenz: "".into(),
         }).await.unwrap().id
+    }
+
+    #[tokio::test]
+    async fn ohne_gewaehlte_einheit_kommt_eine_verstaendliche_meldung() {
+        // „Einheit existiert nicht" ist für den häufigen Fall — das Auswahlfeld
+        // steht noch auf dem Strich — schlicht verwirrend.
+        let dir = tempfile::tempdir().unwrap();
+        let pool = crate::db::init_db(&dir.path().join("t.db")).await.unwrap();
+        let fehler = create(&pool, ArtikelNeu {
+            bezeichnung: "Beratung".into(), beschreibung: String::new(),
+            einheit_id: String::new(), standardpreis_cent: 5000,
+        }).await.unwrap_err();
+
+        match fehler {
+            AppError::Validation { feld, meldung } => {
+                assert_eq!(feld, "einheit_id");
+                assert_eq!(meldung, "Bitte eine Einheit wählen");
+            }
+            anderer => panic!("unerwarteter Fehler: {anderer:?}"),
+        }
     }
 
     #[tokio::test]

@@ -220,8 +220,12 @@ export function Artikel({ zeigeFormularBeimStart, onFormularUebernommen, onZuKun
           <div className="feld">
             <label>
               Bezeichnung
+              {/* Kein `required`: Die eingebaute Blase des Browsers steht in
+                  der Sprache des Systems, sieht anders aus als jede andere
+                  Meldung der Anwendung und verschwindet beim nächsten Klick.
+                  Die Prüfung im Rust-Teil meldet dasselbe an derselben Stelle
+                  wie alle übrigen Feldfehler. */}
               <input
-                required
                 value={form.bezeichnung}
                 onChange={(e) => setForm({ ...form, bezeichnung: e.currentTarget.value })}
               />
@@ -241,7 +245,6 @@ export function Artikel({ zeigeFormularBeimStart, onFormularUebernommen, onZuKun
             <label>
               Einheit
               <select
-                required
                 value={form.einheit_id}
                 onChange={(e) => setForm({ ...form, einheit_id: e.currentTarget.value })}
               >

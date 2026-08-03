@@ -3,7 +3,9 @@
 Priorisierte Arbeitsliste, abgeleitet aus [MVP-Review vom 2026-08-02](2026-08-02-mvp-review.md).
 Reihenfolge = Empfehlung. Jeder Punkt trägt die Referenz aus dem Review.
 
-## Stand (2026-08-02)
+## Stand (2026-08-03)
+
+Die Arbeitsliste des MVP-Reviews ist abgearbeitet:
 
 | Stufe | Fortschritt |
 |---|---|
@@ -14,13 +16,44 @@ Reihenfolge = Empfehlung. Jeder Punkt trägt die Referenz aus dem Review.
 | 5 — Produktreife | ⬜ 6/7, P5.6 bewusst zurückgestellt |
 | 6 — UX und Code-Qualität | ✅ 11/11 |
 
-**Stand:** Alle sechs Stufen sind abgearbeitet, die CI läuft und ist grün. Offen bleiben:
+Seither treibt nicht mehr das Review die Arbeit, sondern der Gebrauch: Die
+Fassungen 0.2.1 bis 0.2.3 gehen fast ausschließlich auf Beobachtungen aus dem
+täglichen Arbeiten mit der Anwendung zurück. Was dabei entstand, steht in
+[CHANGELOG.md](CHANGELOG.md) — hier nur die Befunde, die über eine einzelne
+Behebung hinausweisen:
+
+- **Ein Klick, der nichts tut, hat oft nichts mit dem Knopf zu tun.** Zwei
+  Schaltflächen ließen sich nicht anklicken, weil eine breite Tabelle die ganze
+  Seite über den Fensterrand hinausschob (`min-width` bei Flex-Elementen). Kein
+  Test bemerkt so etwas; der Durchstich prüft seither, dass das Dokument nicht
+  waagerecht scrollt.
+- **Doppelte Formulierungen laufen auseinander.** Die Zahlungsbedingung stand
+  unterschiedlich auf PDF und XRechnung, die Statusfarben dreimal im Code, die
+  Aktionsleiste in vier fast gleichen CSS-Klassen. Ein Test findet inzwischen
+  CSS-Klassen, die nichts mehr treffen.
+- **Was über den Programmrand hinausgeht, prüft kein Test von selbst.** Die
+  Suche nach Aktualisierungen meldete „auf dem neuesten Stand", während längst
+  eine neuere Fassung veröffentlicht war. Dafür gibt es jetzt zwei Tests gegen
+  den echten Endpunkt (`--ignored`, sie brauchen Netz), und das Protokoll hält
+  das Ergebnis jeder Suche fest.
+
+### Offen
+
 - **P0 — iCloud Drive: bewusste Entscheidung (2026-08-03), es bleibt dabei.**
   Bekannte Folgen: `npm ci` kann an Dubletten wie `node_modules/esbuild 2/` scheitern
   (Abhilfe: `npm install` statt `npm ci`), und Werkzeuge, die den Ordner durchlaufen, stolpern
   über ausgelagerte Dateien („Resource deadlock avoided"). Der Container-Lauf des Durchstichs
   umgeht das bereits mit `--ignore-failed-read`.
-- **P5.6** — Signierung, bewusst zurückgestellt (Family & Friends).
+- **P5.6** — Signierung, bewusst zurückgestellt (Family & Friends). Folge: Beim
+  ersten Installieren aus der DMG blockiert macOS die App (Rechtsklick →
+  Öffnen). Beim Aktualisieren nicht — der Updater tauscht die App aus, ohne das
+  Quarantäne-Merkmal zu setzen.
+- **Ein sporadisch scheiternder Test.** `KundeDetail` → „fragt nicht, wenn eine
+  Änderung wieder zurückgenommen wurde" fiel am 2026-08-03 **einmal** durch und
+  war danach in elf Läufen nicht wieder zu erwischen; die Meldung ist nicht
+  erhalten. Ungeklärt. Beim nächsten Auftreten sofort untersuchen, statt ohne
+  Reproduktion zu suchen — ein Test, der grundlos ausfällt, untergräbt mit der
+  Zeit das Vertrauen in die ganze Suite.
 
 ## Entwicklungsumgebung einrichten
 
