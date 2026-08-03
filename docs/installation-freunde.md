@@ -7,8 +7,9 @@ nur **einmalig** zu bestätigen.
 
 ## macOS
 
-1. Lade die Datei `Kleinunternehmer-Verwaltung_x.y.z_aarch64.dmg` herunter und
-   öffne sie (bei älteren Macs mit Intel-Prozessor: `_x64.dmg`).
+1. Lade die Datei `Kleinunternehmer-Verwaltung_x.y.z_universal.dmg` herunter und
+   öffne sie. Sie passt auf beide Mac-Sorten, mit Apple- wie mit Intel-Prozessor —
+   du musst nichts unterscheiden.
 2. Ziehe die App in den `Programme`-Ordner, wie bei jeder Mac-App.
 3. Starte sie per Doppelklick. macOS meldet, die App könne nicht geöffnet
    werden — das ist der erwartete Schritt, nicht das Ende.
