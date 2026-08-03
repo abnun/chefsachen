@@ -38,6 +38,8 @@ Die erste Fassung, die sich selbst aktualisieren kann.
   des Fensters.
 
 **Sonstiges**
+- Beim Installieren entfällt der englische Lizenzdialog. Die MIT-Lizenz ist
+  eine Rechteübertragung, keine Vereinbarung, der man zustimmen muss.
 - Alles lässt sich ohne Maus bedienen.
 - Ein Protokoll unter „Einstellungen → Programmversion" hilft bei der
   Fehlersuche. Es enthält keine Kunden- oder Rechnungsdaten.
