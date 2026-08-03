@@ -7,6 +7,59 @@ auf GitHub ändert daran nichts mehr.
 
 Deshalb hier in der Sprache der Anwender, nicht in der der Commits.
 
+## 0.2.3
+
+**Aussehen von Angebot und Rechnung einstellbar**
+- Unter „Einstellungen → Belegvorlage" lassen sich Logo (links, rechts neben
+  der Anschrift oder gar keins) und seine Höhe, die Absenderzeile, die
+  Akzentfarbe, die Spalten „Pos.", „Einheit" und „Einzelpreis", der Ort der
+  Bankverbindung sowie die Seitenränder anpassen. Daneben steht eine Vorschau
+  mit deinen Firmendaten und deinem Logo; sie folgt dem Formular, du musst also
+  nicht speichern, um zu sehen, was du einstellst.
+- Nicht einstellbar sind mit Absicht: die Lage des Anschriftfelds (sie folgt
+  DIN 5008 — woanders liegt die Anschrift nicht im Umschlagfenster) und die
+  Spalten „Bezeichnung" und „Menge" (Pflichtangaben nach § 14 UStG).
+- Ohne eigene Einstellung sieht alles aus wie bisher.
+
+**Texte auf dem Beleg**
+- Angebot und Rechnung haben jetzt eigene Kopf- und Fußtexte. Beim Überführen
+  eines Angebots in eine Rechnung stand dort vorher der Wortlaut des Angebots —
+  „anbei erhalten Sie das gewünschte Angebot" auf einer Rechnung.
+- Einen Kopftext gab es bisher gar nicht als Vorlage; er blieb leer und musste
+  jedes Mal neu geschrieben werden.
+
+**Preise**
+- Beim Erfassen einer Position steht jetzt da, welcher Preis gilt: „Kundenpreis
+  65,00 € statt 95,50 €" oder „Standardpreis 95,50 € — kein Kundenpreis
+  hinterlegt". Bisher erfuhr man das erst, wenn die Position schon in der Liste
+  stand.
+- Die Positionssumme wird schon vor dem Speichern ausgerechnet.
+
+**Zahlungsziel**
+- Ein Zahlungsziel von 0 Tagen ergibt jetzt „Zahlbar sofort ohne Abzug." Vorher
+  stand dort „Zahlbar bis <Belegdatum> (0 Tage)".
+- PDF und XRechnung formulieren die Zahlungsbedingung gleich; sie nannten
+  dieselbe Sache bisher unterschiedlich.
+
+**Klarere Wörter**
+- Ein festgeschriebenes Angebot heißt jetzt „Festgeschrieben" statt
+  „Versendet". Die Anwendung verschickt nichts — das sagt auch die Rückfrage
+  davor, und der Status widersprach ihr.
+- „Speichern" unter den Stammdaten meldet „Stammdaten gespeichert" statt
+  „Angebot gespeichert". Gespeichert wurde nur diese eine Karte.
+
+**Vor dem Festschreiben**
+- Die Rückfrage zeigt jetzt Kunde, Positionen, Summe sowie Kopf- und Fußtext.
+  Danach lässt sich nichts mehr ändern, und beim Klicken hat man die Texte
+  nicht vor Augen.
+
+**Kleinigkeiten**
+- Der Hinweis nach einer Aktualisierung zeigt die Änderungen jetzt gesetzt
+  statt mit Sternchen und Bindestrichen im Text.
+- Das Protokoll hält fest, was die Suche nach einer Aktualisierung ergeben hat.
+  „Auf dem neuesten Stand" stimmt immer — bezogen auf das, was die Abfrage zu
+  sehen bekam.
+
 ## 0.2.2
 
 **Behoben: Schaltflächen ließen sich nicht anklicken**

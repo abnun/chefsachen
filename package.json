@@ -1,7 +1,7 @@
 {
   "name": "kleinunternehmer-verwaltung",
   "private": true,
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "Rechnungen, Angebote und E-Rechnungen für Kleinunternehmer nach § 19 UStG",
   "author": "Markus Müller <abnun@gmx.de>",
   "license": "MIT",
