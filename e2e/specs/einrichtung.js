@@ -17,19 +17,38 @@ describe("Erster Start", () => {
     await expect(ueberschrift).toHaveText("Ersteinrichtung");
   });
 
-  it("nimmt Eingaben an und trägt sie über die IPC-Grenze in die Datenbank", async () => {
-    // Schritt 1: Firmenname. Der Rest der Einrichtung hat eigene Tests im
-    // Frontend; hier geht es um den Durchstich, nicht um die Vollständigkeit.
+  it("hält bei unvollständigen Angaben im ersten Schritt an", async () => {
+    // Geprüft wird seit 0.2.1 schon nach Schritt 1, im Backend. Ohne
+    // Steuernummer oder USt-IdNr. ist eine Rechnung nach § 14 UStG formell
+    // fehlerhaft — das soll man erfahren, bevor man vier weitere Schritte geht.
+    const nameFeld = await $('//label[contains(., "Name")]/input');
+    await nameFeld.waitForDisplayed({ timeout: 10000 });
+    await nameFeld.setValue("E2E Testfirma");
+
+    await (await $('//button[text()="Weiter"]')).click();
+
+    const meldung = await $("[role='alert'], .fehler");
+    await meldung.waitForDisplayed({ timeout: 10000 });
+    await expect(await $(".schritt-fortschritt")).toHaveText(
+      expect.stringContaining("Schritt 1"),
+    );
+  });
+
+  it("nimmt vollständige Eingaben an und trägt sie über die IPC-Grenze", async () => {
+    // Der eigentliche Durchstich: Eingabe, Prüfung im Rust-Teil, Schrittwechsel.
     const nameFeld = await $('//label[contains(., "Name")]/input');
     await nameFeld.waitForDisplayed({ timeout: 10000 });
     await nameFeld.setValue("E2E Testfirma");
     await expect(nameFeld).toHaveValue("E2E Testfirma");
 
-    const weiter = await $('//button[text()="Weiter"]');
-    await weiter.click();
+    const steuernummer = await $('//label[contains(., "Steuernummer")]/input');
+    await steuernummer.setValue("12/345/67890");
 
-    // Schritt 2 erscheint nur, wenn React auf den Klick reagiert hat — der
-    // Beweis, dass die Oberfläche lebt und nicht nur gerendert wurde.
+    await (await $('//button[text()="Weiter"]')).click();
+
+    // Schritt 2 erscheint nur, wenn die Prüfung im Backend durchlief und React
+    // darauf reagiert hat — der Beweis, dass die Brücke in beide Richtungen
+    // trägt.
     const schritt = await $(".schritt-fortschritt");
     await expect(schritt).toHaveText(expect.stringContaining("Schritt 2"));
   });
