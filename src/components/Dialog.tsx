@@ -11,6 +11,8 @@ interface DialogProps {
   aktionen: ReactNode;
   /** Escape, Klick auf den Hintergrund. */
   onSchliessen: () => void;
+  /** Breiter Zuschnitt für Inhalte mit einer Tabelle statt einer Rückfrage. */
+  breit?: boolean;
 }
 
 /**
@@ -25,7 +27,7 @@ interface DialogProps {
  * liest dann Inhalte vor, die das Overlay verdeckt (WCAG 2.4.3). Beim Schließen
  * geht der Fokus dorthin zurück, wo er herkam.
  */
-export function Dialog({ titel, children, aktionen, onSchliessen }: DialogProps) {
+export function Dialog({ titel, children, aktionen, onSchliessen, breit }: DialogProps) {
   const karte = useRef<HTMLDivElement>(null);
   const erstesZiel = useRef<HTMLButtonElement>(null);
   const titelId = useId();
@@ -86,7 +88,7 @@ export function Dialog({ titel, children, aktionen, onSchliessen }: DialogProps)
     <div className="bestaetigung-overlay" onClick={onSchliessen}>
       <div
         ref={karte}
-        className="bestaetigung-karte"
+        className={breit ? "bestaetigung-karte bestaetigung-karte-breit" : "bestaetigung-karte"}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titelId}

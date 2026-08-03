@@ -389,52 +389,6 @@ label.feld textarea {
 }
 
 /* Kundenpreise-Bereich (Artikel-Seite): zwei getrennte Boxen — Liste, dann Formular */
-.kundenpreis-bereich {
-  margin: var(--abstand-s) 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--abstand-l);
-}
-
-.kundenpreis-liste-box {
-  padding: var(--abstand-m) var(--abstand-l);
-  background: var(--bg-gedaempft);
-  border-left: 3px solid var(--akzent);
-  border-radius: 0 var(--radius-m) var(--radius-m) 0;
-}
-
-.kundenpreis-liste-box h4 {
-  margin: 0 0 var(--abstand-s);
-  font-size: var(--text-s);
-  font-weight: 600;
-  color: var(--text-leise);
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
-}
-
-.kundenpreis-zeile {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: var(--abstand-s) 0;
-  border-top: 1px solid var(--rand);
-  font-size: var(--text-m);
-}
-
-.kundenpreis-zeile:first-of-type {
-  border-top: none;
-}
-
-.kundenpreis-gueltig-ab {
-  display: block;
-  font-size: var(--text-s);
-  color: var(--text-leise);
-}
-
-.kundenpreis-preis {
-  font-weight: 600;
-}
-
 .kundenpreis-badge {
   display: inline-block;
   margin-left: var(--abstand-s);
@@ -454,20 +408,42 @@ label.feld textarea {
   color: var(--preis-teurer-text);
 }
 
+.kundenpreis-einleitung {
+  /* `.feld-hinweis` zieht sich mit negativem Rand an ein Eingabefeld heran;
+     hier steht der Satz für sich und braucht den Abstand. */
+  margin: 0 0 var(--abstand-m);
+}
+
+.kundenpreis-leer {
+  margin: 0 0 var(--abstand-m);
+  color: var(--text-leise);
+}
+
+.kundenpreis-tabelle {
+  margin-bottom: var(--abstand-m);
+}
+
+.kundenpreis-badge {
+  margin-left: var(--abstand-s);
+}
+
+.kundenpreis-hinzufuegen {
+  margin-bottom: var(--abstand-s);
+}
+
+/* Das Formular erscheint erst auf Verlangen und hebt sich dann ab, damit
+   erkennbar bleibt, was Eingabe ist und was Bestand. */
 .kundenpreis-formular {
-  padding: var(--abstand-m) var(--abstand-l);
-  background: var(--flaeche);
-  border: 1px solid var(--rand-stark);
+  padding: var(--abstand-m) var(--abstand-l) var(--abstand-s);
+  background: var(--bg-gedaempft);
+  border: 1px solid var(--rand);
   border-radius: var(--radius-m);
 }
 
-.kundenpreis-formular-titel {
-  margin: 0 0 var(--abstand-m);
-  font-size: var(--text-s);
-  font-weight: 600;
-  color: var(--text-leise);
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
+.kundenpreis-formular-aktionen {
+  display: flex;
+  gap: var(--abstand-s);
+  margin-bottom: var(--abstand-m);
 }
 
 /* Bestätigungsdialog */
@@ -488,6 +464,14 @@ label.feld textarea {
   padding: var(--abstand-l);
   max-width: 360px;
   width: calc(100% - var(--abstand-xl));
+}
+
+/* Breiter Zuschnitt für Dialoge mit Tabelleninhalt. Der Inhalt scrollt in sich
+   selbst, statt den Dialog über den Fensterrand hinauswachsen zu lassen. */
+.bestaetigung-karte-breit {
+  max-width: 620px;
+  max-height: calc(100vh - 2 * var(--abstand-xl));
+  overflow-y: auto;
 }
 
 .bestaetigung-aktionen {

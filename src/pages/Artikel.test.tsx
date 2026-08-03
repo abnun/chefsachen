@@ -1,3 +1,4 @@
+import "@testing-library/jest-dom/vitest";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -72,13 +73,15 @@ describe("Artikel", () => {
     expect(onZuKundenWechseln).toHaveBeenCalledTimes(1);
   });
 
-  it("zeigt den Kundenpreise-Button ohne Zahl, wenn keine Kundenpreise vorhanden sind", async () => {
+  it("sagt in der Kundenpreis-Spalte \u201ekeine\u201c, wenn es keine Ausnahmen gibt", async () => {
     render(<Artikel />);
     await waitFor(() => expect(screen.getByText("Beratung")).toBeTruthy());
-    expect(screen.getByRole("button", { name: "Kundenpreise" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Kundenpreise für Beratung" })).toHaveTextContent(
+      "keine",
+    );
   });
 
-  it("zeigt den Kundenpreise-Button mit Anzahl, wenn Kundenpreise vorhanden sind", async () => {
+  it("zählt die Ausnahmen in der Kundenpreis-Spalte", async () => {
     const { api } = await import("../api");
     vi.mocked(api.artikel.list).mockResolvedValueOnce([
       {
@@ -88,166 +91,29 @@ describe("Artikel", () => {
     ]);
     render(<Artikel />);
     await waitFor(() => expect(screen.getByText("Beratung")).toBeTruthy());
-    expect(screen.getByRole("button", { name: "Kundenpreise (2)" })).toBeTruthy();
-  });
-
-  it("zeigt im aufgeklappten Bereich den Standardpreis in der Überschrift sowie Kundenname und -preis", async () => {
-    const { api } = await import("../api");
-    vi.mocked(api.kunden.list).mockResolvedValueOnce([
-      {
-        id: "k1", typ: "firma", name: "ACME GmbH", kundennummer: "KD-0001",
-        zahlungsziel_tage: 14, notizen: "", ust_idnr: "", email: "",
-        leitweg_id: "", kaeuferreferenz: "", hat_adresse: true, kundenpreise_anzahl: 0,
-      },
-    ]);
-    vi.mocked(api.artikel.kundenpreise).mockResolvedValueOnce([
-      { id: "kp1", artikel_id: "a1", kunde_id: "k1", preis_cent: 6500, gueltig_ab: null },
-    ]);
-    render(<Artikel />);
-    await waitFor(() => expect(screen.getByText("Beratung")).toBeTruthy());
-    fireEvent.click(screen.getByRole("button", { name: "Kundenpreise" }));
-    await waitFor(() =>
-      expect(screen.getByText("Kundenpreise — Ausnahmen vom Standardpreis (95,50 €)")).toBeTruthy(),
+    // „2 Ausnahmen", nicht „Kundenpreise (2)": Die Spaltenüberschrift sagt
+    // schon, worum es geht, und die Zahl allein ließe offen, wovon.
+    expect(screen.getByRole("button", { name: "Kundenpreise für Beratung" })).toHaveTextContent(
+      "2 Ausnahmen",
     );
-    // Kundenname und -preis hängen von zwei unabhängig auflösenden Promises ab
-    // (api.kunden.list und api.artikel.kundenpreise) — deshalb eigenes waitFor je
-    // Assertion statt sich auf das Timing des obigen waitFor zu verlassen (das nur
-    // von standardpreisCent abhängt, einer synchron verfügbaren Prop, und daher
-    // schon vor dem Laden der beiden Listen erfüllt sein kann).
-    // { selector: "span" } grenzt außerdem gegen die gleichnamige <option> im
-    // Kunde-Dropdown desselben Panels ab — sonst meldet getByText "Found multiple
-    // elements", da <option>-Text ebenfalls zu getByText passt.
-    await waitFor(() => expect(screen.getByText("ACME GmbH", { selector: "span" })).toBeTruthy());
-    await waitFor(() => expect(screen.getByText("65,00 €")).toBeTruthy());
   });
 
-  it("zeigt das Gültig-ab-Datum als Zusatz, wenn gesetzt", async () => {
-    const { api } = await import("../api");
-    vi.mocked(api.kunden.list).mockResolvedValueOnce([
-      {
-        id: "k1", typ: "firma", name: "ACME GmbH", kundennummer: "KD-0001",
-        zahlungsziel_tage: 14, notizen: "", ust_idnr: "", email: "",
-        leitweg_id: "", kaeuferreferenz: "", hat_adresse: true, kundenpreise_anzahl: 0,
-      },
-    ]);
-    vi.mocked(api.artikel.kundenpreise).mockResolvedValueOnce([
-      { id: "kp1", artikel_id: "a1", kunde_id: "k1", preis_cent: 6500, gueltig_ab: "2026-01-01" },
-    ]);
-    render(<Artikel />);
-    await waitFor(() => expect(screen.getByText("Beratung")).toBeTruthy());
-    fireEvent.click(screen.getByRole("button", { name: "Kundenpreise" }));
-    await waitFor(() => expect(screen.getByText("ab 2026-01-01")).toBeTruthy());
-  });
 
-  it("zeigt eine günstiger-Badge, wenn der Kundenpreis niedriger als der Standardpreis ist", async () => {
-    const { api } = await import("../api");
-    vi.mocked(api.kunden.list).mockResolvedValueOnce([
-      {
-        id: "k1", typ: "firma", name: "ACME GmbH", kundennummer: "KD-0001",
-        zahlungsziel_tage: 14, notizen: "", ust_idnr: "", email: "",
-        leitweg_id: "", kaeuferreferenz: "", hat_adresse: true, kundenpreise_anzahl: 0,
-      },
-    ]);
-    vi.mocked(api.artikel.kundenpreise).mockResolvedValueOnce([
-      { id: "kp1", artikel_id: "a1", kunde_id: "k1", preis_cent: 6500, gueltig_ab: null },
-    ]);
-    render(<Artikel />);
-    await waitFor(() => expect(screen.getByText("Beratung")).toBeTruthy());
-    fireEvent.click(screen.getByRole("button", { name: "Kundenpreise" }));
-    // Standardpreis 95,50 € -> 65,00 € ist rund 32% günstiger.
-    await waitFor(() => expect(screen.getByText("−32%")).toBeTruthy());
-  });
 
-  it("zeigt eine teurer-Badge, wenn der Kundenpreis höher als der Standardpreis ist", async () => {
-    const { api } = await import("../api");
-    vi.mocked(api.kunden.list).mockResolvedValueOnce([
-      {
-        id: "k1", typ: "firma", name: "ACME GmbH", kundennummer: "KD-0001",
-        zahlungsziel_tage: 14, notizen: "", ust_idnr: "", email: "",
-        leitweg_id: "", kaeuferreferenz: "", hat_adresse: true, kundenpreise_anzahl: 0,
-      },
-    ]);
-    vi.mocked(api.artikel.kundenpreise).mockResolvedValueOnce([
-      { id: "kp1", artikel_id: "a1", kunde_id: "k1", preis_cent: 12000, gueltig_ab: null },
-    ]);
-    render(<Artikel />);
-    await waitFor(() => expect(screen.getByText("Beratung")).toBeTruthy());
-    fireEvent.click(screen.getByRole("button", { name: "Kundenpreise" }));
-    // Standardpreis 95,50 € -> 120,00 € ist rund 26% teurer.
-    await waitFor(() => expect(screen.getByText("+26%")).toBeTruthy());
-  });
 
-  it("zeigt keine Abweichungs-Badge, wenn der Standardpreis 0 ist", async () => {
-    const { api } = await import("../api");
-    vi.mocked(api.artikel.list).mockResolvedValueOnce([
-      {
-        id: "a1", artikelnummer: "ART-0001", bezeichnung: "Gratis-Beratung",
-        beschreibung: "", einheit_id: "e1", standardpreis_cent: 0, kundenpreise_anzahl: 1,
-      },
-    ]);
-    vi.mocked(api.kunden.list).mockResolvedValueOnce([
-      {
-        id: "k1", typ: "firma", name: "ACME GmbH", kundennummer: "KD-0001",
-        zahlungsziel_tage: 14, notizen: "", ust_idnr: "", email: "",
-        leitweg_id: "", kaeuferreferenz: "", hat_adresse: true, kundenpreise_anzahl: 0,
-      },
-    ]);
-    vi.mocked(api.artikel.kundenpreise).mockResolvedValueOnce([
-      { id: "kp1", artikel_id: "a1", kunde_id: "k1", preis_cent: 5000, gueltig_ab: null },
-    ]);
-    render(<Artikel />);
-    await waitFor(() => expect(screen.getByText("Gratis-Beratung")).toBeTruthy());
-    fireEvent.click(screen.getByRole("button", { name: "Kundenpreise (1)" }));
-    await waitFor(() => expect(screen.getByText("50,00 €")).toBeTruthy());
-    expect(screen.queryByText(/%/)).toBeNull();
-  });
 
-  it("aktualisiert die Kundenpreise-Anzahl im Button, nachdem ein neuer Kundenpreis gespeichert wurde", async () => {
+
+  it("öffnet die Kundenpreise als Dialog, ohne die Tabelle zu zerreißen", async () => {
+    // Vorher klappte hier eine Zeile mit `colSpan` über alle Spalten auf.
     const { api } = await import("../api");
-    vi.mocked(api.kunden.list).mockResolvedValueOnce([
-      {
-        id: "k1", typ: "firma", name: "ACME GmbH", kundennummer: "KD-0001",
-        zahlungsziel_tage: 14, notizen: "", ust_idnr: "", email: "",
-        leitweg_id: "", kaeuferreferenz: "", hat_adresse: true, kundenpreise_anzahl: 0,
-      },
-    ]);
     vi.mocked(api.artikel.kundenpreise).mockResolvedValueOnce([]);
-    vi.mocked(api.artikel.kundenpreisSave).mockResolvedValueOnce({
-      id: "kp1", artikel_id: "a1", kunde_id: "k1", preis_cent: 6500, gueltig_ab: null,
-    });
-    vi.mocked(api.artikel.list).mockResolvedValueOnce([
-      {
-        id: "a1", artikelnummer: "ART-0001", bezeichnung: "Beratung",
-        beschreibung: "", einheit_id: "e1", standardpreis_cent: 9550, kundenpreise_anzahl: 0,
-      },
-    ]).mockResolvedValueOnce([
-      {
-        id: "a1", artikelnummer: "ART-0001", bezeichnung: "Beratung",
-        beschreibung: "", einheit_id: "e1", standardpreis_cent: 9550, kundenpreise_anzahl: 1,
-      },
-    ]);
     render(<Artikel />);
     await waitFor(() => expect(screen.getByText("Beratung")).toBeTruthy());
-    fireEvent.click(screen.getByRole("button", { name: "Kundenpreise" }));
-    // Explizit auf die geladene <option> warten, nicht nur auf das <select> selbst:
-    // Das <select> existiert schon synchron beim Mount, bevor api.kunden.list
-    // aufgelöst hat — ein fireEvent.change auf "k1" liefe ansonsten ins Leere,
-    // solange die passende <option value="k1"> noch nicht im DOM ist.
-    await waitFor(() => expect(screen.getByRole("option", { name: "ACME GmbH" })).toBeTruthy());
-    fireEvent.change(screen.getByLabelText("Kunde"), { target: { value: "k1" } });
-    fireEvent.change(screen.getByLabelText("Preis (€)"), { target: { value: "65,00" } });
-    fireEvent.click(screen.getByRole("button", { name: "Speichern" }));
-    await waitFor(() =>
-      expect(screen.getByRole("button", { name: "Kundenpreise (1)" })).toBeTruthy(),
-    );
+    fireEvent.click(screen.getByRole("button", { name: "Kundenpreise für Beratung" }));
+    await waitFor(() => expect(screen.getByRole("dialog")).toBeTruthy());
+    expect(screen.getByRole("dialog")).toHaveTextContent("Kundenpreise für");
   });
 
-  it("trennt das Formular zum Anlegen eines neuen Kundenpreises optisch von der Preisliste", async () => {
-    render(<Artikel />);
-    await waitFor(() => expect(screen.getByText("Beratung")).toBeTruthy());
-    fireEvent.click(screen.getByRole("button", { name: "Kundenpreise" }));
-    await waitFor(() => expect(screen.getByText("Neuen Kundenpreis anlegen")).toBeTruthy());
-  });
 
   it("zeigt nach dem Anlegen eines Artikels einen Erfolgs-Hinweis, wenn bereits Kunden existieren", async () => {
     const { api } = await import("../api");
@@ -300,28 +166,6 @@ describe("Artikel", () => {
     await waitFor(() => expect(screen.getByText('Artikel „Beratung" gespeichert')).toBeTruthy());
   });
 
-  it("zeigt nach dem Anlegen eines Kundenpreises einen Erfolgs-Hinweis", async () => {
-    const { api } = await import("../api");
-    vi.mocked(api.kunden.list).mockResolvedValueOnce([
-      {
-        id: "k1", typ: "firma", name: "ACME GmbH", kundennummer: "KD-0001",
-        zahlungsziel_tage: 14, notizen: "", ust_idnr: "", email: "",
-        leitweg_id: "", kaeuferreferenz: "", hat_adresse: true, kundenpreise_anzahl: 0,
-      },
-    ]);
-    vi.mocked(api.artikel.kundenpreise).mockResolvedValueOnce([]);
-    vi.mocked(api.artikel.kundenpreisSave).mockResolvedValueOnce({
-      id: "kp1", artikel_id: "a1", kunde_id: "k1", preis_cent: 6500, gueltig_ab: null,
-    });
-    render(<Artikel />);
-    await waitFor(() => expect(screen.getByText("Beratung")).toBeTruthy());
-    fireEvent.click(screen.getByRole("button", { name: "Kundenpreise" }));
-    await waitFor(() => expect(screen.getByRole("option", { name: "ACME GmbH" })).toBeTruthy());
-    fireEvent.change(screen.getByLabelText("Kunde"), { target: { value: "k1" } });
-    fireEvent.change(screen.getByLabelText("Preis (€)"), { target: { value: "65,00" } });
-    fireEvent.click(screen.getByRole("button", { name: "Speichern" }));
-    await waitFor(() => expect(screen.getByText("Kundenpreis angelegt")).toBeTruthy());
-  });
 
   it("löscht einen Artikel nicht, wenn im Dialog abgebrochen wird", async () => {
     const { api } = await import("../api");
