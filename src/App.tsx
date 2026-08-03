@@ -38,6 +38,13 @@ function App() {
   }, []);
 
   useEffect(() => {
+    // Solange die Ersteinrichtung läuft, zeigt die Anwendung ausschließlich den
+    // Assistenten — der Menüeintrag führte dort ins Leere und tat wortlos
+    // nichts. Abgeblendet sagt er wenigstens, dass es jetzt nicht geht.
+    api.menue.einstellungenFreigeben(firma?.eingerichtet === true).catch(() => {});
+  }, [firma?.eingerichtet]);
+
+  useEffect(() => {
     // „Einstellungen …" aus dem Programmmenü (⌘,). Die Seitenverwaltung liegt
     // hier; das Menü schickt nur das Ereignis, sonst müssten sich zwei Stellen
     // über die aktuelle Seite einig sein.

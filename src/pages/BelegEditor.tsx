@@ -263,10 +263,117 @@ export function BelegEditor({ id, onZurueck, onGeaendert, onRechnungErstellt, on
       <h1 className="seiten-kopf">
         {beleg.typ === "angebot" ? "Angebot" : "Rechnung"} {beleg.nummer ?? "(Entwurf)"}
       </h1>
-      <p>
-        Status:{" "}
-        <StatusMarke status={beleg.status} />
-      </p>
+      {/* Die Aktionen stehen beim Status, nicht am Seitenende. Ein Beleg mit
+          vielen Positionen ist lang; „Stellen" war dort erst nach mehrmaligem
+          Scrollen zu finden — und daneben lagen Löschen und Stornieren. */}
+      <div className="beleg-kopfleiste">
+        <span className="beleg-status">
+          Status: <StatusMarke status={beleg.status} />
+        </span>
+
+        <div className="beleg-aktionen">
+          {istEntwurf && (
+            <button
+              type="button"
+              className="btn btn-primaer"
+              disabled={positionen.length === 0 || laeuft}
+              title={positionen.length === 0 ? "Erst eine Position hinzufügen" : undefined}
+              onClick={stellen}
+            >
+              {beleg.typ === "angebot" ? "Festschreiben" : "Stellen"}
+            </button>
+          )}
+
+          {beleg.typ === "angebot" && ["versendet", "angenommen"].includes(beleg.status) && (
+            <button
+              type="button"
+              className="btn btn-primaer"
+              disabled={laeuft}
+              onClick={inRechnungUeberfuehren}
+            >
+              In Rechnung überführen
+            </button>
+          )}
+
+          {beleg.status !== "entwurf" && (
+            /* Sichtbar kurz, damit die Leiste nicht ausufert; der zugängliche
+               Name nennt die ganze Handlung. Er enthält das sichtbare Wort,
+               wie WCAG 2.5.3 es verlangt. */
+            <button
+              type="button"
+              className="btn"
+              aria-label="Als PDF exportieren"
+              onClick={pdfExportieren}
+            >
+              PDF
+            </button>
+          )}
+          {beleg.typ === "rechnung" && beleg.status !== "entwurf" && (
+            <>
+              <button
+                type="button"
+                className="btn"
+                aria-label="Als XRechnung (XML) exportieren"
+                onClick={xrechnungExportieren}
+              >
+                XRechnung
+              </button>
+              <button
+                type="button"
+                className="btn"
+                aria-label="Als ZUGFeRD-Rechnung exportieren"
+                onClick={zugferdExportieren}
+              >
+                ZUGFeRD
+              </button>
+            </>
+          )}
+
+          {beleg.typ === "angebot" && beleg.status === "versendet" &&
+            ANGEBOT_ABSCHLUSS_STATUS.map((z) => (
+              <button
+                key={z.wert}
+                type="button"
+                className="btn"
+                disabled={laeuft}
+                onClick={() => angebotStatus(z.wert)}
+              >
+                {z.label}
+              </button>
+            ))}
+
+          {/* Ohne diese Möglichkeit bleibt ein versehentlich angelegter Entwurf
+              für immer stehen — und blockiert zusätzlich das Löschen seines
+              Kunden. */}
+          {istEntwurf && (
+            <button
+              type="button"
+              className="btn btn-gefahr"
+              disabled={laeuft}
+              onClick={entwurfLoeschen}
+            >
+              Entwurf löschen
+            </button>
+          )}
+
+          {/* Ein Stornobeleg ist selbst eine gestellte Rechnung. Ohne die
+              Prüfung auf storno_von_id ließe er sich erneut stornieren — das
+              erzeugt eine Kaskade aus Gegenbelegen und verbraucht bei jedem
+              Schritt eine Rechnungsnummer. */}
+          {beleg.typ === "rechnung" && beleg.status === "gestellt" &&
+            beleg.storno_von_id === null && (
+              <button
+                type="button"
+                className="btn btn-gefahr"
+                disabled={laeuft}
+                onClick={stornieren}
+              >
+                Stornieren
+              </button>
+            )}
+        </div>
+      </div>
+
       {fehler && <Fehler fehler={fehler} />}
       {hinweis}
       {dialog}
@@ -287,77 +394,14 @@ export function BelegEditor({ id, onZurueck, onGeaendert, onRechnungErstellt, on
         onLoeschen={positionLoeschen}
       />
 
-      <p>Summe: {formatCent(beleg.summe_cent)}</p>
+      <p className="beleg-summe">Summe: {formatCent(beleg.summe_cent)}</p>
 
-      {beleg.status !== "entwurf" && (
-        <button type="button" className="btn btn-leise" onClick={pdfExportieren}>
-          Als PDF exportieren
-        </button>
-      )}
-      {beleg.typ === "rechnung" && beleg.status !== "entwurf" && (
-        <>
-          <button type="button" className="btn btn-leise" onClick={xrechnungExportieren}>
-            Als XRechnung (XML) exportieren
-          </button>
-          <button type="button" className="btn btn-leise" onClick={zugferdExportieren}>
-            Als ZUGFeRD-Rechnung exportieren
-          </button>
-        </>
-      )}
-
-      {istEntwurf && (
-        <button
-          type="button"
-          className="btn btn-primaer"
-          disabled={positionen.length === 0 || laeuft}
-          onClick={stellen}
-        >
-          Stellen
-        </button>
-      )}
-      {/* Ohne diese Möglichkeit bleibt ein versehentlich angelegter Entwurf für
-          immer stehen — und blockiert zusätzlich das Löschen seines Kunden. */}
-      {istEntwurf && (
-        <button type="button" className="btn btn-gefahr" disabled={laeuft} onClick={entwurfLoeschen}>
-          Entwurf löschen
-        </button>
-      )}
-
-      {beleg.typ === "angebot" && beleg.status === "versendet" && (
-        <section>
-          <h2>Abschluss</h2>
-          {ANGEBOT_ABSCHLUSS_STATUS.map((s) => (
-            <button
-              key={s.wert}
-              type="button"
-              className="btn"
-              disabled={laeuft}
-              onClick={() => angebotStatus(s.wert)}
-            >
-              {s.label}
-            </button>
-          ))}
-        </section>
-      )}
-
-      {beleg.typ === "angebot" && ["versendet", "angenommen"].includes(beleg.status) && (
-        <button type="button" className="btn btn-primaer" disabled={laeuft} onClick={inRechnungUeberfuehren}>
-          In Rechnung überführen
-        </button>
-      )}
-
-      {/* Ein Stornobeleg ist selbst eine gestellte Rechnung. Ohne die Prüfung auf
-          storno_von_id ließe er sich erneut stornieren — das erzeugt eine Kaskade
-          aus Gegenbelegen und verbraucht bei jedem Schritt eine Rechnungsnummer. */}
-      {beleg.typ === "rechnung" && beleg.status === "gestellt" && beleg.storno_von_id === null && (
-        <button type="button" className="btn btn-gefahr" disabled={laeuft} onClick={stornieren}>
-          Stornieren
-        </button>
-      )}
       {beleg.typ === "rechnung" && beleg.storno_von_id !== null && (
         <p>Dies ist ein Stornobeleg.</p>
       )}
-      {beleg.typ === "rechnung" && beleg.status === "storniert" && <p>Diese Rechnung wurde storniert.</p>}
+      {beleg.typ === "rechnung" && beleg.status === "storniert" && (
+        <p>Diese Rechnung wurde storniert.</p>
+      )}
 
       {beleg.typ === "rechnung" && ["gestellt", "storniert"].includes(beleg.status) && (
         <ZahlungenAbschnitt

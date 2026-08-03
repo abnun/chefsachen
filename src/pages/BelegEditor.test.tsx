@@ -92,7 +92,7 @@ describe("BelegEditor", () => {
     });
     render(<BelegEditor id="b1" />);
     await waitFor(() => expect(screen.getByText("Entwurf", { selector: ".status" })).toBeTruthy());
-    const stellenButton = screen.getByRole("button", { name: "Stellen" });
+    const stellenButton = screen.getByRole("button", { name: "Festschreiben" });
     expect(stellenButton).toBeDisabled();
   });
 
@@ -200,7 +200,7 @@ describe("BelegEditor – Stellen", () => {
     render(<BelegEditor id="b1" />);
     await waitFor(() => expect(screen.getByText("Beratung")).toBeTruthy());
 
-    const stellenButton = screen.getByRole("button", { name: "Stellen" });
+    const stellenButton = screen.getByRole("button", { name: "Festschreiben" });
     expect(stellenButton).not.toBeDisabled();
     fireEvent.click(stellenButton);
     // Angebot: der bestätigende Knopf heißt „Festschreiben", nicht „Stellen" —
@@ -607,6 +607,7 @@ describe("BelegEditor – Erfolgs-Hinweis", () => {
       }],
     });
     render(<BelegEditor id="b1" />);
+    // Eine Rechnung wird „gestellt"; nur ein Angebot wird „festgeschrieben".
     fireEvent.click(await screen.findByRole("button", { name: "Stellen" }));
     const knopf = within(await screen.findByRole("dialog")).getByRole("button", { name: "Stellen" });
     fireEvent.click(knopf);

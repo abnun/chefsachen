@@ -12,10 +12,20 @@
 //! über die aktuelle Seite einig sein müssten, liefen auseinander.
 
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem, Submenu};
-use tauri::{Emitter, Runtime};
+use tauri::{Emitter, Manager, Runtime};
 
 /// Kennung des Menüeintrags für die Einstellungen.
 const EINSTELLUNGEN: &str = "einstellungen";
+
+/// Merkt sich den Menüeintrag, damit er sich später ein- und ausschalten lässt.
+///
+/// Während der Ersteinrichtung zeigt die Anwendung ausschließlich den
+/// Assistenten. Der Eintrag führte dort ins Leere: Er schickte sein Ereignis,
+/// die Oberfläche schaltete um, und zu sehen war weiterhin der Assistent — ein
+/// Menüpunkt, der wortlos nichts tut, ist schlimmer als einer, der fehlt.
+pub struct MenueZustand<R: Runtime> {
+    pub einstellungen: std::sync::Mutex<Option<MenuItem<R>>>,
+}
 
 /// Ereignis, mit dem die Oberfläche zum Einstellungsbereich wechselt.
 pub const EREIGNIS_EINSTELLUNGEN: &str = "menue:einstellungen";
@@ -83,6 +93,10 @@ pub fn einrichten<R: Runtime>(app: &tauri::App<R>) -> tauri::Result<()> {
     let menue = Menu::with_items(app, &[&programm, &bearbeiten, &fenster])?;
     app.set_menu(menue)?;
 
+    app.manage(MenueZustand::<R> {
+        einstellungen: std::sync::Mutex::new(Some(einstellungen.clone())),
+    });
+
     app.on_menu_event(|app, ereignis| {
         if ereignis.id() == EINSTELLUNGEN {
             // Fehlschlag heißt nur, dass kein Fenster horcht — dann gibt es
@@ -91,5 +105,26 @@ pub fn einrichten<R: Runtime>(app: &tauri::App<R>) -> tauri::Result<()> {
         }
     });
 
+    Ok(())
+}
+
+/// Schaltet den Menüeintrag „Einstellungen …" frei oder ab.
+///
+/// Die Oberfläche ruft das auf, sobald sie weiß, ob die Einrichtung
+/// abgeschlossen ist. Solange sie läuft, gibt es keine Einstellungsseite, zu
+/// der man springen könnte.
+#[tauri::command]
+pub fn menue_einstellungen_freigeben<R: Runtime>(
+    app: tauri::AppHandle<R>,
+    frei: bool,
+) -> Result<(), String> {
+    let Some(zustand) = app.try_state::<MenueZustand<R>>() else {
+        // Ohne Menü (etwa im Test) gibt es nichts zu schalten.
+        return Ok(());
+    };
+    let eintrag = zustand.einstellungen.lock().map_err(|e| e.to_string())?;
+    if let Some(eintrag) = eintrag.as_ref() {
+        eintrag.set_enabled(frei).map_err(|e| e.to_string())?;
+    }
     Ok(())
 }

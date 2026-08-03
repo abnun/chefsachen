@@ -3,6 +3,9 @@ import { api, type AppFehler, type Kunde, type KundeNeu } from "../api";
 import { formularFehler } from "../formularFehler";
 import { Fehler } from "../components/Fehler";
 import { ZeilenKnopf } from "../components/ZeilenKnopf";
+import { SortierKopf } from "../components/SortierKopf";
+import { Werkzeugleiste } from "../components/Werkzeugleiste";
+import { useSortierung } from "../hooks/useSortierung";
 import { Laden } from "../components/Laden";
 import { Hinweis } from "../components/Hinweis";
 import { useErfolgsHinweis } from "../hooks/useErfolgsHinweis";
@@ -129,6 +132,16 @@ export function Kunden({
 
   const { feldFehler, bannerFehler } = formularFehler(formFehler, ["name", "email"]);
 
+  const { sortiert: sortierteKunden, sortierung, sortieren } = useSortierung(
+    kunden,
+    {
+      nummer: (k) => k.kundennummer,
+      name: (k) => k.name,
+      typ: (k) => KUNDE_TYP_LABEL[k.typ] ?? k.typ,
+    },
+    "nummer",
+  );
+
   return (
     <div>
       <h1 className="seiten-kopf">Kunden</h1>
@@ -158,18 +171,28 @@ export function Kunden({
         </Hinweis>
       )}
 
-      <div className="werkzeugleiste">
-        <input
-          type="search"
-          placeholder="Suche…"
-          value={suche}
-          onChange={(e) => setSuche(e.currentTarget.value)}
-          aria-label="Kunden suchen"
-        />
-        <button type="button" className="btn btn-primaer" onClick={() => setZeigeFormular((v) => !v)}>
-          Neuer Kunde
-        </button>
-      </div>
+      <Werkzeugleiste
+        filter={
+          <label className="feld">
+            Suche
+            <input
+              type="search"
+              placeholder="Nummer oder Name"
+              value={suche}
+              onChange={(e) => setSuche(e.currentTarget.value)}
+            />
+          </label>
+        }
+        aktion={
+          <button
+            type="button"
+            className="btn btn-primaer"
+            onClick={() => setZeigeFormular((v) => !v)}
+          >
+            Neuer Kunde
+          </button>
+        }
+      />
 
       {zeigeFormular && (
         <form
@@ -286,14 +309,20 @@ export function Kunden({
       <table className="tabelle tabelle-klickbar">
         <thead>
           <tr>
-            <th>Nummer</th>
-            <th>Name</th>
-            <th>Typ</th>
-            <th />
+            <SortierKopf spalte="nummer" aktiv={sortierung.spalte} richtung={sortierung.richtung} onSortieren={sortieren}>
+              Nummer
+            </SortierKopf>
+            <SortierKopf spalte="name" aktiv={sortierung.spalte} richtung={sortierung.richtung} onSortieren={sortieren}>
+              Name
+            </SortierKopf>
+            <SortierKopf spalte="typ" aktiv={sortierung.spalte} richtung={sortierung.richtung} onSortieren={sortieren}>
+              Typ
+            </SortierKopf>
+            <th>Aktionen</th>
           </tr>
         </thead>
         <tbody>
-          {kunden.map((kunde) => (
+          {sortierteKunden.map((kunde) => (
             <tr key={kunde.id} onClick={() => onOeffnen(kunde.id)}>
               <td className="tabelle-num">
                 <ZeilenKnopf onOeffnen={() => onOeffnen(kunde.id)}>{kunde.kundennummer}</ZeilenKnopf>

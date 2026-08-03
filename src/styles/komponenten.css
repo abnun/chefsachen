@@ -192,10 +192,26 @@ label.feld textarea {
 }
 
 /* Werkzeugleiste */
+/* Kopfleiste einer Listenseite: Filter links, Hauptaktion rechts.
+   `align-items: flex-end` richtet Knopf und Eingabefeld an der Grundlinie aus —
+   sonst klebt der Knopf an der Beschriftung darüber statt am Feld daneben. */
 .werkzeugleiste {
   display: flex;
-  gap: var(--abstand-s);
-  margin-bottom: var(--abstand-m);
+  align-items: flex-end;
+  gap: var(--abstand-m);
+  margin-bottom: var(--abstand-l);
+}
+
+.werkzeugleiste-filter {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--abstand-m);
+  flex: 1;
+  flex-wrap: wrap;
+}
+
+.werkzeugleiste-aktion {
+  flex-shrink: 0;
 }
 
 .werkzeugleiste input[type="search"] {
@@ -707,4 +723,46 @@ label.feld textarea {
   margin-top: var(--abstand-s);
   white-space: pre-line;
   font-size: var(--text-s);
+}
+
+
+/* Durchgängiger Abstand zwischen den Blöcken einer Seite.
+   Vorher klebte der „Neues Angebot"-Knopf unmittelbar an der Tabelle darüber,
+   während er auf anderen Seiten Luft hatte. */
+.tabelle {
+  margin-bottom: var(--abstand-l);
+}
+
+.seiten-kopf {
+  margin-bottom: var(--abstand-l);
+}
+
+/* Kopfleiste eines Belegs: Status links, Aktionen rechts.
+   Vorher lagen Stellen, Exporte, Abschluss und Stornieren über die ganze
+   Seitenlänge verstreut — bei einem Beleg mit vielen Positionen war „Stellen"
+   erst nach mehrmaligem Scrollen zu finden. */
+.beleg-kopfleiste {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--abstand-m);
+  margin-bottom: var(--abstand-l);
+}
+
+.beleg-status {
+  color: var(--text-leise);
+}
+
+.beleg-aktionen {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--abstand-s);
+}
+
+.beleg-summe {
+  font-weight: 600;
+  font-size: var(--text-l);
+  text-align: right;
+  margin-bottom: var(--abstand-l);
 }

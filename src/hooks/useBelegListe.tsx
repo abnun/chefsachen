@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { api, type AppFehler, type Beleg, type Kunde } from "../api";
-import { type Richtung } from "../components/SortierKopf";
+import { statusLabel } from "../belegStatus";
+import { useSortierung } from "./useSortierung";
 
 /**
  * Zustand und Abläufe einer Belegliste — Abruf, Statusfilter, Anlegen.
@@ -28,10 +29,6 @@ export function useBelegListe(typ: "angebot" | "rechnung", onOeffnen: (id: strin
   const [kunden, setKunden] = useState<Kunde[]>([]);
   const [statusFilter, setStatusFilter] = useState("");
   const [suche, setSuche] = useState("");
-  const [sortierung, setSortierung] = useState<{ spalte: string; richtung: Richtung }>({
-    spalte: "datum",
-    richtung: "ab",
-  });
   const [seite, setSeite] = useState(1);
   const [fehler, setFehler] = useState<AppFehler | null>(null);
   // Eine leere Liste und eine noch ausstehende Antwort sehen sonst gleich aus.
@@ -55,12 +52,6 @@ export function useBelegListe(typ: "angebot" | "rechnung", onOeffnen: (id: strin
     }, suche ? 300 : 0);
     return () => clearTimeout(zeitgeber);
   }, [typ, statusFilter, suche]);
-
-  // Ein Filterwechsel kann die Trefferzahl verkleinern; Seite 7 gäbe es dann
-  // nicht mehr und die Tabelle bliebe leer, ohne dass ersichtlich wäre warum.
-  useEffect(() => {
-    setSeite(1);
-  }, [typ, statusFilter, suche, sortierung]);
 
   useEffect(() => {
     // Die Kundenliste dient nur der Namensauflösung in der Tabelle und der
@@ -107,45 +98,28 @@ export function useBelegListe(typ: "angebot" | "rechnung", onOeffnen: (id: strin
     [kunden],
   );
 
-  /** Klick auf einen Spaltenkopf: gleiche Spalte kehrt um, neue beginnt aufsteigend. */
-  function sortieren(spalte: string) {
-    setSortierung((vorher) =>
-      vorher.spalte === spalte
-        ? { spalte, richtung: vorher.richtung === "auf" ? "ab" : "auf" }
-        : { spalte, richtung: "auf" },
-    );
-  }
+  const { sortiert, sortierung, sortieren } = useSortierung(
+    belege,
+    {
+      // Entwürfe haben noch keine Nummer. Sie ans Ende zu stellen ist
+      // sinnvoller, als sie unter den leeren Zeichenketten zu vergraben.
+      nummer: (b) => b.nummer ?? "\uffff",
+      kunde: (b) => kundeName(b),
+      datum: (b) => b.datum,
+      status: (b) => statusLabel(b.status),
+      summe: (b) => b.summe_cent,
+      faellig: (b) => b.faellig_am ?? "\uffff",
+      offen: (b) => b.summe_cent - (b.bezahlt_cent ?? 0),
+    },
+    "datum",
+    "ab",
+  );
 
-  const sortiert = useMemo(() => {
-    const wert = (b: Beleg): string | number => {
-      switch (sortierung.spalte) {
-        // Entwürfe haben noch keine Nummer. Sie ans Ende zu stellen ist
-        // sinnvoller, als sie unter den leeren Zeichenketten zu vergraben.
-        case "nummer":
-          return b.nummer ?? "\uffff";
-        case "kunde":
-          return kundeName(b).toLowerCase();
-        case "status":
-          return b.status;
-        case "summe":
-          return b.summe_cent;
-        case "faellig":
-          return b.faellig_am ?? "\uffff";
-        case "offen":
-          return b.summe_cent - (b.bezahlt_cent ?? 0);
-        default:
-          return b.datum;
-      }
-    };
-    const richtung = sortierung.richtung === "auf" ? 1 : -1;
-    // Kopie: sort() arbeitet auf der Vorlage und würde den Zustand verändern.
-    return [...belege].sort((a, b) => {
-      const x = wert(a);
-      const y = wert(b);
-      if (x === y) return 0;
-      return (x < y ? -1 : 1) * richtung;
-    });
-  }, [belege, sortierung, kundeName]);
+  // Ein Filterwechsel kann die Trefferzahl verkleinern; Seite 7 gäbe es dann
+  // nicht mehr und die Tabelle bliebe leer, ohne dass ersichtlich wäre warum.
+  useEffect(() => {
+    setSeite(1);
+  }, [typ, statusFilter, suche, sortierung]);
 
   const SEITENGROESSE = 25;
   const seitenAnzahl = Math.max(1, Math.ceil(sortiert.length / SEITENGROESSE));

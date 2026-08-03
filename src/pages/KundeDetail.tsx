@@ -29,6 +29,18 @@ interface KundeDetailProps {
 
 export type Reiter = "stammdaten" | "adressen" | "ansprechpartner" | "sonderpreise" | "belege";
 
+/**
+ * Beschriftungen der Adressarten.
+ *
+ * Die Tabelle zeigte den Datenbankschlüssel („rechnung"), das Auswahlfeld
+ * darunter die Beschriftung („Rechnung"). Dieselbe Sache in zwei Schreibweisen
+ * auf einem Bildschirm — genauso ist der Belegstatus schon einmal entglitten.
+ */
+const ADRESSE_TYP_LABEL: Record<string, string> = {
+  rechnung: "Rechnung",
+  lieferung: "Lieferung",
+};
+
 const REITER: { id: Reiter; label: string; aktiv: boolean }[] = [
   { id: "stammdaten", label: "Stammdaten", aktiv: true },
   { id: "adressen", label: "Adressen", aktiv: true },
@@ -483,7 +495,7 @@ function AdressenReiter({ kundeId, adressen, onGeaendert }: AdressenReiterProps)
         <tbody>
           {adressen.map((a) => (
             <tr key={a.id}>
-              <td>{a.typ}</td>
+              <td>{ADRESSE_TYP_LABEL[a.typ] ?? a.typ}</td>
               <td>{a.strasse}</td>
               <td>{a.plz}</td>
               <td>{a.ort}</td>

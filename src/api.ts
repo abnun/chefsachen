@@ -488,6 +488,11 @@ export const api = {
     originalExportieren: (id: string) => invoke<EingangsrechnungOriginal>("eingangsrechnung_original_exportieren", { id }),
     aenderungen: (id: string) => invoke<EingangsrechnungAenderung[]>("eingangsrechnung_aenderungen", { id }),
   },
+  menue: {
+    /** Schaltet „Einstellungen …" im Programmmenü frei oder ab. */
+    einstellungenFreigeben: (frei: boolean) =>
+      invoke<void>("menue_einstellungen_freigeben", { frei }),
+  },
   protokoll: {
     pfad: () => invoke<string>("protokoll_pfad"),
   },

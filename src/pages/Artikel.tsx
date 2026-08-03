@@ -10,6 +10,9 @@ import {
 import { formularFehler } from "../formularFehler";
 import { Fehler } from "../components/Fehler";
 import { Laden } from "../components/Laden";
+import { SortierKopf } from "../components/SortierKopf";
+import { Werkzeugleiste } from "../components/Werkzeugleiste";
+import { useSortierung } from "../hooks/useSortierung";
 import { Hinweis } from "../components/Hinweis";
 import { useErfolgsHinweis } from "../hooks/useErfolgsHinweis";
 import { useBestaetigung } from "../hooks/useBestaetigung";
@@ -168,6 +171,17 @@ export function Artikel({ zeigeFormularBeimStart, onFormularUebernommen, onZuKun
     "standardpreis_cent",
   ]);
 
+  const { sortiert: sortierteArtikel, sortierung, sortieren } = useSortierung(
+    artikel,
+    {
+      nummer: (a) => a.artikelnummer,
+      bezeichnung: (a) => a.bezeichnung,
+      einheit: (a) => einheitKuerzel(a.einheit_id),
+      preis: (a) => a.standardpreis_cent,
+    },
+    "nummer",
+  );
+
   return (
     <div>
       <h1 className="seiten-kopf">Artikel &amp; Leistungen</h1>
@@ -184,9 +198,13 @@ export function Artikel({ zeigeFormularBeimStart, onFormularUebernommen, onZuKun
         </Hinweis>
       )}
 
-      <button type="button" className="btn btn-primaer" onClick={neuFormular}>
-        Neuer Artikel
-      </button>
+      <Werkzeugleiste
+        aktion={
+          <button type="button" className="btn btn-primaer" onClick={neuFormular}>
+            Neuer Artikel
+          </button>
+        }
+      />
 
       {zeigeFormular && (
         <form
@@ -263,28 +281,37 @@ export function Artikel({ zeigeFormularBeimStart, onFormularUebernommen, onZuKun
       <table className="tabelle">
         <thead>
           <tr>
-            <th>Nummer</th>
-            <th>Bezeichnung</th>
-            <th>Einheit</th>
-            <th>Preis</th>
-            <th />
+            <SortierKopf spalte="nummer" aktiv={sortierung.spalte} richtung={sortierung.richtung} onSortieren={sortieren}>
+              Nummer
+            </SortierKopf>
+            <SortierKopf spalte="bezeichnung" aktiv={sortierung.spalte} richtung={sortierung.richtung} onSortieren={sortieren}>
+              Bezeichnung
+            </SortierKopf>
+            <SortierKopf spalte="einheit" aktiv={sortierung.spalte} richtung={sortierung.richtung} onSortieren={sortieren}>
+              Einheit
+            </SortierKopf>
+            <SortierKopf spalte="preis" aktiv={sortierung.spalte} richtung={sortierung.richtung} onSortieren={sortieren}>
+              Preis
+            </SortierKopf>
+            <th>Aktionen</th>
           </tr>
         </thead>
         <tbody>
-          {artikel.map((a) => (
+          {sortierteArtikel.map((a) => (
             <Fragment key={a.id}>
               <tr>
                 <td className="tabelle-num">{a.artikelnummer}</td>
                 <td>{a.bezeichnung}</td>
                 <td>{einheitKuerzel(a.einheit_id)}</td>
                 <td>{formatCent(a.standardpreis_cent)}</td>
-                <td>
+                <td className="zeilen-aktionen">
                   <button type="button" className="btn" onClick={() => bearbeiten(a)}>
                     Bearbeiten
                   </button>
                   <button
                     type="button"
-                    className="btn btn-leise"
+                    className="btn"
+                    aria-expanded={aufgeklappt === a.id}
                     onClick={() => setAufgeklappt(aufgeklappt === a.id ? null : a.id)}
                   >
                     {a.kundenpreise_anzahl === 0 ? "Kundenpreise" : `Kundenpreise (${a.kundenpreise_anzahl})`}

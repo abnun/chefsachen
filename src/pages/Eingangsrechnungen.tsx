@@ -7,7 +7,11 @@ import { EingangsrechnungZusatzfelder } from "../components/EingangsrechnungZusa
 import { Fehler } from "../components/Fehler";
 import { ZeilenKnopf } from "../components/ZeilenKnopf";
 import { Laden } from "../components/Laden";
+import { SortierKopf } from "../components/SortierKopf";
+import { Werkzeugleiste } from "../components/Werkzeugleiste";
+import { useSortierung } from "../hooks/useSortierung";
 import { formatCentMitWaehrung, formatMenge, parseEuro } from "../geld";
+import { datumDeutsch } from "../datum";
 
 const FORMAT_LABEL: Record<string, string> = {
   xrechnung: "XRechnung",
@@ -97,6 +101,19 @@ export function Eingangsrechnungen({ onOeffnen }: EingangsrechnungenProps) {
     speichernAusfuehren();
   }
 
+  const { sortiert: sortierteListe, sortierung, sortieren } = useSortierung(
+    liste,
+    {
+      steller: (e) => e.rechnungssteller_name,
+      nummer: (e) => e.rechnungsnummer,
+      datum: (e) => e.rechnungsdatum,
+      betrag: (e) => e.betrag_cent,
+      format: (e) => FORMAT_LABEL[e.format] ?? e.format,
+    },
+    "datum",
+    "ab",
+  );
+
   return (
     <div>
       <h1 className="seiten-kopf">Eingangsrechnungen</h1>
@@ -111,11 +128,13 @@ export function Eingangsrechnungen({ onOeffnen }: EingangsrechnungenProps) {
         />
       )}
 
-      <div className="werkzeugleiste">
-        <button type="button" className="btn btn-primaer" onClick={dateiImportierenAuswaehlen}>
-          Importieren
-        </button>
-      </div>
+      <Werkzeugleiste
+        aktion={
+          <button type="button" className="btn btn-primaer" onClick={dateiImportierenAuswaehlen}>
+            Importieren
+          </button>
+        }
+      />
 
       {vorschau && (
         <form
@@ -251,21 +270,31 @@ export function Eingangsrechnungen({ onOeffnen }: EingangsrechnungenProps) {
       <table className="tabelle tabelle-klickbar">
         <thead>
           <tr>
-            <th>Rechnungssteller</th>
-            <th>Nummer</th>
-            <th>Datum</th>
-            <th>Betrag</th>
-            <th>Format</th>
+            <SortierKopf spalte="steller" aktiv={sortierung.spalte} richtung={sortierung.richtung} onSortieren={sortieren}>
+              Rechnungssteller
+            </SortierKopf>
+            <SortierKopf spalte="nummer" aktiv={sortierung.spalte} richtung={sortierung.richtung} onSortieren={sortieren}>
+              Nummer
+            </SortierKopf>
+            <SortierKopf spalte="datum" aktiv={sortierung.spalte} richtung={sortierung.richtung} onSortieren={sortieren}>
+              Datum
+            </SortierKopf>
+            <SortierKopf spalte="betrag" aktiv={sortierung.spalte} richtung={sortierung.richtung} onSortieren={sortieren}>
+              Betrag
+            </SortierKopf>
+            <SortierKopf spalte="format" aktiv={sortierung.spalte} richtung={sortierung.richtung} onSortieren={sortieren}>
+              Format
+            </SortierKopf>
           </tr>
         </thead>
         <tbody>
-          {liste.map((e) => (
+          {sortierteListe.map((e) => (
             <tr key={e.id} onClick={() => onOeffnen(e.id)}>
               <td>{e.rechnungssteller_name}</td>
               <td className="tabelle-num">
                 <ZeilenKnopf onOeffnen={() => onOeffnen(e.id)}>{e.rechnungsnummer}</ZeilenKnopf>
               </td>
-              <td>{e.rechnungsdatum}</td>
+              <td className="nicht-umbrechen">{datumDeutsch(e.rechnungsdatum)}</td>
               <td>{formatCentMitWaehrung(e.betrag_cent, e.waehrung)}</td>
               <td>{FORMAT_LABEL[e.format] ?? e.format}</td>
             </tr>

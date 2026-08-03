@@ -94,7 +94,7 @@ describe("Kunden", () => {
     render(<Kunden onOeffnen={() => {}} />);
     await waitFor(() => expect(screen.getByText("ACME GmbH")).toBeTruthy());
     vi.mocked(api.kunden.list).mockResolvedValueOnce([]);
-    fireEvent.change(screen.getByLabelText("Kunden suchen"), { target: { value: "xyz" } });
+    fireEvent.change(screen.getByLabelText("Suche"), { target: { value: "xyz" } });
     await waitFor(() => expect(screen.getByText('Keine Kunden gefunden für „xyz".')).toBeTruthy());
   });
 
