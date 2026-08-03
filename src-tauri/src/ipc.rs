@@ -159,6 +159,7 @@ const PLUGIN_AUFRUFE: &[(&str, &str)] = &[
     ("relaunch — Neustart nach der Aktualisierung", "plugin:process|restart"),
     ("error — Fehler der Oberfläche protokollieren", "plugin:log|log"),
     ("revealItemInDir — Protokolldatei zeigen", "plugin:opener|reveal_item_in_dir"),
+    ("openUrl — Veröffentlichung im Browser öffnen", "plugin:opener|open_url"),
     ("getVersion — Versionsanzeige", "plugin:app|version"),
 ];
 

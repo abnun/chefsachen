@@ -442,6 +442,8 @@ export const api = {
   firma: {
     get: () => invoke<Firma>("firma_get"),
     save: (firma: Firma) => invoke<Firma>("firma_save", { firma }),
+    /** Prüft die Angaben, ohne sie zu speichern — für den Einrichtungsassistenten. */
+    pruefen: (firma: Firma) => invoke<void>("firma_pruefen", { firma }),
     logoSet: (bytes: number[]) => invoke<void>("firma_logo_set", { bytes }),
     logoGet: () => invoke<number[] | null>("firma_logo_get"),
   },

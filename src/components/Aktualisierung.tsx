@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { getVersion } from "@tauri-apps/api/app";
 import { check, type Update } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { api } from "../api";
+import { SCHLUESSEL_NOTIZEN } from "./VersionsHinweis";
 
 /**
  * Suche nach neuen Programmversionen.
@@ -27,6 +28,9 @@ type Stand =
   | { art: "bereit" }
   | { art: "fehler"; meldung: string };
 
+/** Einstellungsschlüssel für die Suche beim Start. */
+const SCHLUESSEL_AUTOSUCHE = "aktualisierung.beim_start_suchen";
+
 function fehlertext(e: unknown): string {
   return e instanceof Error ? e.message : String(e);
 }
@@ -34,14 +38,32 @@ function fehlertext(e: unknown): string {
 export function Aktualisierung() {
   const [version, setVersion] = useState("");
   const [protokollPfad, setProtokollPfad] = useState("");
+  /** Ob beim Start von selbst gesucht wird. `null`, solange unbekannt. */
+  const [autoSuche, setAutoSuche] = useState<boolean | null>(null);
   const [stand, setStand] = useState<Stand>({ art: "unbekannt" });
+  /**
+   * Ob die Suche beim Start schon erledigt ist.
+   *
+   * Sie hängt an der gespeicherten Einstellung und läuft daher erst los,
+   * nachdem diese geladen ist. Klickt der Nutzer in der Zwischenzeit selbst auf
+   * „Suchen", überschrieb die nachlaufende automatische Suche dessen Ergebnis —
+   * eine Fehlermeldung verschwand wieder, ohne dass etwas passiert wäre.
+   */
+  const startsucheErledigt = useRef(false);
 
   useEffect(() => {
     getVersion().then(setVersion).catch(() => setVersion(""));
     api.protokoll.pfad().then(setProtokollPfad).catch(() => setProtokollPfad(""));
+    // Voreinstellung ist „an": Wer nichts einstellt, soll von Fehlerbehebungen
+    // erfahren. Nur ein ausdrückliches „nein" schaltet ab.
+    api.einstellungen
+      .get(SCHLUESSEL_AUTOSUCHE)
+      .then((wert) => setAutoSuche(wert !== "nein"))
+      .catch(() => setAutoSuche(true));
   }, []);
 
   const suchen = useCallback(async (manuell: boolean) => {
+    startsucheErledigt.current = true;
     setStand({ art: "sucht" });
     try {
       const update = await check();
@@ -54,8 +76,22 @@ export function Aktualisierung() {
   }, []);
 
   useEffect(() => {
-    suchen(false);
-  }, [suchen]);
+    // Erst suchen, wenn feststeht, ob überhaupt gesucht werden soll — sonst
+    // liefe beim ersten Rendern eine Abfrage los, die der Nutzer abbestellt hat.
+    // Und nur, solange nicht schon gesucht wurde: Ein Klick des Nutzers geht vor.
+    if (autoSuche && !startsucheErledigt.current) suchen(false);
+  }, [autoSuche, suchen]);
+
+  async function autoSucheUmschalten(an: boolean) {
+    setAutoSuche(an);
+    try {
+      await api.einstellungen.set(SCHLUESSEL_AUTOSUCHE, an ? "ja" : "nein");
+    } catch (e) {
+      // Die Einstellung ließ sich nicht merken — das gehört gesagt, sonst
+      // steht sie beim nächsten Start wieder anders da.
+      setStand({ art: "fehler", meldung: fehlertext(e) });
+    }
+  }
 
   async function installieren(update: Update) {
     setStand({ art: "laedt", anteil: null });
@@ -72,6 +108,9 @@ export function Aktualisierung() {
           setStand({ art: "laedt", anteil: gesamt > 0 ? Math.round((geladen / gesamt) * 100) : null });
         }
       });
+      // Den Änderungstext vor dem Neustart festhalten: Danach ist das Update-
+      // Objekt fort, und der Hinweis nach dem Start hätte nichts zu zeigen.
+      await api.einstellungen.set(SCHLUESSEL_NOTIZEN, update.body ?? "").catch(() => {});
       setStand({ art: "bereit" });
     } catch (e) {
       setStand({ art: "fehler", meldung: fehlertext(e) });
@@ -125,6 +164,19 @@ export function Aktualisierung() {
           Die Suche nach einer Aktualisierung ist fehlgeschlagen: {stand.meldung}
         </p>
       )}
+
+      <label className="feld-checkbox">
+        <input
+          type="checkbox"
+          checked={autoSuche ?? true}
+          onChange={(e) => autoSucheUmschalten(e.currentTarget.checked)}
+        />
+        Beim Programmstart nach einer Aktualisierung suchen
+      </label>
+      <p className="feld-hinweis">
+        Es wird nur gesucht, nie von selbst installiert. Ohne Internetverbindung
+        passiert nichts.
+      </p>
 
       {stand.art !== "sucht" && stand.art !== "laedt" && (
         <button type="button" className="btn" onClick={() => suchen(true)}>

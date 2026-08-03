@@ -700,3 +700,11 @@ label.feld textarea {
   color: var(--text-leise);
   margin: var(--abstand-s) 0;
 }
+
+/* Änderungstext im Versionshinweis — als eigener Absatz unter der Überschrift. */
+.versions-notizen {
+  display: block;
+  margin-top: var(--abstand-s);
+  white-space: pre-line;
+  font-size: var(--text-s);
+}

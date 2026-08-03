@@ -1,3 +1,4 @@
+import "@testing-library/jest-dom/vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -21,6 +22,7 @@ vi.mock("../api", () => ({
         kleinunternehmer: true,
         eingerichtet: false,
       }),
+      pruefen: vi.fn().mockResolvedValue(undefined),
       save: vi.fn().mockResolvedValue({
         id: "f1",
         name: "Test GmbH",
@@ -44,6 +46,7 @@ vi.mock("../api", () => ({
   ),
 }));
 
+import { api } from "../api";
 import { Einrichtung } from "./Einrichtung";
 
 describe("Einrichtung", () => {
@@ -60,7 +63,9 @@ describe("Einrichtung", () => {
   it("zeigt nach Nummernkreise einen Abschluss-Schritt mit zwei Zielen", async () => {
     render(<Einrichtung onFertig={() => {}} />);
     await waitFor(() => expect(screen.getByText("Firmendaten")).toBeTruthy());
+    // Schritt 1 prüft die Angaben im Backend und wechselt erst danach.
     fireEvent.click(screen.getByRole("button", { name: "Weiter" }));
+    await waitFor(() => expect(screen.getByText("Schritt 2 von 5")).toBeTruthy());
     fireEvent.click(screen.getByRole("button", { name: "Weiter" }));
     fireEvent.click(screen.getByRole("button", { name: "Weiter" }));
     fireEvent.click(screen.getByRole("button", { name: "Einrichtung abschließen" }));
@@ -74,7 +79,9 @@ describe("Einrichtung", () => {
     const onFertig = vi.fn();
     render(<Einrichtung onFertig={onFertig} />);
     await waitFor(() => expect(screen.getByText("Firmendaten")).toBeTruthy());
+    // Schritt 1 prüft die Angaben im Backend und wechselt erst danach.
     fireEvent.click(screen.getByRole("button", { name: "Weiter" }));
+    await waitFor(() => expect(screen.getByText("Schritt 2 von 5")).toBeTruthy());
     fireEvent.click(screen.getByRole("button", { name: "Weiter" }));
     fireEvent.click(screen.getByRole("button", { name: "Weiter" }));
     fireEvent.click(screen.getByRole("button", { name: "Einrichtung abschließen" }));
@@ -92,7 +99,9 @@ describe("Einrichtung", () => {
     });
     render(<Einrichtung onFertig={() => {}} />);
     await waitFor(() => expect(screen.getByText("Firmendaten")).toBeTruthy());
+    // Schritt 1 prüft die Angaben im Backend und wechselt erst danach.
     fireEvent.click(screen.getByRole("button", { name: "Weiter" }));
+    await waitFor(() => expect(screen.getByText("Schritt 2 von 5")).toBeTruthy());
     fireEvent.click(screen.getByRole("button", { name: "Weiter" }));
     fireEvent.click(screen.getByRole("button", { name: "Weiter" }));
     fireEvent.click(screen.getByRole("button", { name: "Einrichtung abschließen" }));
@@ -100,5 +109,60 @@ describe("Einrichtung", () => {
       expect(screen.getByText("Steuernummer oder USt-IdNr. ist erforderlich")).toBeTruthy(),
     );
     expect(screen.getByText("Schritt 1 von 5")).toBeTruthy();
+  });
+
+  it("prüft die Angaben schon nach dem ersten Schritt", async () => {
+    // Vorher fiel ein Tippfehler in der IBAN erst nach fünf Schritten auf, und
+    // der Nutzer landete wieder am Anfang.
+    vi.mocked(api.firma.pruefen).mockRejectedValueOnce({
+      typ: "validation",
+      feld: "iban",
+      meldung: "Die Prüfsumme der IBAN stimmt nicht",
+    });
+    render(<Einrichtung onFertig={() => {}} />);
+    await waitFor(() => expect(screen.getByText("Schritt 1 von 5")).toBeTruthy());
+
+    fireEvent.click(screen.getByRole("button", { name: "Weiter" }));
+
+    await waitFor(() => expect(screen.getByText(/Prüfsumme der IBAN/)).toBeTruthy());
+    // Und wir bleiben, wo wir sind.
+    expect(screen.getByText("Schritt 1 von 5")).toBeTruthy();
+  });
+
+  it("räumt die Meldung weg, sobald der Nutzer korrigiert", async () => {
+    // „Die Prüfsumme der IBAN stimmt nicht" blieb stehen, auch nachdem sie
+    // längst berichtigt war — und ließ offen, ob die Korrektur ankam.
+    vi.mocked(api.firma.pruefen).mockRejectedValueOnce({
+      typ: "validation",
+      feld: "iban",
+      meldung: "Die Prüfsumme der IBAN stimmt nicht",
+    });
+    render(<Einrichtung onFertig={() => {}} />);
+    await waitFor(() => expect(screen.getByText("Schritt 1 von 5")).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Weiter" }));
+    await waitFor(() => expect(screen.getByText(/Prüfsumme der IBAN/)).toBeTruthy());
+
+    fireEvent.change(screen.getByLabelText("IBAN"), {
+      target: { value: "DE02120300000000202051" },
+    });
+    await waitFor(() => expect(screen.queryByText(/Prüfsumme der IBAN/)).toBeNull());
+  });
+
+  it("geht bei fehlerfreien Angaben weiter", async () => {
+    render(<Einrichtung onFertig={() => {}} />);
+    await waitFor(() => expect(screen.getByText("Schritt 1 von 5")).toBeTruthy());
+
+    fireEvent.click(screen.getByRole("button", { name: "Weiter" }));
+    await waitFor(() => expect(screen.getByText("Schritt 2 von 5")).toBeTruthy());
+  });
+
+  it("lässt am Gründungsjahr keine negativen Zahlen zu", async () => {
+    // Das Zahlenrad lief bis −1 hinunter.
+    render(<Einrichtung onFertig={() => {}} />);
+    await waitFor(() => expect(screen.getByText("Schritt 1 von 5")).toBeTruthy());
+
+    const feld = screen.getByLabelText(/Gründungsjahr/) as HTMLInputElement;
+    expect(feld.min).toBe("1900");
+    expect(Number(feld.max)).toBe(new Date().getFullYear());
   });
 });

@@ -49,7 +49,44 @@ fn pruefe_firma(firma: &Firma) -> AppResult<()> {
     // syntaktisch falschen IBAN ab (BR-DE-19).
     crate::domain::bankverbindung::pruefe_iban(&firma.iban)?;
     crate::domain::bankverbindung::pruefe_bic(&firma.bic)?;
+    pruefe_gruendungsjahr(firma.gruendungsjahr)?;
     Ok(())
+}
+
+/// Prüft das Gründungsjahr auf Plausibilität.
+///
+/// Das Feld ist freiwillig — wer es leer lässt, wird nicht aufgehalten. Steht
+/// aber etwas darin, muss es ein Jahr sein, in dem ein Unternehmen gegründet
+/// worden sein kann: nicht in der Zukunft, und nicht vor 1900.
+///
+/// Es hängt an der Kleinunternehmergrenze: Im Gründungsjahr gilt bereits das
+/// laufende Jahr statt des Vorjahres. Ein unsinniger Wert verschöbe die
+/// Beurteilung nach § 19 UStG, ohne dass jemand den Zusammenhang bemerkte.
+fn pruefe_gruendungsjahr(jahr: Option<i64>) -> AppResult<()> {
+    let Some(jahr) = jahr else { return Ok(()) };
+    let heute: i64 = chrono::Local::now()
+        .format("%Y")
+        .to_string()
+        .parse()
+        .unwrap_or(1970);
+    if !(1900..=heute).contains(&jahr) {
+        return Err(AppError::Validation {
+            feld: "gruendungsjahr".into(),
+            meldung: format!("Das Gründungsjahr muss zwischen 1900 und {heute} liegen."),
+        });
+    }
+    Ok(())
+}
+
+/// Prüft die Firmendaten, ohne sie zu speichern.
+///
+/// Der Einrichtungsassistent fragt damit nach dem ersten Schritt nach, statt
+/// den Nutzer erst nach fünf Schritten mit einem Tippfehler in der IBAN
+/// zurückzuschicken. Absichtlich dieselbe Funktion wie beim Speichern: Eine
+/// zweite Regelmenge im Frontend liefe über kurz oder lang auseinander — und
+/// die IBAN-Prüfsumme dort nachzubauen wäre ohnehin Unfug.
+pub fn pruefen(firma: Firma) -> AppResult<()> {
+    pruefe_firma(&firma)
 }
 
 pub async fn get(pool: &SqlitePool) -> AppResult<Firma> {
@@ -114,6 +151,11 @@ pub async fn logo_get(pool: &SqlitePool) -> AppResult<Option<Vec<u8>>> {
 
 // Dünne Tauri-Wrapper
 #[tauri::command]
+pub fn firma_pruefen(firma: Firma) -> AppResult<()> {
+    pruefen(firma)
+}
+
+#[tauri::command]
 pub async fn firma_get(pool: tauri::State<'_, SqlitePool>) -> AppResult<Firma> {
     get(&pool).await
 }
@@ -138,6 +180,70 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let p = crate::db::init_db(&dir.path().join("t.db")).await.unwrap();
         (dir, p)
+    }
+
+    /// Eine gültige Firma als Ausgangspunkt.
+    async fn gueltige_firma(pool: &sqlx::SqlitePool) -> Firma {
+        let mut f = get(pool).await.unwrap();
+        f.name = "Testfirma".into();
+        f.steuernummer = "12/345/67890".into();
+        f
+    }
+
+    #[tokio::test]
+    async fn gruendungsjahr_darf_nicht_negativ_sein() {
+        // Das Eingabefeld ließ -1 zu, und niemand widersprach.
+        let (_dir, pool) = test_pool().await;
+        let mut f = gueltige_firma(&pool).await;
+        f.gruendungsjahr = Some(-1);
+        let fehler = save(&pool, f).await;
+        assert!(matches!(fehler, Err(AppError::Validation { .. })), "{fehler:?}");
+    }
+
+    #[tokio::test]
+    async fn gruendungsjahr_darf_nicht_in_der_zukunft_liegen() {
+        // Gegründet werden kann nur, was es schon gibt. Ein künftiges Jahr
+        // verschöbe zudem die Umsatzgrenze nach § 19 UStG ins Unbestimmte.
+        let (_dir, pool) = test_pool().await;
+        let mut f = gueltige_firma(&pool).await;
+        let naechstes_jahr: i64 = chrono::Local::now().format("%Y").to_string().parse::<i64>().unwrap() + 1;
+        f.gruendungsjahr = Some(naechstes_jahr);
+        let fehler = save(&pool, f).await;
+        assert!(matches!(fehler, Err(AppError::Validation { .. })), "{fehler:?}");
+    }
+
+    #[tokio::test]
+    async fn ein_plausibles_gruendungsjahr_wird_angenommen() {
+        let (_dir, pool) = test_pool().await;
+        let mut f = gueltige_firma(&pool).await;
+        f.gruendungsjahr = Some(2024);
+        assert!(save(&pool, f).await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn ohne_gruendungsjahr_bleibt_es_zulaessig() {
+        // Das Feld ist freiwillig; wer es leer lässt, soll nicht aufgehalten werden.
+        let (_dir, pool) = test_pool().await;
+        let mut f = gueltige_firma(&pool).await;
+        f.gruendungsjahr = None;
+        assert!(save(&pool, f).await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn pruefen_meldet_denselben_fehler_wie_speichern_ohne_zu_schreiben() {
+        // Der Einrichtungsassistent fragt damit nach jedem Schritt nach, statt
+        // erst am Ende. Würde die Prüfung eigene Regeln mitbringen, liefen sie
+        // über kurz oder lang auseinander.
+        let (_dir, pool) = test_pool().await;
+        let mut f = gueltige_firma(&pool).await;
+        f.iban = "DE99999999999999999999".into();
+
+        let beim_pruefen = pruefen(f.clone()).unwrap_err();
+        let beim_speichern = save(&pool, f).await.unwrap_err();
+        assert_eq!(format!("{beim_pruefen:?}"), format!("{beim_speichern:?}"));
+
+        // Und es wurde nichts geschrieben.
+        assert!(!get(&pool).await.unwrap().eingerichtet);
     }
 
     #[tokio::test]

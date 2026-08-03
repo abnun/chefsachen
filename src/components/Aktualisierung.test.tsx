@@ -7,7 +7,13 @@ vi.mock("@tauri-apps/plugin-updater", () => ({ check: vi.fn() }));
 vi.mock("@tauri-apps/plugin-process", () => ({ relaunch: vi.fn().mockResolvedValue(undefined) }));
 vi.mock("@tauri-apps/plugin-opener", () => ({ revealItemInDir: vi.fn().mockResolvedValue(undefined) }));
 vi.mock("../api", () => ({
-  api: { protokoll: { pfad: vi.fn().mockResolvedValue("/Users/test/Library/Logs/app/app.log") } },
+  api: {
+    protokoll: { pfad: vi.fn().mockResolvedValue("/Users/test/Library/Logs/app/app.log") },
+    einstellungen: {
+      get: vi.fn().mockResolvedValue(null),
+      set: vi.fn().mockResolvedValue(undefined),
+    },
+  },
 }));
 
 import { check } from "@tauri-apps/plugin-updater";
@@ -137,5 +143,35 @@ describe("Aktualisierung", () => {
     render(<Aktualisierung />);
     await waitFor(() => expect(screen.getByText("Installiert: Version 0.1.0")).toBeTruthy());
     expect(screen.queryByText("Protokolldatei im Ordner zeigen")).toBeNull();
+  });
+
+  it("sucht beim Start nicht, wenn der Nutzer das abbestellt hat", async () => {
+    vi.mocked(check).mockResolvedValue(null);
+    vi.mocked(api.einstellungen.get).mockResolvedValueOnce("nein");
+    render(<Aktualisierung />);
+    await waitFor(() => expect(screen.getByText("Installiert: Version 0.1.0")).toBeTruthy());
+
+    const schalter = screen.getByLabelText(/Beim Programmstart/) as HTMLInputElement;
+    expect(schalter.checked).toBe(false);
+    expect(check).not.toHaveBeenCalled();
+  });
+
+  it("sucht ohne gespeicherte Einstellung von selbst", async () => {
+    // Wer nichts einstellt, soll von Fehlerbehebungen erfahren.
+    vi.mocked(check).mockResolvedValue(null);
+    render(<Aktualisierung />);
+    await waitFor(() => expect(check).toHaveBeenCalled());
+    expect((screen.getByLabelText(/Beim Programmstart/) as HTMLInputElement).checked).toBe(true);
+  });
+
+  it("merkt sich das Abbestellen", async () => {
+    vi.mocked(check).mockResolvedValue(null);
+    render(<Aktualisierung />);
+    await waitFor(() => expect(screen.getByLabelText(/Beim Programmstart/)).toBeTruthy());
+
+    fireEvent.click(screen.getByLabelText(/Beim Programmstart/));
+    await waitFor(() =>
+      expect(api.einstellungen.set).toHaveBeenCalledWith("aktualisierung.beim_start_suchen", "nein"),
+    );
   });
 });

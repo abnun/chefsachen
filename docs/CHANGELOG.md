@@ -7,6 +7,26 @@ auf GitHub ändert daran nichts mehr.
 
 Deshalb hier in der Sprache der Anwender, nicht in der der Commits.
 
+## 0.2.1
+
+**Ersteinrichtung**
+- Die Angaben werden schon nach dem ersten Schritt geprüft, nicht erst am Ende.
+  Ein Tippfehler in der IBAN schickte dich vorher nach fünf Schritten zurück
+  an den Anfang.
+- Eine Fehlermeldung verschwindet, sobald du das Feld korrigierst. Sie blieb
+  bisher stehen und ließ offen, ob die Korrektur angekommen ist.
+- Beim Gründungsjahr sind keine unsinnigen Werte mehr möglich.
+
+**Menü und Aktualisierung**
+- Das Programmmenü ist auf Deutsch, mit „Einstellungen …" (⌘,) und einem
+  „Bearbeiten"-Menü — damit funktionieren unter macOS auch Kopieren und
+  Einsetzen per Tastatur wieder.
+- Unter „Einstellungen → Programmversion" lässt sich abschalten, dass beim
+  Start nach einer Aktualisierung gesucht wird.
+- Nach einer Aktualisierung erscheint einmalig ein Hinweis, was sich geändert
+  hat, mit einem Verweis auf die vollständige Liste.
+- Beim Installieren entfällt der englische Lizenzdialog.
+
 ## 0.2.0
 
 Die erste Fassung, die sich selbst aktualisieren kann.
@@ -38,8 +58,6 @@ Die erste Fassung, die sich selbst aktualisieren kann.
   des Fensters.
 
 **Sonstiges**
-- Beim Installieren entfällt der englische Lizenzdialog. Die MIT-Lizenz ist
-  eine Rechteübertragung, keine Vereinbarung, der man zustimmen muss.
 - Alles lässt sich ohne Maus bedienen.
 - Ein Protokoll unter „Einstellungen → Programmversion" hilft bei der
   Fehlersuche. Es enthält keine Kunden- oder Rechnungsdaten.

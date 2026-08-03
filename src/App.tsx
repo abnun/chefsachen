@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
+import { listen } from "@tauri-apps/api/event";
 import { api, type AppFehler, type Firma } from "./api";
 import { Layout, type Seite } from "./components/Layout";
 import { Fehler } from "./components/Fehler";
+import { VersionsHinweis } from "./components/VersionsHinweis";
 import { useVerlassenPruefen } from "./hooks/useUngespeichert";
 import { Laden } from "./components/Laden";
 import { Dashboard } from "./pages/Dashboard";
@@ -34,6 +36,20 @@ function App() {
   useEffect(() => {
     api.firma.get().then(setFirma).catch((e) => setFehler(e as AppFehler));
   }, []);
+
+  useEffect(() => {
+    // „Einstellungen …" aus dem Programmmenü (⌘,). Die Seitenverwaltung liegt
+    // hier; das Menü schickt nur das Ereignis, sonst müssten sich zwei Stellen
+    // über die aktuelle Seite einig sein.
+    let abmelden: (() => void) | undefined;
+    listen("menue:einstellungen", () => navigiere("einstellungen"))
+      .then((f) => {
+        abmelden = f;
+      })
+      // In einer Testumgebung ohne Tauri gibt es kein Ereignissystem.
+      .catch(() => {});
+    return () => abmelden?.();
+  });
 
   if (fehler) {
     return <Fehler fehler={fehler} />;
@@ -80,6 +96,7 @@ function App() {
 
   return (
     <Layout aktiveSeite={seite} onNavigiere={navigiere}>
+      <VersionsHinweis />
       {seite === "uebersicht" && (
         <Dashboard
           onRechnungOeffnen={(id) => {

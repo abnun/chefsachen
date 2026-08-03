@@ -6,6 +6,7 @@ mod db;
 mod dokument;
 mod domain;
 mod error;
+mod menue;
 mod protokoll;
 
 /// Richtet Verzeichnis, Sicherung und Datenbank ein.
@@ -144,6 +145,7 @@ fn mit_befehlen<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri::Builder
             commands::artikel::preis_ermitteln,
             commands::firma::firma_get,
             commands::firma::firma_save,
+            commands::firma::firma_pruefen,
             commands::firma::firma_logo_set,
             commands::firma::firma_logo_get,
             commands::dashboard::dashboard_laden,
@@ -178,6 +180,12 @@ pub fn run() {
     let builder = mit_plugins(tauri::Builder::default().plugin(protokoll::plugin()))
         .setup(|app| {
             protokoll::startzeile(app.package_info().version.to_string().as_str());
+
+            // Ein fehlendes Menü macht die Anwendung nicht unbrauchbar — der
+            // Start darf daran nicht scheitern.
+            if let Err(e) = menue::einrichten(app) {
+                log::warn!("Menü konnte nicht gesetzt werden: {e:?}");
+            }
             match starten(app) {
                 Ok(pool) => {
                     app.manage(pool);

@@ -17,6 +17,12 @@ type Schritt = 1 | 2 | 3 | 4 | 5;
  * komplett im Speicher (kein Save pro Schritt) — erst der Abschluss in
  * Schritt 4 ruft `firma.save`, damit ein Abbruch mittendrin keine halb
  * ausgefüllte Firma mit `eingerichtet=false` hinterlässt.
+ *
+ * Geprüft wird trotzdem schon nach Schritt 1: Wer sich in der IBAN vertippt,
+ * erfuhr das früher erst nach fünf Schritten und wurde an den Anfang
+ * zurückgeschickt. Die Prüfung läuft im Backend (`firma.pruefen`) — dieselbe
+ * Funktion wie beim Speichern. Eine zweite Regelmenge hier liefe auseinander,
+ * und die IBAN-Prüfsumme nachzubauen wäre ohnehin Unfug.
  */
 export function Einrichtung({ onFertig }: EinrichtungProps) {
   const [schritt, setSchritt] = useState<Schritt>(1);
@@ -24,6 +30,7 @@ export function Einrichtung({ onFertig }: EinrichtungProps) {
   const [logoBytes, setLogoBytes] = useState<number[] | null>(null);
   const [fehler, setFehler] = useState<AppFehler | null>(null);
   const [speichert, setSpeichert] = useState(false);
+  const [prueft, setPrueft] = useState(false);
 
   useEffect(() => {
     api.firma.get().then(setFirma).catch((e) => setFehler(e as AppFehler));
@@ -38,6 +45,34 @@ export function Einrichtung({ onFertig }: EinrichtungProps) {
   }
 
   const { feldFehler, bannerFehler } = formularFehler(fehler, ["name", "steuernummer"]);
+
+  /**
+   * Übernimmt eine Feldänderung und räumt eine stehengebliebene Meldung weg.
+   *
+   * Ohne das blieb „Die Prüfsumme der IBAN stimmt nicht" sichtbar, auch
+   * nachdem der Nutzer sie längst korrigiert hatte — und ließ ihn im Zweifel,
+   * ob seine Korrektur angekommen ist.
+   */
+  function feldAendern(aenderung: Partial<Firma>) {
+    if (!firma) return;
+    setFirma({ ...firma, ...aenderung });
+    if (fehler) setFehler(null);
+  }
+
+  /** Prüft die Firmendaten und geht nur bei Erfolg weiter. */
+  async function weiterVonSchritt1() {
+    if (!firma) return;
+    setPrueft(true);
+    try {
+      await api.firma.pruefen(firma);
+      setFehler(null);
+      setSchritt(2);
+    } catch (e) {
+      setFehler(e as AppFehler);
+    } finally {
+      setPrueft(false);
+    }
+  }
 
   async function logoWaehlen() {
     const pfad = await open({
@@ -83,7 +118,7 @@ export function Einrichtung({ onFertig }: EinrichtungProps) {
           <div className="feld">
             <label>
               Name
-              <input required value={firma.name} onChange={(e) => setFirma({ ...firma, name: e.currentTarget.value })} />
+              <input required value={firma.name} onChange={(e) => feldAendern({ name: e.currentTarget.value })} />
             </label>
             {feldFehler("name") && <div className="feld-fehler" role="alert">{feldFehler("name")}</div>}
           </div>
@@ -92,20 +127,20 @@ export function Einrichtung({ onFertig }: EinrichtungProps) {
               Straße
               <input
                 value={firma.strasse}
-                onChange={(e) => setFirma({ ...firma, strasse: e.currentTarget.value })}
+                onChange={(e) => feldAendern({ strasse: e.currentTarget.value })}
               />
             </label>
           </div>
           <div className="feld">
             <label>
               PLZ
-              <input value={firma.plz} onChange={(e) => setFirma({ ...firma, plz: e.currentTarget.value })} />
+              <input value={firma.plz} onChange={(e) => feldAendern({ plz: e.currentTarget.value })} />
             </label>
           </div>
           <div className="feld">
             <label>
               Ort
-              <input value={firma.ort} onChange={(e) => setFirma({ ...firma, ort: e.currentTarget.value })} />
+              <input value={firma.ort} onChange={(e) => feldAendern({ ort: e.currentTarget.value })} />
             </label>
           </div>
           <div className="feld">
@@ -113,7 +148,7 @@ export function Einrichtung({ onFertig }: EinrichtungProps) {
               Steuernummer
               <input
                 value={firma.steuernummer}
-                onChange={(e) => setFirma({ ...firma, steuernummer: e.currentTarget.value })}
+                onChange={(e) => feldAendern({ steuernummer: e.currentTarget.value })}
               />
             </label>
             {feldFehler("steuernummer") && <div className="feld-fehler" role="alert">{feldFehler("steuernummer")}</div>}
@@ -123,20 +158,20 @@ export function Einrichtung({ onFertig }: EinrichtungProps) {
               USt-IdNr.
               <input
                 value={firma.ust_idnr}
-                onChange={(e) => setFirma({ ...firma, ust_idnr: e.currentTarget.value })}
+                onChange={(e) => feldAendern({ ust_idnr: e.currentTarget.value })}
               />
             </label>
           </div>
           <div className="feld">
             <label>
               IBAN
-              <input value={firma.iban} onChange={(e) => setFirma({ ...firma, iban: e.currentTarget.value })} />
+              <input value={firma.iban} onChange={(e) => feldAendern({ iban: e.currentTarget.value })} />
             </label>
           </div>
           <div className="feld">
             <label>
               BIC
-              <input value={firma.bic} onChange={(e) => setFirma({ ...firma, bic: e.currentTarget.value })} />
+              <input value={firma.bic} onChange={(e) => feldAendern({ bic: e.currentTarget.value })} />
             </label>
           </div>
           {/* E-Mail, Telefon und Ansprechpartner sind für eine gültige XRechnung
@@ -148,7 +183,7 @@ export function Einrichtung({ onFertig }: EinrichtungProps) {
               <input
                 type="email"
                 value={firma.email}
-                onChange={(e) => setFirma({ ...firma, email: e.currentTarget.value })}
+                onChange={(e) => feldAendern({ email: e.currentTarget.value })}
               />
             </label>
             <p className="feld-hinweis">Wird für den XRechnung-Export benötigt.</p>
@@ -159,7 +194,7 @@ export function Einrichtung({ onFertig }: EinrichtungProps) {
               Telefon
               <input
                 value={firma.telefon}
-                onChange={(e) => setFirma({ ...firma, telefon: e.currentTarget.value })}
+                onChange={(e) => feldAendern({ telefon: e.currentTarget.value })}
               />
             </label>
             <p className="feld-hinweis">Wird für den XRechnung-Export benötigt.</p>
@@ -170,7 +205,7 @@ export function Einrichtung({ onFertig }: EinrichtungProps) {
               Ansprechpartner
               <input
                 value={firma.kontakt_name}
-                onChange={(e) => setFirma({ ...firma, kontakt_name: e.currentTarget.value })}
+                onChange={(e) => feldAendern({ kontakt_name: e.currentTarget.value })}
               />
             </label>
             <p className="feld-hinweis">Ohne Angabe wird der Firmenname verwendet.</p>
@@ -178,13 +213,19 @@ export function Einrichtung({ onFertig }: EinrichtungProps) {
           <div className="feld">
             <label>
               Gründungsjahr
+              {/* Grenzen am Feld, damit das Zahlenrad gar nicht erst ins
+                  Negative läuft. Die verbindliche Prüfung steht im Backend —
+                  ein Attribut im Formular lässt sich umgehen. */}
               <input
                 type="number"
+                min={1900}
+                max={new Date().getFullYear()}
+                step={1}
                 value={firma.gruendungsjahr ?? ""}
                 onChange={(e) =>
-                  setFirma({
-                    ...firma,
-                    gruendungsjahr: e.currentTarget.value === "" ? null : Number(e.currentTarget.value),
+                  feldAendern({
+                    gruendungsjahr:
+                      e.currentTarget.value === "" ? null : Number(e.currentTarget.value),
                   })
                 }
               />
@@ -193,7 +234,12 @@ export function Einrichtung({ onFertig }: EinrichtungProps) {
               Im Gründungsjahr gilt für die Kleinunternehmergrenze bereits das laufende Jahr.
             </p>
           </div>
-          <button type="button" className="btn btn-primaer" onClick={() => setSchritt(2)}>
+          <button
+            type="button"
+            className="btn btn-primaer"
+            disabled={prueft}
+            onClick={weiterVonSchritt1}
+          >
             Weiter
           </button>
         </section>
@@ -232,7 +278,7 @@ export function Einrichtung({ onFertig }: EinrichtungProps) {
             <input
               type="checkbox"
               checked={firma.kleinunternehmer}
-              onChange={(e) => setFirma({ ...firma, kleinunternehmer: e.currentTarget.checked })}
+              onChange={(e) => feldAendern({ kleinunternehmer: e.currentTarget.checked })}
             />
             Ich falle unter die Kleinunternehmerregelung
           </label>
