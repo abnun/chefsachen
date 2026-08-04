@@ -68,8 +68,19 @@ Damit sind alle drei Befunde der Durchsicht behoben. Danach die B-Punkte
   Formular auf. Artikel hat kein Suchfeld, bekommt also nur ⌘N;
   Eingangsrechnungen haben weder Suche noch „Neu" (nur Import) und bleiben
   außen vor.
+- **C1 — BelegEditor.tsx verkleinert (2026-08-04).** Reiner Refactor, keine
+  Verhaltensänderung: Aus 1205 Zeilen wurden 444. Stammdaten-, Positionen-
+  und Zahlungen-Karte sind jetzt eigene Komponenten
+  (`src/components/*Abschnitt.tsx`), die vier Export-Wege (PDF, XRechnung,
+  ZUGFeRD, Zahlungserinnerung) ein eigenes Modul (`src/belegExport.ts`,
+  bewusst kein Hook trotz naheliegendem Namen — sonst hätte der frühe
+  `return` vor dem Laden die Hooks-Regeln verletzt). `BelegEditor.tsx`
+  bleibt für Statuswechsel (Stellen, Stornieren, Duplizieren …) und das
+  Zusammensetzen der Karten zuständig.
 
-Offen: C1 (BelegEditor.tsx verkleinern).
+Damit ist die Arbeitsliste der Durchsicht vom 2026-08-04 vollständig
+abgearbeitet. Statt einer 1.0 heißt der nächste Schritt 0.9 — Grund: „there's
+always room for improvement".
 
 ## Stand (2026-08-03)
 
