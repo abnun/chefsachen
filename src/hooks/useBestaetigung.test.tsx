@@ -2,7 +2,14 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-li
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { useBestaetigung } from "./useBestaetigung";
 
-afterEach(cleanup);
+// Ohne dies zählen die Aufrufe der Attrappen über Testgrenzen hinweg weiter.
+// Ein Test, der Aufrufe zählt, hängt dann an der Reihenfolge und an allem, was
+// in den Tests davor geschah — genau so entstand ein Ausfall, der nur in der CI
+// auftrat. `clearAllMocks` löscht die Aufrufe, nicht die hinterlegten Antworten.
+afterEach(() => {
+  cleanup();
+  vi.clearAllMocks();
+});
 
 function TestKomponente({ onErgebnis }: { onErgebnis: (ergebnis: boolean) => void }) {
   const { bestaetigen, dialog } = useBestaetigung();

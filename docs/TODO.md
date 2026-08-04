@@ -31,6 +31,16 @@ Behebung hinausweisen:
   unterschiedlich auf PDF und XRechnung, die Statusfarben dreimal im Code, die
   Aktionsleiste in vier fast gleichen CSS-Klassen. Ein Test findet inzwischen
   CSS-Klassen, die nichts mehr treffen.
+- **Tests, die auf das Ausbleiben von etwas prüfen, prüfen leicht zu früh.** Ein
+  `waitFor` auf eine Aufrufzahl kehrt zurück, sobald der Aufruf geschah — die
+  Zustandsänderung danach steht dann noch aus. Ein solcher Test schlug nur in
+  der CI fehl. Belegt wurde die Erklärung, indem die Attrappe künstlich später
+  auflöste: Dann scheiterte er auch lokal, mit derselben Meldung. Nicht
+  pauschal auf `waitFor` umgestellt — wo die Änderung synchron geschieht (Klick
+  auf „Abbrechen" im Dialog) ist die sofortige Prüfung die schärfere.
+- **Zählende Attrappen brauchen `clearAllMocks`.** Ohne das zählen Aufrufe über
+  Testgrenzen hinweg weiter, und ein Test hängt an der Reihenfolge. Steht
+  inzwischen in allen Testdateien mit Attrappen.
 - **Was über den Programmrand hinausgeht, prüft kein Test von selbst.** Die
   Suche nach Aktualisierungen meldete „auf dem neuesten Stand", während längst
   eine neuere Fassung veröffentlicht war. Dafür gibt es jetzt zwei Tests gegen
@@ -48,12 +58,13 @@ Behebung hinausweisen:
   ersten Installieren aus der DMG blockiert macOS die App (Rechtsklick →
   Öffnen). Beim Aktualisieren nicht — der Updater tauscht die App aus, ohne das
   Quarantäne-Merkmal zu setzen.
-- **Ein sporadisch scheiternder Test.** `KundeDetail` → „fragt nicht, wenn eine
-  Änderung wieder zurückgenommen wurde" fiel am 2026-08-03 **einmal** durch und
-  war danach in elf Läufen nicht wieder zu erwischen; die Meldung ist nicht
-  erhalten. Ungeklärt. Beim nächsten Auftreten sofort untersuchen, statt ohne
-  Reproduktion zu suchen — ein Test, der grundlos ausfällt, untergräbt mit der
-  Zeit das Vertrauen in die ganze Suite.
+- **Der sporadische Ausfall in `KundeDetail`** („fragt nicht, wenn eine Änderung
+  wieder zurückgenommen wurde") ist weiter unerklärt. Nicht reproduzierbar in
+  25 Läufen der Datei; die ursprüngliche Meldung ist nicht erhalten. Entschärft,
+  nicht behoben: Der Test suchte das Eingabefeld über seinen *aktuellen Wert*
+  (`getByDisplayValue`) und warf damit, sobald irgendetwas dazwischen den Stand
+  änderte. Er sucht jetzt über die Beschriftung. Ob das die Ursache war, ist
+  offen — tritt es wieder auf, sofort untersuchen.
 
 ## Entwicklungsumgebung einrichten
 

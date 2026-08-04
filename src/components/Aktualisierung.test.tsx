@@ -45,7 +45,14 @@ beforeEach(() => {
   vi.mocked(info).mockClear();
   vi.mocked(warn).mockClear();
 });
-afterEach(cleanup);
+// Ohne dies zählen die Aufrufe der Attrappen über Testgrenzen hinweg weiter.
+// Ein Test, der Aufrufe zählt, hängt dann an der Reihenfolge und an allem, was
+// in den Tests davor geschah — genau so entstand ein Ausfall, der nur in der CI
+// auftrat. `clearAllMocks` löscht die Aufrufe, nicht die hinterlegten Antworten.
+afterEach(() => {
+  cleanup();
+  vi.clearAllMocks();
+});
 
 describe("Aktualisierung", () => {
   it("zeigt die installierte Version", async () => {

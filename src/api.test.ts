@@ -1,8 +1,14 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn().mockResolvedValue([]) }));
 import { invoke } from "@tauri-apps/api/core";
 import { api, istValidierungsfehler } from "./api";
+
+// Ohne dies zählen die Aufrufe der Attrappen über Testgrenzen hinweg weiter.
+// Ein Test, der Aufrufe zählt, hängt dann an der Reihenfolge und an allem, was
+// in den Tests davor geschah — genau so entstand ein Ausfall, der nur in der CI
+// auftrat. `clearAllMocks` löscht die Aufrufe, nicht die hinterlegten Antworten.
+afterEach(() => vi.clearAllMocks());
 
 describe("api", () => {
   it("ruft einheit_list per invoke auf", async () => {

@@ -4,7 +4,14 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { UngespeichertProvider, useVerlassenPruefen } from "../hooks/useUngespeichert";
 
-afterEach(cleanup);
+// Ohne dies zählen die Aufrufe der Attrappen über Testgrenzen hinweg weiter.
+// Ein Test, der Aufrufe zählt, hängt dann an der Reihenfolge und an allem, was
+// in den Tests davor geschah — genau so entstand ein Ausfall, der nur in der CI
+// auftrat. `clearAllMocks` löscht die Aufrufe, nicht die hinterlegten Antworten.
+afterEach(() => {
+  cleanup();
+  vi.clearAllMocks();
+});
 
 vi.mock("../api", () => ({
   api: {
@@ -307,7 +314,8 @@ describe("KundeDetail", () => {
     await waitFor(() => expect(gewechselt).toHaveBeenCalledWith(true));
 
     gewechselt.mockClear();
-    fireEvent.change(screen.getByDisplayValue("ACME GmbH"), { target: { value: "ACME AG" } });
+    // Über die Beschriftung, nicht über den Wert — siehe unten.
+    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "ACME AG" } });
     await userEvent.click(screen.getByRole("button", { name: "Zu den Rechnungen" }));
     await waitFor(() => expect(screen.getByRole("dialog")).toBeTruthy());
     expect(gewechselt).not.toHaveBeenCalled();
@@ -333,10 +341,14 @@ describe("KundeDetail", () => {
         <Umgebung />
       </UngespeichertProvider>,
     );
-    await waitFor(() => expect(screen.getByDisplayValue("ACME GmbH")).toBeTruthy());
+    // Über die Beschriftung suchen, nicht über den Wert im Feld: Ein Zugriff
+    // per `getByDisplayValue` hängt daran, was gerade darin steht — und wirft,
+    // sobald irgendetwas dazwischen den Stand ändert. Die Beschriftung bleibt.
+    const name = await screen.findByLabelText("Name");
+    expect(name).toHaveValue("ACME GmbH");
 
-    fireEvent.change(screen.getByDisplayValue("ACME GmbH"), { target: { value: "ACME AG" } });
-    fireEvent.change(screen.getByDisplayValue("ACME AG"), { target: { value: "ACME GmbH" } });
+    fireEvent.change(name, { target: { value: "ACME AG" } });
+    fireEvent.change(name, { target: { value: "ACME GmbH" } });
 
     await userEvent.click(screen.getByRole("button", { name: "Weiter" }));
     await waitFor(() => expect(gewechselt).toHaveBeenCalledWith(true));

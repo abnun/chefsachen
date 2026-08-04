@@ -2,7 +2,14 @@ import "@testing-library/jest-dom/vitest";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-afterEach(cleanup);
+// Ohne dies zählen die Aufrufe der Attrappen über Testgrenzen hinweg weiter.
+// Ein Test, der Aufrufe zählt, hängt dann an der Reihenfolge und an allem, was
+// in den Tests davor geschah — genau so entstand ein Ausfall, der nur in der CI
+// auftrat. `clearAllMocks` löscht die Aufrufe, nicht die hinterlegten Antworten.
+afterEach(() => {
+  cleanup();
+  vi.clearAllMocks();
+});
 
 // Verhindert, dass ein von einem Test noch offenes mockResolvedValueOnce(...)
 // (z. B. im Leerzustand-Test ungenutzt, da der Leerzustand bereits durch den
