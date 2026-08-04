@@ -25,7 +25,21 @@ import { relaunch } from "@tauri-apps/plugin-process";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { info, warn } from "@tauri-apps/plugin-log";
 import { api } from "../api";
+import { AktualisierungProvider } from "../hooks/useAktualisierung";
 import { Aktualisierung } from "./Aktualisierung";
+
+/**
+ * Die Suche „beim Programmstart" sitzt im Kontext, der in App.tsx umbaut.
+ * Diese Seite ist nur eine der Ansichten darauf — der Test bildet das nach,
+ * damit die Komponente wie in echt in ihrem Anbieter läuft.
+ */
+function AktualisierungMitAnbieter() {
+  return (
+    <AktualisierungProvider>
+      <Aktualisierung />
+    </AktualisierungProvider>
+  );
+}
 
 /** Minimales Update-Objekt; nur die genutzten Felder sind belegt. */
 function update(overrides: Record<string, unknown> = {}) {
@@ -57,19 +71,19 @@ afterEach(() => {
 describe("Aktualisierung", () => {
   it("zeigt die installierte Version", async () => {
     vi.mocked(check).mockResolvedValue(null);
-    render(<Aktualisierung />);
+    render(<AktualisierungMitAnbieter />);
     await waitFor(() => expect(screen.getByText("Installiert: Version 0.1.0")).toBeTruthy());
   });
 
   it("meldet, wenn keine neue Version vorliegt", async () => {
     vi.mocked(check).mockResolvedValue(null);
-    render(<Aktualisierung />);
+    render(<AktualisierungMitAnbieter />);
     await waitFor(() => expect(screen.getByText("Die Anwendung ist auf dem neuesten Stand.")).toBeTruthy());
   });
 
   it("bietet eine gefundene Version mit Änderungshinweis zur Installation an", async () => {
     vi.mocked(check).mockResolvedValue(update());
-    render(<Aktualisierung />);
+    render(<AktualisierungMitAnbieter />);
     await waitFor(() => expect(screen.getByText("Version 0.2.0 ist verfügbar")).toBeTruthy());
     expect(screen.getByText("Fehler in der Rechnungsnummer behoben")).toBeTruthy();
   });
@@ -78,14 +92,14 @@ describe("Aktualisierung", () => {
     // Ein Rechner ohne Netz ist der Normalfall, kein Fehler, über den der
     // Nutzer ungefragt eine Meldung bekommen sollte.
     vi.mocked(check).mockImplementation(async () => { throw new Error("Network unreachable"); });
-    render(<Aktualisierung />);
+    render(<AktualisierungMitAnbieter />);
     await waitFor(() => expect(screen.getByText("Installiert: Version 0.1.0")).toBeTruthy());
     expect(screen.queryByRole("alert")).toBeNull();
   });
 
   it("meldet den Fehlschlag, wenn der Nutzer selbst gesucht hat", async () => {
     vi.mocked(check).mockImplementation(async () => { throw new Error("Network unreachable"); });
-    render(<Aktualisierung />);
+    render(<AktualisierungMitAnbieter />);
     await waitFor(() => expect(screen.getByText("Nach Aktualisierung suchen")).toBeTruthy());
 
     fireEvent.click(screen.getByText("Nach Aktualisierung suchen"));
@@ -98,7 +112,7 @@ describe("Aktualisierung", () => {
       fortschritt({ event: "Progress", data: { chunkLength: 50 } });
     });
     vi.mocked(check).mockResolvedValue(update({ downloadAndInstall }));
-    render(<Aktualisierung />);
+    render(<AktualisierungMitAnbieter />);
     await waitFor(() => expect(screen.getByText("Jetzt aktualisieren")).toBeTruthy());
 
     fireEvent.click(screen.getByText("Jetzt aktualisieren"));
@@ -117,7 +131,7 @@ describe("Aktualisierung", () => {
         }),
     );
     vi.mocked(check).mockResolvedValue(update({ downloadAndInstall }));
-    render(<Aktualisierung />);
+    render(<AktualisierungMitAnbieter />);
     await waitFor(() => expect(screen.getByText("Jetzt aktualisieren")).toBeTruthy());
     fireEvent.click(screen.getByText("Jetzt aktualisieren"));
 
@@ -131,7 +145,7 @@ describe("Aktualisierung", () => {
   it("meldet einen Fehlschlag beim Installieren", async () => {
     const downloadAndInstall = vi.fn(async () => { throw new Error("Signatur ungültig"); });
     vi.mocked(check).mockResolvedValue(update({ downloadAndInstall }));
-    render(<Aktualisierung />);
+    render(<AktualisierungMitAnbieter />);
     await waitFor(() => expect(screen.getByText("Jetzt aktualisieren")).toBeTruthy());
 
     fireEvent.click(screen.getByText("Jetzt aktualisieren"));
@@ -140,7 +154,7 @@ describe("Aktualisierung", () => {
 
   it("zeigt den Pfad der Protokolldatei und öffnet ihren Ordner", async () => {
     vi.mocked(check).mockResolvedValue(null);
-    render(<Aktualisierung />);
+    render(<AktualisierungMitAnbieter />);
     await waitFor(() =>
       expect(screen.getByText("/Users/test/Library/Logs/app/app.log")).toBeTruthy(),
     );
@@ -154,7 +168,7 @@ describe("Aktualisierung", () => {
     vi.mocked(api.protokoll.pfad).mockImplementationOnce(async () => {
       throw new Error("kein Protokollordner");
     });
-    render(<Aktualisierung />);
+    render(<AktualisierungMitAnbieter />);
     await waitFor(() => expect(screen.getByText("Installiert: Version 0.1.0")).toBeTruthy());
     expect(screen.queryByText("Protokolldatei im Ordner zeigen")).toBeNull();
   });
@@ -162,7 +176,7 @@ describe("Aktualisierung", () => {
   it("sucht beim Start nicht, wenn der Nutzer das abbestellt hat", async () => {
     vi.mocked(check).mockResolvedValue(null);
     vi.mocked(api.einstellungen.get).mockResolvedValueOnce("nein");
-    render(<Aktualisierung />);
+    render(<AktualisierungMitAnbieter />);
     await waitFor(() => expect(screen.getByText("Installiert: Version 0.1.0")).toBeTruthy());
 
     const schalter = screen.getByLabelText(/Beim Programmstart/) as HTMLInputElement;
@@ -173,14 +187,14 @@ describe("Aktualisierung", () => {
   it("sucht ohne gespeicherte Einstellung von selbst", async () => {
     // Wer nichts einstellt, soll von Fehlerbehebungen erfahren.
     vi.mocked(check).mockResolvedValue(null);
-    render(<Aktualisierung />);
+    render(<AktualisierungMitAnbieter />);
     await waitFor(() => expect(check).toHaveBeenCalled());
     expect((screen.getByLabelText(/Beim Programmstart/) as HTMLInputElement).checked).toBe(true);
   });
 
   it("merkt sich das Abbestellen", async () => {
     vi.mocked(check).mockResolvedValue(null);
-    render(<Aktualisierung />);
+    render(<AktualisierungMitAnbieter />);
     await waitFor(() => expect(screen.getByLabelText(/Beim Programmstart/)).toBeTruthy());
 
     fireEvent.click(screen.getByLabelText(/Beim Programmstart/));
@@ -199,7 +213,7 @@ describe("Aktualisierung", () => {
    */
   it("hält im Protokoll fest, dass nichts Neueres gefunden wurde", async () => {
     vi.mocked(check).mockResolvedValue(null);
-    render(<Aktualisierung />);
+    render(<AktualisierungMitAnbieter />);
     await waitFor(() =>
       expect(info).toHaveBeenCalledWith("Aktualisierungssuche: nichts Neueres gefunden"),
     );
@@ -207,7 +221,7 @@ describe("Aktualisierung", () => {
 
   it("hält im Protokoll fest, welche Version gefunden wurde", async () => {
     vi.mocked(check).mockResolvedValue(update({ version: "0.3.0" }));
-    render(<Aktualisierung />);
+    render(<AktualisierungMitAnbieter />);
     await waitFor(() =>
       expect(info).toHaveBeenCalledWith("Aktualisierungssuche: Version 0.3.0 gefunden"),
     );
@@ -217,7 +231,7 @@ describe("Aktualisierung", () => {
     // Beim Programmstart bekommt der Nutzer davon nichts zu sehen. Ohne diese
     // Zeile bliebe eine dauerhaft scheiternde Suche vollkommen unbemerkt.
     vi.mocked(check).mockRejectedValue(new Error("kein Netz"));
-    render(<Aktualisierung />);
+    render(<AktualisierungMitAnbieter />);
     await waitFor(() =>
       expect(warn).toHaveBeenCalledWith("Aktualisierungssuche fehlgeschlagen: kein Netz"),
     );

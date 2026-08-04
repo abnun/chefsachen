@@ -3,12 +3,10 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@tauri-apps/api/app", () => ({ getVersion: vi.fn().mockResolvedValue("0.2.1") }));
-vi.mock("@tauri-apps/plugin-opener", () => ({ openUrl: vi.fn().mockResolvedValue(undefined) }));
 vi.mock("../api", () => ({
   api: { einstellungen: { get: vi.fn(), set: vi.fn().mockResolvedValue(undefined) } },
 }));
 
-import { openUrl } from "@tauri-apps/plugin-opener";
 import { api } from "../api";
 import { VersionsHinweis } from "./VersionsHinweis";
 
@@ -37,17 +35,6 @@ describe("VersionsHinweis", () => {
     await waitFor(() => expect(screen.getByRole("dialog")).toBeTruthy());
     expect(screen.getByText(/Aktualisiert auf Version 0.2.1/)).toBeTruthy();
     expect(screen.getByText("Fehler in der Rechnungsnummer behoben")).toBeTruthy();
-  });
-
-  it("führt zur Veröffentlichung der laufenden Version", async () => {
-    vi.mocked(api.einstellungen.get).mockResolvedValueOnce("0.2.0").mockResolvedValueOnce("");
-    render(<VersionsHinweis />);
-    await waitFor(() => expect(screen.getByRole("dialog")).toBeTruthy());
-
-    fireEvent.click(screen.getByRole("button", { name: "Was ist neu?" }));
-    expect(openUrl).toHaveBeenCalledWith(
-      "https://github.com/abnun/kleinunternehmer-verwaltung/releases/tag/v0.2.1",
-    );
   });
 
   it("lässt sich schließen", async () => {

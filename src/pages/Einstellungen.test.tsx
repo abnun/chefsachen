@@ -20,6 +20,10 @@ vi.mock("@tauri-apps/api/app", () => ({ getVersion: vi.fn().mockResolvedValue("0
 vi.mock("@tauri-apps/plugin-updater", () => ({ check: vi.fn().mockResolvedValue(null) }));
 vi.mock("@tauri-apps/plugin-process", () => ({ relaunch: vi.fn() }));
 vi.mock("@tauri-apps/plugin-opener", () => ({ revealItemInDir: vi.fn() }));
+vi.mock("@tauri-apps/plugin-log", () => ({
+  info: vi.fn().mockResolvedValue(undefined),
+  warn: vi.fn().mockResolvedValue(undefined),
+}));
 vi.mock("@tauri-apps/plugin-fs", () => ({
   readFile: vi.fn().mockResolvedValue(new Uint8Array()),
   writeFile: vi.fn().mockResolvedValue(undefined),
@@ -87,11 +91,25 @@ vi.mock("../api", () => ({
   istValidierungsfehler: () => false,
 }));
 import { api } from "../api";
+import { AktualisierungProvider } from "../hooks/useAktualisierung";
 import { Einstellungen } from "./Einstellungen";
+
+/**
+ * Die Aktualisierungssuche sitzt im Kontext, der in main.tsx um die ganze
+ * Anwendung gelegt wird. Der Test bildet das mit einem eigenen, schmalen
+ * Anbieter nach.
+ */
+function EinstellungenMitAnbieter() {
+  return (
+    <AktualisierungProvider>
+      <Einstellungen />
+    </AktualisierungProvider>
+  );
+}
 
 describe("Einstellungen", () => {
   it("laedt und zeigt Firmendaten, Einheiten und Nummernkreise", async () => {
-    render(<Einstellungen />);
+    render(<EinstellungenMitAnbieter />);
     await waitFor(() => expect(screen.getByDisplayValue("Musterfirma")).toBeTruthy());
     expect(screen.getByText("Std")).toBeTruthy();
     expect(screen.getByDisplayValue("R-{jahr}-{nr}")).toBeTruthy();
@@ -99,7 +117,7 @@ describe("Einstellungen", () => {
   });
 
   it("laedt und zeigt Textbausteine", async () => {
-    render(<Einstellungen />);
+    render(<EinstellungenMitAnbieter />);
     await waitFor(() =>
       expect(screen.getByDisplayValue("Gemäß § 19 UStG wird keine Umsatzsteuer berechnet.")).toBeTruthy(),
     );
@@ -116,7 +134,7 @@ describe("Einstellungen", () => {
       email: "", telefon: "", kontakt_name: "", gruendungsjahr: null,
       kleinunternehmer: true, eingerichtet: true,
     });
-    render(<Einstellungen />);
+    render(<EinstellungenMitAnbieter />);
     await waitFor(() => expect(screen.getByDisplayValue("Musterfirma")).toBeTruthy());
     // Index 0: Firmendaten ist der erste Abschnitt auf der Seite, dessen
     // "Speichern"-Button ist damit im DOM immer der erste unter diesem Namen.
@@ -125,7 +143,7 @@ describe("Einstellungen", () => {
   });
 
   it("zeigt nach dem Anlegen einer neuen Einheit einen Erfolgs-Hinweis", async () => {
-    render(<Einstellungen />);
+    render(<EinstellungenMitAnbieter />);
     await waitFor(() => expect(screen.getByText("Std")).toBeTruthy());
     // Index 1: Firmendaten hat ebenfalls ein "Name"-Feld und steht davor im DOM.
     fireEvent.change(screen.getAllByLabelText("Name")[1], { target: { value: "Pauschale" } });
@@ -136,7 +154,7 @@ describe("Einstellungen", () => {
 
   it("löscht eine Einheit nicht, wenn im Dialog abgebrochen wird", async () => {
     const { api } = await import("../api");
-    render(<Einstellungen />);
+    render(<EinstellungenMitAnbieter />);
     await waitFor(() => expect(screen.getByRole("button", { name: "Löschen" })).toBeTruthy());
     fireEvent.click(screen.getByRole("button", { name: "Löschen" }));
     await waitFor(() => expect(screen.getByRole("dialog")).toBeTruthy());
@@ -146,7 +164,7 @@ describe("Einstellungen", () => {
   });
 
   it("zeigt nach dem Löschen einer Einheit einen Erfolgs-Hinweis", async () => {
-    render(<Einstellungen />);
+    render(<EinstellungenMitAnbieter />);
     await waitFor(() => expect(screen.getByRole("button", { name: "Löschen" })).toBeTruthy());
     fireEvent.click(screen.getByRole("button", { name: "Löschen" }));
     await waitFor(() => expect(screen.getByText('Einheit „Stunde" löschen?')).toBeTruthy());
@@ -155,7 +173,7 @@ describe("Einstellungen", () => {
   });
 
   it("zeigt nach dem Speichern eines Nummernkreises einen Erfolgs-Hinweis", async () => {
-    render(<Einstellungen />);
+    render(<EinstellungenMitAnbieter />);
     await waitFor(() => expect(screen.getByDisplayValue("R-{jahr}-{nr}")).toBeTruthy());
     // Index 1: Firmendaten (0) steht im DOM vor dem einzigen Nummernkreis-Eintrag (1).
     fireEvent.click(screen.getAllByRole("button", { name: "Speichern" })[1]);
@@ -163,7 +181,7 @@ describe("Einstellungen", () => {
   });
 
   it("zeigt nach dem Speichern eines Textbausteins einen Erfolgs-Hinweis mit Feldname", async () => {
-    render(<Einstellungen />);
+    render(<EinstellungenMitAnbieter />);
     await waitFor(() => expect(screen.getByDisplayValue("Vielen Dank für Ihren Auftrag.")).toBeTruthy());
     // Über das Formular des Bausteins, nicht über die Nummer des Knopfes: Eine
     // Zählung quer über die Seite verschob sich, sobald ein Baustein dazukam —
@@ -181,7 +199,7 @@ describe("Einstellungen", () => {
     const { open } = await import("@tauri-apps/plugin-dialog");
     const { readFile } = await import("@tauri-apps/plugin-fs");
     vi.mocked(api.firma.logoGet).mockResolvedValue(null);
-    render(<Einstellungen />);
+    render(<EinstellungenMitAnbieter />);
     await waitFor(() => expect(screen.getByText(/Kein Logo hinterlegt/)).toBeTruthy());
 
     vi.mocked(open).mockResolvedValueOnce("/pfad/logo.png");
@@ -199,7 +217,7 @@ describe("Einstellungen", () => {
     const { api } = await import("../api");
     const { open } = await import("@tauri-apps/plugin-dialog");
     vi.mocked(api.firma.logoGet).mockResolvedValue(null);
-    render(<Einstellungen />);
+    render(<EinstellungenMitAnbieter />);
     await waitFor(() => expect(screen.getByRole("button", { name: "Logo wählen" })).toBeTruthy());
     vi.mocked(open).mockResolvedValueOnce(null);
     fireEvent.click(screen.getByRole("button", { name: "Logo wählen" }));
@@ -213,7 +231,7 @@ describe("Einstellungen", () => {
     vi.mocked(api.sicherungen.liste).mockResolvedValue([
       { zeitstempel: "2026-08-03_10-15-00", groesse_bytes: 2048, pfad: "/p/daten-2026-08-03_10-15-00.db" },
     ]);
-    render(<Einstellungen />);
+    render(<EinstellungenMitAnbieter />);
     await waitFor(() => expect(screen.getByText("03.08.2026, 10:15 Uhr")).toBeTruthy());
     expect(screen.getByText("2 KB")).toBeTruthy();
   });
@@ -221,7 +239,7 @@ describe("Einstellungen", () => {
   it("legt auf Knopfdruck eine Sicherung an und lädt die Liste neu", async () => {
     const { api } = await import("../api");
     vi.mocked(api.sicherungen.liste).mockResolvedValue([]);
-    render(<Einstellungen />);
+    render(<EinstellungenMitAnbieter />);
     await waitFor(() => expect(screen.getByText(/Noch keine Sicherungen/)).toBeTruthy());
     fireEvent.click(screen.getByRole("button", { name: "Jetzt sichern" }));
     await waitFor(() => expect(api.sicherungen.jetzt).toHaveBeenCalled());
@@ -235,7 +253,7 @@ describe("Einstellungen", () => {
     vi.mocked(api.sicherungen.liste).mockResolvedValue([
       { zeitstempel: "2026-08-01_09-00-00", groesse_bytes: 2048, pfad: "/p/a.db" },
     ]);
-    render(<Einstellungen />);
+    render(<EinstellungenMitAnbieter />);
     await waitFor(() => expect(screen.getByText("01.08.2026, 09:00 Uhr")).toBeTruthy());
 
     fireEvent.click(screen.getByRole("button", { name: "Zurückspielen" }));
@@ -258,7 +276,7 @@ describe("Einstellungen", () => {
     vi.mocked(api.sicherungen.liste).mockResolvedValue([
       { zeitstempel: "2026-08-01_09-00-00", groesse_bytes: 2048, pfad: "/p/a.db" },
     ]);
-    render(<Einstellungen />);
+    render(<EinstellungenMitAnbieter />);
     await waitFor(() => expect(screen.getByText("01.08.2026, 09:00 Uhr")).toBeTruthy());
 
     fireEvent.click(screen.getByRole("button", { name: "Speichern unter …" }));
@@ -274,7 +292,7 @@ describe("Einstellungen", () => {
   it("nennt das Belegarchiv im Hinweis zur Sicherung", async () => {
     // Ohne diesen Satz hält man „Speichern unter" für eine reine
     // Datenbank-Kopie und übersieht, dass mehr als das exportiert wird.
-    render(<Einstellungen />);
+    render(<EinstellungenMitAnbieter />);
     await waitFor(() => expect(screen.getByText(/Belegarchiv/)).toBeTruthy());
   });
 
@@ -285,7 +303,7 @@ describe("Einstellungen", () => {
     const { api } = await import("../api");
     const { open } = await import("@tauri-apps/plugin-dialog");
     vi.mocked(open).mockResolvedValueOnce("/pfad/kleinunternehmer-sicherung.zip");
-    render(<Einstellungen />);
+    render(<EinstellungenMitAnbieter />);
     await waitFor(() => expect(screen.getByRole("button", { name: "Aus Datei einspielen …" })).toBeTruthy());
 
     fireEvent.click(screen.getByRole("button", { name: "Aus Datei einspielen …" }));
@@ -303,7 +321,7 @@ describe("Einstellungen", () => {
 
   it("bricht das Einspielen ohne gewählte Datei stumm ab", async () => {
     const { api } = await import("../api");
-    render(<Einstellungen />);
+    render(<EinstellungenMitAnbieter />);
     await waitFor(() => expect(screen.getByRole("button", { name: "Aus Datei einspielen …" })).toBeTruthy());
     fireEvent.click(screen.getByRole("button", { name: "Aus Datei einspielen …" }));
     // open() liefert null (Abbruch im Dateidialog) — keine Rückfrage, kein Aufruf.
@@ -317,7 +335,7 @@ describe("Einstellungen", () => {
    * exportiert wurde, gerät das leicht in Vergessenheit.
    */
   it("sagt, wenn noch nie extern gesichert wurde", async () => {
-    render(<Einstellungen />);
+    render(<EinstellungenMitAnbieter />);
     await waitFor(() => expect(screen.getByText("Noch nie extern gesichert.")).toBeTruthy());
   });
 
@@ -328,7 +346,7 @@ describe("Einstellungen", () => {
       vi.mocked(api.sicherungen.liste).mockResolvedValue([
         { zeitstempel: "2026-08-01_09-00-00", groesse_bytes: 2048, pfad: "/p/a.db" },
       ]);
-      render(<Einstellungen />);
+      render(<EinstellungenMitAnbieter />);
       await waitFor(() => expect(screen.getByText("01.08.2026, 09:00 Uhr")).toBeTruthy());
 
       fireEvent.click(screen.getByRole("button", { name: "Speichern unter …" }));
@@ -354,7 +372,7 @@ describe("Einstellungen", () => {
     vi.mocked(api.einstellungen.get).mockImplementation((key: string) =>
       Promise.resolve(key === "sicherung.zuletzt_exportiert" ? "2026-08-02T10:00:00Z" : null),
     );
-    render(<Einstellungen />);
+    render(<EinstellungenMitAnbieter />);
     await waitFor(() =>
       expect(screen.getByText(/Zuletzt extern gesichert: 02.08.2026/)).toBeTruthy(),
     );
@@ -367,7 +385,7 @@ describe("Einstellungen", () => {
    * Vorgabe dafür.
    */
   it("zeigt 30 Tage als Vorgabe, wenn nichts gespeichert ist", async () => {
-    render(<Einstellungen />);
+    render(<EinstellungenMitAnbieter />);
     await waitFor(() =>
       expect(screen.getByLabelText("Angebotsgültigkeit (Tage)")).toHaveValue(30),
     );
@@ -382,7 +400,7 @@ describe("Einstellungen", () => {
     vi.mocked(api.einstellungen.get).mockImplementation((key: string) =>
       Promise.resolve(key === "vorlage.angebot_gueltigkeit_tage" ? "14" : null),
     );
-    render(<Einstellungen />);
+    render(<EinstellungenMitAnbieter />);
     await waitFor(() =>
       expect(screen.getByLabelText("Angebotsgültigkeit (Tage)")).toHaveValue(14),
     );
@@ -390,7 +408,7 @@ describe("Einstellungen", () => {
   });
 
   it("speichert eine geänderte Angebotsgültigkeit", async () => {
-    render(<Einstellungen />);
+    render(<EinstellungenMitAnbieter />);
     await waitFor(() =>
       expect(screen.getByLabelText("Angebotsgültigkeit (Tage)")).toHaveValue(30),
     );

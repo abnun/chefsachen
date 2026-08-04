@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { getVersion } from "@tauri-apps/api/app";
-import { openUrl } from "@tauri-apps/plugin-opener";
 import { api } from "../api";
 import { Dialog } from "./Dialog";
 import { Aenderungstext } from "./Aenderungstext";
@@ -9,16 +8,6 @@ import { Aenderungstext } from "./Aenderungstext";
 const SCHLUESSEL_VERSION = "version.zuletzt_gesehen";
 /** Änderungstext der zuletzt eingespielten Aktualisierung. */
 export const SCHLUESSEL_NOTIZEN = "version.letzte_notizen";
-
-/**
- * Adresse der Veröffentlichung zu einer Version.
- *
- * Steht hier und nicht in der Konfiguration, weil sie nur diesen einen Zweck
- * hat. Zieht das Projekt um, fällt sie beim Suchen nach dem Namen auf.
- */
-function releaseAdresse(version: string): string {
-  return `https://github.com/abnun/kleinunternehmer-verwaltung/releases/tag/v${version}`;
-}
 
 /**
  * Meldet nach einer Aktualisierung, dass sich die Version geändert hat.
@@ -75,18 +64,9 @@ export function VersionsHinweis() {
       breit
       onSchliessen={() => setWechsel(null)}
       aktionen={
-        <>
-          <button
-            type="button"
-            className="btn"
-            onClick={() => openUrl(releaseAdresse(wechsel.version)).catch(() => {})}
-          >
-            Was ist neu?
-          </button>
-          <button type="button" className="btn btn-primaer" onClick={() => setWechsel(null)}>
-            Weiter
-          </button>
-        </>
+        <button type="button" className="btn btn-primaer" onClick={() => setWechsel(null)}>
+          Weiter
+        </button>
       }
     >
       {wechsel.notizen ? (
