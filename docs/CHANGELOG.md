@@ -19,6 +19,11 @@ Deshalb hier in der Sprache der Anwender, nicht in der der Commits.
   Aktualisierung ist entfallen — der Änderungstext steht bereits im
   selben Dialog.
 
+**Übersicht**
+- Die Kleinunternehmergrenzen stehen jetzt am Ende der Seite. Offene
+  Rechnungen und Angebote ändern sich täglich, die Grenzen selten — der
+  tägliche Blick soll nicht erst daran vorbeiscrollen.
+
 ## 0.9.0
 
 **Sicherung**

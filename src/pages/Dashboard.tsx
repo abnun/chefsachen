@@ -165,46 +165,6 @@ export function Dashboard({ onRechnungOeffnen, onAngebotOeffnen, onErsterSchritt
         </p>
       </section>
 
-      {g && (
-        <section className="karte">
-          <h2>
-            Kleinunternehmergrenzen
-            {g.ist_gruendungsjahr && <span className="marke"> Gründungsjahr</span>}
-          </h2>
-
-          <GrenzenBalken
-            titel={`Laufendes Jahr gegen ${grenzeText(g.laufendes_jahr_gegen_jahresgrenze.grenze_cent)}`}
-            erlaeuterung="Wird diese Grenze überschritten, endet die Regelung sofort — mit dem Umsatz, der sie reißt."
-            grenze={g.laufendes_jahr_gegen_jahresgrenze}
-          />
-
-          {!g.ist_gruendungsjahr && (
-            <GrenzenBalken
-              titel={`Laufendes Jahr gegen ${grenzeText(g.laufendes_jahr_gegen_vorjahresgrenze.grenze_cent)}`}
-              erlaeuterung="Dieser Wert entscheidet, ob die Regelung im nächsten Jahr noch gilt."
-              grenze={g.laufendes_jahr_gegen_vorjahresgrenze}
-            />
-          )}
-
-          <GrenzenBalken
-            titel={`Vorjahr gegen ${grenzeText(g.vorjahr_gegen_vorjahresgrenze.grenze_cent)}`}
-            erlaeuterung="Dieser Wert entscheidet, ob die Regelung im laufenden Jahr überhaupt gilt."
-            grenze={g.vorjahr_gegen_vorjahresgrenze}
-          />
-
-          <p className="feld-hinweis">
-            Maßgeblich ist der Gesamtumsatz nach § 19 Abs. 2 UStG. Dieser umfasst alle
-            Umsätze — auch solche, die nicht über dieses Programm abgerechnet wurden — und
-            kennt Sonderfälle wie den Verkauf von Anlagevermögen. Die Anzeige ist ein
-            Frühwarnsystem, keine verbindliche Auskunft.
-          </p>
-        </section>
-      )}
-
-      {g?.hinweise.map((h, i) => (
-        <HinweisKarte key={i} hinweis={h} />
-      ))}
-
       <section className="karte">
         <h2>Offene Rechnungen</h2>
         {daten.offene_rechnungen.length === 0 ? (
@@ -309,6 +269,49 @@ export function Dashboard({ onRechnungOeffnen, onAngebotOeffnen, onErsterSchritt
           </table>
         )}
       </section>
+
+      {/* Ganz unten: wichtig, aber der tägliche Blick auf offene Rechnungen
+          und Angebote geht vor — die Grenzen ändern sich selten von einem Tag
+          auf den anderen. */}
+      {g && (
+        <section className="karte">
+          <h2>
+            Kleinunternehmergrenzen
+            {g.ist_gruendungsjahr && <span className="marke"> Gründungsjahr</span>}
+          </h2>
+
+          <GrenzenBalken
+            titel={`Laufendes Jahr gegen ${grenzeText(g.laufendes_jahr_gegen_jahresgrenze.grenze_cent)}`}
+            erlaeuterung="Wird diese Grenze überschritten, endet die Regelung sofort — mit dem Umsatz, der sie reißt."
+            grenze={g.laufendes_jahr_gegen_jahresgrenze}
+          />
+
+          {!g.ist_gruendungsjahr && (
+            <GrenzenBalken
+              titel={`Laufendes Jahr gegen ${grenzeText(g.laufendes_jahr_gegen_vorjahresgrenze.grenze_cent)}`}
+              erlaeuterung="Dieser Wert entscheidet, ob die Regelung im nächsten Jahr noch gilt."
+              grenze={g.laufendes_jahr_gegen_vorjahresgrenze}
+            />
+          )}
+
+          <GrenzenBalken
+            titel={`Vorjahr gegen ${grenzeText(g.vorjahr_gegen_vorjahresgrenze.grenze_cent)}`}
+            erlaeuterung="Dieser Wert entscheidet, ob die Regelung im laufenden Jahr überhaupt gilt."
+            grenze={g.vorjahr_gegen_vorjahresgrenze}
+          />
+
+          <p className="feld-hinweis">
+            Maßgeblich ist der Gesamtumsatz nach § 19 Abs. 2 UStG. Dieser umfasst alle
+            Umsätze — auch solche, die nicht über dieses Programm abgerechnet wurden — und
+            kennt Sonderfälle wie den Verkauf von Anlagevermögen. Die Anzeige ist ein
+            Frühwarnsystem, keine verbindliche Auskunft.
+          </p>
+        </section>
+      )}
+
+      {g?.hinweise.map((h, i) => (
+        <HinweisKarte key={i} hinweis={h} />
+      ))}
     </div>
   );
 }
