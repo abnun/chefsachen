@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { api, type AppFehler, type Beleg, type Kunde } from "../api";
 import { statusLabel } from "../belegStatus";
+import { heuteIso } from "../datum";
 import { useSortierung } from "./useSortierung";
 
 /**
@@ -35,7 +36,9 @@ export function useBelegListe(typ: "angebot" | "rechnung", onOeffnen: (id: strin
   const [geladen, setGeladen] = useState(false);
   const [zeigeFormular, setZeigeFormular] = useState(false);
   const [kundeId, setKundeId] = useState("");
-  const [datum, setDatum] = useState(() => new Date().toISOString().slice(0, 10));
+  // Ortszeit, nicht UTC: Ein kurz nach Mitternacht angelegter Beleg trüge
+  // sonst das Vortagsdatum.
+  const [datum, setDatum] = useState(heuteIso);
   const [formFehler, setFormFehler] = useState<AppFehler | null>(null);
 
   useEffect(() => {

@@ -22,9 +22,21 @@ export function datumDeutschOder(iso: string | null | undefined, ersatz: string)
   return iso ? datumDeutsch(iso) : ersatz;
 }
 
-/** Heutiges Datum im ISO-Format — für Vergleiche mit gespeicherten Daten. */
+/**
+ * Heutiges Datum im ISO-Format, in der Zeitzone des Nutzers — für Vergleiche
+ * mit gespeicherten Daten und als Vorgabe neuer Datumsfelder.
+ *
+ * Nicht `toISOString()`: Das wäre das UTC-Datum. Zwischen Mitternacht und
+ * 1/2 Uhr deutscher Zeit hinge die Anzeige damit einen Tag zurück — und die
+ * Fälligkeitsprüfung des Backends rechnet in Ortszeit; beide Seiten müssen
+ * dieselbe Uhr benutzen, sonst zeigt das Frontend Knöpfe, die das Backend
+ * ablehnt.
+ */
 export function heuteIso(): string {
-  return new Date().toISOString().slice(0, 10);
+  const d = new Date();
+  const monat = String(d.getMonth() + 1).padStart(2, "0");
+  const tag = String(d.getDate()).padStart(2, "0");
+  return `${d.getFullYear()}-${monat}-${tag}`;
 }
 
 /**

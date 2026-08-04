@@ -4,6 +4,7 @@ import { Fehler } from "./Fehler";
 import { useErfolgsHinweis } from "../hooks/useErfolgsHinweis";
 import { useBestaetigung } from "../hooks/useBestaetigung";
 import { formatCent, parseEuro } from "../geld";
+import { heuteIso } from "../datum";
 
 interface ZahlungenAbschnittProps {
   rechnungId: string;
@@ -13,7 +14,7 @@ interface ZahlungenAbschnittProps {
 }
 
 export function ZahlungenAbschnitt({ rechnungId, zahlungen, offenerBetragCent, onGeaendert }: ZahlungenAbschnittProps) {
-  const [datum, setDatum] = useState(new Date().toISOString().slice(0, 10));
+  const [datum, setDatum] = useState(heuteIso);
   const [betrag, setBetrag] = useState("");
   const [erstattung, setErstattung] = useState(false);
   const [notiz, setNotiz] = useState("");

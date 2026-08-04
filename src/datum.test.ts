@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { datumDeutsch, datumDeutschOder, heuteIso } from "./datum";
 
 describe("datumDeutsch", () => {
@@ -24,5 +24,18 @@ describe("datumDeutsch", () => {
 
   it("liefert heute im vergleichbaren ISO-Format", () => {
     expect(heuteIso()).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  });
+
+  it("rechnet heute in Ortszeit, nicht in UTC", () => {
+    // Kurz vor Mitternacht Ortszeit: toISOString() wäre östlich von UTC schon
+    // der Folgetag — das Frontend zeigte dann Knöpfe (Zahlungserinnerung),
+    // die das in Ortszeit rechnende Backend ablehnt.
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      vi.setSystemTime(new Date(2026, 7, 4, 23, 30));
+      expect(heuteIso()).toBe("2026-08-04");
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
