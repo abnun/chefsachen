@@ -7,7 +7,7 @@ Reihenfolge = Empfehlung. Jeder Punkt trägt die Referenz aus dem Review.
 
 Kritische Durchsicht zur Frage „reicht der Stand für eine 1.0?" in
 [2026-08-04-review-v1.md](2026-08-04-review-v1.md). Kurzfassung: noch nicht,
-drei Befunde offen. Der erste ist behoben:
+drei Befunde offen. Die ersten beiden sind behoben:
 
 - **A1 — Sicherung deckte das Belegarchiv nicht ab (behoben 2026-08-04).**
   `sicherung_exportieren` kopierte nur `daten.db`; die ausgestellten PDFs,
@@ -16,8 +16,14 @@ drei Befunde offen. Der erste ist behoben:
   zu merken — und seit die Belegvorlage einstellbar ist, lässt sich ein
   Beleg nicht mehr verlässlich aus der Datenbank nachbilden. Der Export liefert
   jetzt eine Zip aus Datenbank und Belegarchiv.
-- **A2 — keine Auswertung/kein Export der Zahlen für den Jahresabschluss.**
-  Offen.
+- **A2 — keine Auswertung/kein Export der Zahlen für den Jahresabschluss
+  (behoben 2026-08-04).** Neue Seite „Auswertung": vereinnahmte Zahlungen
+  eines wählbaren Jahres, mit Beleg und Kunde, nach demselben Zuflussprinzip
+  wie die Übersicht (§ 19 Abs. 2 UStG). Export als CSV mit deutschem
+  Dezimalkomma und Semikolon als Trenner, für Excel und die
+  Steuerberater-Zuarbeit. Kein Steuerformular, keine EÜR-Anlage — nur die
+  Liste, die man sonst mühsam aus den einzelnen Rechnungen zusammensuchen
+  müsste.
 - **A3 — Angebote laufen nie ab; kein `gueltig_bis`.** Offen.
 
 ## Stand (2026-08-03)

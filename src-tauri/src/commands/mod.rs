@@ -1,4 +1,5 @@
 pub mod artikel;
+pub mod auswertung;
 pub mod belege;
 pub mod dashboard;
 pub mod einheiten;

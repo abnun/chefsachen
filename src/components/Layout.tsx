@@ -1,6 +1,14 @@
 import type { ReactNode } from "react";
 
-export type Seite = "uebersicht" | "kunden" | "artikel" | "angebote" | "rechnungen" | "eingangsrechnungen" | "einstellungen";
+export type Seite =
+  | "uebersicht"
+  | "kunden"
+  | "artikel"
+  | "angebote"
+  | "rechnungen"
+  | "eingangsrechnungen"
+  | "auswertung"
+  | "einstellungen";
 
 /*
  * Die Beschriftungen stehen hier unmittelbar. Es gab dafür ein Modul `i18n.ts`,
@@ -67,6 +75,13 @@ const ICON_EINGANGSRECHNUNGEN = (
   </svg>
 );
 
+const ICON_AUSWERTUNG = (
+  <svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6">
+    <path d="M3.5 16.5V3.5M3.5 16.5h13" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M6.5 13.5v-4M10 13.5v-7M13.5 13.5v-2.5" strokeLinecap="round" />
+  </svg>
+);
+
 const ICON_EINSTELLUNGEN = (
   <svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6">
     <circle cx="10" cy="10" r="2.6" />
@@ -81,6 +96,7 @@ const NAV_EINTRAEGE: NavEintrag[] = [
   { seite: "angebote", label: "Angebote", icon: ICON_ANGEBOTE },
   { seite: "rechnungen", label: "Rechnungen", icon: ICON_RECHNUNGEN },
   { seite: "eingangsrechnungen", label: "Eingangsrechnungen", icon: ICON_EINGANGSRECHNUNGEN },
+  { seite: "auswertung", label: "Auswertung", icon: ICON_AUSWERTUNG },
   { seite: "einstellungen", label: "Einstellungen", icon: ICON_EINSTELLUNGEN },
 ];
 

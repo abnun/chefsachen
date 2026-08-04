@@ -86,3 +86,13 @@ export function formatCentMitWaehrung(cents: number, waehrung: string): string {
   const zahl = (cents / 100).toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   return waehrung === "EUR" ? `${zahl} €` : `${zahl} ${waehrung}`;
 }
+
+/**
+ * Wie `formatCent`, aber ohne das Währungszeichen — für den CSV-Export der
+ * Jahresauswertung. Ein angehängtes "€" machte aus der Spalte in der
+ * Tabellenkalkulation Text statt einer Zahl, mit der sich nicht mehr rechnen
+ * ließe.
+ */
+export function formatCentZahl(cents: number): string {
+  return (cents / 100).toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}

@@ -379,6 +379,19 @@ export interface DashboardDaten {
   letzte_belege: LetzterBeleg[];
 }
 
+export interface Vereinnahmung {
+  datum: string;
+  rechnung_nummer: string;
+  kunde_name: string;
+  betrag_cent: number;
+}
+
+export interface Jahresauswertung {
+  jahr: number;
+  summe_cent: number;
+  vereinnahmungen: Vereinnahmung[];
+}
+
 export interface Sicherung {
   /** Zeitpunkt der Sicherung im Format JJJJ-MM-TT_hh-mm-ss. */
   zeitstempel: string;
@@ -398,6 +411,11 @@ export function istValidierungsfehler(e: unknown): e is Extract<AppFehler, { typ
 export const api = {
   dashboard: {
     laden: () => invoke<DashboardDaten>("dashboard_laden"),
+  },
+  auswertung: {
+    jahresauswertung: (jahr: number) => invoke<Jahresauswertung>("auswertung_jahresauswertung", { jahr }),
+    /** Jahre, für die es mindestens eine vereinnahmte Zahlung gibt, jüngstes zuerst. */
+    verfuegbareJahre: () => invoke<number[]>("auswertung_verfuegbare_jahre"),
   },
   sicherungen: {
     liste: () => invoke<Sicherung[]>("sicherungen_liste"),

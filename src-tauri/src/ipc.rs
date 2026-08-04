@@ -82,6 +82,7 @@ fn jeder_registrierte_befehl_ist_erreichbar() {
         "beleg_list",
         "firma_get",
         "dashboard_laden",
+        "auswertung_verfuegbare_jahre",
         "offene_posten_list",
         "nummernkreis_list",
         "einstellung_list",
@@ -116,6 +117,18 @@ fn argumente_kommen_unversehrt_an() {
         liste.as_array().unwrap().iter().any(|e| e["kuerzel"] == "h"),
         "angelegte Einheit fehlt in der Liste",
     );
+}
+
+#[test]
+fn jahresauswertung_kommt_mit_dem_jahr_als_argument_an() {
+    let (_dir, fenster) = test_app();
+
+    // "jahr" ist eine Zahl, kein String — genau die Sorte Feld, bei der ein
+    // Typversehen zwischen Oberfläche und Signatur erst zur Laufzeit auffällt.
+    let ergebnis = rufe(&fenster, "auswertung_jahresauswertung", serde_json::json!({ "jahr": 2026 }))
+        .expect("auswertung_jahresauswertung abgelehnt");
+    assert_eq!(ergebnis["jahr"], 2026);
+    assert_eq!(ergebnis["summe_cent"], 0);
 }
 
 #[test]

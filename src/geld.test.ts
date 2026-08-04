@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatCent, formatCentMitWaehrung, formatMenge, parseEuro, parseMenge } from "./geld";
+import { formatCent, formatCentMitWaehrung, formatCentZahl, formatMenge, parseEuro, parseMenge } from "./geld";
 
 describe("parseEuro", () => {
   it("parst zwei Nachkommastellen", () => {
@@ -38,6 +38,18 @@ describe("formatCentMitWaehrung", () => {
   it("hängt bei anderen Währungen den ISO-Code statt € an", () => {
     expect(formatCentMitWaehrung(9550, "USD")).toBe("95,50 USD");
     expect(formatCentMitWaehrung(9550, "CHF")).toBe("95,50 CHF");
+  });
+});
+
+describe("formatCentZahl", () => {
+  it("formatiert wie formatCent, aber ohne Währungszeichen", () => {
+    // Ein angehängtes „€" machte aus der CSV-Spalte Text statt einer Zahl, mit
+    // der sich in einer Tabellenkalkulation nicht mehr rechnen ließe.
+    expect(formatCentZahl(9550)).toBe("95,50");
+    expect(formatCentZahl(9550)).not.toContain("€");
+  });
+  it("rundet negative Beträge (Erstattungen) korrekt", () => {
+    expect(formatCentZahl(-200000)).toBe("-2.000,00");
   });
 });
 

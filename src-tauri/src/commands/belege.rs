@@ -508,7 +508,7 @@ fn kunde_snapshot_json(
 /// Leerer String (Entwurf, noch kein Snapshot) oder nicht parsbares JSON
 /// liefern `None` statt eines Fehlers — die Anzeige fällt dann auf die
 /// Live-Suche in der aktuellen Kundenliste zurück (siehe Frontend-Tasks).
-fn kunde_snapshot_name(roh: &str) -> Option<String> {
+pub(crate) fn kunde_snapshot_name(roh: &str) -> Option<String> {
     if roh.is_empty() {
         return None;
     }

@@ -150,6 +150,8 @@ fn mit_befehlen<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri::Builder
             commands::firma::firma_logo_set,
             commands::firma::firma_logo_get,
             commands::dashboard::dashboard_laden,
+            commands::auswertung::auswertung_jahresauswertung,
+            commands::auswertung::auswertung_verfuegbare_jahre,
             backup::sicherungen_liste,
             backup::sicherung_jetzt,
             backup::sicherung_wiederherstellen,

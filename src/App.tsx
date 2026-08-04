@@ -17,6 +17,7 @@ import { Rechnungen } from "./pages/Rechnungen";
 import { BelegEditor } from "./pages/BelegEditor";
 import { Eingangsrechnungen } from "./pages/Eingangsrechnungen";
 import { EingangsrechnungDetail } from "./pages/EingangsrechnungDetail";
+import { Auswertung } from "./pages/Auswertung";
 import "./styles/tokens.css";
 import "./styles/basis.css";
 import "./styles/komponenten.css";
@@ -183,6 +184,7 @@ function App() {
         ) : (
           <Eingangsrechnungen onOeffnen={setAusgewaehlteEingangsrechnung} />
         ))}
+      {seite === "auswertung" && <Auswertung />}
       {seite === "einstellungen" && <Einstellungen />}
     </Layout>
   );
