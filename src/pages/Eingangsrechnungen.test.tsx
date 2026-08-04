@@ -2,7 +2,14 @@ import "@testing-library/jest-dom/vitest";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  // Ohne dies zählen die Aufrufe der Attrappen über Testgrenzen hinweg weiter.
+  // Ein Test erwartete deshalb „zweimal aufgerufen", weil ein früherer Test
+  // schon einmal aufgerufen hatte — damit hing er an der Reihenfolge und an
+  // allem, was in den Tests davor geschah.
+  vi.clearAllMocks();
+});
 
 vi.mock("../api", () => ({
   api: {
@@ -165,8 +172,14 @@ describe("Eingangsrechnungen", () => {
     fireEvent.click(screen.getByRole("button", { name: "Importieren" }));
     await waitFor(() => expect(screen.getByText("Neuer Lieferant")).toBeTruthy());
     fireEvent.click(screen.getByRole("button", { name: "Speichern" }));
-    await waitFor(() => expect(api.eingangsrechnungen.speichern).toHaveBeenCalledTimes(2));
-    expect(screen.queryByRole("button", { name: "Bearbeiten" })).toBeNull();
+    await waitFor(() => expect(api.eingangsrechnungen.speichern).toHaveBeenCalledTimes(1));
+    // Abwarten statt sofort prüfen: Die Vorschau wird erst zurückgesetzt,
+    // nachdem `speichern` aufgelöst hat. Ein `waitFor` auf die Aufrufzahl kann
+    // schon zurückkehren, während die Zustandsänderung noch aussteht — in der
+    // CI schlug das zu, lokal nicht.
+    await waitFor(() =>
+      expect(screen.queryByRole("button", { name: "Bearbeiten" })).toBeNull(),
+    );
   });
 
   // Regression P1.8: Datei und Metadaten dürfen nie auseinanderlaufen. Vorher
