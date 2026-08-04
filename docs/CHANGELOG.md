@@ -7,6 +7,18 @@ auf GitHub ändert daran nichts mehr.
 
 Deshalb hier in der Sprache der Anwender, nicht in der der Commits.
 
+## 0.9.1
+
+**Hinweis auf eine neue Version**
+- Die Suche nach einer Aktualisierung lief bisher erst, wenn die Seite
+  „Einstellungen" geöffnet wurde — obwohl die Beschriftung „beim
+  Programmstart" versprach, geschah das nicht von selbst. Jetzt läuft die
+  Suche wirklich beim Start, und eine gefundene Aktualisierung meldet sich
+  von jeder Seite aus, nicht nur in den Einstellungen.
+- Der „Was ist neu?"-Knopf im Hinweis nach einer eingespielten
+  Aktualisierung ist entfallen — der Änderungstext steht bereits im
+  selben Dialog.
+
 ## 0.9.0
 
 **Sicherung**
