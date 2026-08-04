@@ -151,10 +151,20 @@ pub fn sicherung_exportieren<R: tauri::Runtime>(
 }
 
 /// Legt auf Wunsch sofort eine Sicherung an — etwa vor einer größeren Änderung.
+///
+/// Vorher ein WAL-Checkpoint über die laufende Verbindung: Im WAL-Modus liegen
+/// die jüngsten Transaktionen sonst noch in `daten.db-wal`, und die Kopie der
+/// Hauptdatei enthielte den Stand vom Programmstart statt den von jetzt.
 #[tauri::command]
-pub fn sicherung_jetzt<R: tauri::Runtime>(app: tauri::AppHandle<R>) -> AppResult<Sicherung> {
+pub async fn sicherung_jetzt<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    pool: tauri::State<'_, sqlx::SqlitePool>,
+) -> AppResult<Sicherung> {
     use tauri::Manager;
     let dir = app.path().app_data_dir().map_err(|e| AppError::Technisch(e.to_string()))?;
+    crate::db::wal_einfalten(&pool)
+        .await
+        .map_err(|e| AppError::Technisch(format!("WAL-Checkpoint fehlgeschlagen: {e}")))?;
     let zeitstempel = zeitstempel_jetzt();
     sichern(&dir.join("daten.db"), &dir, &zeitstempel)?
         .ok_or_else(|| AppError::Technisch("Es gibt noch keine Datenbank zum Sichern.".into()))?;

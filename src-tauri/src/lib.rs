@@ -24,6 +24,15 @@ fn starten(app: &tauri::App) -> Result<sqlx::SqlitePool, String> {
     })?;
     let datenbank = dir.join("daten.db");
 
+    // Zuallererst ein WAL-Checkpoint: Nach einem Absturz liegen die jüngsten
+    // Transaktionen noch im Write-Ahead-Log neben der Datenbank. Die
+    // Rettungskopie unten und die Sicherung vor den Migrationen kopieren nur
+    // `daten.db` — ohne diesen Schritt fehlte ihnen genau dieser Teil. Ein
+    // Fehler hier darf den Start nicht verhindern.
+    if let Err(e) = tauri::async_runtime::block_on(db::wal_einfalten_ohne_pool(&datenbank)) {
+        log::warn!("WAL-Checkpoint beim Start fehlgeschlagen: {e:?}");
+    }
+
     // Eine vorgemerkte Wiederherstellung zuerst: Sie muss geschehen, bevor
     // irgendeine Verbindung auf die Datei zeigt.
     match backup::vorgemerkte_einspielen(&datenbank, &dir, &backup::zeitstempel_jetzt()) {

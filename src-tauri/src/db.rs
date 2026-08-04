@@ -32,6 +32,45 @@ pub fn jetzt() -> String {
     chrono::Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string()
 }
 
+/// Faltet das Write-Ahead-Log in die Hauptdatei ein.
+///
+/// Im WAL-Modus liegen die jüngsten Transaktionen zunächst in `daten.db-wal`
+/// neben der Datenbank; erst ein Checkpoint überträgt sie in die Hauptdatei.
+/// Wer `daten.db` allein kopiert — genau das tut jede Sicherung —, kopiert
+/// sonst einen veralteten Stand. Vor jeder Kopie gehört deshalb dieser
+/// Aufruf.
+///
+/// Über eine bestehende Verbindung (`pool`), weil SQLite den Checkpoint nur
+/// innerhalb einer Verbindung kennt. TRUNCATE leert das WAL vollständig;
+/// können gerade nicht alle Seiten übertragen werden (etwa weil eine zweite
+/// Instanz liest), überträgt SQLite so viel wie möglich und meldet das im
+/// Ergebnis — für die Sicherung bleibt es ein bestmöglicher Versuch, kein
+/// harter Fehler.
+pub async fn wal_einfalten(pool: &SqlitePool) -> Result<(), sqlx::Error> {
+    sqlx::query("PRAGMA wal_checkpoint(TRUNCATE)").execute(pool).await?;
+    Ok(())
+}
+
+/// Wie [`wal_einfalten`], aber ohne bestehende Verbindung — für den Start,
+/// bevor die eigentliche Datenbankverbindung existiert.
+///
+/// Nach einem Absturz bleibt das WAL der Vorsitzung liegen; die Sicherung vor
+/// den Migrationen und die Rettungskopie vor einer Wiederherstellung kopierten
+/// dann eine unvollständige `daten.db`. Eine kurzlebige Verbindung genügt:
+/// Schon ihr Aufbau spielt das WAL ein, der Checkpoint überträgt den Rest,
+/// und beim Schließen ist die Hauptdatei vollständig. Migrationen laufen hier
+/// keine.
+pub async fn wal_einfalten_ohne_pool(datenbank: &Path) -> Result<(), sqlx::Error> {
+    if !datenbank.is_file() {
+        return Ok(());
+    }
+    let opts = SqliteConnectOptions::new().filename(datenbank);
+    let pool = SqlitePoolOptions::new().max_connections(1).connect_with(opts).await?;
+    wal_einfalten(&pool).await?;
+    pool.close().await;
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -114,6 +153,44 @@ mod tests {
         let anzahl: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM einstellung WHERE key IN ('a','b')")
             .fetch_one(&erste).await.unwrap();
         assert_eq!(anzahl.0, 2);
+    }
+
+    /// Eine Kopie von `daten.db` bei laufender Verbindung muss nach dem
+    /// Checkpoint alle Daten enthalten.
+    ///
+    /// Ohne `wal_einfalten` lagen die jüngsten Transaktionen nur im
+    /// Write-Ahead-Log neben der Datei — jede Sicherung, die die Hauptdatei
+    /// kopiert, verlor genau sie. Der Test bildet den Sicherungsweg nach:
+    /// schreiben, Checkpoint, Datei kopieren, Kopie als eigene Datenbank
+    /// öffnen und die Daten dort wiederfinden.
+    #[tokio::test]
+    async fn nach_dem_checkpoint_traegt_die_hauptdatei_alle_daten() {
+        let dir = tempfile::tempdir().unwrap();
+        let pfad = dir.path().join("test.db");
+        let pool = init_db(&pfad).await.unwrap();
+        sqlx::query("INSERT INTO einstellung (key, value, created_at, updated_at) VALUES (?,?,?,?)")
+            .bind("sicherung.test").bind("wichtig").bind(jetzt()).bind(jetzt())
+            .execute(&pool).await.unwrap();
+
+        wal_einfalten(&pool).await.unwrap();
+
+        // Nur die Hauptdatei kopieren — wie es jede Sicherung tut.
+        let kopie_pfad = dir.path().join("kopie.db");
+        std::fs::copy(&pfad, &kopie_pfad).unwrap();
+
+        let kopie = init_db(&kopie_pfad).await.unwrap();
+        let wert: (String,) = sqlx::query_as("SELECT value FROM einstellung WHERE key = 'sicherung.test'")
+            .fetch_one(&kopie).await.unwrap();
+        assert_eq!(wert.0, "wichtig");
+    }
+
+    /// Der Start-Checkpoint ohne bestehende Verbindung: Nach einem Absturz
+    /// liegt das WAL der Vorsitzung noch neben der Datei.
+    #[tokio::test]
+    async fn wal_einfalten_ohne_pool_vertraegt_fehlende_datei() {
+        let dir = tempfile::tempdir().unwrap();
+        // Erster Start: Es gibt noch keine Datenbank — kein Fehler.
+        wal_einfalten_ohne_pool(&dir.path().join("gibtsnicht.db")).await.unwrap();
     }
 
     #[tokio::test]
