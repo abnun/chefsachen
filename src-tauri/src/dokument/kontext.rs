@@ -6,6 +6,10 @@ use sqlx::SqlitePool;
 pub struct BelegKontext {
     pub beleg: crate::commands::belege::Beleg,
     pub positionen: Vec<crate::commands::belege::Belegposition>,
+    /// Summe minus erfasste Zahlungen. Nur für die Zahlungserinnerung
+    /// bestimmt — bei Angeboten und vollständig bezahlten Rechnungen ohne
+    /// Bedeutung.
+    pub offener_betrag_cent: i64,
     pub firma: crate::commands::firma::Firma,
     pub kunde_name: String,
     /// Ansprechpartner beim Kunden, falls am Beleg gewählt. Steht als
@@ -160,7 +164,8 @@ pub async fn kontext_aus_beleg(pool: &SqlitePool, beleg_id: String) -> AppResult
         .to_string();
 
     Ok(BelegKontext {
-        beleg: detail.beleg, positionen: detail.positionen, firma,
+        beleg: detail.beleg, positionen: detail.positionen,
+        offener_betrag_cent: detail.offener_betrag_cent, firma,
         kunde_ansprechpartner: ansprechpartner,
         kunde_name: kf.name, kunde_kundennummer: kf.kundennummer, kunde_ust_idnr: kf.ust_idnr,
         kunde_email: kf.email, kunde_leitweg_id: kf.leitweg_id, kunde_kaeuferreferenz: kf.kaeuferreferenz,

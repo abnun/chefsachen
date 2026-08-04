@@ -734,7 +734,7 @@ pub async fn setze_angebot_status(pool: &SqlitePool, id: String, status: String)
 ///
 /// Fehlt er, bleibt das Feld leer statt eines erfundenen Platzhaltertexts —
 /// ein leeres Feld sieht man und füllt es, einen falschen Text übersieht man.
-async fn baustein(pool: &SqlitePool, schluessel: &str) -> AppResult<String> {
+pub(crate) async fn baustein(pool: &SqlitePool, schluessel: &str) -> AppResult<String> {
     Ok(crate::commands::einstellungen::get(pool, schluessel.to_string())
         .await?
         .unwrap_or_default())

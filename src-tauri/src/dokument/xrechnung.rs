@@ -437,6 +437,7 @@ pub(crate) mod tests {
 
     pub(crate) fn test_kontext(storno_von: Option<&str>, summe_cent: i64) -> BelegKontext {
         crate::dokument::kontext::BelegKontext {
+            offener_betrag_cent: summe_cent,
             beleg: Beleg {
                 id: "b1".into(), typ: "rechnung".into(), nummer: Some("RE-2026-0001".into()),
                 status: "gestellt".into(), kunde_id: "k1".into(), datum: "2026-07-11".into(),

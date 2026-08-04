@@ -313,6 +313,31 @@ export function BelegEditor({ id, onZurueck, onGeaendert, onRechnungErstellt, on
     }
   }
 
+  /**
+   * Zahlungserinnerung als PDF — kein mehrstufiges Mahnverfahren, nur ein
+   * höflicher Hinweis mit Fälligkeit, offenem Betrag und Bankverbindung.
+   *
+   * Wird anders als PDF/XRechnung/ZUGFeRD nicht im Belegarchiv abgelegt: Sie
+   * ändert sich täglich ("3 Tage überfällig") und ist damit kein einmal
+   * eingefrorenes Dokument.
+   */
+  async function zahlungserinnerungExportieren() {
+    setFehler(null);
+    try {
+      const bytes = await api.belege.zahlungserinnerungExportieren(beleg.id);
+      const ziel = await save({
+        defaultPath: `${beleg.nummer ?? beleg.id}-zahlungserinnerung.pdf`,
+        filters: [{ name: "PDF", extensions: ["pdf"] }],
+      });
+      if (ziel) {
+        await writeFile(ziel, new Uint8Array(bytes));
+        zeigen("Zahlungserinnerung exportiert");
+      }
+    } catch (e) {
+      setFehler(e as AppFehler);
+    }
+  }
+
   return (
     <main>
       {onZurueck && (
@@ -394,6 +419,14 @@ export function BelegEditor({ id, onZurueck, onGeaendert, onRechnungErstellt, on
                 ZUGFeRD
               </button>
             </>
+          )}
+
+          {/* Nur solange noch etwas offen ist — für eine vollständig bezahlte
+              Rechnung gibt es nichts zu erinnern. */}
+          {beleg.typ === "rechnung" && beleg.status === "gestellt" && offener_betrag_cent > 0 && (
+            <button type="button" className="btn" onClick={zahlungserinnerungExportieren}>
+              Zahlungserinnerung
+            </button>
           )}
 
           {beleg.typ === "angebot" && beleg.status === "festgeschrieben" &&

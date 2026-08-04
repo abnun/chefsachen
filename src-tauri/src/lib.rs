@@ -135,6 +135,7 @@ fn mit_befehlen<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri::Builder
             dokument::export::beleg_pdf_exportieren,
             dokument::export::rechnung_xrechnung_exportieren,
             dokument::export::rechnung_zugferd_exportieren,
+            dokument::export::rechnung_zahlungserinnerung_exportieren,
             commands::artikel::artikel_list,
             commands::artikel::artikel_create,
             commands::artikel::artikel_update,

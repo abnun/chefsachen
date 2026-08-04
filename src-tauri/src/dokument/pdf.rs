@@ -220,12 +220,13 @@ pub(crate) fn dokument_bauen(
         .map_err(|e| AppError::Technisch(format!("Typst-Rendering fehlgeschlagen: {e:?}")))
 }
 
-pub fn rendern(
-    kontext: &BelegKontext,
-    logo: Option<&[u8]>,
-    vorlage: &crate::dokument::vorlage::Vorlage,
-) -> AppResult<Vec<u8>> {
-    let dokument = dokument_bauen(kontext, logo, vorlage)?;
+/// Exportiert ein kompiliertes Dokument als PDF/A-3b.
+///
+/// Gemeinsam für Beleg und Zahlungserinnerung, damit beide über denselben Weg
+/// entstehen. PDF/A ist für die Erinnerung streng genommen kein Muss — es gibt
+/// keine ZUGFeRD-Einbettung und keine Rechtsvorgabe dafür —, aber einen
+/// zweiten, ungeprüften Erzeugungspfad zu pflegen wäre die schlechtere Wahl.
+fn pdf_bytes(dokument: typst::layout::PagedDocument) -> AppResult<Vec<u8>> {
     // PDF/A-3b anfordern: ZUGFeRD verlangt es, und ohne die Vorgabe hinge die
     // Konformität davon ab, dass die Vorlage zufällig nichts PDF/A-Widriges
     // enthält (etwa Transparenz oder eine nicht eingebettete Schrift).
@@ -236,6 +237,89 @@ pub fn rendern(
         .map_err(|e| AppError::Technisch(format!("PDF-Export fehlgeschlagen: {e:?}")))
 }
 
+pub fn rendern(
+    kontext: &BelegKontext,
+    logo: Option<&[u8]>,
+    vorlage: &crate::dokument::vorlage::Vorlage,
+) -> AppResult<Vec<u8>> {
+    pdf_bytes(dokument_bauen(kontext, logo, vorlage)?)
+}
+
+/// Baut eine Zahlungserinnerung zu einer gestellten, noch nicht vollständig
+/// bezahlten Rechnung.
+///
+/// Reine Zuarbeit, kein mehrstufiges Mahnverfahren mit Fristen — die
+/// Zielgruppe braucht keine Eskalationsstufen, nur einen höflichen Hinweis mit
+/// den nötigen Zahlungsdaten. Dieselbe Vorlage wie die Rechnung selbst
+/// (Briefkopf, DIN-5008-Anschriftfeld, Bankverbindung); nur der mittlere Teil
+/// unterscheidet sich, gesteuert über `ist_erinnerung` im Template.
+///
+/// `heute` kommt vom Aufrufer statt aus `chrono::Local::now()` — sonst ließe
+/// sich „Tage überfällig" nicht deterministisch testen.
+pub fn rendern_zahlungserinnerung(
+    kontext: &BelegKontext,
+    logo: Option<&[u8]>,
+    vorlage: &crate::dokument::vorlage::Vorlage,
+    heute: chrono::NaiveDate,
+    erinnerungstext: &str,
+) -> AppResult<Vec<u8>> {
+    let logo_dateiname = if vorlage.logo_position == crate::dokument::vorlage::LogoPosition::Keins {
+        ""
+    } else {
+        logo.map(logo_dateiname).unwrap_or("")
+    };
+
+    let mut builder = TypstEngine::builder().main_file(VORLAGE).fonts([SCHRIFT]);
+    if let Some(bytes) = logo {
+        builder = builder.with_static_file_resolver([(logo_dateiname, bytes.to_vec())]);
+    }
+    let engine = builder.build();
+
+    let faellig = chrono::NaiveDate::parse_from_str(&kontext.beleg.datum, "%Y-%m-%d")
+        .ok()
+        .and_then(|d| d.checked_add_signed(chrono::Duration::days(kontext.beleg.zahlungsziel_tage)));
+    // Negativ heißt: noch nicht fällig. Zulässig — man kann auch vorab höflich
+    // erinnern —, aber die Vorlage druckt dann eine negative Tageszahl, die
+    // der Aufrufer sinnvoll einordnen muss (siehe Validierung im Befehl).
+    let tage_ueberfaellig = faellig.map(|f| (heute - f).num_days()).unwrap_or(0);
+
+    let mut felder: Vec<(&'static str, String)> = vec![
+        ("titel", "Zahlungserinnerung".to_string()),
+        ("nummer", String::new()),
+        ("datum", datum_format(&heute.format("%Y-%m-%d").to_string())),
+        ("hat_logo", logo_dateiname.to_string()),
+        ("kunde_ansprechpartner", kontext.kunde_ansprechpartner.clone()),
+        ("kunde_name", kontext.kunde_name.clone()),
+        ("kunde_strasse", kontext.adresse_strasse.clone()),
+        ("kunde_plz", kontext.adresse_plz.clone()),
+        ("kunde_ort", kontext.adresse_ort.clone()),
+        ("kunde_land", land_anzeigen(&kontext.adresse_land, &kontext.firma.land)),
+        ("firma_name", kontext.firma.name.clone()),
+        ("firma_strasse", kontext.firma.strasse.clone()),
+        ("firma_plz", kontext.firma.plz.clone()),
+        ("firma_ort", kontext.firma.ort.clone()),
+        ("firma_steuernummer", kontext.firma.steuernummer.clone()),
+        ("firma_ust_idnr", kontext.firma.ust_idnr.clone()),
+        ("firma_iban", iban_format(&kontext.firma.iban)),
+        ("firma_bic", kontext.firma.bic.clone()),
+        ("ist_erinnerung", "ja".to_string()),
+        ("erinnerungstext", erinnerungstext.to_string()),
+        ("erinnerung_rechnung_nummer", kontext.beleg.nummer.clone().unwrap_or_default()),
+        ("erinnerung_rechnung_datum", datum_format(&kontext.beleg.datum)),
+        ("erinnerung_faellig_am", faellig.map(|f| datum_format(&f.format("%Y-%m-%d").to_string())).unwrap_or_default()),
+        ("erinnerung_tage_ueberfaellig", tage_ueberfaellig.to_string()),
+        ("erinnerung_offener_betrag", cent_format(kontext.offener_betrag_cent)),
+    ];
+    felder.extend(vorlage.als_eingaben());
+    let eingabe = dict_aus_feldern(felder);
+
+    let dokument = engine
+        .compile_with_input(eingabe)
+        .output
+        .map_err(|e| AppError::Technisch(format!("Typst-Rendering fehlgeschlagen: {e:?}")))?;
+    pdf_bytes(dokument)
+}
+
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
@@ -244,6 +328,9 @@ pub(crate) mod tests {
 
     pub(crate) fn test_kontext() -> BelegKontext {
         BelegKontext {
+            // Summe 9500, davon 5000 vereinnahmt — realistischer Wert für die
+            // Zahlungserinnerungs-Tests, die einen echten offenen Betrag sehen wollen.
+            offener_betrag_cent: 4500,
             beleg: Beleg {
                 id: "b1".into(), typ: "rechnung".into(), nummer: Some("RE-2026-0001".into()),
                 status: "gestellt".into(), kunde_id: "k1".into(), datum: "2026-07-11".into(),
@@ -282,6 +369,17 @@ pub(crate) mod tests {
     fn text(kontext: &BelegKontext) -> String {
         let bytes = rendern(kontext, None, &crate::dokument::vorlage::Vorlage::default()).unwrap();
         pdf_extract::extract_text_from_mem(&bytes).unwrap()
+    }
+
+    fn text_erinnerung(kontext: &BelegKontext, heute: chrono::NaiveDate, erinnerungstext: &str) -> String {
+        let bytes = rendern_zahlungserinnerung(
+            kontext, None, &crate::dokument::vorlage::Vorlage::default(), heute, erinnerungstext,
+        ).unwrap();
+        pdf_extract::extract_text_from_mem(&bytes).unwrap()
+    }
+
+    fn tag(iso: &str) -> chrono::NaiveDate {
+        chrono::NaiveDate::parse_from_str(iso, "%Y-%m-%d").unwrap()
     }
 
     /// 2×3-Matrix, wie PDF sie für `cm` und `Tm` verwendet: [a b c d e f].
@@ -521,6 +619,55 @@ pub(crate) mod tests {
         kontext.beleg.gueltig_bis = Some("2026-08-10".into());
         let t = text(&kontext);
         assert!(!t.contains("Gültig bis"), "Gültigkeitszeile auf einer Rechnung:\n{t}");
+    }
+
+    /// Reine Zuarbeit, kein mehrstufiges Mahnverfahren mit Fristen — die
+    /// Zielgruppe braucht keine Eskalationsstufen, nur einen höflichen
+    /// Hinweis mit den nötigen Zahlungsdaten.
+    #[test]
+    fn zahlungserinnerung_nennt_rechnung_faelligkeit_und_offenen_betrag() {
+        let kontext = test_kontext(); // Rechnung 2026-07-11, 14 Tage Ziel -> fällig 25.07.2026
+        let t = text_erinnerung(&kontext, tag("2026-08-04"), "Bitte zahlen Sie zeitnah.");
+        assert!(t.contains("Zahlungserinnerung"), "Titel fehlt:\n{t}");
+        assert!(t.contains("Bitte zahlen Sie zeitnah."), "Erinnerungstext fehlt:\n{t}");
+        assert!(t.contains("RE-2026-0001"), "Rechnungsnummer fehlt:\n{t}");
+        assert!(t.contains("25.07.2026"), "Fälligkeitsdatum fehlt:\n{t}");
+        assert!(t.contains("10"), "Tage überfällig (10) fehlen:\n{t}");
+        assert!(t.contains("45,00 €"), "offener Betrag fehlt:\n{t}");
+    }
+
+    /// Eine Erinnerung ist kein Beleg nach § 14 UStG — sie zeigt keine
+    /// Positionstabelle und keine Gesamtsumme der Rechnung, nur den offenen
+    /// Betrag.
+    #[test]
+    fn zahlungserinnerung_zeigt_keine_positionstabelle() {
+        let kontext = test_kontext();
+        let t = text_erinnerung(&kontext, tag("2026-08-04"), "Text");
+        assert!(!t.contains("Beratung"), "Positionstext auf der Erinnerung:\n{t}");
+        assert!(!t.contains("Bezeichnung"), "Tabellenkopf auf der Erinnerung:\n{t}");
+        // Die Gesamtsumme der Rechnung (95,00 €) darf nicht mit dem offenen
+        // Betrag verwechselbar auftauchen.
+        assert!(!t.contains("Gesamt:"), "Rechnungs-Gesamtsumme auf der Erinnerung:\n{t}");
+    }
+
+    /// Ohne Bankverbindung könnte der Empfänger gar nicht zahlen — bei einer
+    /// Erinnerung erst recht wichtig.
+    #[test]
+    fn zahlungserinnerung_nennt_die_bankverbindung() {
+        let kontext = test_kontext();
+        let t = text_erinnerung(&kontext, tag("2026-08-04"), "Text");
+        assert!(t.contains("Bankverbindung"), "Bankverbindung fehlt:\n{t}");
+        assert!(t.contains("DE02"), "IBAN fehlt:\n{t}");
+    }
+
+    /// Der Fußtext der Rechnung ("Danke für Ihren Auftrag.") gehört nicht auf
+    /// die Erinnerung — er bezieht sich auf die Rechnung, nicht auf die
+    /// Zahlungsaufforderung.
+    #[test]
+    fn zahlungserinnerung_zeigt_nicht_den_fusstext_der_rechnung() {
+        let kontext = test_kontext();
+        let t = text_erinnerung(&kontext, tag("2026-08-04"), "Text");
+        assert!(!t.contains("Danke für Ihren Auftrag"), "Rechnungs-Fußtext auf der Erinnerung:\n{t}");
     }
 
     #[test]

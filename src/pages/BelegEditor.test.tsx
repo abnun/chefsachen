@@ -60,6 +60,7 @@ vi.mock("../api", () => ({
       pdfExportieren: vi.fn().mockResolvedValue([1, 2, 3]),
       xrechnungExportieren: vi.fn().mockResolvedValue([1, 2, 3]),
       zugferdExportieren: vi.fn().mockResolvedValue([1, 2, 3]),
+      zahlungserinnerungExportieren: vi.fn().mockResolvedValue([1, 2, 3]),
     },
     kunden: {
       list: vi.fn().mockResolvedValue([]),
@@ -638,6 +639,66 @@ describe("BelegEditor – Export", () => {
     await waitFor(() => expect(screen.getByRole("button", { name: "Als PDF exportieren" })).toBeTruthy());
     expect(screen.queryByRole("button", { name: "Als XRechnung (XML) exportieren" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Als ZUGFeRD-Rechnung exportieren" })).toBeNull();
+  });
+});
+
+describe("BelegEditor – Zahlungserinnerung", () => {
+  function gestellteRechnung(offenerBetragCent: number) {
+    vi.mocked(api.belege.get).mockResolvedValue({
+      beleg: {
+        id: "b1", typ: "rechnung", nummer: "RE-2026-0001", status: "gestellt", kunde_id: "k1",
+        datum: "2026-07-11", leistungsdatum: "2026-07-11", zahlungsziel_tage: 14,
+        kopftext: "", fusstext: "", summe_cent: 9500, ursprungsangebot_id: null, storno_von_id: null,
+      },
+      positionen: [], zahlungen: [], bezahlt_cent: 9500 - offenerBetragCent,
+      offener_betrag_cent: offenerBetragCent,
+    });
+  }
+
+  it("bietet die Zahlungserinnerung an, solange etwas offen ist", async () => {
+    gestellteRechnung(9500);
+    render(<BelegEditor id="b1" />);
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Zahlungserinnerung" })).toBeTruthy(),
+    );
+  });
+
+  it("bietet keine Zahlungserinnerung für eine vollständig bezahlte Rechnung an", async () => {
+    // Nichts zu erinnern, wenn nichts mehr offen ist.
+    gestellteRechnung(0);
+    render(<BelegEditor id="b1" />);
+    await waitFor(() => expect(screen.getByRole("button", { name: "Als PDF exportieren" })).toBeTruthy());
+    expect(screen.queryByRole("button", { name: "Zahlungserinnerung" })).toBeNull();
+  });
+
+  it("bietet bei einem Angebot keine Zahlungserinnerung an", async () => {
+    vi.mocked(api.belege.get).mockResolvedValue({
+      beleg: {
+        id: "b1", typ: "angebot", nummer: "AN-2026-0001", status: "festgeschrieben", kunde_id: "k1",
+        datum: "2026-07-11", leistungsdatum: "2026-07-11", zahlungsziel_tage: 14,
+        kopftext: "", fusstext: "", summe_cent: 9500, ursprungsangebot_id: null, storno_von_id: null,
+      },
+      positionen: [], zahlungen: [], bezahlt_cent: 0, offener_betrag_cent: 9500,
+    });
+    render(<BelegEditor id="b1" />);
+    await waitFor(() => expect(screen.getByRole("button", { name: "Als PDF exportieren" })).toBeTruthy());
+    expect(screen.queryByRole("button", { name: "Zahlungserinnerung" })).toBeNull();
+  });
+
+  it("exportiert eine Zahlungserinnerung über den Speichern-Dialog", async () => {
+    gestellteRechnung(9500);
+    render(<BelegEditor id="b1" />);
+    await waitFor(() => expect(screen.getByRole("button", { name: "Zahlungserinnerung" })).toBeTruthy());
+
+    fireEvent.click(screen.getByRole("button", { name: "Zahlungserinnerung" }));
+
+    await waitFor(() => expect(api.belege.zahlungserinnerungExportieren).toHaveBeenCalledWith("b1"));
+    await waitFor(() =>
+      expect(save).toHaveBeenCalledWith(
+        expect.objectContaining({ defaultPath: "RE-2026-0001-zahlungserinnerung.pdf" }),
+      ),
+    );
+    await waitFor(() => expect(screen.getByText("Zahlungserinnerung exportiert")).toBeTruthy());
   });
 });
 

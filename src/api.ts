@@ -531,6 +531,14 @@ export const api = {
     pdfExportieren: (id: string) => invoke<number[]>("beleg_pdf_exportieren", { id }),
     xrechnungExportieren: (id: string) => invoke<number[]>("rechnung_xrechnung_exportieren", { id }),
     zugferdExportieren: (id: string) => invoke<number[]>("rechnung_zugferd_exportieren", { id }),
+    /**
+     * Zahlungserinnerung als PDF. Nur für gestellte Rechnungen mit offenem
+     * Betrag — anders als PDF/XRechnung/ZUGFeRD wird sie nicht im
+     * Belegarchiv abgelegt, weil sie sich täglich ändert ("3 Tage
+     * überfällig") und damit kein einmal eingefrorenes Dokument ist.
+     */
+    zahlungserinnerungExportieren: (id: string) =>
+      invoke<number[]>("rechnung_zahlungserinnerung_exportieren", { id }),
   },
   eingangsrechnungen: {
     importVorschau: (dateiBytes: number[]) =>

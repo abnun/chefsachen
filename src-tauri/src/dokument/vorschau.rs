@@ -44,6 +44,7 @@ fn muster_beleg(firma: crate::commands::firma::Firma) -> BelegKontext {
     let summe = positionen.iter().map(|p| p.positionssumme_cent).sum();
 
     BelegKontext {
+        offener_betrag_cent: summe,
         beleg: Beleg {
             id: "muster".into(),
             typ: "rechnung".into(),

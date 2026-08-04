@@ -693,6 +693,7 @@ const TEXTBAUSTEIN_LABEL: Record<string, string> = {
   "text.angebot.fuss": "Angebots-Fußtext",
   "text.rechnung.kopf": "Rechnungs-Kopftext",
   "text.rechnung.fuss": "Rechnungs-Fußtext",
+  "text.zahlungserinnerung": "Zahlungserinnerungs-Text",
 };
 
 const TEXTBAUSTEIN_KEYS = Object.keys(TEXTBAUSTEIN_LABEL);

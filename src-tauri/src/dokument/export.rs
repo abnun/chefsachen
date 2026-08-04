@@ -55,6 +55,26 @@ fn pruefe_ist_rechnung(kontext: &crate::dokument::kontext::BelegKontext) -> AppR
     Ok(())
 }
 
+/// Ohne offenen Betrag gibt es nichts zu erinnern, und ein Stornobeleg ist
+/// eine Gutschrift, keine Forderung — `kontext_aus_beleg` lehnt einen Entwurf
+/// bereits ab, hier kommen die übrigen Fälle dazu.
+fn pruefe_kann_erinnert_werden(kontext: &crate::dokument::kontext::BelegKontext) -> AppResult<()> {
+    pruefe_ist_rechnung(kontext)?;
+    if kontext.beleg.status != "gestellt" {
+        return Err(crate::error::AppError::Validation {
+            feld: "status".into(),
+            meldung: "Nur gestellte Rechnungen können eine Zahlungserinnerung erhalten".into(),
+        });
+    }
+    if kontext.offener_betrag_cent <= 0 {
+        return Err(crate::error::AppError::Validation {
+            feld: "offener_betrag_cent".into(),
+            meldung: "Diese Rechnung ist bereits vollständig bezahlt".into(),
+        });
+    }
+    Ok(())
+}
+
 #[tauri::command]
 pub async fn beleg_pdf_exportieren<R: tauri::Runtime>(
     app: tauri::AppHandle<R>,
@@ -105,6 +125,29 @@ pub async fn rechnung_zugferd_exportieren<R: tauri::Runtime>(
     Ok(bytes)
 }
 
+/// Zahlungserinnerung zu einer gestellten, noch nicht vollständig bezahlten
+/// Rechnung.
+///
+/// Anders als PDF/XRechnung/ZUGFeRD wird die Erinnerung **nicht** im
+/// Belegarchiv abgelegt: Sie ist inhaltlich vom Tag der Erzeugung abhängig
+/// ("3 Tage überfällig" ändert sich täglich), also kein einmal eingefrorenes
+/// Dokument — eine archivierte erste Fassung veraltete sofort, während jeder
+/// erneute Export etwas anderes zurückgäbe. Sie ist auch keine Pflichtangabe
+/// nach GoBD wie eine Rechnung selbst.
+#[tauri::command]
+pub async fn rechnung_zahlungserinnerung_exportieren(
+    pool: tauri::State<'_, SqlitePool>,
+    id: String,
+) -> AppResult<Vec<u8>> {
+    let kontext = kontext_aus_beleg(&pool, id).await?;
+    pruefe_kann_erinnert_werden(&kontext)?;
+    let logo = firma_logo(&pool).await?;
+    let vorlage = crate::dokument::vorlage::Vorlage::laden(&pool).await?;
+    let erinnerungstext = crate::commands::belege::baustein(&pool, "text.zahlungserinnerung").await?;
+    let heute = chrono::Local::now().date_naive();
+    pdf::rendern_zahlungserinnerung(&kontext, logo.as_deref(), &vorlage, heute, &erinnerungstext)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -134,5 +177,42 @@ mod tests {
         let unterordner = dir.path().join("Belege");
         ablegen(&unterordner, "RE-2026-0002.pdf", b"inhalt").unwrap();
         assert_eq!(std::fs::read(unterordner.join("RE-2026-0002.pdf")).unwrap(), b"inhalt");
+    }
+
+    #[test]
+    fn eine_gestellte_rechnung_mit_offenem_betrag_darf_erinnert_werden() {
+        let kontext = crate::dokument::pdf::tests::test_kontext();
+        assert!(pruefe_kann_erinnert_werden(&kontext).is_ok());
+    }
+
+    #[test]
+    fn ein_angebot_bekommt_keine_zahlungserinnerung() {
+        let mut kontext = crate::dokument::pdf::tests::test_kontext();
+        kontext.beleg.typ = "angebot".into();
+        let fehler = pruefe_kann_erinnert_werden(&kontext).unwrap_err();
+        assert!(matches!(fehler, crate::error::AppError::Validation { .. }));
+    }
+
+    #[test]
+    fn ein_stornobeleg_bekommt_keine_zahlungserinnerung() {
+        // Ein Stornobeleg ist eine Gutschrift, keine Forderung.
+        let mut kontext = crate::dokument::pdf::tests::test_kontext();
+        kontext.beleg.status = "storniert".into();
+        let fehler = pruefe_kann_erinnert_werden(&kontext).unwrap_err();
+        match fehler {
+            crate::error::AppError::Validation { feld, .. } => assert_eq!(feld, "status"),
+            anderer => panic!("unerwarteter Fehler: {anderer:?}"),
+        }
+    }
+
+    #[test]
+    fn eine_vollstaendig_bezahlte_rechnung_bekommt_keine_zahlungserinnerung() {
+        let mut kontext = crate::dokument::pdf::tests::test_kontext();
+        kontext.offener_betrag_cent = 0;
+        let fehler = pruefe_kann_erinnert_werden(&kontext).unwrap_err();
+        match fehler {
+            crate::error::AppError::Validation { feld, .. } => assert_eq!(feld, "offener_betrag_cent"),
+            anderer => panic!("unerwarteter Fehler: {anderer:?}"),
+        }
     }
 }

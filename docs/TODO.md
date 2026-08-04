@@ -49,9 +49,19 @@ Damit sind alle drei Befunde der Durchsicht behoben. Danach die B-Punkte
   heute; bei einem Angebot mit frischer Gültigkeit statt der des Originals.
   Funktioniert bei jedem Status — gerade ein festgeschriebener Beleg eignet
   sich als Vorlage, lässt sich selbst aber nicht mehr ändern.
+- **B1 — Zahlungserinnerung als PDF (2026-08-04).** Bei einer gestellten
+  Rechnung mit offenem Betrag erzeugt „Zahlungserinnerung" ein PDF mit
+  Bezug auf Rechnungsnummer, Fälligkeitsdatum, Tage überfällig und
+  offenem Betrag statt der Positionstabelle. Nutzt dieselbe Rechnungsvorlage
+  (ein neuer `ist_erinnerung`-Zweig in `rechnung.typ`) statt einer zweiten
+  Vorlage — die DIN-5008-Geometrie für das Adressfenster bleibt so an
+  einer einzigen, getesteten Stelle. Anders als PDF/XRechnung/ZUGFeRD wird
+  die Erinnerung nicht im Belegarchiv abgelegt: Ihr Inhalt hängt vom Tag
+  der Erzeugung ab („3 Tage überfällig" ändert sich täglich), eine
+  archivierte Fassung wäre sofort veraltet oder widerspräche der
+  Unveränderbarkeit der übrigen Archivdateien.
 
-Offen: B1 (Zahlungserinnerung als PDF), B4 (Tastenkürzel), C1
-(BelegEditor.tsx verkleinern).
+Offen: B4 (Tastenkürzel), C1 (BelegEditor.tsx verkleinern).
 
 ## Stand (2026-08-03)
 

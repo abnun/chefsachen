@@ -90,98 +90,122 @@
 
 = #sys.inputs.titel #sys.inputs.nummer
 
-Datum: #sys.inputs.datum \
-#sys.inputs.leistung_beschriftung: #sys.inputs.leistungsdatum
-#if ist_gesetzt(sys.inputs.zahlungsbedingung) [
-  \ #sys.inputs.zahlungsbedingung
-]
-// Umgekehrt: eine Gültigkeit ist eine Angebotssache. Der Fußtext versprach
-// bisher eine Frist, ohne dass ein Datum dazu auf dem Beleg stand.
-#if ist_gesetzt(sys.inputs.angebot_gueltig_bis) [
-  \ Gültig bis: #sys.inputs.angebot_gueltig_bis
-]
+Datum: #sys.inputs.datum
 
-// Eine Rechnungskorrektur ohne Bezug zur ursprünglichen Rechnung ist für die
-// Buchhaltung des Empfängers nicht zuzuordnen.
-#if ist_gesetzt(sys.inputs.storno_von_nummer) [
+// Eine Zahlungserinnerung teilt Briefkopf, Anschriftfeld und Bankverbindung
+// mit der Rechnung, aber nicht die Positionstabelle und die rechtlichen
+// Pflichtangaben — sie ist selbst kein Beleg nach § 14 UStG, nur ein
+// höflicher Hinweis. `.at(default:)`, weil die Rechnung diese Felder gar
+// nicht mitgibt: Ein fehlender Schlüssel bräche sonst deren Erzeugung.
+#let ist_erinnerung = sys.inputs.at("ist_erinnerung", default: "nein") == "ja"
+
+#if ist_erinnerung [
   #v(0.3cm)
-  Storno zu Rechnung #sys.inputs.storno_von_nummer
-]
+  #sys.inputs.at("erinnerungstext", default: "")
 
-#if ist_gesetzt(sys.inputs.kopftext) [
+  #v(0.4cm)
+  #table(
+    columns: (auto, 1fr),
+    align: (left, right),
+    stroke: none,
+    inset: (y: 3pt),
+    [Rechnung], [#sys.inputs.at("erinnerung_rechnung_nummer", default: "") vom #sys.inputs.at("erinnerung_rechnung_datum", default: "")],
+    [Fällig seit], [#sys.inputs.at("erinnerung_faellig_am", default: "") (#sys.inputs.at("erinnerung_tage_ueberfaellig", default: "0") Tage)],
+    [*Offener Betrag*], [*#sys.inputs.at("erinnerung_offener_betrag", default: "")*],
+  )
+] else [
+  \ #sys.inputs.leistung_beschriftung: #sys.inputs.leistungsdatum
+  #if ist_gesetzt(sys.inputs.zahlungsbedingung) [
+    \ #sys.inputs.zahlungsbedingung
+  ]
+  // Umgekehrt: eine Gültigkeit ist eine Angebotssache. Der Fußtext versprach
+  // bisher eine Frist, ohne dass ein Datum dazu auf dem Beleg stand.
+  #if ist_gesetzt(sys.inputs.angebot_gueltig_bis) [
+    \ Gültig bis: #sys.inputs.angebot_gueltig_bis
+  ]
+
+  // Eine Rechnungskorrektur ohne Bezug zur ursprünglichen Rechnung ist für die
+  // Buchhaltung des Empfängers nicht zuzuordnen.
+  #if ist_gesetzt(sys.inputs.storno_von_nummer) [
+    #v(0.3cm)
+    Storno zu Rechnung #sys.inputs.storno_von_nummer
+  ]
+
+  #if ist_gesetzt(sys.inputs.kopftext) [
+    #v(0.5cm)
+    #sys.inputs.kopftext
+  ]
+
   #v(0.5cm)
-  #sys.inputs.kopftext
-]
 
-#v(0.5cm)
+  #let positionen = json(bytes(sys.inputs.positionen_json))
 
-#let positionen = json(bytes(sys.inputs.positionen_json))
+  // Spalten je nach Einstellung. Bezeichnung, Menge und Summe stehen immer:
+  // Menge und Bezeichnung sind Pflichtangaben nach § 14 Abs. 4 Nr. 5 UStG, und
+  // ohne die Summe je Position ergibt die Gesamtsumme keinen nachvollziehbaren
+  // Zusammenhang.
+  #let mit_nummer = ja(sys.inputs.v_spalte_nummer)
+  #let mit_einheit = ja(sys.inputs.v_einheit_eigene_spalte)
+  #let mit_einzelpreis = ja(sys.inputs.v_spalte_einzelpreis)
 
-// Spalten je nach Einstellung. Bezeichnung, Menge und Summe stehen immer:
-// Menge und Bezeichnung sind Pflichtangaben nach § 14 Abs. 4 Nr. 5 UStG, und
-// ohne die Summe je Position ergibt die Gesamtsumme keinen nachvollziehbaren
-// Zusammenhang.
-#let mit_nummer = ja(sys.inputs.v_spalte_nummer)
-#let mit_einheit = ja(sys.inputs.v_einheit_eigene_spalte)
-#let mit_einzelpreis = ja(sys.inputs.v_spalte_einzelpreis)
+  #let spalten = (
+    ..if mit_nummer { (auto,) } else { () },
+    1fr,
+    auto,
+    ..if mit_einheit { (auto,) } else { () },
+    ..if mit_einzelpreis { (auto,) } else { () },
+    auto,
+  )
 
-#let spalten = (
-  ..if mit_nummer { (auto,) } else { () },
-  1fr,
-  auto,
-  ..if mit_einheit { (auto,) } else { () },
-  ..if mit_einzelpreis { (auto,) } else { () },
-  auto,
-)
+  #let ausrichtung = (
+    ..if mit_nummer { (right,) } else { () },
+    left,
+    right,
+    ..if mit_einheit { (left,) } else { () },
+    ..if mit_einzelpreis { (right,) } else { () },
+    right,
+  )
 
-#let ausrichtung = (
-  ..if mit_nummer { (right,) } else { () },
-  left,
-  right,
-  ..if mit_einheit { (left,) } else { () },
-  ..if mit_einzelpreis { (right,) } else { () },
-  right,
-)
+  #let kopfzeile = (
+    ..if mit_nummer { ([*Pos.*],) } else { () },
+    [*Bezeichnung*],
+    [*Menge*],
+    ..if mit_einheit { ([*Einheit*],) } else { () },
+    ..if mit_einzelpreis { ([*Einzelpreis*],) } else { () },
+    [*Summe*],
+  )
 
-#let kopfzeile = (
-  ..if mit_nummer { ([*Pos.*],) } else { () },
-  [*Bezeichnung*],
-  [*Menge*],
-  ..if mit_einheit { ([*Einheit*],) } else { () },
-  ..if mit_einzelpreis { ([*Einzelpreis*],) } else { () },
-  [*Summe*],
-)
+  #let zeile(p) = (
+    ..if mit_nummer { (p.nummer,) } else { () },
+    p.bezeichnung,
+    // Ohne eigene Spalte gehört die Einheit hinter die Menge — sonst stünde dort
+    // eine nackte Zahl.
+    if mit_einheit { p.menge } else { p.menge + " " + p.einheit },
+    ..if mit_einheit { (p.einheit,) } else { () },
+    ..if mit_einzelpreis { (p.einzelpreis,) } else { () },
+    p.summe,
+  )
 
-#let zeile(p) = (
-  ..if mit_nummer { (p.nummer,) } else { () },
-  p.bezeichnung,
-  // Ohne eigene Spalte gehört die Einheit hinter die Menge — sonst stünde dort
-  // eine nackte Zahl.
-  if mit_einheit { p.menge } else { p.menge + " " + p.einheit },
-  ..if mit_einheit { (p.einheit,) } else { () },
-  ..if mit_einzelpreis { (p.einzelpreis,) } else { () },
-  p.summe,
-)
+  // table.header(repeat: true) wiederholt die Kopfzeile auf Folgeseiten — ohne das
+  // stünden bei einer langen Rechnung ab Seite 2 namenlose Zahlenspalten.
+  #table(
+    columns: spalten,
+    align: ausrichtung,
+    stroke: (x, y) => if y == 0 { (bottom: 0.6pt + akzent) } else { (bottom: 0.4pt + rgb("#dddddd")) },
+    table.header(..kopfzeile),
+    ..positionen.map(zeile).flatten()
+  )
 
-// table.header(repeat: true) wiederholt die Kopfzeile auf Folgeseiten — ohne das
-// stünden bei einer langen Rechnung ab Seite 2 namenlose Zahlenspalten.
-#table(
-  columns: spalten,
-  align: ausrichtung,
-  stroke: (x, y) => if y == 0 { (bottom: 0.6pt + akzent) } else { (bottom: 0.4pt + rgb("#dddddd")) },
-  table.header(..kopfzeile),
-  ..positionen.map(zeile).flatten()
-)
+  #align(right)[*Gesamt: #sys.inputs.summe*]
 
-#align(right)[*Gesamt: #sys.inputs.summe*]
-
-#if sys.inputs.kleinunternehmer == "ja" [
-  #v(0.3cm)
-  Gemäß § 19 UStG wird keine Umsatzsteuer berechnet.
+  #if sys.inputs.kleinunternehmer == "ja" [
+    #v(0.3cm)
+    Gemäß § 19 UStG wird keine Umsatzsteuer berechnet.
+  ]
 ]
 
 // Bankverbindung: gesetzlich nicht vorgeschrieben, aber ohne sie kann der
-// Empfänger die Rechnung nicht bezahlen.
+// Empfänger nicht zahlen — bei einer Erinnerung erst recht wichtig.
 #let bankverbindung = if ist_gesetzt(sys.inputs.firma_iban) [
   #v(0.5cm)
   #text(size: 9pt)[
@@ -197,7 +221,7 @@ Datum: #sys.inputs.datum \
   #bankverbindung
 ]
 
-#if ist_gesetzt(sys.inputs.fusstext) [
+#if not ist_erinnerung and ist_gesetzt(sys.inputs.fusstext) [
   #v(0.5cm)
   #sys.inputs.fusstext
 ]
