@@ -404,7 +404,14 @@ export function BelegEditor({ id, onZurueck, onGeaendert, onRechnungErstellt, on
       {hinweis}
       {dialog}
 
+      {/* key={beleg.id}: Beim Wechsel auf einen anderen Beleg (etwa nach „Als
+          Kopie anlegen") bleibt der Editor gemountet, nur die Id wechselt.
+          Ohne Remount behielten die Abschnitte ihren Formularzustand — im
+          schlimmsten Fall stand noch eine Position des *vorherigen* Belegs im
+          Bearbeiten-Modus, und „Speichern" hätte sie über die Beleggrenze
+          hinweg geändert. */}
       <StammdatenAbschnitt
+        key={beleg.id}
         beleg={beleg}
         kunden={kunden}
         bearbeitbar={istEntwurf}
@@ -412,6 +419,7 @@ export function BelegEditor({ id, onZurueck, onGeaendert, onRechnungErstellt, on
       />
 
       <PositionenAbschnitt
+        key={`${beleg.id}-positionen`}
         belegId={beleg.id}
         kundeId={beleg.kunde_id}
         belegdatum={beleg.datum}
@@ -433,6 +441,7 @@ export function BelegEditor({ id, onZurueck, onGeaendert, onRechnungErstellt, on
 
       {beleg.typ === "rechnung" && ["gestellt", "storniert"].includes(beleg.status) && (
         <ZahlungenAbschnitt
+          key={`${beleg.id}-zahlungen`}
           rechnungId={beleg.id}
           zahlungen={zahlungen}
           offenerBetragCent={offener_betrag_cent}

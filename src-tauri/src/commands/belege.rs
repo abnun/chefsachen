@@ -493,8 +493,14 @@ pub async fn position_speichern(pool: &SqlitePool, d: BelegpositionNeu) -> AppRe
             .execute(&mut *tx).await?;
         pos
     } else {
-        let bestehende: (i64,) = sqlx::query_as("SELECT reihenfolge FROM belegposition WHERE id = ? AND deleted_at IS NULL")
-            .bind(&d.id).fetch_optional(&mut *tx).await?.ok_or(AppError::NichtGefunden)?;
+        // Die Position muss zum übergebenen Beleg gehören. Ohne diese Bedingung
+        // ließe sich über eine fremde Positions-Id die Position eines *anderen*
+        // Belegs ändern — geprüft würde oben nur, dass der übergebene Beleg ein
+        // Entwurf ist, und die Summe unten würde für den falschen Beleg neu
+        // berechnet. Der andere Beleg hätte danach eine geänderte Position bei
+        // unveränderter Summe.
+        let bestehende: (i64,) = sqlx::query_as("SELECT reihenfolge FROM belegposition WHERE id = ? AND beleg_id = ? AND deleted_at IS NULL")
+            .bind(&d.id).bind(&d.beleg_id).fetch_optional(&mut *tx).await?.ok_or(AppError::NichtGefunden)?;
         sqlx::query("UPDATE belegposition SET artikel_id=?, bezeichnung=?, einheit_kuerzel=?, einzelpreis_cent=?, menge=?, positionssumme_cent=?, updated_at=? WHERE id=?")
             .bind(&d.artikel_id).bind(&bezeichnung).bind(&einheit_kuerzel).bind(einzelpreis_cent)
             .bind(d.menge).bind(summe).bind(jetzt()).bind(&d.id)
@@ -1838,6 +1844,38 @@ mod tests {
             bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000,
         }).await.unwrap_err();
         assert!(matches!(err, AppError::Validation { .. }));
+    }
+
+    /// Eine Position lässt sich nur über ihren eigenen Beleg ändern.
+    ///
+    /// Ohne die beleg_id-Bedingung im UPDATE ließe sich mit der Positions-Id
+    /// von Beleg A und der Beleg-Id von Entwurf B die Position von A ändern —
+    /// A bekäme eine geänderte Position bei unveränderter Summe. Das Frontend
+    /// lieferte genau diese Konstellation, wenn nach „Als Kopie anlegen" noch
+    /// eine Position des Originals im Bearbeiten-Modus stand.
+    #[tokio::test]
+    async fn position_eines_anderen_belegs_laesst_sich_nicht_aendern() {
+        let (_dir, pool) = test_pool().await;
+        let kunde_id = kunde_anlegen(&pool).await;
+        let beleg_a = create(&pool, beleg_neu("rechnung", &kunde_id)).await.unwrap();
+        let beleg_b = create(&pool, beleg_neu("rechnung", &kunde_id)).await.unwrap();
+        let pos_von_a = position_speichern(&pool, BelegpositionNeu {
+            id: "".into(), beleg_id: beleg_a.id.clone(), artikel_id: None,
+            bezeichnung: "Beratung".into(), einheit_kuerzel: "Std".into(),
+            einzelpreis_cent: Some(9500), menge: 1000,
+        }).await.unwrap();
+
+        let err = position_speichern(&pool, BelegpositionNeu {
+            id: pos_von_a.id.clone(), beleg_id: beleg_b.id.clone(), artikel_id: None,
+            bezeichnung: "Manipuliert".into(), einheit_kuerzel: "Std".into(),
+            einzelpreis_cent: Some(1), menge: 1000,
+        }).await.unwrap_err();
+        assert!(matches!(err, AppError::NichtGefunden));
+
+        // Beleg A ist unangetastet: Position und Summe unverändert.
+        let detail_a = get(&pool, beleg_a.id).await.unwrap();
+        assert_eq!(detail_a.positionen[0].bezeichnung, "Beratung");
+        assert_eq!(detail_a.beleg.summe_cent, 9500);
     }
 
     #[tokio::test]

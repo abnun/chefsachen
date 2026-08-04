@@ -35,18 +35,12 @@ export function StammdatenAbschnitt({ beleg, kunden, bearbeitbar, onSpeichern }:
   /** Adressen und Ansprechpartner des gewählten Kunden. */
   const [kundeDetail, setKundeDetail] = useState<KundeDetailTyp | null>(null);
 
-  useEffect(() => {
-    setKundeId(beleg.kunde_id);
-    setDatum(beleg.datum);
-    setLeistungsdatum(beleg.leistungsdatum);
-    setLeistungsdatumBis(beleg.leistungsdatum_bis ?? "");
-    setGueltigBis(beleg.gueltig_bis ?? "");
-    setZahlungszielTage(beleg.zahlungsziel_tage);
-    setKopftext(beleg.kopftext);
-    setFusstext(beleg.fusstext);
-    setAdresseId(beleg.adresse_id ?? "");
-    setAnsprechpartnerId(beleg.ansprechpartner_id ?? "");
-  }, [beleg]);
+  // Kein Reset-Effekt auf `beleg`: Beim Wechsel auf einen anderen Beleg sorgt
+  // der Eltern-key (BelegEditor setzt key={beleg.id}) für einen Remount mit
+  // frischem Zustand. Ein Effekt, der bei jeder neuen Objektidentität
+  // zurücksetzt, würde dagegen auch bei jedem laden() feuern — und damit
+  // ungespeicherte Eingaben verwerfen, sobald nebenan eine Position
+  // gespeichert wird.
 
   useEffect(() => {
     // Nur im Entwurf: Bei einem festgeschriebenen Beleg gibt es nichts zu
