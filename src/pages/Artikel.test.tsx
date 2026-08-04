@@ -264,4 +264,17 @@ describe("Artikel", () => {
     fireEvent.keyDown(window, { key: "n", metaKey: true });
     expect(screen.getByRole("button", { name: "Speichern" })).toBeTruthy();
   });
+
+  it("verwirft bei offenem Formular keine Eingaben durch ⌘N", async () => {
+    // neuFormular() leert alle Felder — ein ⌘N mitten im Ausfüllen darf die
+    // Eingaben nicht kommentarlos verwerfen.
+    render(<Artikel />);
+    await waitFor(() => expect(screen.getByRole("button", { name: "Neuer Artikel" })).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Neuer Artikel" }));
+    fireEvent.change(screen.getByLabelText("Bezeichnung"), { target: { value: "Halb getippt" } });
+
+    fireEvent.keyDown(window, { key: "n", metaKey: true });
+
+    expect(screen.getByLabelText("Bezeichnung")).toHaveValue("Halb getippt");
+  });
 });

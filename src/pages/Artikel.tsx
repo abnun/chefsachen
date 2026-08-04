@@ -58,7 +58,15 @@ export function Artikel({ zeigeFormularBeimStart, onFormularUebernommen, onZuKun
   const { zeigen, hinweis } = useErfolgsHinweis();
   const { bestaetigen, dialog } = useBestaetigung();
 
-  useListenTastenkuerzel({ neu: neuFormular });
+  // Nur bei geschlossenem Formular: `neuFormular()` leert alle Felder — ein
+  // ⌘N mitten im Ausfüllen (oder Bearbeiten) würde die Eingaben kommentarlos
+  // verwerfen. Bei offenem Formular ist das Kürzel ein No-op, wie auf den
+  // anderen Listenseiten.
+  useListenTastenkuerzel({
+    neu: () => {
+      if (!zeigeFormular) neuFormular();
+    },
+  });
 
   useEffect(() => {
     if (zeigeFormularBeimStart) {
