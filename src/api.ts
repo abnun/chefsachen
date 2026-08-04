@@ -409,6 +409,13 @@ export interface Sicherung {
   pfad: string;
 }
 
+export interface ZipImport {
+  /** Ins Belegarchiv übernommene Dateien. */
+  belege_neu: number;
+  /** Übersprungen, weil bereits vorhanden — das Archiv bleibt unveränderbar. */
+  belege_vorhanden: number;
+}
+
 export type AppFehler =
   | { typ: "validation"; feld: string; meldung: string }
   | { typ: "nicht_gefunden"; meldung: string }
@@ -441,6 +448,12 @@ export const api = {
      * etwa beim Umzug auf einen neuen Rechner.
      */
     exportieren: (zeitstempel: string) => invoke<number[]>("sicherung_exportieren", { zeitstempel }),
+    /**
+     * Spielt eine exportierte Zip wieder ein: Belegarchiv sofort (Vorhandenes
+     * bleibt unangetastet), Datenbank beim nächsten Start.
+     */
+    ausDateiEinspielen: (pfad: string) =>
+      invoke<ZipImport>("sicherung_aus_datei_einspielen", { pfad }),
   },
   einheiten: {
     list: () => invoke<Einheit[]>("einheit_list"),

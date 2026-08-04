@@ -230,6 +230,99 @@ pub fn archiv_bauen(datenbank: &Path, app_data_dir: &Path) -> AppResult<Vec<u8>>
     Ok(puffer)
 }
 
+/// Ergebnis eines Zip-Imports, für die Rückmeldung in der Oberfläche.
+#[derive(Debug, serde::Serialize)]
+pub struct ZipImport {
+    /// Ins Belegarchiv übernommene Dateien.
+    pub belege_neu: usize,
+    /// Übersprungen, weil bereits vorhanden — das Archiv bleibt unveränderbar.
+    pub belege_vorhanden: usize,
+}
+
+/// Spielt eine exportierte Sicherungs-Zip wieder ein.
+///
+/// Der Export erzeugt seit A1 eine Zip aus `daten.db` und dem Belegarchiv —
+/// aber es gab keinen Weg zurück: Genau im beworbenen Ernstfall („Platte
+/// defekt", neuer Rechner) musste man die Zip von Hand entpacken und die
+/// Dateien an die richtigen Pfade legen, was nirgends erklärt war.
+///
+/// Die Datenbank wird nicht sofort ersetzt (sie ist im laufenden Betrieb
+/// geöffnet), sondern wie beim Zurückspielen einer internen Sicherung als
+/// Vormerkung abgelegt und beim nächsten Start eingespielt — inklusive
+/// Rettungskopie des dann aktuellen Standes. Die Belegdateien werden dagegen
+/// sofort übernommen; bereits vorhandene bleiben unangetastet, nach derselben
+/// Regel, nach der auch `ablegen` nie überschreibt (GoBD-Unveränderbarkeit).
+pub fn zip_einspielen(zip_pfad: &Path, app_data_dir: &Path) -> AppResult<ZipImport> {
+    let datei = std::fs::File::open(zip_pfad)
+        .map_err(|e| AppError::Technisch(format!("Sicherungsdatei nicht lesbar: {e}")))?;
+    let mut archiv = zip::ZipArchive::new(datei)
+        .map_err(|_| AppError::Validation {
+            feld: "datei".into(),
+            meldung: "Das ist keine lesbare Zip-Datei.".into(),
+        })?;
+
+    // Erst prüfen, dann schreiben: Eine Zip ohne daten.db ist keine Sicherung
+    // dieser Anwendung — dann soll auch kein einzelner Beleg übernommen werden.
+    if archiv.by_name("daten.db").is_err() {
+        return Err(AppError::Validation {
+            feld: "datei".into(),
+            meldung: "Diese Zip enthält keine daten.db — sie ist keine Sicherung dieser Anwendung.".into(),
+        });
+    }
+
+    let belege_dir = crate::dokument::export::belege_verzeichnis(app_data_dir);
+    let mut ergebnis = ZipImport { belege_neu: 0, belege_vorhanden: 0 };
+
+    for i in 0..archiv.len() {
+        let mut eintrag = archiv.by_index(i)
+            .map_err(|e| AppError::Technisch(format!("Zip-Eintrag nicht lesbar: {e}")))?;
+        let name = eintrag.name().to_string();
+
+        let mut inhalt = Vec::new();
+        std::io::Read::read_to_end(&mut eintrag, &mut inhalt)
+            .map_err(|e| AppError::Technisch(format!("Zip-Eintrag nicht lesbar: {e}")))?;
+
+        if name == "daten.db" {
+            std::fs::write(app_data_dir.join(VORMERKUNG), &inhalt)
+                .map_err(|e| AppError::Technisch(format!("Wiederherstellung nicht vorbereitbar: {e}")))?;
+            continue;
+        }
+
+        // Nur flache Einträge unterhalb von Belege/ — alles andere (fremde
+        // Pfade, Unterordner, "../"-Konstruktionen) wird ignoriert, statt
+        // Dateien außerhalb des Programmordners zu schreiben (Zip-Slip).
+        let Some(dateiname) = name.strip_prefix("Belege/") else { continue };
+        if dateiname.is_empty() || dateiname.contains('/') || dateiname.contains('\\') || dateiname.contains("..") {
+            continue;
+        }
+
+        let ziel = belege_dir.join(dateiname);
+        if ziel.exists() {
+            ergebnis.belege_vorhanden += 1;
+            continue;
+        }
+        std::fs::create_dir_all(&belege_dir)
+            .map_err(|e| AppError::Technisch(format!("Belegordner nicht anlegbar: {e}")))?;
+        std::fs::write(&ziel, &inhalt)
+            .map_err(|e| AppError::Technisch(format!("Beleg nicht schreibbar: {e}")))?;
+        ergebnis.belege_neu += 1;
+    }
+
+    Ok(ergebnis)
+}
+
+/// Spielt eine exportierte Sicherungs-Zip ein: Belegarchiv sofort, Datenbank
+/// als Vormerkung beim nächsten Start.
+#[tauri::command]
+pub fn sicherung_aus_datei_einspielen<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    pfad: String,
+) -> AppResult<ZipImport> {
+    use tauri::Manager;
+    let dir = app.path().app_data_dir().map_err(|e| AppError::Technisch(e.to_string()))?;
+    zip_einspielen(Path::new(&pfad), &dir)
+}
+
 /// Name der Datei, die einen vorgemerkten Wiederherstellungswunsch trägt.
 const VORMERKUNG: &str = "wiederherstellen.db";
 
@@ -417,6 +510,105 @@ mod tests {
         let bytes = archiv_bauen(&db, dir.path()).unwrap();
 
         assert_eq!(zip_eintraege(&bytes), vec!["daten.db"]);
+    }
+
+    /// Baut eine Test-Zip aus (Name, Inhalt)-Paaren.
+    fn zip_bauen(eintraege: &[(&str, &[u8])]) -> Vec<u8> {
+        use std::io::Write;
+        let mut puffer = Vec::new();
+        let mut zip = zip::ZipWriter::new(std::io::Cursor::new(&mut puffer));
+        let optionen = zip::write::SimpleFileOptions::default();
+        for (name, inhalt) in eintraege {
+            zip.start_file(*name, optionen).unwrap();
+            zip.write_all(inhalt).unwrap();
+        }
+        zip.finish().unwrap();
+        puffer
+    }
+
+    fn zip_schreiben(dir: &Path, eintraege: &[(&str, &[u8])]) -> PathBuf {
+        let pfad = dir.join("sicherung.zip");
+        std::fs::write(&pfad, zip_bauen(eintraege)).unwrap();
+        pfad
+    }
+
+    #[test]
+    fn zip_einspielen_merkt_datenbank_vor_und_uebernimmt_belege() {
+        let dir = tempfile::tempdir().unwrap();
+        let zip = zip_schreiben(dir.path(), &[
+            ("daten.db", b"gesicherter stand"),
+            ("Belege/RE-2026-0001.pdf", b"pdf-inhalt"),
+        ]);
+
+        let ergebnis = zip_einspielen(&zip, dir.path()).unwrap();
+
+        assert_eq!(ergebnis.belege_neu, 1);
+        assert_eq!(ergebnis.belege_vorhanden, 0);
+        // Die Datenbank ersetzt nicht sofort die laufende, sondern liegt als
+        // Vormerkung bereit — eingespielt beim nächsten Start.
+        assert_eq!(std::fs::read(dir.path().join(VORMERKUNG)).unwrap(), b"gesicherter stand");
+        let beleg = crate::dokument::export::belege_verzeichnis(dir.path()).join("RE-2026-0001.pdf");
+        assert_eq!(std::fs::read(beleg).unwrap(), b"pdf-inhalt");
+    }
+
+    /// GoBD-Unveränderbarkeit gilt auch beim Import: Eine bereits archivierte
+    /// Datei wird nicht durch die Fassung aus der Zip ersetzt.
+    #[test]
+    fn zip_einspielen_ueberschreibt_vorhandene_belege_nicht() {
+        let dir = tempfile::tempdir().unwrap();
+        let belege = crate::dokument::export::belege_verzeichnis(dir.path());
+        std::fs::create_dir_all(&belege).unwrap();
+        std::fs::write(belege.join("RE-2026-0001.pdf"), b"archivierte fassung").unwrap();
+        let zip = zip_schreiben(dir.path(), &[
+            ("daten.db", b"db"),
+            ("Belege/RE-2026-0001.pdf", b"andere fassung"),
+            ("Belege/RE-2026-0002.pdf", b"neu"),
+        ]);
+
+        let ergebnis = zip_einspielen(&zip, dir.path()).unwrap();
+
+        assert_eq!(ergebnis.belege_vorhanden, 1);
+        assert_eq!(ergebnis.belege_neu, 1);
+        assert_eq!(std::fs::read(belege.join("RE-2026-0001.pdf")).unwrap(), b"archivierte fassung");
+    }
+
+    #[test]
+    fn zip_ohne_datenbank_wird_abgelehnt_ohne_etwas_zu_schreiben() {
+        let dir = tempfile::tempdir().unwrap();
+        let zip = zip_schreiben(dir.path(), &[("Belege/RE-2026-0001.pdf", b"pdf")]);
+
+        let fehler = zip_einspielen(&zip, dir.path());
+        assert!(matches!(fehler, Err(AppError::Validation { .. })), "{fehler:?}");
+        assert!(!dir.path().join(VORMERKUNG).exists());
+        assert!(!crate::dokument::export::belege_verzeichnis(dir.path()).exists());
+    }
+
+    #[test]
+    fn eine_datei_die_keine_zip_ist_wird_abgelehnt() {
+        let dir = tempfile::tempdir().unwrap();
+        let pfad = dir.path().join("keine.zip");
+        std::fs::write(&pfad, b"nur text").unwrap();
+        let fehler = zip_einspielen(&pfad, dir.path());
+        assert!(matches!(fehler, Err(AppError::Validation { .. })), "{fehler:?}");
+    }
+
+    /// Zip-Slip: Ein präparierter Eintrag darf keine Datei außerhalb des
+    /// Programmordners schreiben.
+    #[test]
+    fn zip_einspielen_ignoriert_pfade_ausserhalb_des_belegordners() {
+        let dir = tempfile::tempdir().unwrap();
+        let zip = zip_schreiben(dir.path(), &[
+            ("daten.db", b"db"),
+            ("Belege/../ausbruch.txt", b"boese"),
+            ("Belege/unter/ordner.pdf", b"verschachtelt"),
+            ("woanders/datei.txt", b"fremd"),
+        ]);
+
+        let ergebnis = zip_einspielen(&zip, dir.path()).unwrap();
+
+        assert_eq!(ergebnis.belege_neu, 0);
+        assert!(!dir.path().join("ausbruch.txt").exists());
+        assert!(!dir.path().join("woanders").exists());
     }
 
     #[test]

@@ -32,6 +32,7 @@ vi.mock("../api", () => ({
       wiederherstellen: vi.fn().mockResolvedValue(undefined),
       exportieren: vi.fn().mockResolvedValue([1, 2, 3]),
       jetzt: vi.fn().mockResolvedValue({ zeitstempel: "2026-08-03_10-15-00", groesse_bytes: 2048, pfad: "/p/daten-2026-08-03_10-15-00.db" }),
+      ausDateiEinspielen: vi.fn().mockResolvedValue({ belege_neu: 2, belege_vorhanden: 1 }),
     },
     firma: {
       get: vi.fn().mockResolvedValue({
@@ -275,6 +276,39 @@ describe("Einstellungen", () => {
     // Datenbank-Kopie und übersieht, dass mehr als das exportiert wird.
     render(<Einstellungen />);
     await waitFor(() => expect(screen.getByText(/Belegarchiv/)).toBeTruthy());
+  });
+
+  it("spielt eine exportierte Zip erst nach Rückfrage ein und verlangt einen Neustart", async () => {
+    // Der Rückweg zu „Speichern unter": Vorher musste man die Zip im
+    // Ernstfall von Hand entpacken und die Dateien an die richtigen Pfade
+    // legen, was nirgends erklärt war.
+    const { api } = await import("../api");
+    const { open } = await import("@tauri-apps/plugin-dialog");
+    vi.mocked(open).mockResolvedValueOnce("/pfad/kleinunternehmer-sicherung.zip");
+    render(<Einstellungen />);
+    await waitFor(() => expect(screen.getByRole("button", { name: "Aus Datei einspielen …" })).toBeTruthy());
+
+    fireEvent.click(screen.getByRole("button", { name: "Aus Datei einspielen …" }));
+    // Ohne Bestätigung passiert nichts.
+    const dialog = await screen.findByRole("dialog");
+    expect(api.sicherungen.ausDateiEinspielen).not.toHaveBeenCalled();
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "Einspielen" }));
+    await waitFor(() =>
+      expect(api.sicherungen.ausDateiEinspielen).toHaveBeenCalledWith("/pfad/kleinunternehmer-sicherung.zip"),
+    );
+    expect(await screen.findByText("Die Wiederherstellung ist vorgemerkt")).toBeTruthy();
+    expect(await screen.findByText(/2 Belegdatei\(en\) übernommen/)).toBeTruthy();
+  });
+
+  it("bricht das Einspielen ohne gewählte Datei stumm ab", async () => {
+    const { api } = await import("../api");
+    render(<Einstellungen />);
+    await waitFor(() => expect(screen.getByRole("button", { name: "Aus Datei einspielen …" })).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Aus Datei einspielen …" }));
+    // open() liefert null (Abbruch im Dateidialog) — keine Rückfrage, kein Aufruf.
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(api.sicherungen.ausDateiEinspielen).not.toHaveBeenCalled();
   });
 
   /*

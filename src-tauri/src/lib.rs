@@ -167,6 +167,7 @@ fn mit_befehlen<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri::Builder
             backup::sicherung_jetzt,
             backup::sicherung_wiederherstellen,
             backup::sicherung_exportieren,
+            backup::sicherung_aus_datei_einspielen,
             commands::einstellungen::einstellung_get,
             commands::einstellungen::einstellung_set,
             commands::einstellungen::einstellung_list,

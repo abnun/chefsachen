@@ -397,7 +397,10 @@ function SicherungenAbschnitt() {
     setFehler(null);
     try {
       const bytes = await api.sicherungen.exportieren(s.zeitstempel);
-      const ziel = await save({ defaultPath: `kleinunternehmer-${s.zeitstempel}.zip` });
+      const ziel = await save({
+        defaultPath: `kleinunternehmer-${s.zeitstempel}.zip`,
+        filters: [{ name: "Zip", extensions: ["zip"] }],
+      });
       if (!ziel) return;
       await writeFile(ziel, new Uint8Array(bytes));
       // Merken, wann zuletzt exportiert wurde — nicht wo: Der Speicherort ist
@@ -406,6 +409,39 @@ function SicherungenAbschnitt() {
       api.einstellungen.set(SCHLUESSEL_ZULETZT_EXPORTIERT, jetzt).catch(() => {});
       setZuletztExportiert(jetzt);
       zeigen("Sicherung gespeichert");
+    } catch (e) {
+      setFehler(e as AppFehler);
+    }
+  }
+
+  /**
+   * Spielt eine exportierte Zip wieder ein — der Rückweg zu „Speichern unter".
+   *
+   * Genau im beworbenen Ernstfall (Platte defekt, neuer Rechner) musste man
+   * die Zip bisher von Hand entpacken und die Dateien an die richtigen Pfade
+   * legen, was nirgends erklärt war. Das Belegarchiv wird sofort übernommen
+   * (Vorhandenes bleibt unangetastet), die Datenbank beim nächsten Start —
+   * wie beim Zurückspielen einer internen Sicherung.
+   */
+  async function ausDateiEinspielen() {
+    setFehler(null);
+    const pfad = await open({ filters: [{ name: "Zip", extensions: ["zip"] }], multiple: false });
+    if (typeof pfad !== "string") return;
+    const text =
+      "Die Sicherung aus dieser Datei einspielen? Die Datenbank daraus ersetzt beim " +
+      "nächsten Start den jetzigen Stand; alles, was seitdem eingegeben wurde, " +
+      "verschwindet aus der Anwendung. Der jetzige Stand wird vorher automatisch " +
+      "gesichert. Belegdateien aus der Sicherung werden sofort übernommen, ohne " +
+      "vorhandene zu überschreiben.";
+    if (!(await bestaetigen(text, "Einspielen"))) return;
+    try {
+      const ergebnis = await api.sicherungen.ausDateiEinspielen(pfad);
+      setNeustartNoetig(true);
+      zeigen(
+        ergebnis.belege_neu === 0
+          ? "Sicherung eingespielt"
+          : `Sicherung eingespielt, ${ergebnis.belege_neu} Belegdatei(en) übernommen`,
+      );
     } catch (e) {
       setFehler(e as AppFehler);
     }
@@ -455,9 +491,14 @@ function SicherungenAbschnitt() {
           </button>
         </div>
       )}
-      <button type="button" className="btn" disabled={laeuft} onClick={jetztSichern}>
-        Jetzt sichern
-      </button>
+      <div className="aktionen">
+        <button type="button" className="btn" disabled={laeuft} onClick={jetztSichern}>
+          Jetzt sichern
+        </button>
+        <button type="button" className="btn" disabled={laeuft} onClick={ausDateiEinspielen}>
+          Aus Datei einspielen …
+        </button>
+      </div>
       {sicherungen.length === 0 ? (
         <p>Noch keine Sicherungen vorhanden.</p>
       ) : (
