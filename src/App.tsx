@@ -161,6 +161,7 @@ function App() {
               setAusgewaehltesAngebot(null);
               setAusgewaehlteRechnung(rechnungId);
             }}
+            onDupliziert={setAusgewaehltesAngebot}
           />
         ) : (
           <Angebote onOeffnen={setAusgewaehltesAngebot} />
@@ -171,6 +172,7 @@ function App() {
             id={ausgewaehlteRechnung}
             onGeloescht={() => setAusgewaehlteRechnung(null)}
             onZurueck={() => setAusgewaehlteRechnung(null)}
+            onDupliziert={setAusgewaehlteRechnung}
           />
         ) : (
           <Rechnungen onOeffnen={setAusgewaehlteRechnung} />

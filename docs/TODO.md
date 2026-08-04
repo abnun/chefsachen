@@ -34,7 +34,24 @@ drei Befunde offen. Die ersten beiden sind behoben:
   unabhängig vom Status. Angebote von vor dieser Funktion bleiben unbefristet
   offen (`gueltig_bis = NULL`), statt plötzlich zu verschwinden.
 
-Damit sind alle drei Befunde der Durchsicht behoben.
+Damit sind alle drei Befunde der Durchsicht behoben. Danach die B-Punkte
+(1.x-Material, blockieren keine 1.0) der Reihe nach:
+
+- **B3 — Kein E-Mail-Versand: als Entscheidung dokumentiert (2026-08-04).**
+  Stand vorher nur implizit im Wortlaut der Bestätigungsdialoge; jetzt ein
+  eigener README-Abschnitt.
+- **B5 — Hinweis auf externe Sicherung (2026-08-04).** Die
+  Sicherungen-Sektion merkt sich, wann zuletzt „Speichern unter" benutzt
+  wurde, und zeigt es an. „Automatisch gesichert" hieß bisher nicht
+  „sicher gesichert", ohne dass das irgendwo stand.
+- **B2 — Beleg duplizieren (2026-08-04).** „Als Kopie anlegen" legt einen
+  neuen Entwurf mit Kunde, Texten und Positionen des Originals an, Datum auf
+  heute; bei einem Angebot mit frischer Gültigkeit statt der des Originals.
+  Funktioniert bei jedem Status — gerade ein festgeschriebener Beleg eignet
+  sich als Vorlage, lässt sich selbst aber nicht mehr ändern.
+
+Offen: B1 (Zahlungserinnerung als PDF), B4 (Tastenkürzel), C1
+(BelegEditor.tsx verkleinern).
 
 ## Stand (2026-08-03)
 

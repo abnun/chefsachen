@@ -28,6 +28,12 @@ interface BelegEditorProps {
   onRechnungErstellt?: (rechnungId: string) => void;
   /** Wird nach dem Löschen eines Entwurfs gerufen, damit die Seite zurückgeht. */
   onGeloescht?: () => void;
+  /**
+   * Wird nach dem Duplizieren mit der Id der Kopie gerufen — der Beleg bleibt
+   * derselben Art (Angebot bleibt Angebot, Rechnung bleibt Rechnung), nur die
+   * angezeigte Kennung wechselt auf den neuen Entwurf.
+   */
+  onDupliziert?: (kopieId: string) => void;
   /** Zurück zur Liste. Ohne diesen Weg kommt man nur über die Navigation raus. */
   onZurueck?: () => void;
 }
@@ -44,7 +50,7 @@ const ANGEBOT_ABSCHLUSS_STATUS = [
  * Status-Workflow (Entwurf → gestellt) und Positions-Verwaltung, daher eine
  * gemeinsame Komponente statt zweier Kopien.
  */
-export function BelegEditor({ id, onZurueck, onGeaendert, onRechnungErstellt, onGeloescht }: BelegEditorProps) {
+export function BelegEditor({ id, onZurueck, onGeaendert, onRechnungErstellt, onGeloescht, onDupliziert }: BelegEditorProps) {
   const [detail, setDetail] = useState<BelegDetail | null>(null);
   const [kunden, setKunden] = useState<Kunde[]>([]);
   const [artikelListe, setArtikelListe] = useState<Artikel[]>([]);
@@ -230,6 +236,30 @@ export function BelegEditor({ id, onZurueck, onGeaendert, onRechnungErstellt, on
     }
   }
 
+  /**
+   * Legt eine Kopie als neuen Entwurf an — Kunde, Texte und Positionen
+   * übernommen, Datum auf heute.
+   *
+   * Funktioniert bei jedem Status, gerade auch bei einem festgeschriebenen
+   * Beleg: Wer jeden Monat eine fast gleiche Rechnung stellt, tippte sie
+   * bisher jedes Mal neu, und genau der fertige Beleg eignet sich als
+   * Vorlage — er selbst lässt sich aber nicht mehr ändern.
+   */
+  async function duplizieren() {
+    setFehler(null);
+    setLaeuft(true);
+    try {
+      const kopie = await api.belege.duplizieren(beleg.id);
+      onGeaendert?.();
+      onDupliziert?.(kopie.id);
+      zeigen(beleg.typ === "angebot" ? "Angebot dupliziert" : "Rechnung dupliziert");
+    } catch (e) {
+      setFehler(e as AppFehler);
+    } finally {
+      setLaeuft(false);
+    }
+  }
+
   async function positionLoeschen(positionId: string) {
     setFehler(null);
     try {
@@ -324,6 +354,13 @@ export function BelegEditor({ id, onZurueck, onGeaendert, onRechnungErstellt, on
               In Rechnung überführen
             </button>
           )}
+
+          {/* Verfügbar bei jedem Status: Gerade ein festgeschriebener Beleg
+              eignet sich als Vorlage — er selbst lässt sich nur nicht mehr
+              ändern. */}
+          <button type="button" className="btn" disabled={laeuft} onClick={duplizieren}>
+            Als Kopie anlegen
+          </button>
 
           {beleg.status !== "entwurf" && (
             /* Sichtbar kurz, damit die Leiste nicht ausufert; der zugängliche

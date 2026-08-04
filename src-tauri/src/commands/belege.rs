@@ -344,6 +344,51 @@ pub async fn update(pool: &SqlitePool, d: BelegUpdate) -> AppResult<Beleg> {
     lade_beleg(pool, &d.id).await
 }
 
+/// Legt eine Kopie eines Belegs als neuen Entwurf an.
+///
+/// Wer jeden Monat eine fast gleiche Rechnung stellt, tippte sie bisher jedes
+/// Mal neu. Die Kopie übernimmt Kunde, Zahlungsziel, Kopf- und Fußtext sowie
+/// alle Positionen; Datum und Leistungsdatum werden auf heute gesetzt — eine
+/// Kopie ist ein neuer Vorgang, kein rückdatiertes Duplikat. Eine Gültigkeit
+/// bei einem Angebot bekommt die Kopie frisch aus der Einstellung, wie jeder
+/// neu angelegte Beleg (siehe `create`), nicht die des Originals.
+///
+/// Quelle darf jeden Status haben — gerade ein festgeschriebener Beleg lässt
+/// sich sonst gar nicht mehr als Vorlage nutzen, weil er selbst unveränderbar
+/// ist.
+pub async fn duplizieren(pool: &SqlitePool, id: String) -> AppResult<Beleg> {
+    let quelle = lade_beleg(pool, &id).await?;
+    let positionen: Vec<Belegposition> = sqlx::query_as(
+        "SELECT id, beleg_id, artikel_id, bezeichnung, einheit_kuerzel, einzelpreis_cent, menge, positionssumme_cent, reihenfolge \
+         FROM belegposition WHERE beleg_id = ? AND deleted_at IS NULL ORDER BY reihenfolge")
+        .bind(&id).fetch_all(pool).await?;
+
+    let heute = jetzt()[..10].to_string();
+    let kopie = create(pool, BelegNeu {
+        typ: quelle.typ.clone(), kunde_id: quelle.kunde_id.clone(),
+        datum: heute.clone(), leistungsdatum: heute, leistungsdatum_bis: None,
+        zahlungsziel_tage: quelle.zahlungsziel_tage,
+        kopftext: quelle.kopftext.clone(), fusstext: quelle.fusstext.clone(),
+    }).await?;
+
+    for pos in positionen {
+        position_speichern(pool, BelegpositionNeu {
+            id: String::new(), beleg_id: kopie.id.clone(),
+            // Nicht mit dem Artikel verknüpft: Wäre sie es, würde
+            // `position_speichern` Bezeichnung, Einheit und ohne
+            // Preisvorgabe auch den Preis aus dem *aktuellen* Artikelstand
+            // neu ableiten. Eine Kopie soll aber genau abbilden, was der
+            // Ursprungsbeleg auswies — unabhängig davon, ob sich der Artikel
+            // seither geändert hat.
+            artikel_id: None,
+            bezeichnung: pos.bezeichnung.clone(), einheit_kuerzel: pos.einheit_kuerzel.clone(),
+            einzelpreis_cent: Some(pos.einzelpreis_cent), menge: pos.menge,
+        }).await?;
+    }
+
+    lade_beleg(pool, &kopie.id).await
+}
+
 /// Stellt sicher, dass eine gewählte Adresse oder ein Ansprechpartner zum
 /// Kunden des Belegs gehört.
 ///
@@ -968,6 +1013,10 @@ pub async fn beleg_update(pool: tauri::State<'_, SqlitePool>, daten: BelegUpdate
 #[tauri::command]
 pub async fn beleg_delete(pool: tauri::State<'_, SqlitePool>, id: String) -> AppResult<()> {
     delete(&pool, id).await
+}
+#[tauri::command]
+pub async fn beleg_duplizieren(pool: tauri::State<'_, SqlitePool>, id: String) -> AppResult<Beleg> {
+    duplizieren(&pool, id).await
 }
 #[tauri::command]
 pub async fn belegposition_save(pool: tauri::State<'_, SqlitePool>, position: BelegpositionNeu) -> AppResult<Belegposition> {
@@ -1609,6 +1658,108 @@ mod tests {
             einheit_id: "e0000000-0000-0000-0000-000000000001".into(),
             standardpreis_cent,
         }).await.unwrap().id
+    }
+
+    /// Wer jeden Monat eine fast gleiche Rechnung stellt, tippte sie bisher
+    /// jedes Mal neu.
+    #[tokio::test]
+    async fn duplizieren_uebernimmt_kunde_texte_und_positionen() {
+        let (_d, pool) = test_pool().await;
+        let kunde = kunde_anlegen(&pool).await;
+        let artikel = artikel_anlegen(&pool, 9550).await;
+        let original = create(&pool, BelegNeu {
+            typ: "rechnung".into(), kunde_id: kunde.clone(), datum: "2026-01-10".into(),
+            leistungsdatum: "2026-01-10".into(), leistungsdatum_bis: None, zahlungsziel_tage: 21,
+            kopftext: "Wie besprochen:".into(), fusstext: "Danke für den Auftrag.".into(),
+        }).await.unwrap();
+        position_speichern(&pool, BelegpositionNeu {
+            id: "".into(), beleg_id: original.id.clone(), artikel_id: Some(artikel),
+            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 2000,
+        }).await.unwrap();
+        position_speichern(&pool, BelegpositionNeu {
+            id: "".into(), beleg_id: original.id.clone(), artikel_id: None,
+            bezeichnung: "Sonderposten".into(), einheit_kuerzel: "Stk".into(),
+            einzelpreis_cent: Some(500), menge: 1000,
+        }).await.unwrap();
+        stellen(&pool, original.id.clone()).await.unwrap();
+
+        let kopie = duplizieren(&pool, original.id.clone()).await.unwrap();
+
+        assert_eq!(kopie.status, "entwurf");
+        assert_eq!(kopie.typ, "rechnung");
+        assert_eq!(kopie.kunde_id, kunde);
+        assert_eq!(kopie.zahlungsziel_tage, 21);
+        assert_eq!(kopie.kopftext, "Wie besprochen:");
+        assert_eq!(kopie.fusstext, "Danke für den Auftrag.");
+        assert_eq!(kopie.summe_cent, 19100 + 500, "2 × 95,50 € + 5,00 €");
+
+        let detail = get(&pool, kopie.id.clone()).await.unwrap();
+        assert_eq!(detail.positionen.len(), 2);
+        assert_eq!(detail.positionen[0].bezeichnung, "Beratung");
+        assert_eq!(detail.positionen[0].einzelpreis_cent, 9550);
+        assert_eq!(detail.positionen[1].bezeichnung, "Sonderposten");
+        assert_eq!(detail.positionen[1].einzelpreis_cent, 500);
+    }
+
+    /// Eine Kopie ist ein neuer Vorgang, kein rückdatiertes Duplikat — Datum
+    /// und Leistungsdatum zeigen auf heute, nicht auf das Original.
+    #[tokio::test]
+    async fn duplizieren_setzt_datum_und_leistungsdatum_auf_heute() {
+        let (_d, pool) = test_pool().await;
+        let kunde = kunde_anlegen(&pool).await;
+        let original = create(&pool, beleg_neu("rechnung", &kunde)).await.unwrap();
+        assert_eq!(original.datum, "2026-07-10");
+
+        let kopie = duplizieren(&pool, original.id).await.unwrap();
+        let heute = jetzt()[..10].to_string();
+        assert_eq!(kopie.datum, heute);
+        assert_eq!(kopie.leistungsdatum, kopie.datum);
+    }
+
+    /// Eine Gültigkeit bekommt die Kopie frisch aus der Einstellung, wie jeder
+    /// neu angelegte Beleg — nicht die des Originals, das könnte längst
+    /// verstrichen sein.
+    #[tokio::test]
+    async fn duplizieren_gibt_einem_angebot_eine_frische_gueltigkeit() {
+        let (_d, pool) = test_pool().await;
+        let kunde = kunde_anlegen(&pool).await;
+        // Ein altes Angebot, dessen eigene Gültigkeit längst verstrichen ist —
+        // gültig gegenüber seinem eigenen (ebenfalls alten) Belegdatum, aber
+        // in der Vergangenheit verglichen mit heute.
+        let mut alt = beleg_neu("angebot", &kunde);
+        alt.datum = "2020-01-01".into();
+        alt.leistungsdatum = "2020-01-01".into();
+        let original = create(&pool, alt).await.unwrap();
+        let mut felder = beleg_update_aus(&original);
+        felder.gueltig_bis = Some("2020-01-31".into());
+        update(&pool, felder).await.unwrap();
+
+        let kopie = duplizieren(&pool, original.id).await.unwrap();
+        let heute = jetzt()[..10].to_string();
+        assert!(
+            kopie.gueltig_bis.as_deref().is_some_and(|g| g > heute.as_str()),
+            "Kopie sollte eine zukünftige Gültigkeit haben, war: {:?}",
+            kopie.gueltig_bis,
+        );
+    }
+
+    /// Gerade ein festgeschriebener Beleg lässt sich sonst nicht mehr als
+    /// Vorlage nutzen, weil er selbst unveränderbar ist.
+    #[tokio::test]
+    async fn ein_festgeschriebener_beleg_laesst_sich_duplizieren() {
+        let (_d, pool) = test_pool().await;
+        let kunde = kunde_anlegen(&pool).await;
+        let original = create(&pool, beleg_neu("rechnung", &kunde)).await.unwrap();
+        let artikel = artikel_anlegen(&pool, 1000).await;
+        position_speichern(&pool, BelegpositionNeu {
+            id: "".into(), beleg_id: original.id.clone(), artikel_id: Some(artikel),
+            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000,
+        }).await.unwrap();
+        let gestellt = stellen(&pool, original.id).await.unwrap();
+
+        let kopie = duplizieren(&pool, gestellt.id.clone()).await.unwrap();
+        assert_eq!(kopie.status, "entwurf");
+        assert_ne!(kopie.id, gestellt.id);
     }
 
     #[tokio::test]

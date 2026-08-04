@@ -23,6 +23,11 @@ vi.mock("../api", () => ({
       positionDelete: vi.fn().mockResolvedValue(undefined),
       positionVerschieben: vi.fn().mockResolvedValue(undefined),
       delete: vi.fn().mockResolvedValue(undefined),
+      duplizieren: vi.fn().mockResolvedValue({
+        id: "kopie1", typ: "angebot", nummer: null, status: "entwurf", kunde_id: "k1",
+        datum: "2026-08-04", leistungsdatum: "2026-08-04", zahlungsziel_tage: 14,
+        kopftext: "", fusstext: "", summe_cent: 0, ursprungsangebot_id: null, storno_von_id: null,
+      }),
       zahlungDelete: vi.fn().mockResolvedValue(undefined),
       update: vi.fn().mockResolvedValue({
         id: "b1", typ: "angebot", nummer: null, status: "entwurf", kunde_id: "k1",
@@ -114,6 +119,50 @@ describe("BelegEditor", () => {
     });
     render(<BelegEditor id="b1" />);
     await waitFor(() => expect(screen.getByText("Kunde: ACME GmbH (alter Name)")).toBeTruthy());
+  });
+});
+
+describe("BelegEditor – Als Kopie anlegen", () => {
+  /*
+   * Wer jeden Monat eine fast gleiche Rechnung stellt, tippte sie bisher
+   * jedes Mal neu.
+   */
+  it("dupliziert einen Beleg und meldet den Wechsel zur Kopie", async () => {
+    vi.mocked(api.belege.get).mockResolvedValue({
+      beleg: {
+        id: "b1", typ: "angebot", nummer: "AN-2026-0001", status: "festgeschrieben", kunde_id: "k1",
+        datum: "2026-07-10", leistungsdatum: "2026-07-10", zahlungsziel_tage: 14,
+        kopftext: "", fusstext: "", summe_cent: 0, ursprungsangebot_id: null, storno_von_id: null,
+      },
+      positionen: [], zahlungen: [], bezahlt_cent: 0, offener_betrag_cent: 0,
+    });
+    const onDupliziert = vi.fn();
+    render(<BelegEditor id="b1" onDupliziert={onDupliziert} />);
+    await waitFor(() => expect(screen.getByRole("button", { name: "Als Kopie anlegen" })).toBeTruthy());
+
+    fireEvent.click(screen.getByRole("button", { name: "Als Kopie anlegen" }));
+
+    await waitFor(() => expect(api.belege.duplizieren).toHaveBeenCalledWith("b1"));
+    await waitFor(() => expect(onDupliziert).toHaveBeenCalledWith("kopie1"));
+    await waitFor(() => expect(screen.getByText("Angebot dupliziert")).toBeTruthy());
+  });
+
+  it("ist auch bei einem Entwurf verfügbar, ohne Rückfrage", async () => {
+    // Anders als „Entwurf löschen": Eine Kopie ist folgenlos, braucht also
+    // keine Bestätigung.
+    vi.mocked(api.belege.get).mockResolvedValue({
+      beleg: {
+        id: "b1", typ: "rechnung", nummer: null, status: "entwurf", kunde_id: "k1",
+        datum: "2026-07-10", leistungsdatum: "2026-07-10", zahlungsziel_tage: 14,
+        kopftext: "", fusstext: "", summe_cent: 0, ursprungsangebot_id: null, storno_von_id: null,
+      },
+      positionen: [], zahlungen: [], bezahlt_cent: 0, offener_betrag_cent: 0,
+    });
+    render(<BelegEditor id="b1" />);
+    await waitFor(() => expect(screen.getByRole("button", { name: "Als Kopie anlegen" })).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Als Kopie anlegen" }));
+    await waitFor(() => expect(api.belege.duplizieren).toHaveBeenCalledWith("b1"));
+    expect(screen.queryByRole("dialog")).toBeNull();
   });
 });
 

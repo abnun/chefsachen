@@ -509,6 +509,13 @@ export const api = {
     create: (daten: BelegNeu) => invoke<Beleg>("beleg_create", { daten }),
     update: (daten: BelegUpdate) => invoke<Beleg>("beleg_update", { daten }),
     delete: (id: string) => invoke<void>("beleg_delete", { id }),
+    /**
+     * Legt eine Kopie als neuen Entwurf an — Kunde, Texte und Positionen
+     * übernommen, Datum auf heute. Funktioniert bei jedem Status, gerade auch
+     * bei einem festgeschriebenen Beleg, der sonst selbst nicht mehr als
+     * Vorlage dienen könnte.
+     */
+    duplizieren: (id: string) => invoke<Beleg>("beleg_duplizieren", { id }),
     positionSave: (position: BelegpositionNeu) => invoke<Belegposition>("belegposition_save", { position }),
     positionDelete: (id: string) => invoke<void>("belegposition_delete", { id }),
     positionVerschieben: (id: string, richtung: "hoch" | "runter") =>
