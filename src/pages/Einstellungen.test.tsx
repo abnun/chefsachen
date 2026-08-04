@@ -29,10 +29,10 @@ vi.mock("../api", () => ({
     protokoll: { pfad: vi.fn().mockResolvedValue("/p/protokoll.log") },
     sicherungen: {
       liste: vi.fn().mockResolvedValue([]),
-      wiederherstellen: vi.fn().mockResolvedValue(undefined),
+      wiederherstellen: vi.fn().mockResolvedValue(false),
       exportieren: vi.fn().mockResolvedValue([1, 2, 3]),
       jetzt: vi.fn().mockResolvedValue({ zeitstempel: "2026-08-03_10-15-00", groesse_bytes: 2048, pfad: "/p/daten-2026-08-03_10-15-00.db" }),
-      ausDateiEinspielen: vi.fn().mockResolvedValue({ belege_neu: 2, belege_vorhanden: 1 }),
+      ausDateiEinspielen: vi.fn().mockResolvedValue({ belege_neu: 2, belege_vorhanden: 1, vormerkung_ersetzt: false }),
     },
     firma: {
       get: vi.fn().mockResolvedValue({

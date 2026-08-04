@@ -122,11 +122,12 @@ pub fn sicherungen_liste<R: tauri::Runtime>(app: tauri::AppHandle<R>) -> AppResu
 }
 
 /// Merkt eine Sicherung zum Zurückspielen vor. Wirksam beim nächsten Start.
+/// Gibt zurück, ob dabei eine bereits bestehende Vormerkung ersetzt wurde.
 #[tauri::command]
 pub fn sicherung_wiederherstellen<R: tauri::Runtime>(
     app: tauri::AppHandle<R>,
     zeitstempel: String,
-) -> AppResult<()> {
+) -> AppResult<bool> {
     use tauri::Manager;
     let dir = app.path().app_data_dir().map_err(|e| AppError::Technisch(e.to_string()))?;
     vormerken(&dir, &zeitstempel)
@@ -237,6 +238,63 @@ pub struct ZipImport {
     pub belege_neu: usize,
     /// Übersprungen, weil bereits vorhanden — das Archiv bleibt unveränderbar.
     pub belege_vorhanden: usize,
+    /// Es lag bereits eine Vormerkung (etwa aus „Zurückspielen") — sie wurde
+    /// ersetzt. Ohne den Hinweis gewänne die zweite Entscheidung unsichtbar.
+    pub vormerkung_ersetzt: bool,
+}
+
+/// Prüft, ob die Bytes eine Datenbank sind, die diese Programmversion öffnen
+/// kann.
+///
+/// Ohne die Prüfung würden beliebige Bytes als Vormerkung abgelegt und beim
+/// nächsten Start per rename zur `daten.db` — ist die Datei keine Datenbank
+/// oder stammt sie aus einer *neueren* Programmversion (unbekannte
+/// Migrationen), scheitert dann jeder weitere Start, und der Weg zurück führt
+/// über Handarbeit im Sicherungsordner. Genau das Von-Hand-Hantieren, das der
+/// Import abschaffen soll.
+async fn pruefe_datenbank_einspielbar(db_bytes: &[u8], app_data_dir: &Path) -> AppResult<()> {
+    if !db_bytes.starts_with(b"SQLite format 3\0") {
+        return Err(AppError::Validation {
+            feld: "datei".into(),
+            meldung: "Die daten.db in dieser Zip ist keine SQLite-Datenbank.".into(),
+        });
+    }
+    // Migrationsstand nur über eine echte Verbindung feststellbar — dazu die
+    // Bytes kurz in eine Prüfdatei legen. Sie wird in jedem Fall wieder
+    // entfernt.
+    let pruef_pfad = app_data_dir.join("wiederherstellen.pruefung.db");
+    std::fs::write(&pruef_pfad, db_bytes)
+        .map_err(|e| AppError::Technisch(format!("Prüfdatei nicht schreibbar: {e}")))?;
+    let stand = migrationsstand(&pruef_pfad).await;
+    let _ = std::fs::remove_file(&pruef_pfad);
+    let stand = stand?;
+
+    let eigener = crate::db::hoechste_migration();
+    if stand > eigener {
+        return Err(AppError::Validation {
+            feld: "datei".into(),
+            meldung: format!(
+                "Diese Sicherung stammt aus einer neueren Programmversion (Datenstand {stand}, \
+                 diese Version kennt {eigener}). Bitte zuerst die Anwendung aktualisieren."
+            ),
+        });
+    }
+    Ok(())
+}
+
+/// Höchste in einer Datenbankdatei verzeichnete Migration; 0, wenn die
+/// Migrationstabelle fehlt (sehr alte oder leere Datenbank — unkritisch, die
+/// Migrationen laufen dann beim Einspielen normal durch).
+async fn migrationsstand(pfad: &Path) -> AppResult<i64> {
+    use sqlx::sqlite::{SqlitePoolOptions, SqliteConnectOptions};
+    let opts = SqliteConnectOptions::new().filename(pfad);
+    let pool = SqlitePoolOptions::new().max_connections(1).connect_with(opts).await
+        .map_err(|e| AppError::Technisch(format!("Prüfdatei nicht lesbar: {e}")))?;
+    let stand: Result<(i64,), _> =
+        sqlx::query_as("SELECT COALESCE(MAX(version), 0) FROM _sqlx_migrations")
+            .fetch_one(&pool).await;
+    pool.close().await;
+    Ok(stand.map(|s| s.0).unwrap_or(0))
 }
 
 /// Spielt eine exportierte Sicherungs-Zip wieder ein.
@@ -252,7 +310,11 @@ pub struct ZipImport {
 /// Rettungskopie des dann aktuellen Standes. Die Belegdateien werden dagegen
 /// sofort übernommen; bereits vorhandene bleiben unangetastet, nach derselben
 /// Regel, nach der auch `ablegen` nie überschreibt (GoBD-Unveränderbarkeit).
-pub fn zip_einspielen(zip_pfad: &Path, app_data_dir: &Path) -> AppResult<ZipImport> {
+///
+/// Die Vormerkung entsteht als **letzter** Schritt: Bräche der Import vorher
+/// ab, meldete die Oberfläche einen Fehler — und beim nächsten Start würde
+/// die Datenbank trotzdem still ausgetauscht.
+pub async fn zip_einspielen(zip_pfad: &Path, app_data_dir: &Path) -> AppResult<ZipImport> {
     let datei = std::fs::File::open(zip_pfad)
         .map_err(|e| AppError::Technisch(format!("Sicherungsdatei nicht lesbar: {e}")))?;
     let mut archiv = zip::ZipArchive::new(datei)
@@ -261,33 +323,23 @@ pub fn zip_einspielen(zip_pfad: &Path, app_data_dir: &Path) -> AppResult<ZipImpo
             meldung: "Das ist keine lesbare Zip-Datei.".into(),
         })?;
 
-    // Erst prüfen, dann schreiben: Eine Zip ohne daten.db ist keine Sicherung
-    // dieser Anwendung — dann soll auch kein einzelner Beleg übernommen werden.
-    if archiv.by_name("daten.db").is_err() {
-        return Err(AppError::Validation {
-            feld: "datei".into(),
-            meldung: "Diese Zip enthält keine daten.db — sie ist keine Sicherung dieser Anwendung.".into(),
-        });
-    }
-
-    let belege_dir = crate::dokument::export::belege_verzeichnis(app_data_dir);
-    let mut ergebnis = ZipImport { belege_neu: 0, belege_vorhanden: 0 };
-
+    // Alles erst lesen, dann schreiben: Eine Zip ohne (brauchbare) daten.db
+    // ist keine Sicherung dieser Anwendung — dann soll auch kein einzelner
+    // Beleg übernommen worden sein.
+    let mut db_bytes: Option<Vec<u8>> = None;
+    let mut belege: Vec<(String, Vec<u8>)> = Vec::new();
     for i in 0..archiv.len() {
         let mut eintrag = archiv.by_index(i)
             .map_err(|e| AppError::Technisch(format!("Zip-Eintrag nicht lesbar: {e}")))?;
         let name = eintrag.name().to_string();
-
         let mut inhalt = Vec::new();
         std::io::Read::read_to_end(&mut eintrag, &mut inhalt)
             .map_err(|e| AppError::Technisch(format!("Zip-Eintrag nicht lesbar: {e}")))?;
 
         if name == "daten.db" {
-            std::fs::write(app_data_dir.join(VORMERKUNG), &inhalt)
-                .map_err(|e| AppError::Technisch(format!("Wiederherstellung nicht vorbereitbar: {e}")))?;
+            db_bytes = Some(inhalt);
             continue;
         }
-
         // Nur flache Einträge unterhalb von Belege/ — alles andere (fremde
         // Pfade, Unterordner, "../"-Konstruktionen) wird ignoriert, statt
         // Dateien außerhalb des Programmordners zu schreiben (Zip-Slip).
@@ -295,8 +347,21 @@ pub fn zip_einspielen(zip_pfad: &Path, app_data_dir: &Path) -> AppResult<ZipImpo
         if dateiname.is_empty() || dateiname.contains('/') || dateiname.contains('\\') || dateiname.contains("..") {
             continue;
         }
+        belege.push((dateiname.to_string(), inhalt));
+    }
 
-        let ziel = belege_dir.join(dateiname);
+    let Some(db_bytes) = db_bytes else {
+        return Err(AppError::Validation {
+            feld: "datei".into(),
+            meldung: "Diese Zip enthält keine daten.db — sie ist keine Sicherung dieser Anwendung.".into(),
+        });
+    };
+    pruefe_datenbank_einspielbar(&db_bytes, app_data_dir).await?;
+
+    let belege_dir = crate::dokument::export::belege_verzeichnis(app_data_dir);
+    let mut ergebnis = ZipImport { belege_neu: 0, belege_vorhanden: 0, vormerkung_ersetzt: false };
+    for (dateiname, inhalt) in belege {
+        let ziel = belege_dir.join(&dateiname);
         if ziel.exists() {
             ergebnis.belege_vorhanden += 1;
             continue;
@@ -308,19 +373,24 @@ pub fn zip_einspielen(zip_pfad: &Path, app_data_dir: &Path) -> AppResult<ZipImpo
         ergebnis.belege_neu += 1;
     }
 
+    let vormerkung = app_data_dir.join(VORMERKUNG);
+    ergebnis.vormerkung_ersetzt = vormerkung.exists();
+    std::fs::write(&vormerkung, &db_bytes)
+        .map_err(|e| AppError::Technisch(format!("Wiederherstellung nicht vorbereitbar: {e}")))?;
+
     Ok(ergebnis)
 }
 
 /// Spielt eine exportierte Sicherungs-Zip ein: Belegarchiv sofort, Datenbank
 /// als Vormerkung beim nächsten Start.
 #[tauri::command]
-pub fn sicherung_aus_datei_einspielen<R: tauri::Runtime>(
+pub async fn sicherung_aus_datei_einspielen<R: tauri::Runtime>(
     app: tauri::AppHandle<R>,
     pfad: String,
 ) -> AppResult<ZipImport> {
     use tauri::Manager;
     let dir = app.path().app_data_dir().map_err(|e| AppError::Technisch(e.to_string()))?;
-    zip_einspielen(Path::new(&pfad), &dir)
+    zip_einspielen(Path::new(&pfad), &dir).await
 }
 
 /// Name der Datei, die einen vorgemerkten Wiederherstellungswunsch trägt.
@@ -333,7 +403,10 @@ const VORMERKUNG: &str = "wiederherstellen.db";
 /// gelesenen Zustand oder zu einer beschädigten Datei. Statt gegen die offene
 /// Verbindung zu arbeiten, wird die gewählte Sicherung danebengelegt und beim
 /// nächsten Start eingespielt, bevor überhaupt eine Verbindung entsteht.
-pub fn vormerken(app_data_dir: &Path, zeitstempel: &str) -> AppResult<()> {
+///
+/// Gibt zurück, ob eine bereits bestehende Vormerkung ersetzt wurde — es gibt
+/// nur eine, die letzte Entscheidung gewinnt, und das soll sichtbar sein.
+pub fn vormerken(app_data_dir: &Path, zeitstempel: &str) -> AppResult<bool> {
     let quelle = verzeichnis(app_data_dir).join(format!("{PRAEFIX}{zeitstempel}{ENDUNG}"));
     if !quelle.is_file() {
         return Err(AppError::Validation {
@@ -341,9 +414,11 @@ pub fn vormerken(app_data_dir: &Path, zeitstempel: &str) -> AppResult<()> {
             meldung: "Diese Sicherung gibt es nicht.".into(),
         });
     }
-    std::fs::copy(&quelle, app_data_dir.join(VORMERKUNG))
+    let ziel = app_data_dir.join(VORMERKUNG);
+    let ersetzt = ziel.exists();
+    std::fs::copy(&quelle, &ziel)
         .map_err(|e| AppError::Technisch(format!("Sicherung nicht vorbereitbar: {e}")))?;
-    Ok(())
+    Ok(ersetzt)
 }
 
 /// Spielt eine vorgemerkte Sicherung ein. Beim Start aufzurufen, **bevor** die
@@ -532,79 +607,153 @@ mod tests {
         pfad
     }
 
-    #[test]
-    fn zip_einspielen_merkt_datenbank_vor_und_uebernimmt_belege() {
+    /// Bytes einer echten, vollständig migrierten Datenbank — der Import
+    /// prüft SQLite-Header und Migrationsstand, Platzhalter-Bytes reichen
+    /// dafür nicht mehr.
+    async fn echte_datenbank_bytes(dir: &Path) -> Vec<u8> {
+        let pfad = dir.join("quelle-fuer-zip.db");
+        let pool = crate::db::init_db(&pfad).await.unwrap();
+        pool.close().await;
+        std::fs::read(&pfad).unwrap()
+    }
+
+    #[tokio::test]
+    async fn zip_einspielen_merkt_datenbank_vor_und_uebernimmt_belege() {
         let dir = tempfile::tempdir().unwrap();
+        let db = echte_datenbank_bytes(dir.path()).await;
         let zip = zip_schreiben(dir.path(), &[
-            ("daten.db", b"gesicherter stand"),
+            ("daten.db", db.as_slice()),
             ("Belege/RE-2026-0001.pdf", b"pdf-inhalt"),
         ]);
 
-        let ergebnis = zip_einspielen(&zip, dir.path()).unwrap();
+        let ergebnis = zip_einspielen(&zip, dir.path()).await.unwrap();
 
         assert_eq!(ergebnis.belege_neu, 1);
         assert_eq!(ergebnis.belege_vorhanden, 0);
+        assert!(!ergebnis.vormerkung_ersetzt);
         // Die Datenbank ersetzt nicht sofort die laufende, sondern liegt als
         // Vormerkung bereit — eingespielt beim nächsten Start.
-        assert_eq!(std::fs::read(dir.path().join(VORMERKUNG)).unwrap(), b"gesicherter stand");
+        assert_eq!(std::fs::read(dir.path().join(VORMERKUNG)).unwrap(), db);
         let beleg = crate::dokument::export::belege_verzeichnis(dir.path()).join("RE-2026-0001.pdf");
         assert_eq!(std::fs::read(beleg).unwrap(), b"pdf-inhalt");
     }
 
     /// GoBD-Unveränderbarkeit gilt auch beim Import: Eine bereits archivierte
     /// Datei wird nicht durch die Fassung aus der Zip ersetzt.
-    #[test]
-    fn zip_einspielen_ueberschreibt_vorhandene_belege_nicht() {
+    #[tokio::test]
+    async fn zip_einspielen_ueberschreibt_vorhandene_belege_nicht() {
         let dir = tempfile::tempdir().unwrap();
+        let db = echte_datenbank_bytes(dir.path()).await;
         let belege = crate::dokument::export::belege_verzeichnis(dir.path());
         std::fs::create_dir_all(&belege).unwrap();
         std::fs::write(belege.join("RE-2026-0001.pdf"), b"archivierte fassung").unwrap();
         let zip = zip_schreiben(dir.path(), &[
-            ("daten.db", b"db"),
+            ("daten.db", db.as_slice()),
             ("Belege/RE-2026-0001.pdf", b"andere fassung"),
             ("Belege/RE-2026-0002.pdf", b"neu"),
         ]);
 
-        let ergebnis = zip_einspielen(&zip, dir.path()).unwrap();
+        let ergebnis = zip_einspielen(&zip, dir.path()).await.unwrap();
 
         assert_eq!(ergebnis.belege_vorhanden, 1);
         assert_eq!(ergebnis.belege_neu, 1);
         assert_eq!(std::fs::read(belege.join("RE-2026-0001.pdf")).unwrap(), b"archivierte fassung");
     }
 
-    #[test]
-    fn zip_ohne_datenbank_wird_abgelehnt_ohne_etwas_zu_schreiben() {
+    #[tokio::test]
+    async fn zip_ohne_datenbank_wird_abgelehnt_ohne_etwas_zu_schreiben() {
         let dir = tempfile::tempdir().unwrap();
         let zip = zip_schreiben(dir.path(), &[("Belege/RE-2026-0001.pdf", b"pdf")]);
 
-        let fehler = zip_einspielen(&zip, dir.path());
+        let fehler = zip_einspielen(&zip, dir.path()).await;
         assert!(matches!(fehler, Err(AppError::Validation { .. })), "{fehler:?}");
         assert!(!dir.path().join(VORMERKUNG).exists());
         assert!(!crate::dokument::export::belege_verzeichnis(dir.path()).exists());
     }
 
-    #[test]
-    fn eine_datei_die_keine_zip_ist_wird_abgelehnt() {
+    /// Beliebige Bytes als daten.db dürfen nie zur Vormerkung werden: Beim
+    /// nächsten Start würden sie per rename zur Datenbank, und jeder weitere
+    /// Start scheiterte. Auch die Belege bleiben dann unangetastet.
+    #[tokio::test]
+    async fn eine_zip_mit_unbrauchbarer_datenbank_wird_abgelehnt_ohne_etwas_zu_schreiben() {
+        let dir = tempfile::tempdir().unwrap();
+        let zip = zip_schreiben(dir.path(), &[
+            ("daten.db", b"nur text, keine datenbank"),
+            ("Belege/RE-2026-0001.pdf", b"pdf"),
+        ]);
+
+        let fehler = zip_einspielen(&zip, dir.path()).await;
+        assert!(matches!(fehler, Err(AppError::Validation { .. })), "{fehler:?}");
+        assert!(!dir.path().join(VORMERKUNG).exists());
+        assert!(!crate::dokument::export::belege_verzeichnis(dir.path()).exists());
+    }
+
+    /// Eine Sicherung aus einer neueren Programmversion trägt Migrationen,
+    /// die diese Version nicht kennt — eingespielt wäre die App dauerhaft
+    /// startunfähig. Ablehnen mit klarer Meldung statt stiller Zeitbombe.
+    #[tokio::test]
+    async fn eine_sicherung_aus_neuerer_programmversion_wird_abgelehnt() {
+        let dir = tempfile::tempdir().unwrap();
+        // Eine echte Datenbank, in deren Migrationstabelle eine Zukunfts-
+        // Migration steht.
+        let pfad = dir.path().join("zukunft.db");
+        let pool = crate::db::init_db(&pfad).await.unwrap();
+        sqlx::query(
+            "INSERT INTO _sqlx_migrations (version, description, installed_on, success, checksum, execution_time) \
+             VALUES (99990101000000, 'aus der zukunft', CURRENT_TIMESTAMP, 1, x'00', 0)")
+            .execute(&pool).await.unwrap();
+        crate::db::wal_einfalten(&pool).await.unwrap();
+        pool.close().await;
+        let db = std::fs::read(&pfad).unwrap();
+        let zip = zip_schreiben(dir.path(), &[("daten.db", db.as_slice())]);
+
+        let fehler = zip_einspielen(&zip, dir.path()).await;
+        match fehler {
+            Err(AppError::Validation { meldung, .. }) => {
+                assert!(meldung.contains("neueren Programmversion"), "{meldung}");
+            }
+            anderes => panic!("unerwartet: {anderes:?}"),
+        }
+        assert!(!dir.path().join(VORMERKUNG).exists());
+    }
+
+    /// Es gibt nur eine Vormerkung — die letzte Entscheidung gewinnt, und das
+    /// soll die Oberfläche dem Nutzer sagen können.
+    #[tokio::test]
+    async fn zip_einspielen_meldet_wenn_eine_vormerkung_ersetzt_wird() {
+        let dir = tempfile::tempdir().unwrap();
+        let db = echte_datenbank_bytes(dir.path()).await;
+        let zip = zip_schreiben(dir.path(), &[("daten.db", db.as_slice())]);
+
+        let erste = zip_einspielen(&zip, dir.path()).await.unwrap();
+        assert!(!erste.vormerkung_ersetzt);
+        let zweite = zip_einspielen(&zip, dir.path()).await.unwrap();
+        assert!(zweite.vormerkung_ersetzt);
+    }
+
+    #[tokio::test]
+    async fn eine_datei_die_keine_zip_ist_wird_abgelehnt() {
         let dir = tempfile::tempdir().unwrap();
         let pfad = dir.path().join("keine.zip");
         std::fs::write(&pfad, b"nur text").unwrap();
-        let fehler = zip_einspielen(&pfad, dir.path());
+        let fehler = zip_einspielen(&pfad, dir.path()).await;
         assert!(matches!(fehler, Err(AppError::Validation { .. })), "{fehler:?}");
     }
 
     /// Zip-Slip: Ein präparierter Eintrag darf keine Datei außerhalb des
     /// Programmordners schreiben.
-    #[test]
-    fn zip_einspielen_ignoriert_pfade_ausserhalb_des_belegordners() {
+    #[tokio::test]
+    async fn zip_einspielen_ignoriert_pfade_ausserhalb_des_belegordners() {
         let dir = tempfile::tempdir().unwrap();
+        let db = echte_datenbank_bytes(dir.path()).await;
         let zip = zip_schreiben(dir.path(), &[
-            ("daten.db", b"db"),
+            ("daten.db", db.as_slice()),
             ("Belege/../ausbruch.txt", b"boese"),
             ("Belege/unter/ordner.pdf", b"verschachtelt"),
             ("woanders/datei.txt", b"fremd"),
         ]);
 
-        let ergebnis = zip_einspielen(&zip, dir.path()).unwrap();
+        let ergebnis = zip_einspielen(&zip, dir.path()).await.unwrap();
 
         assert_eq!(ergebnis.belege_neu, 0);
         assert!(!dir.path().join("ausbruch.txt").exists());

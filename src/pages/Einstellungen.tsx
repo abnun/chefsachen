@@ -377,8 +377,11 @@ function SicherungenAbschnitt() {
     if (!(await bestaetigen(text, "Zurückspielen"))) return;
     setFehler(null);
     try {
-      await api.sicherungen.wiederherstellen(s.zeitstempel);
+      const ersetzt = await api.sicherungen.wiederherstellen(s.zeitstempel);
       setNeustartNoetig(true);
+      // Es gibt nur eine Vormerkung — die letzte Entscheidung gewinnt. Ohne
+      // diesen Hinweis geschähe das Ersetzen unsichtbar.
+      if (ersetzt) zeigen("Ersetzt die zuvor vorgemerkte Wiederherstellung");
     } catch (e) {
       setFehler(e as AppFehler);
     }
@@ -437,11 +440,12 @@ function SicherungenAbschnitt() {
     try {
       const ergebnis = await api.sicherungen.ausDateiEinspielen(pfad);
       setNeustartNoetig(true);
-      zeigen(
-        ergebnis.belege_neu === 0
-          ? "Sicherung eingespielt"
-          : `Sicherung eingespielt, ${ergebnis.belege_neu} Belegdatei(en) übernommen`,
-      );
+      const teile = ["Sicherung eingespielt"];
+      if (ergebnis.belege_neu > 0) teile.push(`${ergebnis.belege_neu} Belegdatei(en) übernommen`);
+      // Es gibt nur eine Vormerkung — die letzte Entscheidung gewinnt. Ohne
+      // diesen Hinweis geschähe das Ersetzen unsichtbar.
+      if (ergebnis.vormerkung_ersetzt) teile.push("ersetzt die zuvor vorgemerkte Wiederherstellung");
+      zeigen(teile.join(", "));
     } catch (e) {
       setFehler(e as AppFehler);
     }

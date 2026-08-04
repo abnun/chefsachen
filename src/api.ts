@@ -414,6 +414,8 @@ export interface ZipImport {
   belege_neu: number;
   /** Übersprungen, weil bereits vorhanden — das Archiv bleibt unveränderbar. */
   belege_vorhanden: number;
+  /** Eine bereits bestehende Vormerkung (etwa aus „Zurückspielen") wurde ersetzt. */
+  vormerkung_ersetzt: boolean;
 }
 
 export type AppFehler =
@@ -437,9 +439,12 @@ export const api = {
   sicherungen: {
     liste: () => invoke<Sicherung[]>("sicherungen_liste"),
     jetzt: () => invoke<Sicherung>("sicherung_jetzt"),
-    /** Merkt eine Sicherung zum Zurückspielen vor — wirksam beim nächsten Start. */
+    /**
+     * Merkt eine Sicherung zum Zurückspielen vor — wirksam beim nächsten
+     * Start. Liefert zurück, ob eine bestehende Vormerkung ersetzt wurde.
+     */
     wiederherstellen: (zeitstempel: string) =>
-      invoke<void>("sicherung_wiederherstellen", { zeitstempel }),
+      invoke<boolean>("sicherung_wiederherstellen", { zeitstempel }),
     /**
      * Liefert die Sicherung gebündelt mit dem Belegarchiv als Zip-Datei.
      *

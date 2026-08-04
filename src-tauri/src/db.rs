@@ -2,6 +2,11 @@ use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePool, SqlitePo
 use std::path::Path;
 use std::time::Duration;
 
+/// Die Migrationen der Anwendung — herausgezogen, damit auch der Zip-Import
+/// weiß, welchen Stand diese Programmversion kennt (siehe
+/// `backup::zip_einspielen`).
+pub static MIGRATOR: sqlx::migrate::Migrator = sqlx::migrate!("./migrations");
+
 pub async fn init_db(path: &Path) -> Result<SqlitePool, sqlx::Error> {
     let opts = SqliteConnectOptions::new()
         .filename(path)
@@ -21,8 +26,13 @@ pub async fn init_db(path: &Path) -> Result<SqlitePool, sqlx::Error> {
     // Vereinfachung: Bei einem Einzelplatzprogramm bringt Nebenläufigkeit auf
     // derselben SQLite-Datei keinen Gewinn, erhöht aber die Zahl der Zustände.
     let pool = SqlitePoolOptions::new().max_connections(1).connect_with(opts).await?;
-    sqlx::migrate!("./migrations").run(&pool).await?;
+    MIGRATOR.run(&pool).await?;
     Ok(pool)
+}
+
+/// Höchste Migrationsnummer, die diese Programmversion kennt.
+pub fn hoechste_migration() -> i64 {
+    MIGRATOR.migrations.iter().map(|m| m.version).max().unwrap_or(0)
 }
 
 /// ISO-8601-UTC-Zeitstempel für created_at/updated_at.
