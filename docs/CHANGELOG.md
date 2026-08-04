@@ -15,6 +15,12 @@ Deshalb hier in der Sprache der Anwender, nicht in der der Commits.
   XRechnungen und ZUGFeRD-Dateien. Er liegt als Zip vor. Bisher fehlte
   genau das im Export; wer die Datei woandershin kopierte, sicherte ohne
   es zu merken nur die halbe Anwendung.
+- Die exportierte Zip lässt sich über „Aus Datei einspielen" auch wieder
+  einspielen — für den Ernstfall (Platte defekt, neuer Rechner), ohne von
+  Hand Dateien an die richtigen Pfade legen zu müssen.
+- Sicherungen enthalten jetzt zuverlässig den aktuellen Stand. Bisher
+  konnten die jüngsten Eingaben fehlen, weil sie noch im Zwischenspeicher
+  der Datenbank lagen.
 - Die Sicherungen-Seite zeigt jetzt an, wann zuletzt „Speichern unter"
   benutzt wurde — oder dass noch nie extern gesichert wurde.
 
@@ -35,7 +41,7 @@ Deshalb hier in der Sprache der Anwender, nicht in der der Commits.
 
 **Rechnungen**
 - Neuer Export „Zahlungserinnerung": ein PDF mit Rechnungsnummer,
-  Fälligkeit, Tagen im Verzug und offenem Betrag, für eine gestellte
+  Fälligkeit, Tagen im Verzug und offenem Betrag, für eine überfällige
   Rechnung mit offenem Betrag. Der Erinnerungstext lässt sich unter
   „Einstellungen → Textbausteine" anpassen.
 

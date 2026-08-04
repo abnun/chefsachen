@@ -82,6 +82,14 @@ Damit ist die Arbeitsliste der Durchsicht vom 2026-08-04 vollständig
 abgearbeitet. Statt einer 1.0 heißt der nächste Schritt 0.9 — Grund: „there's
 always room for improvement".
 
+Und der Grund trug: Eine zweite kritische Durchsicht unmittelbar nach dem
+Versionssprung ([2026-08-04-review-v09.md](2026-08-04-review-v09.md)) fand
+13 Befunde, darunter vier ernste (Positions-Update über Beleggrenzen,
+Storno-Duplikat hinterließ Datenmüll, Sicherungen verloren WAL-Transaktionen,
+Duplizieren verlor die Rechnungsadresse). Alle 13 sind am selben Tag behoben
+(Commits `95158e5` bis `b48eb6c`); drei Kleinigkeiten sind im Review-Dokument
+als bewusst offen begründet.
+
 ## Stand (2026-08-03)
 
 Die Arbeitsliste des MVP-Reviews ist abgearbeitet:

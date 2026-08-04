@@ -28,8 +28,19 @@ kein Konto, keine Cloud.
   einem Überschreiten fällig würde
 - **Kunden und Artikel** mit kundenspezifischen Preisen
 - **Zahlungen** mit Teilzahlungen und abgeleitetem Zahlungsstand
+- **Zahlungserinnerung** als PDF für überfällige Rechnungen, mit Fälligkeit,
+  Tagen im Verzug und offenem Betrag
+- **Angebote mit Gültigkeitsdatum** (Vorgabe einstellbar); Abgelaufenes
+  verschwindet von selbst aus den offenen Posten
+- **Belege duplizieren**: ein festgeschriebener Beleg dient als Vorlage für
+  den nächsten fast gleichen Vorgang
+- **Jahresauswertung** der vereinnahmten Zahlungen (Zuflussprinzip) mit
+  CSV-Export für Excel und die Steuerberater-Zuarbeit
 - **Automatische Sicherungen** der Datenbank bei jedem Start (die letzten
-  zehn bleiben erhalten)
+  zehn bleiben erhalten); der manuelle Export bündelt Datenbank und
+  Belegarchiv als Zip und lässt sich in der App wieder einspielen
+- **Tastenkürzel** auf den Listenseiten: ⌘N/Strg+N legt einen neuen Eintrag
+  an, ⌘F/Strg+F springt ins Suchfeld
 - **Aktualisierung** über signierte Update-Pakete, angestoßen vom Nutzer
 - **Protokolldatei** für die Ferndiagnose — bewusst ohne Kunden- und
   Rechnungsdaten, damit sie sich weitergeben lässt
@@ -67,8 +78,14 @@ eigenen minisign-Schlüsselpaar. Ein Paket, dessen Signatur nicht zum in
 
 ```bash
 # Version in package.json, src-tauri/Cargo.toml und tauri.conf.json anheben
+# und einen Abschnitt "## <Version>" in docs/CHANGELOG.md anlegen
 git tag v0.2.0 && git push origin v0.2.0
 ```
+
+Der CHANGELOG-Abschnitt ist Pflicht: `release.yml` liest ihn beim Bauen aus
+und legt ihn als Release-Text in die `latest.json` — **fehlt er, schlägt der
+Release-Build hart fehl.** Die Überschrift muss exakt `## <Version>` lauten
+(so wie die Version in `tauri.conf.json` steht).
 
 Der Workflow `release.yml` baut Installer für macOS und Windows und legt einen
 **Release-Entwurf** an. Der Updater fragt
