@@ -60,8 +60,16 @@ Damit sind alle drei Befunde der Durchsicht behoben. Danach die B-Punkte
   der Erzeugung ab („3 Tage überfällig" ändert sich täglich), eine
   archivierte Fassung wäre sofort veraltet oder widerspräche der
   Unveränderbarkeit der übrigen Archivdateien.
+- **B4 — Tastenkürzel (2026-08-04).** ⌘N/Strg+N legt auf Kunden, Artikel,
+  Angeboten und Rechnungen einen neuen Eintrag an, ⌘F/Strg+F springt ins
+  Suchfeld. Ein gemeinsamer Hook (`useListenTastenkuerzel`) hört auf
+  Fenster-Tastendrücke und bleibt stumm, solange ein Dialog offen ist —
+  sonst klappte ⌘N hinter einer Löschbestätigung unbemerkt ein neues
+  Formular auf. Artikel hat kein Suchfeld, bekommt also nur ⌘N;
+  Eingangsrechnungen haben weder Suche noch „Neu" (nur Import) und bleiben
+  außen vor.
 
-Offen: B4 (Tastenkürzel), C1 (BelegEditor.tsx verkleinern).
+Offen: C1 (BelegEditor.tsx verkleinern).
 
 ## Stand (2026-08-03)
 

@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import { BelegAnlegen } from "../components/BelegAnlegen";
 import { Fehler } from "../components/Fehler";
 import { ZeilenKnopf } from "../components/ZeilenKnopf";
@@ -9,6 +10,7 @@ import { ANGEBOT_STATUS, statusAuswahl } from "../belegStatus";
 import { datumDeutsch } from "../datum";
 import { formatCent } from "../geld";
 import { useBelegListe } from "../hooks/useBelegListe";
+import { useListenTastenkuerzel } from "../hooks/useListenTastenkuerzel";
 
 interface AngeboteProps {
   onOeffnen: (id: string) => void;
@@ -16,6 +18,12 @@ interface AngeboteProps {
 
 export function Angebote({ onOeffnen }: AngeboteProps) {
   const liste = useBelegListe("angebot", onOeffnen);
+  const sucheRef = useRef<HTMLInputElement>(null);
+
+  useListenTastenkuerzel({
+    neu: () => liste.setZeigeFormular(true),
+    sucheFokussieren: () => sucheRef.current?.focus(),
+  });
 
   return (
     <div>
@@ -25,6 +33,7 @@ export function Angebote({ onOeffnen }: AngeboteProps) {
         <label className="feld">
           Suche
           <input
+            ref={sucheRef}
             type="search"
             value={liste.suche}
             onChange={(e) => liste.setSuche(e.currentTarget.value)}

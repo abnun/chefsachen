@@ -1,4 +1,4 @@
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { api } from "../api";
 
@@ -65,5 +65,16 @@ describe("Angebote", () => {
   it("beschriftet den Status, statt den Datenbankschlüssel zu zeigen", async () => {
     render(<Angebote onOeffnen={() => {}} />);
     await waitFor(() => expect(screen.getAllByText("Festgeschrieben", { selector: ".status" })).toHaveLength(2));
+  });
+
+  it("öffnet das Anlage-Formular bei ⌘N und fokussiert die Suche bei ⌘F", async () => {
+    render(<Angebote onOeffnen={() => {}} />);
+    await waitFor(() => expect(screen.getByText("AN-2026-0001")).toBeTruthy());
+
+    fireEvent.keyDown(window, { key: "n", metaKey: true });
+    expect(screen.getByRole("button", { name: "Anlegen" })).toBeTruthy();
+
+    fireEvent.keyDown(window, { key: "f", metaKey: true });
+    expect(document.activeElement).toBe(screen.getByPlaceholderText("Nummer oder Kunde"));
   });
 });

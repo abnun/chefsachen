@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import { BelegAnlegen } from "../components/BelegAnlegen";
 import { Fehler } from "../components/Fehler";
 import { ZeilenKnopf } from "../components/ZeilenKnopf";
@@ -9,6 +10,7 @@ import { RECHNUNG_STATUS, statusAuswahl } from "../belegStatus";
 import { datumDeutsch, heuteIso } from "../datum";
 import { formatCent } from "../geld";
 import { useBelegListe } from "../hooks/useBelegListe";
+import { useListenTastenkuerzel } from "../hooks/useListenTastenkuerzel";
 import { type Zahlungsstand } from "../api";
 
 interface RechnungenProps {
@@ -54,6 +56,12 @@ function faelligkeit(faellig_am: string | null | undefined, stand: Zahlungsstand
 
 export function Rechnungen({ onOeffnen }: RechnungenProps) {
   const liste = useBelegListe("rechnung", onOeffnen);
+  const sucheRef = useRef<HTMLInputElement>(null);
+
+  useListenTastenkuerzel({
+    neu: () => liste.setZeigeFormular(true),
+    sucheFokussieren: () => sucheRef.current?.focus(),
+  });
 
   return (
     <div>
@@ -63,6 +71,7 @@ export function Rechnungen({ onOeffnen }: RechnungenProps) {
         <label className="feld">
           Suche
           <input
+            ref={sucheRef}
             type="search"
             value={liste.suche}
             onChange={(e) => liste.setSuche(e.currentTarget.value)}

@@ -257,4 +257,11 @@ describe("Artikel", () => {
 
     await waitFor(() => expect(screen.getByText("Bezeichnung darf nicht leer sein")).toBeTruthy());
   });
+
+  it("öffnet das Anlage-Formular bei ⌘N", async () => {
+    render(<Artikel />);
+    await waitFor(() => expect(screen.getByRole("button", { name: "Neuer Artikel" })).toBeTruthy());
+    fireEvent.keyDown(window, { key: "n", metaKey: true });
+    expect(screen.getByRole("button", { name: "Speichern" })).toBeTruthy();
+  });
 });

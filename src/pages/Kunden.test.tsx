@@ -169,4 +169,15 @@ describe("Kunden", () => {
     fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Löschen" }));
     await waitFor(() => expect(vi.mocked(api.kunden.delete)).toHaveBeenCalledWith("1", true));
   });
+
+  it("öffnet das Anlage-Formular bei ⌘N und fokussiert die Suche bei ⌘F", async () => {
+    render(<Kunden onOeffnen={() => {}} />);
+    await waitFor(() => expect(screen.getByText("ACME GmbH")).toBeTruthy());
+
+    fireEvent.keyDown(window, { key: "n", metaKey: true });
+    expect(screen.getByRole("button", { name: "Speichern" })).toBeTruthy();
+
+    fireEvent.keyDown(window, { key: "f", metaKey: true });
+    expect(document.activeElement).toBe(screen.getByLabelText("Suche"));
+  });
 });

@@ -135,6 +135,17 @@ describe("Rechnungen", () => {
     await userEvent.click(screen.getByRole("button", { name: /Weiter/ }));
     expect(reihenfolge()).toHaveLength(5);
   });
+
+  it("öffnet das Anlage-Formular bei ⌘N und fokussiert die Suche bei ⌘F", async () => {
+    render(<Rechnungen onOeffnen={() => {}} />);
+    await waitFor(() => expect(screen.getByText("RE-2026-0001")).toBeTruthy());
+
+    fireEvent.keyDown(window, { key: "n", metaKey: true });
+    expect(screen.getByRole("button", { name: "Anlegen" })).toBeTruthy();
+
+    fireEvent.keyDown(window, { key: "f", metaKey: true });
+    expect(document.activeElement).toBe(screen.getByPlaceholderText("Nummer oder Kunde"));
+  });
 });
 
 /** Die Belegnummern der Tabelle in der angezeigten Reihenfolge. */

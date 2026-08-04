@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api, type AppFehler, type Kunde, type KundeNeu } from "../api";
 import { formularFehler } from "../formularFehler";
 import { Fehler } from "../components/Fehler";
@@ -10,6 +10,7 @@ import { Laden } from "../components/Laden";
 import { Hinweis } from "../components/Hinweis";
 import { useErfolgsHinweis } from "../hooks/useErfolgsHinweis";
 import { useBestaetigung } from "../hooks/useBestaetigung";
+import { useListenTastenkuerzel } from "../hooks/useListenTastenkuerzel";
 import type { Reiter } from "./KundeDetail";
 
 interface KundenProps {
@@ -69,6 +70,12 @@ export function Kunden({
   const [zeigtArtikelHinweis, setZeigtArtikelHinweis] = useState(false);
   const { zeigen, hinweis } = useErfolgsHinweis();
   const { bestaetigen, dialog } = useBestaetigung();
+  const sucheRef = useRef<HTMLInputElement>(null);
+
+  useListenTastenkuerzel({
+    neu: () => setZeigeFormular(true),
+    sucheFokussieren: () => sucheRef.current?.focus(),
+  });
 
   useEffect(() => {
     if (zeigeFormularBeimStart) {
@@ -176,6 +183,7 @@ export function Kunden({
           <label className="feld">
             Suche
             <input
+              ref={sucheRef}
               type="search"
               placeholder="Nummer oder Name"
               value={suche}

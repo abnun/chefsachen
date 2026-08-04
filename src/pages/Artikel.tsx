@@ -15,6 +15,7 @@ import { useSortierung } from "../hooks/useSortierung";
 import { Hinweis } from "../components/Hinweis";
 import { useErfolgsHinweis } from "../hooks/useErfolgsHinweis";
 import { useBestaetigung } from "../hooks/useBestaetigung";
+import { useListenTastenkuerzel } from "../hooks/useListenTastenkuerzel";
 import { KundenpreiseDialog } from "../components/KundenpreiseDialog";
 import { formatCent, parseEuro } from "../geld";
 
@@ -56,6 +57,8 @@ export function Artikel({ zeigeFormularBeimStart, onFormularUebernommen, onZuKun
   const [zeigtKundenHinweis, setZeigtKundenHinweis] = useState(false);
   const { zeigen, hinweis } = useErfolgsHinweis();
   const { bestaetigen, dialog } = useBestaetigung();
+
+  useListenTastenkuerzel({ neu: neuFormular });
 
   useEffect(() => {
     if (zeigeFormularBeimStart) {
