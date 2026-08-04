@@ -193,6 +193,20 @@ mod tests {
         wal_einfalten_ohne_pool(&dir.path().join("gibtsnicht.db")).await.unwrap();
     }
 
+    /// Migration 0018: Der Standardtext der Zahlungserinnerung darf nicht
+    /// „noch keinen Zahlungseingang" behaupten — die Erinnerung ist auch bei
+    /// Teilzahlung zulässig, und dann wäre der Satz falsch.
+    #[tokio::test]
+    async fn zahlungserinnerungs_standardtext_passt_auch_zur_teilzahlung() {
+        let dir = tempfile::tempdir().unwrap();
+        let pool = init_db(&dir.path().join("test.db")).await.unwrap();
+        let wert: (String,) = sqlx::query_as(
+            "SELECT value FROM einstellung WHERE key = 'text.zahlungserinnerung'")
+            .fetch_one(&pool).await.unwrap();
+        assert!(wert.0.contains("steht noch ein Betrag offen"), "war: {}", wert.0);
+        assert!(!wert.0.contains("keinen Zahlungseingang"), "war: {}", wert.0);
+    }
+
     #[tokio::test]
     async fn init_db_legt_datei_an_und_migriert() {
         let dir = tempfile::tempdir().unwrap();

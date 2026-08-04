@@ -58,7 +58,15 @@ fn pruefe_ist_rechnung(kontext: &crate::dokument::kontext::BelegKontext) -> AppR
 /// Ohne offenen Betrag gibt es nichts zu erinnern, und ein Stornobeleg ist
 /// eine Gutschrift, keine Forderung — `kontext_aus_beleg` lehnt einen Entwurf
 /// bereits ab, hier kommen die übrigen Fälle dazu.
-fn pruefe_kann_erinnert_werden(kontext: &crate::dokument::kontext::BelegKontext) -> AppResult<()> {
+///
+/// Auch die Fälligkeit gehört hierher: Eine „Erinnerung" vor Ablauf des
+/// Zahlungsziels ergäbe einen Kundenbrief mit „Fällig seit … (−14 Tage)" —
+/// gemahnt wird erst, wenn der Kunde tatsächlich im Verzug ist, also ab dem
+/// Tag *nach* der Fälligkeit.
+fn pruefe_kann_erinnert_werden(
+    kontext: &crate::dokument::kontext::BelegKontext,
+    heute: chrono::NaiveDate,
+) -> AppResult<()> {
     pruefe_ist_rechnung(kontext)?;
     if kontext.beleg.status != "gestellt" {
         return Err(crate::error::AppError::Validation {
@@ -70,6 +78,19 @@ fn pruefe_kann_erinnert_werden(kontext: &crate::dokument::kontext::BelegKontext)
         return Err(crate::error::AppError::Validation {
             feld: "offener_betrag_cent".into(),
             meldung: "Diese Rechnung ist bereits vollständig bezahlt".into(),
+        });
+    }
+    let faellig = chrono::NaiveDate::parse_from_str(&kontext.beleg.datum, "%Y-%m-%d")
+        .ok()
+        .and_then(|d| d.checked_add_signed(chrono::Duration::days(kontext.beleg.zahlungsziel_tage)))
+        .ok_or_else(|| crate::error::AppError::Validation {
+            feld: "datum".into(),
+            meldung: "Das Belegdatum ist kein gültiges Datum".into(),
+        })?;
+    if heute <= faellig {
+        return Err(crate::error::AppError::Validation {
+            feld: "faellig_am".into(),
+            meldung: "Diese Rechnung ist noch nicht überfällig".into(),
         });
     }
     Ok(())
@@ -140,11 +161,11 @@ pub async fn rechnung_zahlungserinnerung_exportieren(
     id: String,
 ) -> AppResult<Vec<u8>> {
     let kontext = kontext_aus_beleg(&pool, id).await?;
-    pruefe_kann_erinnert_werden(&kontext)?;
+    let heute = chrono::Local::now().date_naive();
+    pruefe_kann_erinnert_werden(&kontext, heute)?;
     let logo = firma_logo(&pool).await?;
     let vorlage = crate::dokument::vorlage::Vorlage::laden(&pool).await?;
     let erinnerungstext = crate::commands::belege::baustein(&pool, "text.zahlungserinnerung").await?;
-    let heute = chrono::Local::now().date_naive();
     pdf::rendern_zahlungserinnerung(&kontext, logo.as_deref(), &vorlage, heute, &erinnerungstext)
 }
 
@@ -179,17 +200,39 @@ mod tests {
         assert_eq!(std::fs::read(unterordner.join("RE-2026-0002.pdf")).unwrap(), b"inhalt");
     }
 
+    /// Der Testbeleg: datum 2026-07-11, Zahlungsziel 14 Tage → fällig am
+    /// 2026-07-25. Ein „heute" danach heißt überfällig.
+    fn tag(iso: &str) -> chrono::NaiveDate {
+        chrono::NaiveDate::parse_from_str(iso, "%Y-%m-%d").unwrap()
+    }
+
     #[test]
-    fn eine_gestellte_rechnung_mit_offenem_betrag_darf_erinnert_werden() {
+    fn eine_ueberfaellige_rechnung_mit_offenem_betrag_darf_erinnert_werden() {
         let kontext = crate::dokument::pdf::tests::test_kontext();
-        assert!(pruefe_kann_erinnert_werden(&kontext).is_ok());
+        assert!(pruefe_kann_erinnert_werden(&kontext, tag("2026-08-04")).is_ok());
+    }
+
+    /// Gemahnt wird erst ab dem Tag *nach* der Fälligkeit. Vorher entstünde
+    /// ein Kundenbrief mit „Fällig seit … (−14 Tage)".
+    #[test]
+    fn vor_und_am_faelligkeitstag_gibt_es_keine_zahlungserinnerung() {
+        let kontext = crate::dokument::pdf::tests::test_kontext();
+        for heute in ["2026-07-11", "2026-07-20", "2026-07-25"] {
+            let fehler = pruefe_kann_erinnert_werden(&kontext, tag(heute)).unwrap_err();
+            match fehler {
+                crate::error::AppError::Validation { feld, .. } => assert_eq!(feld, "faellig_am", "heute = {heute}"),
+                anderer => panic!("unerwarteter Fehler: {anderer:?}"),
+            }
+        }
+        // Der erste Tag im Verzug.
+        assert!(pruefe_kann_erinnert_werden(&kontext, tag("2026-07-26")).is_ok());
     }
 
     #[test]
     fn ein_angebot_bekommt_keine_zahlungserinnerung() {
         let mut kontext = crate::dokument::pdf::tests::test_kontext();
         kontext.beleg.typ = "angebot".into();
-        let fehler = pruefe_kann_erinnert_werden(&kontext).unwrap_err();
+        let fehler = pruefe_kann_erinnert_werden(&kontext, tag("2026-08-04")).unwrap_err();
         assert!(matches!(fehler, crate::error::AppError::Validation { .. }));
     }
 
@@ -198,7 +241,7 @@ mod tests {
         // Ein Stornobeleg ist eine Gutschrift, keine Forderung.
         let mut kontext = crate::dokument::pdf::tests::test_kontext();
         kontext.beleg.status = "storniert".into();
-        let fehler = pruefe_kann_erinnert_werden(&kontext).unwrap_err();
+        let fehler = pruefe_kann_erinnert_werden(&kontext, tag("2026-08-04")).unwrap_err();
         match fehler {
             crate::error::AppError::Validation { feld, .. } => assert_eq!(feld, "status"),
             anderer => panic!("unerwarteter Fehler: {anderer:?}"),
@@ -209,9 +252,22 @@ mod tests {
     fn eine_vollstaendig_bezahlte_rechnung_bekommt_keine_zahlungserinnerung() {
         let mut kontext = crate::dokument::pdf::tests::test_kontext();
         kontext.offener_betrag_cent = 0;
-        let fehler = pruefe_kann_erinnert_werden(&kontext).unwrap_err();
+        let fehler = pruefe_kann_erinnert_werden(&kontext, tag("2026-08-04")).unwrap_err();
         match fehler {
             crate::error::AppError::Validation { feld, .. } => assert_eq!(feld, "offener_betrag_cent"),
+            anderer => panic!("unerwarteter Fehler: {anderer:?}"),
+        }
+    }
+
+    /// Ein unparsebares Belegdatum darf nicht zu „Fällig seit  (0 Tage)" auf
+    /// dem PDF führen, sondern zu einer klaren Meldung.
+    #[test]
+    fn ein_unlesbares_belegdatum_wird_abgelehnt() {
+        let mut kontext = crate::dokument::pdf::tests::test_kontext();
+        kontext.beleg.datum = "irgendwann".into();
+        let fehler = pruefe_kann_erinnert_werden(&kontext, tag("2026-08-04")).unwrap_err();
+        match fehler {
+            crate::error::AppError::Validation { feld, .. } => assert_eq!(feld, "datum"),
             anderer => panic!("unerwarteter Fehler: {anderer:?}"),
         }
     }

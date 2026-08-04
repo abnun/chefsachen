@@ -10,7 +10,7 @@ import { useErfolgsHinweis } from "../hooks/useErfolgsHinweis";
 import { useBestaetigung } from "../hooks/useBestaetigung";
 import { belegExportFunktionen } from "../belegExport";
 import { formatCent } from "../geld";
-import { datumDeutsch } from "../datum";
+import { datumDeutsch, heuteIso } from "../datum";
 
 interface BelegEditorProps {
   id: string;
@@ -348,8 +348,11 @@ export function BelegEditor({ id, onZurueck, onGeaendert, onRechnungErstellt, on
           )}
 
           {/* Nur solange noch etwas offen ist — für eine vollständig bezahlte
-              Rechnung gibt es nichts zu erinnern. */}
-          {beleg.typ === "rechnung" && beleg.status === "gestellt" && offener_betrag_cent > 0 && (
+              Rechnung gibt es nichts zu erinnern. Und erst ab dem Tag nach der
+              Fälligkeit: Vorher ist der Kunde nicht im Verzug, und der Brief
+              wiese eine negative Überfälligkeit aus. */}
+          {beleg.typ === "rechnung" && beleg.status === "gestellt" && offener_betrag_cent > 0 &&
+            beleg.faellig_am != null && beleg.faellig_am < heuteIso() && (
             <button type="button" className="btn" onClick={zahlungserinnerungExportieren}>
               Zahlungserinnerung
             </button>

@@ -643,11 +643,12 @@ describe("BelegEditor – Export", () => {
 });
 
 describe("BelegEditor – Zahlungserinnerung", () => {
-  function gestellteRechnung(offenerBetragCent: number) {
+  function gestellteRechnung(offenerBetragCent: number, faelligAm: string | null = "2026-07-25") {
     vi.mocked(api.belege.get).mockResolvedValue({
       beleg: {
         id: "b1", typ: "rechnung", nummer: "RE-2026-0001", status: "gestellt", kunde_id: "k1",
         datum: "2026-07-11", leistungsdatum: "2026-07-11", zahlungsziel_tage: 14,
+        faellig_am: faelligAm,
         kopftext: "", fusstext: "", summe_cent: 9500, ursprungsangebot_id: null, storno_von_id: null,
       },
       positionen: [], zahlungen: [], bezahlt_cent: 9500 - offenerBetragCent,
@@ -655,7 +656,7 @@ describe("BelegEditor – Zahlungserinnerung", () => {
     });
   }
 
-  it("bietet die Zahlungserinnerung an, solange etwas offen ist", async () => {
+  it("bietet die Zahlungserinnerung an, solange etwas offen und die Rechnung überfällig ist", async () => {
     gestellteRechnung(9500);
     render(<BelegEditor id="b1" />);
     await waitFor(() =>
@@ -666,6 +667,15 @@ describe("BelegEditor – Zahlungserinnerung", () => {
   it("bietet keine Zahlungserinnerung für eine vollständig bezahlte Rechnung an", async () => {
     // Nichts zu erinnern, wenn nichts mehr offen ist.
     gestellteRechnung(0);
+    render(<BelegEditor id="b1" />);
+    await waitFor(() => expect(screen.getByRole("button", { name: "Als PDF exportieren" })).toBeTruthy());
+    expect(screen.queryByRole("button", { name: "Zahlungserinnerung" })).toBeNull();
+  });
+
+  it("bietet keine Zahlungserinnerung an, solange die Rechnung nicht überfällig ist", async () => {
+    // Vor Ablauf des Zahlungsziels ist der Kunde nicht im Verzug — der Brief
+    // wiese eine negative Überfälligkeit aus.
+    gestellteRechnung(9500, "2999-01-01");
     render(<BelegEditor id="b1" />);
     await waitFor(() => expect(screen.getByRole("button", { name: "Als PDF exportieren" })).toBeTruthy());
     expect(screen.queryByRole("button", { name: "Zahlungserinnerung" })).toBeNull();
