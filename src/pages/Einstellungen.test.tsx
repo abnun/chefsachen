@@ -1,3 +1,4 @@
+import "@testing-library/jest-dom/vitest";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -271,5 +272,48 @@ describe("Einstellungen", () => {
     // Datenbank-Kopie und übersieht, dass mehr als das exportiert wird.
     render(<Einstellungen />);
     await waitFor(() => expect(screen.getByText(/Belegarchiv/)).toBeTruthy());
+  });
+
+  /*
+   * Der Fußtext versprach bisher eine Frist ("Dieses Angebot ist 30 Tage
+   * gültig"), ohne dass ein Datum dazu existierte. Diese Einstellung ist die
+   * Vorgabe dafür.
+   */
+  it("zeigt 30 Tage als Vorgabe, wenn nichts gespeichert ist", async () => {
+    render(<Einstellungen />);
+    await waitFor(() =>
+      expect(screen.getByLabelText("Angebotsgültigkeit (Tage)")).toHaveValue(30),
+    );
+  });
+
+  it("übernimmt eine bereits gespeicherte Angebotsgültigkeit", async () => {
+    // `mockImplementation` überlebt `clearAllMocks` in `afterEach` (das setzt
+    // nur die Aufrufliste zurück, nicht die Rückgabewerte) — deshalb hier
+    // ausdrücklich wieder auf die ursprüngliche Zuordnung zurückgesetzt,
+    // sonst sähen spätere Tests in dieser Datei „14" statt ihrer eigenen Werte.
+    const urspruenglich = vi.mocked(api.einstellungen.get).getMockImplementation();
+    vi.mocked(api.einstellungen.get).mockImplementation((key: string) =>
+      Promise.resolve(key === "vorlage.angebot_gueltigkeit_tage" ? "14" : null),
+    );
+    render(<Einstellungen />);
+    await waitFor(() =>
+      expect(screen.getByLabelText("Angebotsgültigkeit (Tage)")).toHaveValue(14),
+    );
+    if (urspruenglich) vi.mocked(api.einstellungen.get).mockImplementation(urspruenglich);
+  });
+
+  it("speichert eine geänderte Angebotsgültigkeit", async () => {
+    render(<Einstellungen />);
+    await waitFor(() =>
+      expect(screen.getByLabelText("Angebotsgültigkeit (Tage)")).toHaveValue(30),
+    );
+    const feld = screen.getByLabelText("Angebotsgültigkeit (Tage)").closest("form")!;
+    fireEvent.change(screen.getByLabelText("Angebotsgültigkeit (Tage)"), { target: { value: "45" } });
+    fireEvent.click(within(feld).getByRole("button", { name: "Speichern" }));
+
+    await waitFor(() =>
+      expect(api.einstellungen.set).toHaveBeenCalledWith("vorlage.angebot_gueltigkeit_tage", "45"),
+    );
+    await waitFor(() => expect(screen.getByText("Angebotsgültigkeit gespeichert")).toBeTruthy());
   });
 });

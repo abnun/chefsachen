@@ -53,6 +53,7 @@ fn muster_beleg(firma: crate::commands::firma::Firma) -> BelegKontext {
             datum: "2026-03-15".into(),
             leistungsdatum: "2026-03-15".into(),
             leistungsdatum_bis: None,
+            gueltig_bis: None,
             zahlungsziel_tage: 14,
             kopftext: "Sehr geehrte Damen und Herren,\n\nwie vereinbart stellen wir Ihnen die folgenden Leistungen in Rechnung.".into(),
             fusstext: "Vielen Dank für Ihren Auftrag.".into(),

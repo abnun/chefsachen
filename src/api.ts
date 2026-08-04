@@ -120,6 +120,12 @@ export interface Beleg {
    * Einzeldatum sachlich falsch.
    */
   leistungsdatum_bis?: string | null;
+  /**
+   * Bis wann ein Angebot gültig ist. Nur für Angebote gepflegt — bei
+   * Rechnungen bleibt das Feld leer. Wird beim Anlegen aus einer Einstellung
+   * errechnet und lässt sich danach frei bearbeiten.
+   */
+  gueltig_bis?: string | null;
   zahlungsziel_tage: number;
   kopftext: string;
   fusstext: string;
@@ -157,6 +163,8 @@ export interface BelegUpdate {
    * Einzeldatum sachlich falsch.
    */
   leistungsdatum_bis?: string | null;
+  /** Nur bei Angeboten gepflegt; siehe `Beleg.gueltig_bis`. */
+  gueltig_bis?: string | null;
   zahlungsziel_tage: number;
   kopftext: string;
   fusstext: string;
@@ -357,6 +365,8 @@ export interface OffenesAngebot {
   kunde_name: string;
   datum: string;
   summe_cent: number;
+  /** Null, wenn keine Gültigkeit hinterlegt ist (Angebote von vor P16). */
+  gueltig_bis: string | null;
 }
 
 export interface LetzterBeleg {

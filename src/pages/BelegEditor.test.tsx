@@ -117,6 +117,102 @@ describe("BelegEditor", () => {
   });
 });
 
+describe("BelegEditor – Gültigkeit des Angebots", () => {
+  /*
+   * Der Fußtext versprach bisher eine Frist ("Dieses Angebot ist 30 Tage
+   * gültig"), ohne dass ein Datum dazu existierte. Die Übersicht führte
+   * Angebote deshalb unbefristet als „offen" — die Zahl wurde bedeutungslos.
+   */
+  it("zeigt das Feld nur bei einem Angebot, nicht bei einer Rechnung", async () => {
+    vi.mocked(api.belege.get).mockResolvedValue({
+      beleg: {
+        id: "b1", typ: "angebot", nummer: null, status: "entwurf", kunde_id: "k1",
+        datum: "2026-07-10", leistungsdatum: "2026-07-10", zahlungsziel_tage: 14,
+        kopftext: "", fusstext: "", summe_cent: 0, ursprungsangebot_id: null, storno_von_id: null,
+        gueltig_bis: "2026-08-09",
+      },
+      positionen: [], zahlungen: [], bezahlt_cent: 0, offener_betrag_cent: 0,
+    });
+    render(<BelegEditor id="b1" />);
+    await waitFor(() => expect(screen.getByLabelText("Gültig bis")).toHaveValue("2026-08-09"));
+  });
+
+  it("zeigt bei einer Rechnung kein Feld für die Gültigkeit", async () => {
+    vi.mocked(api.belege.get).mockResolvedValue({
+      beleg: {
+        id: "b1", typ: "rechnung", nummer: null, status: "entwurf", kunde_id: "k1",
+        datum: "2026-07-10", leistungsdatum: "2026-07-10", zahlungsziel_tage: 14,
+        kopftext: "", fusstext: "", summe_cent: 0, ursprungsangebot_id: null, storno_von_id: null,
+      },
+      positionen: [], zahlungen: [], bezahlt_cent: 0, offener_betrag_cent: 0,
+    });
+    render(<BelegEditor id="b1" />);
+    await waitFor(() => expect(screen.getByLabelText("Datum")).toBeTruthy());
+    expect(screen.queryByLabelText("Gültig bis")).toBeNull();
+  });
+
+  it("speichert eine geänderte Gültigkeit über die Stammdaten", async () => {
+    vi.mocked(api.belege.get).mockResolvedValue({
+      beleg: {
+        id: "b1", typ: "angebot", nummer: null, status: "entwurf", kunde_id: "k1",
+        datum: "2026-07-10", leistungsdatum: "2026-07-10", zahlungsziel_tage: 14,
+        kopftext: "", fusstext: "", summe_cent: 0, ursprungsangebot_id: null, storno_von_id: null,
+        gueltig_bis: "2026-08-09",
+      },
+      positionen: [], zahlungen: [], bezahlt_cent: 0, offener_betrag_cent: 0,
+    });
+    render(<BelegEditor id="b1" />);
+    await waitFor(() => expect(screen.getByLabelText("Gültig bis")).toHaveValue("2026-08-09"));
+
+    fireEvent.change(screen.getByLabelText("Gültig bis"), { target: { value: "2026-12-31" } });
+    fireEvent.click(screen.getByRole("button", { name: "Speichern" }));
+
+    await waitFor(() =>
+      expect(api.belege.update).toHaveBeenCalledWith(
+        expect.objectContaining({ gueltig_bis: "2026-12-31" }),
+      ),
+    );
+  });
+
+  it("zeigt in der schreibgeschützten Ansicht unbefristet, wenn keine Gültigkeit gesetzt ist", async () => {
+    vi.mocked(api.belege.get).mockResolvedValue({
+      beleg: {
+        id: "b1", typ: "angebot", nummer: "AN-2026-0001", status: "festgeschrieben", kunde_id: "k1",
+        datum: "2026-07-10", leistungsdatum: "2026-07-10", zahlungsziel_tage: 14,
+        kopftext: "", fusstext: "", summe_cent: 0, ursprungsangebot_id: null, storno_von_id: null,
+        gueltig_bis: null,
+      },
+      positionen: [], zahlungen: [], bezahlt_cent: 0, offener_betrag_cent: 0,
+    });
+    render(<BelegEditor id="b1" />);
+    await waitFor(() => expect(screen.getByText("Gültig bis: unbefristet")).toBeTruthy());
+  });
+
+  it("zeigt die Gültigkeit in der Vorschau vor dem Festschreiben", async () => {
+    vi.mocked(api.belege.get).mockResolvedValue({
+      beleg: {
+        id: "b1", typ: "angebot", nummer: null, status: "entwurf", kunde_id: "k1",
+        datum: "2026-07-10", leistungsdatum: "2026-07-10", zahlungsziel_tage: 14,
+        kopftext: "", fusstext: "", summe_cent: 9550, ursprungsangebot_id: null, storno_von_id: null,
+        gueltig_bis: "2026-08-09",
+      },
+      positionen: [{
+        id: "p1", beleg_id: "b1", artikel_id: null, bezeichnung: "Beratung",
+        einheit_kuerzel: "Std", einzelpreis_cent: 9550, menge: 1000,
+        positionssumme_cent: 9550, reihenfolge: 0,
+      }],
+      zahlungen: [], bezahlt_cent: 0, offener_betrag_cent: 9550,
+    });
+    render(<BelegEditor id="b1" />);
+    await waitFor(() => expect(screen.getByRole("button", { name: "Festschreiben" })).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Festschreiben" }));
+
+    const dialog = await screen.findByRole("dialog");
+    expect(dialog).toHaveTextContent("Gültig bis");
+    expect(dialog).toHaveTextContent("09.08.2026");
+  });
+});
+
 describe("BelegEditor – Herkunft des Preises", () => {
   /*
    * Ob für einen Artikel ein Kundenpreis greift, war beim Erfassen nicht zu

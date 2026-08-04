@@ -440,7 +440,8 @@ pub(crate) mod tests {
             beleg: Beleg {
                 id: "b1".into(), typ: "rechnung".into(), nummer: Some("RE-2026-0001".into()),
                 status: "gestellt".into(), kunde_id: "k1".into(), datum: "2026-07-11".into(),
-                leistungsdatum: "2026-07-11".into(), leistungsdatum_bis: None, zahlungsziel_tage: 14,
+                leistungsdatum: "2026-07-11".into(), leistungsdatum_bis: None, gueltig_bis: None,
+                zahlungsziel_tage: 14,
                 kopftext: "".into(), fusstext: "".into(), summe_cent,
                 ursprungsangebot_id: None, storno_von_id: storno_von.map(String::from),
                 kunde_snapshot: String::new(), kunde_snapshot_name: None,

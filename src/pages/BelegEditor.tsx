@@ -83,6 +83,7 @@ export function BelegEditor({ id, onZurueck, onGeaendert, onRechnungErstellt, on
     datum: string;
     leistungsdatum: string;
     leistungsdatum_bis: string | null;
+    gueltig_bis: string | null;
     zahlungsziel_tage: number;
     kopftext: string;
     fusstext: string;
@@ -129,6 +130,12 @@ export function BelegEditor({ id, onZurueck, onGeaendert, onRechnungErstellt, on
         <dd>
           {positionen.length}, Summe {formatCent(beleg.summe_cent)}
         </dd>
+        {istAngebot && (
+          <>
+            <dt>Gültig bis</dt>
+            <dd>{beleg.gueltig_bis ? datumDeutsch(beleg.gueltig_bis) : "unbefristet"}</dd>
+          </>
+        )}
         <dt>Kopftext</dt>
         <dd>{beleg.kopftext.trim() || <em>leer</em>}</dd>
         <dt>Fußtext</dt>
@@ -449,6 +456,7 @@ interface StammdatenAbschnittProps {
     datum: string;
     leistungsdatum: string;
     leistungsdatum_bis: string | null;
+    gueltig_bis: string | null;
     zahlungsziel_tage: number;
     kopftext: string;
     fusstext: string;
@@ -462,6 +470,7 @@ function StammdatenAbschnitt({ beleg, kunden, bearbeitbar, onSpeichern }: Stammd
   const [datum, setDatum] = useState(beleg.datum);
   const [leistungsdatum, setLeistungsdatum] = useState(beleg.leistungsdatum);
   const [leistungsdatumBis, setLeistungsdatumBis] = useState(beleg.leistungsdatum_bis ?? "");
+  const [gueltigBis, setGueltigBis] = useState(beleg.gueltig_bis ?? "");
   const [zahlungszielTage, setZahlungszielTage] = useState(beleg.zahlungsziel_tage);
   const [kopftext, setKopftext] = useState(beleg.kopftext);
   const [fusstext, setFusstext] = useState(beleg.fusstext);
@@ -475,6 +484,7 @@ function StammdatenAbschnitt({ beleg, kunden, bearbeitbar, onSpeichern }: Stammd
     setDatum(beleg.datum);
     setLeistungsdatum(beleg.leistungsdatum);
     setLeistungsdatumBis(beleg.leistungsdatum_bis ?? "");
+    setGueltigBis(beleg.gueltig_bis ?? "");
     setZahlungszielTage(beleg.zahlungsziel_tage);
     setKopftext(beleg.kopftext);
     setFusstext(beleg.fusstext);
@@ -512,6 +522,7 @@ function StammdatenAbschnitt({ beleg, kunden, bearbeitbar, onSpeichern }: Stammd
       datum !== beleg.datum ||
       leistungsdatum !== beleg.leistungsdatum ||
       leistungsdatumBis !== (beleg.leistungsdatum_bis ?? "") ||
+      gueltigBis !== (beleg.gueltig_bis ?? "") ||
       zahlungszielTage !== beleg.zahlungsziel_tage ||
       kopftext !== beleg.kopftext ||
       fusstext !== beleg.fusstext ||
@@ -532,6 +543,9 @@ function StammdatenAbschnitt({ beleg, kunden, bearbeitbar, onSpeichern }: Stammd
             ? `Leistungszeitraum: ${datumDeutsch(beleg.leistungsdatum)} – ${datumDeutsch(beleg.leistungsdatum_bis)}`
             : `Leistungsdatum: ${datumDeutsch(beleg.leistungsdatum)}`}
         </p>
+        {beleg.typ === "angebot" && (
+          <p>Gültig bis: {beleg.gueltig_bis ? datumDeutsch(beleg.gueltig_bis) : "unbefristet"}</p>
+        )}
         <p>Zahlungsziel: {beleg.zahlungsziel_tage} Tage</p>
       </section>
     );
@@ -548,6 +562,7 @@ function StammdatenAbschnitt({ beleg, kunden, bearbeitbar, onSpeichern }: Stammd
             datum,
             leistungsdatum,
             leistungsdatum_bis: leistungsdatumBis === "" ? null : leistungsdatumBis,
+            gueltig_bis: gueltigBis === "" ? null : gueltigBis,
             zahlungsziel_tage: zahlungszielTage,
             kopftext,
             fusstext,
@@ -624,6 +639,22 @@ function StammdatenAbschnitt({ beleg, kunden, bearbeitbar, onSpeichern }: Stammd
             onChange={(e) => setLeistungsdatumBis(e.currentTarget.value)}
           />
         </label>
+        {/* Nur bei Angeboten: Der Fußtext versprach bisher eine Frist ("Dieses
+            Angebot ist 30 Tage gültig"), ohne dass ein Datum dazu existierte —
+            die Übersicht führte Angebote deshalb unbefristet als „offen". Der
+            Wert kommt beim Anlegen automatisch aus einer Einstellung, lässt
+            sich hier aber jederzeit verlängern oder verkürzen. */}
+        {beleg.typ === "angebot" && (
+          <label className="feld">
+            Gültig bis
+            <input
+              type="date"
+              min={datum}
+              value={gueltigBis}
+              onChange={(e) => setGueltigBis(e.currentTarget.value)}
+            />
+          </label>
+        )}
         <label className="feld">
           Zahlungsziel (Tage)
           <input

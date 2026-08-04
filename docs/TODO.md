@@ -24,7 +24,17 @@ drei Befunde offen. Die ersten beiden sind behoben:
   Steuerberater-Zuarbeit. Kein Steuerformular, keine EÜR-Anlage — nur die
   Liste, die man sonst mühsam aus den einzelnen Rechnungen zusammensuchen
   müsste.
-- **A3 — Angebote laufen nie ab; kein `gueltig_bis`.** Offen.
+- **A3 — Angebote laufen nie ab; kein `gueltig_bis` (behoben 2026-08-04).** Der
+  Fußtext versprach „Dieses Angebot ist 30 Tage gültig", aber es gab kein
+  Datum dazu — nur den Status „Abgelaufen", den niemand von Hand setzt. Ein
+  Angebot bekommt jetzt beim Anlegen ein Gültigkeitsdatum aus einer
+  Einstellung (Vorgabe 30 Tage, unter „Einstellungen → Angebote" änderbar),
+  frei nachträglich anpassbar in den Stammdaten, ausgewiesen auf dem PDF. Die
+  Übersicht rechnet Abgelaufenes jetzt selbst aus „Offene Angebote" heraus —
+  unabhängig vom Status. Angebote von vor dieser Funktion bleiben unbefristet
+  offen (`gueltig_bis = NULL`), statt plötzlich zu verschwinden.
+
+Damit sind alle drei Befunde der Durchsicht behoben.
 
 ## Stand (2026-08-03)
 

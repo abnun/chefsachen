@@ -178,6 +178,14 @@ pub(crate) fn dokument_bauen(
         } else {
             crate::dokument::zahlungsbedingung(&kontext.beleg.datum, kontext.beleg.zahlungsziel_tage)
         }),
+        // Umgekehrt: eine Gültigkeit ist eine Angebotssache. Der Fußtext
+        // versprach bisher eine Frist ("Dieses Angebot ist 30 Tage gültig"),
+        // ohne dass ein Datum dazu auf dem Beleg stand.
+        ("angebot_gueltig_bis", if kontext.beleg.typ == "angebot" {
+            kontext.beleg.gueltig_bis.as_deref().map(datum_format).unwrap_or_default()
+        } else {
+            String::new()
+        }),
         ("storno_von_nummer", kontext.storno_von_nummer.clone().unwrap_or_default()),
         ("kunde_ansprechpartner", kontext.kunde_ansprechpartner.clone()),
         ("kunde_name", kontext.kunde_name.clone()),
@@ -239,7 +247,8 @@ pub(crate) mod tests {
             beleg: Beleg {
                 id: "b1".into(), typ: "rechnung".into(), nummer: Some("RE-2026-0001".into()),
                 status: "gestellt".into(), kunde_id: "k1".into(), datum: "2026-07-11".into(),
-                leistungsdatum: "2026-07-11".into(), leistungsdatum_bis: None, zahlungsziel_tage: 14,
+                leistungsdatum: "2026-07-11".into(), leistungsdatum_bis: None, gueltig_bis: None,
+                zahlungsziel_tage: 14,
                 kopftext: "Wie besprochen stelle ich Ihnen in Rechnung:".into(),
                 fusstext: "Danke für Ihren Auftrag.".into(), summe_cent: 9500,
                 ursprungsangebot_id: None, storno_von_id: None,
@@ -481,6 +490,37 @@ pub(crate) mod tests {
         kontext.beleg.typ = "angebot".into();
         let t = text(&kontext);
         assert!(!t.contains("Zahlbar"), "Angebot mit Zahlungsaufforderung:\n{t}");
+    }
+
+    /// Der Fußtext versprach bisher eine Frist ("Dieses Angebot ist 30 Tage
+    /// gültig"), ohne dass ein Datum dazu auf dem Beleg stand.
+    #[test]
+    fn ein_angebot_nennt_seine_gueltigkeit() {
+        let mut kontext = test_kontext();
+        kontext.beleg.typ = "angebot".into();
+        kontext.beleg.gueltig_bis = Some("2026-08-10".into());
+        let t = text(&kontext);
+        assert!(t.contains("Gültig bis: 10.08.2026"), "Gültigkeit fehlt:\n{t}");
+    }
+
+    /// Ohne Gültigkeitsdatum (etwa ein Angebot von vor dieser Funktion) lässt
+    /// die Vorlage die Zeile weg, statt eine leere Angabe zu drucken.
+    #[test]
+    fn ein_angebot_ohne_gueltigkeitsdatum_zeigt_dazu_keine_zeile() {
+        let mut kontext = test_kontext();
+        kontext.beleg.typ = "angebot".into();
+        kontext.beleg.gueltig_bis = None;
+        let t = text(&kontext);
+        assert!(!t.contains("Gültig bis"), "Gültigkeitszeile trotz fehlendem Datum:\n{t}");
+    }
+
+    /// Eine Rechnung nennt keine Gültigkeit — sie ist keine Angebotssache.
+    #[test]
+    fn eine_rechnung_nennt_keine_gueltigkeit_auch_wenn_gesetzt() {
+        let mut kontext = test_kontext();
+        kontext.beleg.gueltig_bis = Some("2026-08-10".into());
+        let t = text(&kontext);
+        assert!(!t.contains("Gültig bis"), "Gültigkeitszeile auf einer Rechnung:\n{t}");
     }
 
     #[test]

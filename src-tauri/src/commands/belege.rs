@@ -22,6 +22,13 @@ pub struct Beleg {
     #[sqlx(default)]
     #[serde(default)]
     pub leistungsdatum_bis: Option<String>,
+    /// Bis wann ein Angebot gültig ist. Nur für Angebote gedacht — bei
+    /// Rechnungen bleibt das Feld leer. Wird beim Anlegen aus der Einstellung
+    /// `vorlage.angebot_gueltigkeit_tage` errechnet und lässt sich danach frei
+    /// bearbeiten; siehe `angebot_gueltigkeit_tage()`.
+    #[sqlx(default)]
+    #[serde(default)]
+    pub gueltig_bis: Option<String>,
     pub zahlungsziel_tage: i64,
     pub kopftext: String,
     pub fusstext: String,
@@ -89,6 +96,9 @@ pub struct BelegUpdate {
     pub leistungsdatum: String,
     #[serde(default)]
     pub leistungsdatum_bis: Option<String>,
+    /// Nur bei Angeboten gepflegt; siehe `Beleg::gueltig_bis`.
+    #[serde(default)]
+    pub gueltig_bis: Option<String>,
     pub zahlungsziel_tage: i64,
     pub kopftext: String,
     pub fusstext: String,
@@ -142,14 +152,16 @@ pub struct Zahlung {
     pub notiz: String,
 }
 
-pub(crate) const BELEG_SPALTEN: &str = "id, typ, nummer, status, kunde_id, datum, leistungsdatum, leistungsdatum_bis, zahlungsziel_tage, kopftext, fusstext, summe_cent, ursprungsangebot_id, storno_von_id, kunde_snapshot, adresse_id, ansprechpartner_id";
+pub(crate) const BELEG_SPALTEN: &str = "id, typ, nummer, status, kunde_id, datum, leistungsdatum, leistungsdatum_bis, gueltig_bis, zahlungsziel_tage, kopftext, fusstext, summe_cent, ursprungsangebot_id, storno_von_id, kunde_snapshot, adresse_id, ansprechpartner_id";
 
+#[allow(clippy::too_many_arguments)]
 fn pruefe_beleg_neu(
     typ: &str,
     datum: &str,
     leistungsdatum: &str,
     leistungsdatum_bis: Option<&str>,
     zahlungsziel_tage: i64,
+    gueltig_bis: Option<&str>,
 ) -> AppResult<()> {
     if !["angebot", "rechnung"].contains(&typ) {
         return Err(AppError::Validation { feld: "typ".into(), meldung: "Ungültiger Belegtyp".into() });
@@ -174,7 +186,30 @@ fn pruefe_beleg_neu(
             });
         }
     }
+    // Ein Angebot, das schon am Tag der Erstellung abgelaufen wäre, ist keine
+    // sinnvolle Angabe — derselbe lexikografische Vergleich wie oben.
+    if let Some(bis) = gueltig_bis.map(str::trim).filter(|b| !b.is_empty()) {
+        if bis < datum.trim() {
+            return Err(AppError::Validation {
+                feld: "gueltig_bis".into(),
+                meldung: "Das Gültigkeitsdatum darf nicht vor dem Belegdatum liegen".into(),
+            });
+        }
+    }
     Ok(())
+}
+
+/// Tage, die ein neu angelegtes Angebot standardmäßig gültig ist.
+///
+/// Aus den Einstellungen; fällt auf 30 zurück, wenn nichts hinterlegt oder der
+/// Wert unbrauchbar ist — eine kaputte Einstellung darf das Anlegen eines
+/// Angebots nicht verhindern.
+async fn angebot_gueltigkeit_tage(pool: &SqlitePool) -> AppResult<i64> {
+    let wert = crate::commands::einstellungen::get(pool, "vorlage.angebot_gueltigkeit_tage".into()).await?;
+    Ok(wert
+        .and_then(|w| w.trim().parse::<i64>().ok())
+        .filter(|&t| t >= 0)
+        .unwrap_or(30))
 }
 
 async fn lade_beleg(pool: &SqlitePool, id: &str) -> AppResult<Beleg> {
@@ -194,24 +229,38 @@ fn pruefe_ist_entwurf(beleg: &Beleg) -> AppResult<()> {
 }
 
 pub async fn create(pool: &SqlitePool, d: BelegNeu) -> AppResult<Beleg> {
-    pruefe_beleg_neu(&d.typ, &d.datum, &d.leistungsdatum, d.leistungsdatum_bis.as_deref(), d.zahlungsziel_tage)?;
+    pruefe_beleg_neu(&d.typ, &d.datum, &d.leistungsdatum, d.leistungsdatum_bis.as_deref(), d.zahlungsziel_tage, None)?;
     let kunde_existiert: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM kunde WHERE id = ? AND deleted_at IS NULL")
         .bind(&d.kunde_id).fetch_one(pool).await?;
     if kunde_existiert.0 == 0 {
         return Err(AppError::Validation { feld: "kunde_id".into(), meldung: "Kunde existiert nicht".into() });
     }
+    // Nur ein Angebot bekommt eine Gültigkeit — bei einer Rechnung wäre ein
+    // Ablaufdatum bedeutungslos. Ohne diesen Vorschlag versprach nur der
+    // Fußtext eine Frist ("Dieses Angebot ist 30 Tage gültig"), ohne dass ein
+    // Datum dazu existierte.
+    let gueltig_bis = if d.typ == "angebot" {
+        let tage = angebot_gueltigkeit_tage(pool).await?;
+        chrono::NaiveDate::parse_from_str(&d.datum, "%Y-%m-%d")
+            .ok()
+            .and_then(|dt| dt.checked_add_signed(chrono::Duration::days(tage)))
+            .map(|dt| dt.format("%Y-%m-%d").to_string())
+    } else {
+        None
+    };
     let beleg = Beleg {
         id: Uuid::new_v4().to_string(), typ: d.typ, nummer: None, status: "entwurf".into(),
         kunde_id: d.kunde_id, datum: d.datum, leistungsdatum: d.leistungsdatum, leistungsdatum_bis: None,
-        zahlungsziel_tage: d.zahlungsziel_tage, kopftext: d.kopftext, fusstext: d.fusstext,
+        gueltig_bis, zahlungsziel_tage: d.zahlungsziel_tage, kopftext: d.kopftext, fusstext: d.fusstext,
         summe_cent: 0, ursprungsangebot_id: None, storno_von_id: None,
         kunde_snapshot: String::new(), kunde_snapshot_name: None,
         adresse_id: None, ansprechpartner_id: None,
         bezahlt_cent: 0, zahlungsstand: None, faellig_am: None,
     };
-    sqlx::query("INSERT INTO beleg (id, typ, nummer, status, kunde_id, datum, leistungsdatum, leistungsdatum_bis, zahlungsziel_tage, kopftext, fusstext, summe_cent, ursprungsangebot_id, storno_von_id, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
+    sqlx::query("INSERT INTO beleg (id, typ, nummer, status, kunde_id, datum, leistungsdatum, leistungsdatum_bis, gueltig_bis, zahlungsziel_tage, kopftext, fusstext, summe_cent, ursprungsangebot_id, storno_von_id, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
         .bind(&beleg.id).bind(&beleg.typ).bind(&beleg.nummer).bind(&beleg.status).bind(&beleg.kunde_id)
-        .bind(&beleg.datum).bind(&beleg.leistungsdatum).bind(&beleg.leistungsdatum_bis).bind(beleg.zahlungsziel_tage)
+        .bind(&beleg.datum).bind(&beleg.leistungsdatum).bind(&beleg.leistungsdatum_bis).bind(&beleg.gueltig_bis)
+        .bind(beleg.zahlungsziel_tage)
         .bind(&beleg.kopftext).bind(&beleg.fusstext).bind(beleg.summe_cent)
         .bind(&beleg.ursprungsangebot_id).bind(&beleg.storno_von_id).bind(jetzt()).bind(jetzt())
         .execute(pool).await?;
@@ -280,11 +329,15 @@ pub async fn get(pool: &SqlitePool, id: String) -> AppResult<BelegDetail> {
 pub async fn update(pool: &SqlitePool, d: BelegUpdate) -> AppResult<Beleg> {
     let beleg = lade_beleg(pool, &d.id).await?;
     pruefe_ist_entwurf(&beleg)?;
-    pruefe_beleg_neu(&beleg.typ, &d.datum, &d.leistungsdatum, d.leistungsdatum_bis.as_deref(), d.zahlungsziel_tage)?;
+    pruefe_beleg_neu(
+        &beleg.typ, &d.datum, &d.leistungsdatum, d.leistungsdatum_bis.as_deref(),
+        d.zahlungsziel_tage, d.gueltig_bis.as_deref(),
+    )?;
     pruefe_gehoert_zum_kunden(pool, "adresse", d.adresse_id.as_deref(), &d.kunde_id).await?;
     pruefe_gehoert_zum_kunden(pool, "ansprechpartner", d.ansprechpartner_id.as_deref(), &d.kunde_id).await?;
-    sqlx::query("UPDATE beleg SET kunde_id=?, datum=?, leistungsdatum=?, leistungsdatum_bis=?, zahlungsziel_tage=?, kopftext=?, fusstext=?, adresse_id=?, ansprechpartner_id=?, updated_at=? WHERE id=?")
-        .bind(&d.kunde_id).bind(&d.datum).bind(&d.leistungsdatum).bind(&d.leistungsdatum_bis).bind(d.zahlungsziel_tage)
+    sqlx::query("UPDATE beleg SET kunde_id=?, datum=?, leistungsdatum=?, leistungsdatum_bis=?, gueltig_bis=?, zahlungsziel_tage=?, kopftext=?, fusstext=?, adresse_id=?, ansprechpartner_id=?, updated_at=? WHERE id=?")
+        .bind(&d.kunde_id).bind(&d.datum).bind(&d.leistungsdatum).bind(&d.leistungsdatum_bis).bind(&d.gueltig_bis)
+        .bind(d.zahlungsziel_tage)
         .bind(&d.kopftext).bind(&d.fusstext).bind(&d.adresse_id).bind(&d.ansprechpartner_id)
         .bind(jetzt()).bind(&d.id)
         .execute(pool).await?;
@@ -655,6 +708,8 @@ pub async fn angebot_ueberfuehren(pool: &SqlitePool, angebot_id: String) -> AppR
     let rechnung = Beleg {
         id: Uuid::new_v4().to_string(), typ: "rechnung".into(), nummer: None, status: "entwurf".into(),
         kunde_id: angebot.kunde_id.clone(), datum: heute, leistungsdatum: angebot.leistungsdatum.clone(), leistungsdatum_bis: None,
+        // Eine Gültigkeit ist eine Angebotssache; für die Rechnung bedeutungslos.
+        gueltig_bis: None,
         zahlungsziel_tage: angebot.zahlungsziel_tage,
         // Nicht die Texte des Angebots übernehmen: Dort steht „anbei erhalten
         // Sie das gewünschte Angebot" und „dieses Angebot ist 30 Tage gültig".
@@ -744,6 +799,7 @@ pub async fn storniere_rechnung(pool: &SqlitePool, id: String) -> AppResult<Bele
     let storno = Beleg {
         id: Uuid::new_v4().to_string(), typ: "rechnung".into(), nummer: Some(nummer), status: "gestellt".into(),
         kunde_id: rechnung.kunde_id.clone(), datum: heute, leistungsdatum: rechnung.leistungsdatum.clone(), leistungsdatum_bis: None,
+        gueltig_bis: None,
         zahlungsziel_tage: rechnung.zahlungsziel_tage, kopftext: rechnung.kopftext.clone(),
         fusstext: format!("Stornierung zu Rechnung {}", rechnung.nummer.clone().unwrap_or_default()),
         summe_cent: -rechnung.summe_cent, ursprungsangebot_id: None, storno_von_id: Some(rechnung.id.clone()),
@@ -964,7 +1020,7 @@ mod tests {
         update(&pool, BelegUpdate {
             id: angebot.id.clone(), kunde_id: kunde.clone(),
             datum: angebot.datum.clone(), leistungsdatum: angebot.leistungsdatum.clone(),
-            leistungsdatum_bis: None, zahlungsziel_tage: 14,
+            leistungsdatum_bis: None, gueltig_bis: None, zahlungsziel_tage: 14,
             kopftext: "Gern unterbreiten wir Ihnen folgendes Angebot.".into(),
             fusstext: "Dieses Angebot ist 30 Tage gültig.".into(),
             adresse_id: None, ansprechpartner_id: None,
@@ -980,6 +1036,25 @@ mod tests {
         assert_eq!(rechnung.kopftext, erwartet_kopf);
         assert_eq!(rechnung.fusstext, erwartet_fuss);
         assert!(!rechnung.fusstext.contains("Angebot"), "Angebotstext in der Rechnung: {}", rechnung.fusstext);
+    }
+
+    /// Eine Gültigkeit ist eine Angebotssache. Die überführte Rechnung darf
+    /// keine erben — ein Ablaufdatum auf einer Rechnung wäre bedeutungslos.
+    #[tokio::test]
+    async fn ueberfuehrung_gibt_der_rechnung_keine_gueltigkeit() {
+        let (_d, pool) = test_pool().await;
+        let kunde = kunde_anlegen(&pool).await;
+        let angebot = create(&pool, beleg_neu("angebot", &kunde)).await.unwrap();
+        assert!(angebot.gueltig_bis.is_some(), "Angebot sollte eine Vorgabe-Gültigkeit haben");
+        let artikel = artikel_anlegen(&pool, 5000).await;
+        position_speichern(&pool, BelegpositionNeu {
+            id: "".into(), beleg_id: angebot.id.clone(), artikel_id: Some(artikel),
+            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000,
+        }).await.unwrap();
+        stellen(&pool, angebot.id.clone()).await.unwrap();
+
+        let rechnung = angebot_ueberfuehren(&pool, angebot.id.clone()).await.unwrap();
+        assert_eq!(rechnung.gueltig_bis, None);
     }
 
     /// Die Umstellung bestehender Angebote von „versendet" auf
@@ -1060,6 +1135,96 @@ mod tests {
         BelegNeu { typ: typ.into(), kunde_id: kunde_id.into(), datum: "2026-07-10".into(),
             leistungsdatum: "2026-07-10".into(), leistungsdatum_bis: None, zahlungsziel_tage: 14,
             kopftext: "".into(), fusstext: "".into() }
+    }
+
+    /// Der Fußtext versprach „Dieses Angebot ist 30 Tage gültig", aber es gab
+    /// kein Datum dazu. Die Migration seedet die Vorgabe mit genau diesen 30
+    /// Tagen — dieser Test prüft, dass sie auch ankommt, statt nur, dass
+    /// irgendein Datum entsteht.
+    #[tokio::test]
+    async fn angebot_bekommt_beim_anlegen_eine_gueltigkeit_aus_der_vorgabe() {
+        let (_dir, pool) = test_pool().await;
+        let kunde = kunde_anlegen(&pool).await;
+        let angebot = create(&pool, beleg_neu("angebot", &kunde)).await.unwrap();
+        assert_eq!(angebot.gueltig_bis.as_deref(), Some("2026-08-09"), "10.07. + 30 Tage");
+    }
+
+    /// Eine Gültigkeit ist eine Angebotssache; bei einer Rechnung wäre ein
+    /// Ablaufdatum bedeutungslos.
+    #[tokio::test]
+    async fn rechnung_bekommt_keine_gueltigkeit() {
+        let (_dir, pool) = test_pool().await;
+        let kunde = kunde_anlegen(&pool).await;
+        let rechnung = create(&pool, beleg_neu("rechnung", &kunde)).await.unwrap();
+        assert_eq!(rechnung.gueltig_bis, None);
+    }
+
+    #[tokio::test]
+    async fn eine_eigene_gueltigkeitsvorgabe_wird_verwendet() {
+        let (_dir, pool) = test_pool().await;
+        crate::commands::einstellungen::set(
+            &pool, "vorlage.angebot_gueltigkeit_tage".into(), "10".into(),
+        ).await.unwrap();
+        let kunde = kunde_anlegen(&pool).await;
+        let angebot = create(&pool, beleg_neu("angebot", &kunde)).await.unwrap();
+        assert_eq!(angebot.gueltig_bis.as_deref(), Some("2026-07-20"), "10.07. + 10 Tage");
+    }
+
+    /// Eine kaputte Einstellung darf das Anlegen eines Angebots nicht
+    /// verhindern — Rückfall auf 30 Tage.
+    #[tokio::test]
+    async fn eine_unbrauchbare_gueltigkeitsvorgabe_faellt_auf_30_tage_zurueck() {
+        let (_dir, pool) = test_pool().await;
+        crate::commands::einstellungen::set(
+            &pool, "vorlage.angebot_gueltigkeit_tage".into(), "unbrauchbar".into(),
+        ).await.unwrap();
+        let kunde = kunde_anlegen(&pool).await;
+        let angebot = create(&pool, beleg_neu("angebot", &kunde)).await.unwrap();
+        assert_eq!(angebot.gueltig_bis.as_deref(), Some("2026-08-09"), "10.07. + 30 Tage (Vorgabe)");
+    }
+
+    #[tokio::test]
+    async fn gueltig_bis_laesst_sich_ueber_update_setzen_und_wieder_loeschen() {
+        let (_dir, pool) = test_pool().await;
+        let kunde = kunde_anlegen(&pool).await;
+        let angebot = create(&pool, beleg_neu("angebot", &kunde)).await.unwrap();
+
+        let mut felder = beleg_update_aus(&angebot);
+        felder.gueltig_bis = Some("2026-12-31".into());
+        let aktualisiert = update(&pool, felder).await.unwrap();
+        assert_eq!(aktualisiert.gueltig_bis.as_deref(), Some("2026-12-31"));
+
+        let mut zurueckgesetzt = beleg_update_aus(&aktualisiert);
+        zurueckgesetzt.gueltig_bis = None;
+        let geloescht = update(&pool, zurueckgesetzt).await.unwrap();
+        assert_eq!(geloescht.gueltig_bis, None);
+    }
+
+    #[tokio::test]
+    async fn gueltig_bis_darf_nicht_vor_dem_belegdatum_liegen() {
+        let (_dir, pool) = test_pool().await;
+        let kunde = kunde_anlegen(&pool).await;
+        let angebot = create(&pool, beleg_neu("angebot", &kunde)).await.unwrap();
+
+        let mut felder = beleg_update_aus(&angebot);
+        felder.gueltig_bis = Some("2026-01-01".into());
+        let fehler = update(&pool, felder).await.unwrap_err();
+        match fehler {
+            AppError::Validation { feld, .. } => assert_eq!(feld, "gueltig_bis"),
+            anderer => panic!("unerwarteter Fehler: {anderer:?}"),
+        }
+    }
+
+    /// Baut ein `BelegUpdate`, das den geladenen Beleg unverändert
+    /// zurückschreibt — als Ausgangspunkt für Tests, die nur ein Feld ändern.
+    fn beleg_update_aus(b: &Beleg) -> BelegUpdate {
+        BelegUpdate {
+            id: b.id.clone(), kunde_id: b.kunde_id.clone(), datum: b.datum.clone(),
+            leistungsdatum: b.leistungsdatum.clone(), leistungsdatum_bis: b.leistungsdatum_bis.clone(),
+            gueltig_bis: b.gueltig_bis.clone(), zahlungsziel_tage: b.zahlungsziel_tage,
+            kopftext: b.kopftext.clone(), fusstext: b.fusstext.clone(),
+            adresse_id: b.adresse_id.clone(), ansprechpartner_id: b.ansprechpartner_id.clone(),
+        }
     }
 
     /// Belegnummern müssen datenbankseitig eindeutig sein — auch über soft-gelöschte
@@ -1167,6 +1332,7 @@ mod tests {
         update(&pool, BelegUpdate {
             id: beleg.id.clone(), kunde_id: kunde_id.clone(), datum: beleg.datum.clone(),
             leistungsdatum: beleg.leistungsdatum.clone(), leistungsdatum_bis: None,
+            gueltig_bis: None,
             zahlungsziel_tage: 14, kopftext: "".into(), fusstext: "".into(),
             adresse_id: Some(adresse_id.clone()), ansprechpartner_id: None,
         }).await.unwrap();
@@ -1207,6 +1373,7 @@ mod tests {
         update(&pool, BelegUpdate {
             id: beleg.id.clone(), kunde_id: kunde_id.clone(), datum: beleg.datum.clone(),
             leistungsdatum: beleg.leistungsdatum.clone(), leistungsdatum_bis: None,
+            gueltig_bis: None,
             zahlungsziel_tage: 14, kopftext: "".into(), fusstext: "".into(),
             adresse_id: None, ansprechpartner_id: Some(ap.id.clone()),
         }).await.unwrap();
@@ -1229,6 +1396,7 @@ mod tests {
         let fehler = update(&pool, BelegUpdate {
             id: beleg.id.clone(), kunde_id: kunde_id.clone(), datum: beleg.datum.clone(),
             leistungsdatum: beleg.leistungsdatum.clone(), leistungsdatum_bis: None,
+            gueltig_bis: None,
             zahlungsziel_tage: 14, kopftext: "".into(), fusstext: "".into(),
             adresse_id: Some(fremde_adresse), ansprechpartner_id: None,
         }).await;
@@ -1384,7 +1552,8 @@ mod tests {
         let beleg = create(&pool, beleg_neu("angebot", &kunde_id)).await.unwrap();
         let aktualisiert = update(&pool, BelegUpdate {
             id: beleg.id.clone(), kunde_id: kunde_id.clone(), datum: "2026-07-11".into(),
-            leistungsdatum: "2026-07-11".into(), leistungsdatum_bis: None, zahlungsziel_tage: 30,
+            leistungsdatum: "2026-07-11".into(), leistungsdatum_bis: None, gueltig_bis: None,
+            zahlungsziel_tage: 30,
             kopftext: "Hallo".into(), fusstext: "".into(),
             adresse_id: None, ansprechpartner_id: None,
         }).await.unwrap();
@@ -1401,6 +1570,7 @@ mod tests {
             .bind(&beleg.id).execute(&pool).await.unwrap();
         let err = update(&pool, BelegUpdate {
             id: beleg.id, kunde_id, datum: "2026-07-11".into(), leistungsdatum: "2026-07-11".into(), leistungsdatum_bis: None,
+            gueltig_bis: None,
             zahlungsziel_tage: 14, kopftext: "".into(), fusstext: "".into(),
             adresse_id: None, ansprechpartner_id: None,
         }).await.unwrap_err();
@@ -1551,7 +1721,8 @@ mod tests {
         assert_eq!(gestellt.nummer, Some(format!("AN-{jahr}-0001")));
         let err = update(&pool, BelegUpdate {
             id: gestellt.id.clone(), kunde_id, datum: gestellt.datum.clone(),
-            leistungsdatum: gestellt.leistungsdatum.clone(), leistungsdatum_bis: None, zahlungsziel_tage: 14,
+            leistungsdatum: gestellt.leistungsdatum.clone(), leistungsdatum_bis: None, gueltig_bis: None,
+            zahlungsziel_tage: 14,
             kopftext: "".into(), fusstext: "".into(),
             adresse_id: None, ansprechpartner_id: None,
         }).await.unwrap_err();

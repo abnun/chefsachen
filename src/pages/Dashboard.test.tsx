@@ -176,7 +176,10 @@ describe("Dashboard", () => {
     laden().mockResolvedValue({
       ...LEER,
       offene_angebote: [
-        { id: "a1", nummer: "AN-2026-0001", kunde_name: "ACME GmbH", datum: "2026-05-01", summe_cent: 50000 },
+        {
+          id: "a1", nummer: "AN-2026-0001", kunde_name: "ACME GmbH", datum: "2026-05-01",
+          summe_cent: 50000, gueltig_bis: "2026-06-01",
+        },
       ],
     });
     render(<Dashboard {...props} />);
@@ -187,6 +190,27 @@ describe("Dashboard", () => {
     knopf.focus();
     await userEvent.keyboard("{Enter}");
     expect(props.onAngebotOeffnen).toHaveBeenCalledWith("a1");
+  });
+
+  it("zeigt die Gültigkeit eines Angebots, oder unbefristet ohne gesetztes Datum", async () => {
+    // Ein abgelaufenes Angebot fehlt bereits in der Liste (siehe Backend);
+    // diese Spalte erklärt, warum eines demnächst verschwinden wird.
+    laden().mockResolvedValue({
+      ...LEER,
+      offene_angebote: [
+        {
+          id: "a1", nummer: "AN-2026-0001", kunde_name: "ACME GmbH", datum: "2026-05-01",
+          summe_cent: 50000, gueltig_bis: "2026-06-01",
+        },
+        {
+          id: "a2", nummer: "AN-2026-0002", kunde_name: "Beta AG", datum: "2020-01-01",
+          summe_cent: 10000, gueltig_bis: null,
+        },
+      ],
+    });
+    render(<Dashboard {...props} />);
+    await waitFor(() => expect(screen.getByText("01.06.2026")).toBeTruthy());
+    expect(screen.getByText("unbefristet")).toBeTruthy();
   });
 
   it("zeigt Leerzustände statt leerer Tabellen", async () => {

@@ -248,6 +248,7 @@ export function Dashboard({ onRechnungOeffnen, onAngebotOeffnen, onErsterSchritt
                 <th>Nummer</th>
                 <th>Kunde</th>
                 <th>Datum</th>
+                <th>Gültig bis</th>
                 <th>Summe</th>
               </tr>
             </thead>
@@ -259,6 +260,9 @@ export function Dashboard({ onRechnungOeffnen, onAngebotOeffnen, onErsterSchritt
                   </td>
                   <td>{a.kunde_name}</td>
                   <td>{datumDeutsch(a.datum)}</td>
+                  {/* Ein abgelaufenes Angebot fehlt hier bereits — diese Spalte
+                      erklärt, warum eines demnächst verschwinden wird. */}
+                  <td>{a.gueltig_bis ? datumDeutsch(a.gueltig_bis) : "unbefristet"}</td>
                   <td>{formatCent(a.summe_cent)}</td>
                 </tr>
               ))}

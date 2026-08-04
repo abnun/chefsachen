@@ -62,6 +62,10 @@ pub struct OffenesAngebot {
     pub kunde_name: String,
     pub datum: String,
     pub summe_cent: i64,
+    /// `None`, solange keine Gültigkeit hinterlegt ist — bei Angeboten von vor
+    /// P16 etwa. Ein abgelaufenes Angebot erscheint gar nicht erst in dieser
+    /// Liste, siehe `laden()`.
+    pub gueltig_bis: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -175,17 +179,25 @@ pub async fn laden(pool: &SqlitePool, heute: chrono::NaiveDate) -> AppResult<Das
     // Am dringendsten zuerst: die am längsten überfällige Rechnung oben.
     offene_rechnungen.sort_by_key(|r| r.tage_bis_faellig);
 
+    let heute_iso = heute.format("%Y-%m-%d").to_string();
     let angebote: Vec<crate::commands::belege::Beleg> =
         crate::commands::belege::list(pool, Some("angebot".into()), None, None).await?;
     let offene_angebote = angebote
         .into_iter()
         .filter(|b| ["festgeschrieben", "angenommen"].contains(&b.status.as_str()))
+        // Ein abgelaufenes Angebot ist keine offene Position mehr — unabhängig
+        // vom Status, den dafür niemand von Hand umstellt. Ohne diesen Filter
+        // zeigte die Übersicht auf Dauer auch Angebote von vor einem halben
+        // Jahr, und die Zahl wurde bedeutungslos. Kein Datum (Angebote von vor
+        // dieser Funktion) heißt: unbefristet, bleibt also offen.
+        .filter(|b| b.gueltig_bis.as_deref().is_none_or(|g| g >= heute_iso.as_str()))
         .map(|b| OffenesAngebot {
             id: b.id,
             nummer: b.nummer.unwrap_or_default(),
             kunde_name: b.kunde_snapshot_name.unwrap_or_default(),
             datum: b.datum,
             summe_cent: b.summe_cent,
+            gueltig_bis: b.gueltig_bis,
         })
         .collect();
 
@@ -387,5 +399,72 @@ mod tests {
         let d = laden(&pool, tag("2026-06-01")).await.unwrap();
         assert_eq!(d.offene_rechnungen[0].faellig_am, "2026-04-15");
         assert_eq!(d.offene_rechnungen[1].faellig_am, "2026-06-03");
+    }
+
+    /// Legt ein festgeschriebenes Angebot mit der angegebenen Gültigkeit an.
+    /// `gueltig_bis: None` heißt: die Vorgabe der Einstellung greift (30 Tage).
+    async fn angebot_stellen(pool: &SqlitePool, datum: &str, gueltig_bis: Option<&str>) -> String {
+        let kunde_id = crate::commands::kunden::create(pool, crate::commands::kunden::KundeNeu {
+            typ: "firma".into(), name: "ACME GmbH".into(), zahlungsziel_tage: 14,
+            notizen: "".into(), ust_idnr: "".into(), email: "".into(),
+            leitweg_id: "".into(), kaeuferreferenz: "".into(),
+        }).await.unwrap().id;
+        let artikel_id = crate::commands::artikel::create(pool, crate::commands::artikel::ArtikelNeu {
+            bezeichnung: "Leistung".into(), beschreibung: "".into(),
+            einheit_id: "e0000000-0000-0000-0000-000000000001".into(),
+            standardpreis_cent: 1_000_00,
+        }).await.unwrap().id;
+        let beleg = beleg_create(pool, BelegNeu {
+            typ: "angebot".into(), kunde_id, datum: datum.into(),
+            leistungsdatum: datum.into(), leistungsdatum_bis: None, zahlungsziel_tage: 14,
+            kopftext: "".into(), fusstext: "".into(),
+        }).await.unwrap();
+        position_speichern(pool, BelegpositionNeu {
+            id: "".into(), beleg_id: beleg.id.clone(), artikel_id: Some(artikel_id),
+            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000,
+        }).await.unwrap();
+        let gestellt = stellen(pool, beleg.id).await.unwrap();
+        if let Some(bis) = gueltig_bis {
+            sqlx::query("UPDATE beleg SET gueltig_bis = ? WHERE id = ?")
+                .bind(bis).bind(&gestellt.id).execute(pool).await.unwrap();
+        }
+        gestellt.id
+    }
+
+    /// Der eigentliche Befund hinter P16: Ein abgelaufenes Angebot ist keine
+    /// offene Position mehr — unabhängig davon, ob jemand von Hand den Status
+    /// „Abgelaufen" gesetzt hat. Das tut in der Praxis niemand.
+    #[tokio::test]
+    async fn abgelaufene_angebote_stehen_nicht_mehr_unter_offenen_angeboten() {
+        let (_dir, pool) = test_pool().await;
+        angebot_stellen(&pool, "2026-01-01", Some("2026-01-31")).await; // längst abgelaufen
+        angebot_stellen(&pool, "2026-05-01", Some("2026-12-31")).await; // noch gültig
+
+        let d = laden(&pool, tag("2026-06-01")).await.unwrap();
+        assert_eq!(d.offene_angebote.len(), 1, "war: {:?}", d.offene_angebote);
+        assert_eq!(d.offene_angebote[0].gueltig_bis.as_deref(), Some("2026-12-31"));
+    }
+
+    /// Gültig „bis" ist inklusiv: Am letzten Tag zählt das Angebot noch als offen.
+    #[tokio::test]
+    async fn ein_angebot_gilt_am_tag_seines_ablaufs_noch_als_offen() {
+        let (_dir, pool) = test_pool().await;
+        angebot_stellen(&pool, "2026-05-01", Some("2026-06-01")).await;
+
+        let d = laden(&pool, tag("2026-06-01")).await.unwrap();
+        assert_eq!(d.offene_angebote.len(), 1);
+    }
+
+    /// Angebote von vor dieser Funktion haben kein Gültigkeitsdatum — sie
+    /// bleiben unbefristet offen, statt plötzlich zu verschwinden.
+    #[tokio::test]
+    async fn ein_angebot_ohne_gueltigkeitsdatum_bleibt_offen() {
+        let (_dir, pool) = test_pool().await;
+        let id = angebot_stellen(&pool, "2020-01-01", None).await;
+        sqlx::query("UPDATE beleg SET gueltig_bis = NULL WHERE id = ?")
+            .bind(&id).execute(&pool).await.unwrap();
+
+        let d = laden(&pool, tag("2026-06-01")).await.unwrap();
+        assert_eq!(d.offene_angebote.len(), 1);
     }
 }

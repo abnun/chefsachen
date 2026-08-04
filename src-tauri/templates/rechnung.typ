@@ -95,6 +95,11 @@ Datum: #sys.inputs.datum \
 #if ist_gesetzt(sys.inputs.zahlungsbedingung) [
   \ #sys.inputs.zahlungsbedingung
 ]
+// Umgekehrt: eine Gültigkeit ist eine Angebotssache. Der Fußtext versprach
+// bisher eine Frist, ohne dass ein Datum dazu auf dem Beleg stand.
+#if ist_gesetzt(sys.inputs.angebot_gueltig_bis) [
+  \ Gültig bis: #sys.inputs.angebot_gueltig_bis
+]
 
 // Eine Rechnungskorrektur ohne Bezug zur ursprünglichen Rechnung ist für die
 // Buchhaltung des Empfängers nicht zuzuordnen.

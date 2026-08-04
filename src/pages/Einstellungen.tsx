@@ -33,6 +33,7 @@ export function Einstellungen() {
       <EinheitenAbschnitt />
       <NummernkreiseAbschnitt />
       <TextbausteineAbschnitt />
+      <AngeboteAbschnitt />
       {/* Nach den Textbausteinen: Die Vorschau zeigt sie mit, und wer beides
           einstellt, arbeitet von innen nach außen — erst der Inhalt, dann das
           Aussehen. */}
@@ -671,6 +672,72 @@ const TEXTBAUSTEIN_LABEL: Record<string, string> = {
 };
 
 const TEXTBAUSTEIN_KEYS = Object.keys(TEXTBAUSTEIN_LABEL);
+
+/** Schlüssel der Einstellung, mit der Vorgabe aus der Migration als Rückfall. */
+const SCHLUESSEL_ANGEBOT_GUELTIGKEIT = "vorlage.angebot_gueltigkeit_tage";
+
+/**
+ * Wie viele Tage ein neu angelegtes Angebot gültig ist.
+ *
+ * Der Fußtext versprach bisher eine Frist ("Dieses Angebot ist 30 Tage
+ * gültig"), ohne dass ein Datum dazu existierte. Dieser Wert ist die Vorgabe
+ * dafür — änderbar hier, überschreibbar am einzelnen Angebot in dessen
+ * Stammdaten.
+ */
+function AngeboteAbschnitt() {
+  const [tage, setTage] = useState("");
+  const [fehler, setFehler] = useState<AppFehler | null>(null);
+  const { zeigen, hinweis } = useErfolgsHinweis();
+
+  useEffect(() => {
+    api.einstellungen
+      .get(SCHLUESSEL_ANGEBOT_GUELTIGKEIT)
+      .then((wert) => setTage(wert ?? "30"))
+      .catch((e) => setFehler(e as AppFehler));
+  }, []);
+
+  async function speichern() {
+    setFehler(null);
+    try {
+      await api.einstellungen.set(SCHLUESSEL_ANGEBOT_GUELTIGKEIT, tage);
+      zeigen("Angebotsgültigkeit gespeichert");
+    } catch (e) {
+      setFehler(e as AppFehler);
+    }
+  }
+
+  return (
+    <section>
+      <h2>Angebote</h2>
+      <Fehler fehler={fehler} />
+      {hinweis}
+      <form
+        className="karte"
+        onSubmit={(e) => {
+          e.preventDefault();
+          speichern();
+        }}
+      >
+        <label className="feld">
+          Angebotsgültigkeit (Tage)
+          <input
+            type="number"
+            min={0}
+            value={tage}
+            onChange={(e) => setTage(e.currentTarget.value)}
+          />
+        </label>
+        <p className="feld-hinweis">
+          Neu angelegte Angebote bekommen dieses Gültigkeitsdatum vorgeschlagen — am
+          einzelnen Angebot lässt es sich jederzeit ändern.
+        </p>
+        <div className="aktionen aktionen-formular">
+          <button type="submit" className="btn btn-primaer">Speichern</button>
+        </div>
+      </form>
+    </section>
+  );
+}
 
 function TextbausteineAbschnitt() {
   const [werte, setWerte] = useState<Record<string, string>>({});
