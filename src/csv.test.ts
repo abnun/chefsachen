@@ -49,4 +49,23 @@ describe("zuCsv", () => {
     const csv = zuCsv(["Datum", "Betrag"], []);
     expect(csv).toContain("Datum;Betrag");
   });
+
+  it("entschärft Felder, die Excel als Formel deuten würde", () => {
+    // Die Datei ist ausdrücklich zum Weitergeben gedacht — ein Kundenname wie
+    // =HYPERLINK(…) darf beim Öffnen nicht als Formel laufen. Der Apostroph
+    // ist Excels eigenes „das ist Text"-Zeichen.
+    const csv = zuCsv(["Kunde"], [["=HYPERLINK(\"http://boese\")"], ["+49 GmbH"], ["@acme"]]);
+    expect(csv).toContain("'=HYPERLINK");
+    expect(csv).toContain("'+49 GmbH");
+    expect(csv).toContain("'@acme");
+  });
+
+  it("laesst negative Betraege als Zahlen durch", () => {
+    // Erstattungen stehen als -45,00 in den Betragsspalten und sollen in
+    // Excel Zahlen bleiben; nur -Text wird entschärft.
+    const csv = zuCsv(["Betrag", "Kunde"], [["-45,00", "-minus AG"]]);
+    expect(csv).toContain("-45,00;");
+    expect(csv).not.toContain("'-45,00");
+    expect(csv).toContain("'-minus AG");
+  });
 });

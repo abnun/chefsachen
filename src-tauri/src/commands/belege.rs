@@ -335,8 +335,15 @@ pub async fn update(pool: &SqlitePool, d: BelegUpdate) -> AppResult<Beleg> {
     )?;
     pruefe_gehoert_zum_kunden(pool, "adresse", d.adresse_id.as_deref(), &d.kunde_id).await?;
     pruefe_gehoert_zum_kunden(pool, "ansprechpartner", d.ansprechpartner_id.as_deref(), &d.kunde_id).await?;
+    // Leere Strings heißen „nicht gesetzt" und werden als NULL gespeichert.
+    // Ein gespeichertes "" verhielte sich sonst anders als NULL: Die Übersicht
+    // wertet Angebote per String-Vergleich (`gueltig_bis >= heute`) als offen —
+    // "" wäre immer „abgelaufen", obwohl der Nutzer „unbefristet" meinte. Das
+    // Frontend normalisiert zwar selbst, aber der Vertrag gehört dem Backend.
+    let gueltig_bis = d.gueltig_bis.as_deref().map(str::trim).filter(|s| !s.is_empty());
+    let leistungsdatum_bis = d.leistungsdatum_bis.as_deref().map(str::trim).filter(|s| !s.is_empty());
     sqlx::query("UPDATE beleg SET kunde_id=?, datum=?, leistungsdatum=?, leistungsdatum_bis=?, gueltig_bis=?, zahlungsziel_tage=?, kopftext=?, fusstext=?, adresse_id=?, ansprechpartner_id=?, updated_at=? WHERE id=?")
-        .bind(&d.kunde_id).bind(&d.datum).bind(&d.leistungsdatum).bind(&d.leistungsdatum_bis).bind(&d.gueltig_bis)
+        .bind(&d.kunde_id).bind(&d.datum).bind(&d.leistungsdatum).bind(leistungsdatum_bis).bind(gueltig_bis)
         .bind(d.zahlungsziel_tage)
         .bind(&d.kopftext).bind(&d.fusstext).bind(&d.adresse_id).bind(&d.ansprechpartner_id)
         .bind(jetzt()).bind(&d.id)
@@ -1842,6 +1849,25 @@ mod tests {
         let kopie = duplizieren(&pool, gestellt.id).await.unwrap();
         assert_eq!(kopie.status, "entwurf");
         assert_eq!(kopie.summe_cent, 5000);
+    }
+
+    /// Ein leerer String heißt „nicht gesetzt" und muss als NULL landen.
+    ///
+    /// Die Übersicht wertet Angebote per String-Vergleich (`gueltig_bis >=
+    /// heute`) als offen — ein gespeichertes "" wäre immer „abgelaufen",
+    /// obwohl der Nutzer „unbefristet" meinte.
+    #[tokio::test]
+    async fn update_normalisiert_leere_datumsfelder_zu_null() {
+        let (_dir, pool) = test_pool().await;
+        let kunde = kunde_anlegen(&pool).await;
+        let beleg = create(&pool, beleg_neu("angebot", &kunde)).await.unwrap();
+        let mut felder = beleg_update_aus(&beleg);
+        felder.gueltig_bis = Some("".into());
+        felder.leistungsdatum_bis = Some("  ".into());
+
+        let gespeichert = update(&pool, felder).await.unwrap();
+        assert_eq!(gespeichert.gueltig_bis, None);
+        assert_eq!(gespeichert.leistungsdatum_bis, None);
     }
 
     /// Die monatliche Rechnung an den Kunden mit abweichender Rechnungsadresse:
