@@ -7,6 +7,20 @@ auf GitHub ändert daran nichts mehr.
 
 Deshalb hier in der Sprache der Anwender, nicht in der der Commits.
 
+## 0.2.4
+
+Eine kleine Fassung: Sichtbar ist daran nur das Artikelformular, der Rest ist
+Wartung an den Tests.
+
+**Artikel anlegen**
+- Fehlt die Bezeichnung oder die Einheit, sagt das jetzt die Anwendung selbst —
+  unter dem Feld, in der Form, die du von den anderen Meldungen kennst. Vorher
+  übernahm das die eingebaute Meldung des Browsers: in der Sprache des Systems,
+  in fremdem Aussehen und beim nächsten Klick wieder verschwunden.
+- Wer keine Einheit auswählte, bekam „Einheit existiert nicht" zu lesen. Das
+  stimmte zwar technisch, beschrieb aber die falsche Lage. Jetzt steht dort
+  „Bitte eine Einheit wählen".
+
 ## 0.2.3
 
 **Aussehen von Angebot und Rechnung einstellbar**

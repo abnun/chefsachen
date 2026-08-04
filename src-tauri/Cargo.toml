@@ -1,6 +1,6 @@
 [package]
 name = "kleinunternehmer-verwaltung"
-version = "0.2.3"
+version = "0.2.4"
 description = "Rechnungen, Angebote und E-Rechnungen für Kleinunternehmer nach § 19 UStG"
 authors = ["Markus Müller <abnun@gmx.de>"]
 license = "MIT"
