@@ -347,46 +347,89 @@ pub async fn update(pool: &SqlitePool, d: BelegUpdate) -> AppResult<Beleg> {
 /// Legt eine Kopie eines Belegs als neuen Entwurf an.
 ///
 /// Wer jeden Monat eine fast gleiche Rechnung stellt, tippte sie bisher jedes
-/// Mal neu. Die Kopie übernimmt Kunde, Zahlungsziel, Kopf- und Fußtext sowie
-/// alle Positionen; Datum und Leistungsdatum werden auf heute gesetzt — eine
-/// Kopie ist ein neuer Vorgang, kein rückdatiertes Duplikat. Eine Gültigkeit
-/// bei einem Angebot bekommt die Kopie frisch aus der Einstellung, wie jeder
-/// neu angelegte Beleg (siehe `create`), nicht die des Originals.
+/// Mal neu. Die Kopie übernimmt Kunde, Rechnungsadresse, Ansprechpartner,
+/// Zahlungsziel, Kopf- und Fußtext sowie alle Positionen; Datum und
+/// Leistungsdatum werden auf heute gesetzt — eine Kopie ist ein neuer Vorgang,
+/// kein rückdatiertes Duplikat. Aus demselben Grund wird ein
+/// `leistungsdatum_bis` bewusst nicht kopiert: Der Zeitraum des Originals ist
+/// zum neuen Leistungsdatum von heute falsch (und läge er davor, sogar
+/// ungültig). Eine Gültigkeit bei einem Angebot bekommt die Kopie frisch aus
+/// der Einstellung, wie jeder neu angelegte Beleg (siehe `create`), nicht die
+/// des Originals.
 ///
 /// Quelle darf jeden Status haben — gerade ein festgeschriebener Beleg lässt
 /// sich sonst gar nicht mehr als Vorlage nutzen, weil er selbst unveränderbar
-/// ist.
+/// ist. Einzige Ausnahme: ein Stornobeleg. Er ist eine Gutschrift mit
+/// negativen Positionen, und ein Entwurf mit negativen Preisen ist nirgendwo
+/// sonst zulässig — als Vorlage dient die stornierte Rechnung selbst.
 pub async fn duplizieren(pool: &SqlitePool, id: String) -> AppResult<Beleg> {
     let quelle = lade_beleg(pool, &id).await?;
+    if quelle.storno_von_id.is_some() {
+        return Err(AppError::Validation {
+            feld: "storno_von_id".into(),
+            meldung: "Ein Stornobeleg lässt sich nicht duplizieren — nutze die stornierte Rechnung als Vorlage".into(),
+        });
+    }
     let positionen: Vec<Belegposition> = sqlx::query_as(
         "SELECT id, beleg_id, artikel_id, bezeichnung, einheit_kuerzel, einzelpreis_cent, menge, positionssumme_cent, reihenfolge \
          FROM belegposition WHERE beleg_id = ? AND deleted_at IS NULL ORDER BY reihenfolge")
         .bind(&id).fetch_all(pool).await?;
 
+    // Adresse und Ansprechpartner nur übernehmen, wenn es sie noch gibt —
+    // eine seit dem Original gelöschte Auswahl fällt still auf den Standard
+    // zurück, statt das Duplizieren scheitern zu lassen.
+    let adresse_id = match pruefe_gehoert_zum_kunden(pool, "adresse", quelle.adresse_id.as_deref(), &quelle.kunde_id).await {
+        Ok(()) => quelle.adresse_id.clone(),
+        Err(_) => None,
+    };
+    let ansprechpartner_id = match pruefe_gehoert_zum_kunden(pool, "ansprechpartner", quelle.ansprechpartner_id.as_deref(), &quelle.kunde_id).await {
+        Ok(()) => quelle.ansprechpartner_id.clone(),
+        Err(_) => None,
+    };
+
     let heute = jetzt()[..10].to_string();
-    let kopie = create(pool, BelegNeu {
-        typ: quelle.typ.clone(), kunde_id: quelle.kunde_id.clone(),
-        datum: heute.clone(), leistungsdatum: heute, leistungsdatum_bis: None,
-        zahlungsziel_tage: quelle.zahlungsziel_tage,
-        kopftext: quelle.kopftext.clone(), fusstext: quelle.fusstext.clone(),
-    }).await?;
+    let gueltig_bis = if quelle.typ == "angebot" {
+        let tage = angebot_gueltigkeit_tage(pool).await?;
+        chrono::NaiveDate::parse_from_str(&heute, "%Y-%m-%d")
+            .ok()
+            .and_then(|dt| dt.checked_add_signed(chrono::Duration::days(tage)))
+            .map(|dt| dt.format("%Y-%m-%d").to_string())
+    } else {
+        None
+    };
+
+    // Eine Transaktion um Beleg und Positionen: Scheitert unterwegs etwas,
+    // bleibt kein verwaister Entwurf mit halber Positionsliste und falscher
+    // Summe zurück — dieselbe Risikoklasse wie bei angebot_ueberfuehren und
+    // storniere_rechnung.
+    let kopie_id = Uuid::new_v4().to_string();
+    let summe = belegsumme_cent(&positionen.iter().map(|p| p.positionssumme_cent).collect::<Vec<_>>());
+    let mut tx = pool.begin().await?;
+    sqlx::query("INSERT INTO beleg (id, typ, nummer, status, kunde_id, datum, leistungsdatum, leistungsdatum_bis, gueltig_bis, zahlungsziel_tage, kopftext, fusstext, summe_cent, ursprungsangebot_id, storno_von_id, adresse_id, ansprechpartner_id, created_at, updated_at) VALUES (?,?,NULL,'entwurf',?,?,?,NULL,?,?,?,?,?,NULL,NULL,?,?,?,?)")
+        .bind(&kopie_id).bind(&quelle.typ).bind(&quelle.kunde_id)
+        .bind(&heute).bind(&heute).bind(&gueltig_bis).bind(quelle.zahlungsziel_tage)
+        .bind(&quelle.kopftext).bind(&quelle.fusstext).bind(summe)
+        .bind(&adresse_id).bind(&ansprechpartner_id)
+        .bind(jetzt()).bind(jetzt())
+        .execute(&mut *tx).await?;
 
     for pos in positionen {
-        position_speichern(pool, BelegpositionNeu {
-            id: String::new(), beleg_id: kopie.id.clone(),
-            // Nicht mit dem Artikel verknüpft: Wäre sie es, würde
-            // `position_speichern` Bezeichnung, Einheit und ohne
-            // Preisvorgabe auch den Preis aus dem *aktuellen* Artikelstand
-            // neu ableiten. Eine Kopie soll aber genau abbilden, was der
-            // Ursprungsbeleg auswies — unabhängig davon, ob sich der Artikel
-            // seither geändert hat.
-            artikel_id: None,
-            bezeichnung: pos.bezeichnung.clone(), einheit_kuerzel: pos.einheit_kuerzel.clone(),
-            einzelpreis_cent: Some(pos.einzelpreis_cent), menge: pos.menge,
-        }).await?;
+        // Nicht mit dem Artikel verknüpft: Wäre sie es, würde eine spätere
+        // Bearbeitung Bezeichnung, Einheit und ohne Preisvorgabe auch den
+        // Preis aus dem *aktuellen* Artikelstand neu ableiten. Eine Kopie
+        // soll aber genau abbilden, was der Ursprungsbeleg auswies —
+        // unabhängig davon, ob sich der Artikel seither geändert hat.
+        sqlx::query("INSERT INTO belegposition (id, beleg_id, artikel_id, bezeichnung, einheit_kuerzel, einzelpreis_cent, menge, positionssumme_cent, reihenfolge, created_at, updated_at) VALUES (?,?,NULL,?,?,?,?,?,?,?,?)")
+            .bind(Uuid::new_v4().to_string()).bind(&kopie_id)
+            .bind(&pos.bezeichnung).bind(&pos.einheit_kuerzel)
+            .bind(pos.einzelpreis_cent).bind(pos.menge)
+            .bind(pos.positionssumme_cent).bind(pos.reihenfolge)
+            .bind(jetzt()).bind(jetzt())
+            .execute(&mut *tx).await?;
     }
+    tx.commit().await?;
 
-    lade_beleg(pool, &kopie.id).await
+    lade_beleg(pool, &kopie_id).await
 }
 
 /// Stellt sicher, dass eine gewählte Adresse oder ein Ansprechpartner zum
@@ -1766,6 +1809,65 @@ mod tests {
         let kopie = duplizieren(&pool, gestellt.id.clone()).await.unwrap();
         assert_eq!(kopie.status, "entwurf");
         assert_ne!(kopie.id, gestellt.id);
+    }
+
+    /// Ein Stornobeleg ist eine Gutschrift mit negativen Positionen — als
+    /// Kopiervorlage taugt er nicht, wohl aber die stornierte Rechnung selbst.
+    /// Vorher scheiterte das Duplizieren mitten in der Positionsschleife an
+    /// der Preis-Validierung und hinterließ einen leeren Entwurf.
+    #[tokio::test]
+    async fn ein_stornobeleg_laesst_sich_nicht_duplizieren_das_original_schon() {
+        let (_dir, pool) = test_pool().await;
+        let kunde_id = kunde_anlegen(&pool).await;
+        let artikel_id = artikel_anlegen(&pool, 5000).await;
+        let beleg = create(&pool, beleg_neu("rechnung", &kunde_id)).await.unwrap();
+        position_speichern(&pool, BelegpositionNeu {
+            id: "".into(), beleg_id: beleg.id.clone(), artikel_id: Some(artikel_id),
+            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000,
+        }).await.unwrap();
+        let gestellt = stellen(&pool, beleg.id).await.unwrap();
+        let storno = storniere_rechnung(&pool, gestellt.id.clone()).await.unwrap();
+
+        let err = duplizieren(&pool, storno.id.clone()).await.unwrap_err();
+        match err {
+            AppError::Validation { feld, .. } => assert_eq!(feld, "storno_von_id"),
+            anderer => panic!("unerwarteter Fehler: {anderer:?}"),
+        }
+        // Kein verwaister Entwurf entstanden: Es gibt genau Original und Storno.
+        let anzahl: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM beleg WHERE deleted_at IS NULL")
+            .fetch_one(&pool).await.unwrap();
+        assert_eq!(anzahl.0, 2);
+
+        // Die stornierte Rechnung selbst bleibt als Vorlage nutzbar.
+        let kopie = duplizieren(&pool, gestellt.id).await.unwrap();
+        assert_eq!(kopie.status, "entwurf");
+        assert_eq!(kopie.summe_cent, 5000);
+    }
+
+    /// Die monatliche Rechnung an den Kunden mit abweichender Rechnungsadresse:
+    /// Ohne Übernahme fiele die Kopie still auf die Standardadresse zurück und
+    /// würde so festgeschrieben.
+    #[tokio::test]
+    async fn duplizieren_uebernimmt_adresse_und_ansprechpartner() {
+        let (_dir, pool) = test_pool().await;
+        let kunde_id = kunde_anlegen(&pool).await;
+        let adresse_id = zweite_adresse_anlegen(&pool, &kunde_id).await;
+        let ansprechpartner_id = crate::commands::kunden::ansprechpartner_speichern(
+            &pool,
+            crate::commands::kunden::Ansprechpartner {
+                id: "".into(), kunde_id: kunde_id.clone(), name: "Erika Beispiel".into(),
+                rolle: "".into(), email: "".into(), telefon: "".into(), ist_standard: false,
+            },
+        ).await.unwrap().id;
+        let original = create(&pool, beleg_neu("rechnung", &kunde_id)).await.unwrap();
+        let mut felder = beleg_update_aus(&original);
+        felder.adresse_id = Some(adresse_id.clone());
+        felder.ansprechpartner_id = Some(ansprechpartner_id.clone());
+        update(&pool, felder).await.unwrap();
+
+        let kopie = duplizieren(&pool, original.id).await.unwrap();
+        assert_eq!(kopie.adresse_id.as_deref(), Some(adresse_id.as_str()));
+        assert_eq!(kopie.ansprechpartner_id.as_deref(), Some(ansprechpartner_id.as_str()));
     }
 
     #[tokio::test]
