@@ -7,6 +7,42 @@ auf GitHub ändert daran nichts mehr.
 
 Deshalb hier in der Sprache der Anwender, nicht in der der Commits.
 
+## 0.9.0
+
+**Sicherung**
+- Der Export unter „Einstellungen → Sicherungen" enthält jetzt neben der
+  Datenbank auch das Belegarchiv — alle bereits ausgestellten PDFs,
+  XRechnungen und ZUGFeRD-Dateien. Er liegt als Zip vor. Bisher fehlte
+  genau das im Export; wer die Datei woandershin kopierte, sicherte ohne
+  es zu merken nur die halbe Anwendung.
+- Die Sicherungen-Seite zeigt jetzt an, wann zuletzt „Speichern unter"
+  benutzt wurde — oder dass noch nie extern gesichert wurde.
+
+**Auswertung**
+- Neue Seite „Auswertung": vereinnahmte Zahlungen eines wählbaren Jahres,
+  mit Beleg und Kunde, als Grundlage für den Jahresabschluss. Export als
+  CSV mit deutschem Dezimalkomma und Semikolon als Trenner, für Excel und
+  die Steuerberater-Zuarbeit.
+
+**Angebote**
+- Ein Angebot bekommt beim Anlegen ein Gültigkeitsdatum (Vorgabe 30 Tage,
+  einstellbar unter „Einstellungen → Angebote"), jederzeit anpassbar und
+  ausgewiesen auf dem PDF. Abgelaufene Angebote verschwinden jetzt von
+  selbst aus „Offene Angebote".
+- „Als Kopie anlegen" legt zu jedem Angebot oder jeder Rechnung — auch
+  einer bereits festgeschriebenen — einen neuen Entwurf mit Kunde, Texten
+  und Positionen des Originals an.
+
+**Rechnungen**
+- Neuer Export „Zahlungserinnerung": ein PDF mit Rechnungsnummer,
+  Fälligkeit, Tagen im Verzug und offenem Betrag, für eine gestellte
+  Rechnung mit offenem Betrag. Der Erinnerungstext lässt sich unter
+  „Einstellungen → Textbausteine" anpassen.
+
+**Bedienung**
+- ⌘N/Strg+N legt auf Kunden, Artikel, Angeboten und Rechnungen einen
+  neuen Eintrag an, ⌘F/Strg+F springt ins Suchfeld.
+
 ## 0.2.4
 
 Eine kleine Fassung: Sichtbar ist daran nur das Artikelformular, der Rest ist
