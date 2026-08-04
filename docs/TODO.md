@@ -87,8 +87,10 @@ Versionssprung ([2026-08-04-review-v09.md](2026-08-04-review-v09.md)) fand
 13 Befunde, darunter vier ernste (Positions-Update über Beleggrenzen,
 Storno-Duplikat hinterließ Datenmüll, Sicherungen verloren WAL-Transaktionen,
 Duplizieren verlor die Rechnungsadresse). Alle 13 sind am selben Tag behoben
-(Commits `95158e5` bis `b48eb6c`); drei Kleinigkeiten sind im Review-Dokument
-als bewusst offen begründet.
+(Commits `95158e5` bis `b48eb6c`). Eine dritte Runde über die Fixes selbst
+fand sechs weitere (u. a. Zip-Import konnte die App startunfähig machen,
+„heute" in UTC statt Ortszeit) — ebenfalls behoben (`74d24de` bis `c09b727`).
+Vier Kleinigkeiten sind im Review-Dokument als bewusst offen begründet.
 
 ## Stand (2026-08-03)
 
