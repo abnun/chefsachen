@@ -38,6 +38,16 @@ Die Belegarchivierung folgt den GoBD: Festgeschriebene Belege lassen sich
 nicht mehr ändern, Korrekturen an importierten Eingangsrechnungen werden mit
 altem und neuem Wert protokolliert.
 
+## Was die Anwendung bewusst nicht kann
+
+**Sie verschickt keine E-Mails.** Ein Beleg wird festgeschrieben, als PDF (und
+bei Rechnungen als XRechnung/ZUGFeRD) exportiert — verschickt wird er vom
+Nutzer selbst, per Mail, Post oder wie auch immer. Das ist keine Lücke,
+sondern eine bewusste Entscheidung: Die Anwendung kennt weder ein Mailkonto
+noch einen Versandweg, und ein Beleg als „verschickt" zu markieren, ohne dass
+tatsächlich etwas verschickt wurde, wäre eine Zustellillusion. Der Wortlaut
+im Programm sagt das an jeder Stelle ausdrücklich („Verschickt wird nichts").
+
 ## Installation (für Anwender)
 
 Fertige Installationspakete werden über die Releases verteilt. Die Anleitung

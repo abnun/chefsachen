@@ -77,7 +77,10 @@ vi.mock("../api", () => ({
         };
         return Promise.resolve(werte[key] ?? null);
       }),
-      set: vi.fn(),
+      // Ein echtes Promise, wie die Anwendung es liefert: Produktionscode, der
+      // `.catch()` ohne `await` anhängt (etwa ein bewusst nicht abgewartetes
+      // Nebenbei-Speichern), bräche an einem `vi.fn()` ohne Rückgabewert.
+      set: vi.fn().mockResolvedValue(undefined),
     },
   },
   istValidierungsfehler: () => false,
@@ -272,6 +275,56 @@ describe("Einstellungen", () => {
     // Datenbank-Kopie und übersieht, dass mehr als das exportiert wird.
     render(<Einstellungen />);
     await waitFor(() => expect(screen.getByText(/Belegarchiv/)).toBeTruthy());
+  });
+
+  /*
+   * „Automatisch gesichert" heißt nicht „sicher gesichert" — die Kopien liegen
+   * auf derselben Platte. Ohne einen Hinweis darauf, wann zuletzt woandershin
+   * exportiert wurde, gerät das leicht in Vergessenheit.
+   */
+  it("sagt, wenn noch nie extern gesichert wurde", async () => {
+    render(<Einstellungen />);
+    await waitFor(() => expect(screen.getByText("Noch nie extern gesichert.")).toBeTruthy());
+  });
+
+  it("merkt sich Zeitpunkt einer externen Sicherung und zeigt ihn an", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-08-04T14:22:00Z"));
+    try {
+      vi.mocked(api.sicherungen.liste).mockResolvedValue([
+        { zeitstempel: "2026-08-01_09-00-00", groesse_bytes: 2048, pfad: "/p/a.db" },
+      ]);
+      render(<Einstellungen />);
+      await waitFor(() => expect(screen.getByText("01.08.2026, 09:00 Uhr")).toBeTruthy());
+
+      fireEvent.click(screen.getByRole("button", { name: "Speichern unter …" }));
+      await waitFor(() =>
+        expect(api.einstellungen.set).toHaveBeenCalledWith(
+          "sicherung.zuletzt_exportiert",
+          "2026-08-04T14:22:00.000Z",
+        ),
+      );
+      await waitFor(() =>
+        expect(screen.getByText(/Zuletzt extern gesichert:/)).toBeTruthy(),
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("übernimmt einen bereits gespeicherten Zeitpunkt der letzten Sicherung", async () => {
+    // Wie beim ähnlichen Test zur Angebotsgültigkeit: `mockImplementation`
+    // überlebt `clearAllMocks`, deshalb ausdrücklich zurückgesetzt, sonst
+    // sähen spätere Tests hier „null" statt ihrer eigenen Werte.
+    const urspruenglich = vi.mocked(api.einstellungen.get).getMockImplementation();
+    vi.mocked(api.einstellungen.get).mockImplementation((key: string) =>
+      Promise.resolve(key === "sicherung.zuletzt_exportiert" ? "2026-08-02T10:00:00Z" : null),
+    );
+    render(<Einstellungen />);
+    await waitFor(() =>
+      expect(screen.getByText(/Zuletzt extern gesichert: 02.08.2026/)).toBeTruthy(),
+    );
+    if (urspruenglich) vi.mocked(api.einstellungen.get).mockImplementation(urspruenglich);
   });
 
   /*

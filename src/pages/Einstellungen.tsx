@@ -17,6 +17,7 @@ import { useBestaetigung } from "../hooks/useBestaetigung";
 import { useUngespeichert } from "../hooks/useUngespeichert";
 import { Aktualisierung } from "../components/Aktualisierung";
 import { Belegvorlage } from "../components/Belegvorlage";
+import { zeitpunktDeutsch } from "../datum";
 
 /**
  * Einstellungsseite mit unabhängigen Abschnitten: Firmendaten, Sicherungen,
@@ -318,17 +319,30 @@ function FirmendatenAbschnitt() {
  * jedem Start, aber im Ernstfall wüsste niemand, dass es sie gibt oder wo sie
  * liegt.
  */
+/** Schlüssel, unter dem der Zeitpunkt der letzten externen Sicherung steht. */
+const SCHLUESSEL_ZULETZT_EXPORTIERT = "sicherung.zuletzt_exportiert";
+
 function SicherungenAbschnitt() {
   const [sicherungen, setSicherungen] = useState<Sicherung[]>([]);
   const [fehler, setFehler] = useState<AppFehler | null>(null);
   const [laeuft, setLaeuft] = useState(false);
   /** Gesetzt, sobald eine Wiederherstellung vorgemerkt ist. */
   const [neustartNoetig, setNeustartNoetig] = useState(false);
+  /**
+   * Zeitpunkt der letzten Sicherung "Speichern unter …", `null` wenn noch nie.
+   *
+   * Die automatischen Kopien liegen auf derselben Platte wie die Datenbank —
+   * bei einem Plattendefekt sind sie mit weg. Ohne diesen Hinweis gerät leicht
+   * in Vergessenheit, dass „automatisch gesichert" nicht „sicher gesichert"
+   * heißt, und die letzte externe Kopie liegt unbemerkt Monate zurück.
+   */
+  const [zuletztExportiert, setZuletztExportiert] = useState<string | null>(null);
   const { zeigen, hinweis } = useErfolgsHinweis();
   const { bestaetigen, dialog } = useBestaetigung();
 
   function laden() {
     api.sicherungen.liste().then(setSicherungen).catch((e) => setFehler(e as AppFehler));
+    api.einstellungen.get(SCHLUESSEL_ZULETZT_EXPORTIERT).then(setZuletztExportiert).catch(() => {});
   }
 
   useEffect(laden, []);
@@ -386,6 +400,11 @@ function SicherungenAbschnitt() {
       const ziel = await save({ defaultPath: `kleinunternehmer-${s.zeitstempel}.zip` });
       if (!ziel) return;
       await writeFile(ziel, new Uint8Array(bytes));
+      // Merken, wann zuletzt exportiert wurde — nicht wo: Der Speicherort ist
+      // frei gewählt und liegt oft außerhalb des Programmordners.
+      const jetzt = new Date().toISOString();
+      api.einstellungen.set(SCHLUESSEL_ZULETZT_EXPORTIERT, jetzt).catch(() => {});
+      setZuletztExportiert(jetzt);
       zeigen("Sicherung gespeichert");
     } catch (e) {
       setFehler(e as AppFehler);
@@ -416,6 +435,11 @@ function SicherungenAbschnitt() {
         Defekt sind sie mit weg — sichere zusätzlich woandershin, etwa mit „Speichern
         unter". Die dabei entstehende Datei enthält auch das Belegarchiv (erzeugte PDFs,
         XRechnungen, ZUGFeRD-Dateien), nicht nur die Datenbank.
+      </p>
+      <p className="feld-hinweis">
+        {zuletztExportiert
+          ? `Zuletzt extern gesichert: ${zeitpunktDeutsch(zuletztExportiert)}.`
+          : "Noch nie extern gesichert."}
       </p>
 
       {neustartNoetig && (
