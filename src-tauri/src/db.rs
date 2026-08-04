@@ -32,6 +32,17 @@ pub fn jetzt() -> String {
     chrono::Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string()
 }
 
+/// Heutiges Datum im ISO-Format, in der Zeitzone des Nutzers.
+///
+/// Für Belegdaten („Kopie trägt das Datum von heute", Fälligkeitsprüfung) —
+/// nicht `jetzt()[..10]`: Das wäre das UTC-Datum, und zwischen Mitternacht
+/// und 1/2 Uhr deutscher Zeit trüge ein neuer Beleg sonst das Vortagsdatum.
+/// `jetzt()` bleibt für created_at/updated_at richtig, die sind technische
+/// Zeitstempel und durchgängig UTC.
+pub fn heute() -> String {
+    chrono::Local::now().format("%Y-%m-%d").to_string()
+}
+
 /// Faltet das Write-Ahead-Log in die Hauptdatei ein.
 ///
 /// Im WAL-Modus liegen die jüngsten Transaktionen zunächst in `daten.db-wal`

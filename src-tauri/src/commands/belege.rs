@@ -1,4 +1,4 @@
-use crate::db::jetzt;
+use crate::db::{heute, jetzt};
 use crate::domain::beleg::{belegsumme_cent, positionssumme_cent};
 use crate::domain::nummernkreis::naechste_nummer;
 use crate::domain::preisfindung::effektiver_preis;
@@ -377,6 +377,19 @@ pub async fn duplizieren(pool: &SqlitePool, id: String) -> AppResult<Beleg> {
             meldung: "Ein Stornobeleg lässt sich nicht duplizieren — nutze die stornierte Rechnung als Vorlage".into(),
         });
     }
+    // Der Kunde des Originals kann inzwischen gelöscht sein: Das Löschen ist
+    // nur bei offenen *Entwürfen* gesperrt, nicht bei gestellten Belegen. Ein
+    // Entwurf mit gelöschtem Kunden ließe sich weder stellen (nichtssagendes
+    // „nicht gefunden") noch im Kunden-Dropdown sinnvoll anzeigen — besser
+    // hier eine klare Meldung, wie sie auch `create` gäbe.
+    let kunde_existiert: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM kunde WHERE id = ? AND deleted_at IS NULL")
+        .bind(&quelle.kunde_id).fetch_one(pool).await?;
+    if kunde_existiert.0 == 0 {
+        return Err(AppError::Validation {
+            feld: "kunde_id".into(),
+            meldung: "Der Kunde dieses Belegs wurde gelöscht — lege die Kopie über einen neuen Beleg an".into(),
+        });
+    }
     let positionen: Vec<Belegposition> = sqlx::query_as(
         "SELECT id, beleg_id, artikel_id, bezeichnung, einheit_kuerzel, einzelpreis_cent, menge, positionssumme_cent, reihenfolge \
          FROM belegposition WHERE beleg_id = ? AND deleted_at IS NULL ORDER BY reihenfolge")
@@ -384,17 +397,21 @@ pub async fn duplizieren(pool: &SqlitePool, id: String) -> AppResult<Beleg> {
 
     // Adresse und Ansprechpartner nur übernehmen, wenn es sie noch gibt —
     // eine seit dem Original gelöschte Auswahl fällt still auf den Standard
-    // zurück, statt das Duplizieren scheitern zu lassen.
+    // zurück, statt das Duplizieren scheitern zu lassen. Nur der
+    // Validierungsfall fällt zurück; ein technischer Fehler (Datenbank)
+    // bricht ab, sonst verlöre ausgerechnet er die abweichende Adresse still.
     let adresse_id = match pruefe_gehoert_zum_kunden(pool, "adresse", quelle.adresse_id.as_deref(), &quelle.kunde_id).await {
         Ok(()) => quelle.adresse_id.clone(),
-        Err(_) => None,
+        Err(AppError::Validation { .. }) => None,
+        Err(anderer) => return Err(anderer),
     };
     let ansprechpartner_id = match pruefe_gehoert_zum_kunden(pool, "ansprechpartner", quelle.ansprechpartner_id.as_deref(), &quelle.kunde_id).await {
         Ok(()) => quelle.ansprechpartner_id.clone(),
-        Err(_) => None,
+        Err(AppError::Validation { .. }) => None,
+        Err(anderer) => return Err(anderer),
     };
 
-    let heute = jetzt()[..10].to_string();
+    let heute = heute();
     let gueltig_bis = if quelle.typ == "angebot" {
         let tage = angebot_gueltigkeit_tage(pool).await?;
         chrono::NaiveDate::parse_from_str(&heute, "%Y-%m-%d")
@@ -805,7 +822,7 @@ pub async fn angebot_ueberfuehren(pool: &SqlitePool, angebot_id: String) -> AppR
         return Err(AppError::Validation { feld: "status".into(), meldung: "Nur festgeschriebene oder angenommene Angebote können überführt werden".into() });
     }
 
-    let heute = jetzt()[..10].to_string();
+    let heute = heute();
     let rechnung = Beleg {
         id: Uuid::new_v4().to_string(), typ: "rechnung".into(), nummer: None, status: "entwurf".into(),
         kunde_id: angebot.kunde_id.clone(), datum: heute, leistungsdatum: angebot.leistungsdatum.clone(), leistungsdatum_bis: None,
@@ -890,7 +907,7 @@ pub async fn storniere_rechnung(pool: &SqlitePool, id: String) -> AppResult<Bele
         });
     }
 
-    let heute = jetzt()[..10].to_string();
+    let heute = heute();
     let snapshot: (String,) = sqlx::query_as("SELECT kunde_snapshot FROM beleg WHERE id = ?")
         .bind(&rechnung.id).fetch_one(pool).await?;
     let mut tx = pool.begin().await?;
@@ -1767,7 +1784,7 @@ mod tests {
         assert_eq!(original.datum, "2026-07-10");
 
         let kopie = duplizieren(&pool, original.id).await.unwrap();
-        let heute = jetzt()[..10].to_string();
+        let heute = heute();
         assert_eq!(kopie.datum, heute);
         assert_eq!(kopie.leistungsdatum, kopie.datum);
     }
@@ -1791,7 +1808,7 @@ mod tests {
         update(&pool, felder).await.unwrap();
 
         let kopie = duplizieren(&pool, original.id).await.unwrap();
-        let heute = jetzt()[..10].to_string();
+        let heute = heute();
         assert!(
             kopie.gueltig_bis.as_deref().is_some_and(|g| g > heute.as_str()),
             "Kopie sollte eine zukünftige Gültigkeit haben, war: {:?}",
@@ -1849,6 +1866,30 @@ mod tests {
         let kopie = duplizieren(&pool, gestellt.id).await.unwrap();
         assert_eq!(kopie.status, "entwurf");
         assert_eq!(kopie.summe_cent, 5000);
+    }
+
+    /// Das Löschen eines Kunden ist nur bei offenen Entwürfen gesperrt — ein
+    /// Kunde mit ausschließlich gestellten Belegen ist löschbar. Ein Duplikat
+    /// eines solchen Belegs wäre ein Entwurf mit gelöschtem Kunden: nicht
+    /// stellbar und im Kunden-Dropdown unsichtbar. Besser eine klare Meldung.
+    #[tokio::test]
+    async fn ein_beleg_eines_geloeschten_kunden_laesst_sich_nicht_duplizieren() {
+        let (_dir, pool) = test_pool().await;
+        let kunde_id = kunde_anlegen(&pool).await;
+        let artikel_id = artikel_anlegen(&pool, 5000).await;
+        let beleg = create(&pool, beleg_neu("rechnung", &kunde_id)).await.unwrap();
+        position_speichern(&pool, BelegpositionNeu {
+            id: "".into(), beleg_id: beleg.id.clone(), artikel_id: Some(artikel_id),
+            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000,
+        }).await.unwrap();
+        let gestellt = stellen(&pool, beleg.id).await.unwrap();
+        crate::commands::kunden::delete(&pool, kunde_id, false).await.unwrap();
+
+        let fehler = duplizieren(&pool, gestellt.id).await.unwrap_err();
+        match fehler {
+            AppError::Validation { feld, .. } => assert_eq!(feld, "kunde_id"),
+            anderer => panic!("unerwarteter Fehler: {anderer:?}"),
+        }
     }
 
     /// Ein leerer String heißt „nicht gesetzt" und muss als NULL landen.
