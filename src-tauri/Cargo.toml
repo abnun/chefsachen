@@ -44,6 +44,9 @@ xmp-writer = "0.3"
 quick-xml = { version = "0.37", features = ["serialize"] }
 tauri-plugin-log = "2.9.0"
 log = "0.4.33"
+# Bündelt eine Sicherung mit dem Belegarchiv zu einer einzigen Datei beim
+# Exportieren (P/A1). Reine Rust-Implementierung, kein Systemwerkzeug nötig.
+zip = { version = "2", default-features = false, features = ["deflate"] }
 
 [dev-dependencies]
 # "test" liefert mock_builder/get_ipc_response — damit lassen sich Befehle über

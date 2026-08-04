@@ -370,17 +370,19 @@ function SicherungenAbschnitt() {
   }
 
   /**
-   * Legt eine Sicherung an einem selbst gewählten Ort ab.
+   * Legt eine Sicherung an einem selbst gewählten Ort ab — gebündelt mit dem
+   * Belegarchiv (erzeugte PDFs, XRechnungen, ZUGFeRD-Dateien) in einer Zip.
    *
    * Die automatischen Kopien liegen neben der Datenbank, auf derselben Platte.
    * Bei einem Defekt sind sie mit weg — erst eine Kopie woandershin ist eine
-   * Sicherung im eigentlichen Sinn.
+   * Sicherung im eigentlichen Sinn. Und die Datenbank allein reicht dafür
+   * nicht: Das Belegarchiv liegt als eigene Dateien daneben.
    */
   async function exportieren(s: Sicherung) {
     setFehler(null);
     try {
       const bytes = await api.sicherungen.exportieren(s.zeitstempel);
-      const ziel = await save({ defaultPath: `kleinunternehmer-${s.zeitstempel}.db` });
+      const ziel = await save({ defaultPath: `kleinunternehmer-${s.zeitstempel}.zip` });
       if (!ziel) return;
       await writeFile(ziel, new Uint8Array(bytes));
       zeigen("Sicherung gespeichert");
@@ -411,7 +413,8 @@ function SicherungenAbschnitt() {
       <p className="feld-hinweis">
         Diese Kopien liegen neben der Datenbank, also auf derselben Festplatte. Bei einem
         Defekt sind sie mit weg — sichere zusätzlich woandershin, etwa mit „Speichern
-        unter".
+        unter". Die dabei entstehende Datei enthält auch das Belegarchiv (erzeugte PDFs,
+        XRechnungen, ZUGFeRD-Dateien), nicht nur die Datenbank.
       </p>
 
       {neustartNoetig && (

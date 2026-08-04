@@ -405,6 +405,13 @@ export const api = {
     /** Merkt eine Sicherung zum Zurückspielen vor — wirksam beim nächsten Start. */
     wiederherstellen: (zeitstempel: string) =>
       invoke<void>("sicherung_wiederherstellen", { zeitstempel }),
+    /**
+     * Liefert die Sicherung gebündelt mit dem Belegarchiv als Zip-Datei.
+     *
+     * Nicht nur die Datenbank: Erzeugte PDFs, XRechnungen und ZUGFeRD-Dateien
+     * liegen als eigene Dateien daneben und gingen sonst unbemerkt verloren,
+     * etwa beim Umzug auf einen neuen Rechner.
+     */
     exportieren: (zeitstempel: string) => invoke<number[]>("sicherung_exportieren", { zeitstempel }),
   },
   einheiten: {

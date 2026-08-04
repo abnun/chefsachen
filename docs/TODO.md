@@ -3,6 +3,23 @@
 Priorisierte Arbeitsliste, abgeleitet aus [MVP-Review vom 2026-08-02](2026-08-02-mvp-review.md).
 Reihenfolge = Empfehlung. Jeder Punkt trägt die Referenz aus dem Review.
 
+## Stand (2026-08-04)
+
+Kritische Durchsicht zur Frage „reicht der Stand für eine 1.0?" in
+[2026-08-04-review-v1.md](2026-08-04-review-v1.md). Kurzfassung: noch nicht,
+drei Befunde offen. Der erste ist behoben:
+
+- **A1 — Sicherung deckte das Belegarchiv nicht ab (behoben 2026-08-04).**
+  `sicherung_exportieren` kopierte nur `daten.db`; die ausgestellten PDFs,
+  XRechnungen und ZUGFeRD-Dateien im `Belege`-Ordner blieben unberücksichtigt.
+  Wer eine Sicherung woandershin exportierte, verlor das GoBD-Archiv, ohne es
+  zu merken — und seit die Belegvorlage einstellbar ist, lässt sich ein
+  Beleg nicht mehr verlässlich aus der Datenbank nachbilden. Der Export liefert
+  jetzt eine Zip aus Datenbank und Belegarchiv.
+- **A2 — keine Auswertung/kein Export der Zahlen für den Jahresabschluss.**
+  Offen.
+- **A3 — Angebote laufen nie ab; kein `gueltig_bis`.** Offen.
+
 ## Stand (2026-08-03)
 
 Die Arbeitsliste des MVP-Reviews ist abgearbeitet:

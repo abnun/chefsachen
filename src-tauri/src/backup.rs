@@ -132,12 +132,13 @@ pub fn sicherung_wiederherstellen<R: tauri::Runtime>(
     vormerken(&dir, &zeitstempel)
 }
 
-/// Liest eine Sicherung als Bytes, damit die Oberfläche sie an einen selbst
-/// gewählten Ort speichern kann.
+/// Bündelt eine Sicherung mit dem Belegarchiv, damit die Oberfläche sie an
+/// einen selbst gewählten Ort speichern kann.
 ///
 /// Die automatischen Sicherungen liegen neben der Datenbank — auf derselben
 /// Platte. Bei einem Defekt sind sie mit weg; erst eine Kopie woandershin ist
-/// eine Sicherung im eigentlichen Sinn.
+/// eine Sicherung im eigentlichen Sinn. Die Datei ist eine Zip statt der
+/// nackten Datenbank: siehe [`archiv_bauen`], warum das Belegarchiv dazugehört.
 #[tauri::command]
 pub fn sicherung_exportieren<R: tauri::Runtime>(
     app: tauri::AppHandle<R>,
@@ -146,7 +147,7 @@ pub fn sicherung_exportieren<R: tauri::Runtime>(
     use tauri::Manager;
     let dir = app.path().app_data_dir().map_err(|e| AppError::Technisch(e.to_string()))?;
     let pfad = verzeichnis(&dir).join(format!("{PRAEFIX}{zeitstempel}{ENDUNG}"));
-    std::fs::read(&pfad).map_err(|e| AppError::Technisch(format!("Sicherung nicht lesbar: {e}")))
+    archiv_bauen(&pfad, &dir)
 }
 
 /// Legt auf Wunsch sofort eine Sicherung an — etwa vor einer größeren Änderung.
@@ -161,6 +162,62 @@ pub fn sicherung_jetzt<R: tauri::Runtime>(app: tauri::AppHandle<R>) -> AppResult
         .into_iter()
         .find(|s| s.zeitstempel == zeitstempel)
         .ok_or_else(|| AppError::Technisch("Sicherung wurde angelegt, ist aber nicht auffindbar.".into()))
+}
+
+/// Bündelt eine Datenbank-Sicherung mit dem Belegarchiv zu einer Zip-Datei.
+///
+/// Eine Sicherung der Datenbank allein reicht nicht: Erzeugte PDFs,
+/// XRechnungen und ZUGFeRD-Dateien liegen als eigene Dateien im
+/// `Belege`-Ordner daneben, nicht in der Datenbank. Wer nur die Datenbank
+/// exportiert und woandershin verschiebt — etwa beim Umzug auf einen neuen
+/// Rechner —, verliert dieses Archiv, ohne es zu merken. Und seit die
+/// Belegvorlage einstellbar ist, lässt sich ein Beleg auch nicht mehr
+/// verlässlich aus der Datenbank nachbilden: Ein später neu erzeugtes PDF
+/// kann anders aussehen als das damals ausgestellte.
+///
+/// Die Zip trägt dieselbe Struktur wie im Programmordner (`daten.db` und
+/// `Belege/…`), damit sie sich im Zweifel von Hand an ihren Platz zurücklegen
+/// lässt.
+pub fn archiv_bauen(datenbank: &Path, app_data_dir: &Path) -> AppResult<Vec<u8>> {
+    use std::io::Write;
+
+    let db_bytes = std::fs::read(datenbank)
+        .map_err(|e| AppError::Technisch(format!("Sicherung nicht lesbar: {e}")))?;
+
+    let mut puffer = Vec::new();
+    let mut zip = zip::ZipWriter::new(std::io::Cursor::new(&mut puffer));
+    let optionen = zip::write::SimpleFileOptions::default()
+        .compression_method(zip::CompressionMethod::Deflated);
+    let fehler = |e: zip::result::ZipError| AppError::Technisch(format!("Archiv nicht erstellbar: {e}"));
+
+    zip.start_file("daten.db", optionen).map_err(fehler)?;
+    zip.write_all(&db_bytes)
+        .map_err(|e| AppError::Technisch(format!("Archiv nicht beschreibbar: {e}")))?;
+
+    let belege_dir = crate::dokument::export::belege_verzeichnis(app_data_dir);
+    if let Ok(eintraege) = std::fs::read_dir(&belege_dir) {
+        // Nur Dateien, sortiert: Der Ordner enthält bislang keine
+        // Unterordner, aber ein deterministisches Archiv lässt sich leichter
+        // mit einem früheren vergleichen als eines mit zufälliger Reihenfolge.
+        let mut dateien: Vec<_> = eintraege
+            .filter_map(|e| e.ok())
+            .map(|e| e.path())
+            .filter(|p| p.is_file())
+            .collect();
+        dateien.sort();
+
+        for datei in dateien {
+            let Some(name) = datei.file_name().and_then(|n| n.to_str()) else { continue };
+            zip.start_file(format!("Belege/{name}"), optionen).map_err(fehler)?;
+            let bytes = std::fs::read(&datei)
+                .map_err(|e| AppError::Technisch(format!("Beleg nicht lesbar: {e}")))?;
+            zip.write_all(&bytes)
+                .map_err(|e| AppError::Technisch(format!("Archiv nicht beschreibbar: {e}")))?;
+        }
+    }
+
+    zip.finish().map_err(fehler)?;
+    Ok(puffer)
 }
 
 /// Name der Datei, die einen vorgemerkten Wiederherstellungswunsch trägt.
@@ -300,6 +357,56 @@ mod tests {
 
         assert!(!dir.path().join("daten.db-wal").exists());
         assert!(!dir.path().join("daten.db-shm").exists());
+    }
+
+    /// Liest die Namen aller Einträge einer Zip zurück, zum Prüfen im Test.
+    fn zip_eintraege(bytes: &[u8]) -> Vec<String> {
+        let mut archiv = zip::ZipArchive::new(std::io::Cursor::new(bytes)).unwrap();
+        (0..archiv.len())
+            .map(|i| archiv.by_index(i).unwrap().name().to_string())
+            .collect()
+    }
+
+    fn zip_datei(bytes: &[u8], name: &str) -> Vec<u8> {
+        let mut archiv = zip::ZipArchive::new(std::io::Cursor::new(bytes)).unwrap();
+        let mut datei = archiv.by_name(name).unwrap();
+        let mut inhalt = Vec::new();
+        std::io::Read::read_to_end(&mut datei, &mut inhalt).unwrap();
+        inhalt
+    }
+
+    #[test]
+    fn archiv_enthaelt_datenbank_und_belege() {
+        // Der eigentliche Befund: Eine Sicherung der Datenbank allein deckt
+        // das Belegarchiv nicht ab. Diese Zip muss beides tragen.
+        let dir = tempfile::tempdir().unwrap();
+        let db = datenbank_anlegen(dir.path(), "datenbankinhalt");
+        let belege = crate::dokument::export::belege_verzeichnis(dir.path());
+        std::fs::create_dir_all(&belege).unwrap();
+        std::fs::write(belege.join("RE-2026-0001.pdf"), b"pdf-inhalt").unwrap();
+        std::fs::write(belege.join("RE-2026-0001.xrechnung.xml"), b"xml-inhalt").unwrap();
+
+        let bytes = archiv_bauen(&db, dir.path()).unwrap();
+
+        let namen = zip_eintraege(&bytes);
+        assert_eq!(
+            namen,
+            vec!["daten.db", "Belege/RE-2026-0001.pdf", "Belege/RE-2026-0001.xrechnung.xml"],
+        );
+        assert_eq!(zip_datei(&bytes, "daten.db"), b"datenbankinhalt");
+        assert_eq!(zip_datei(&bytes, "Belege/RE-2026-0001.pdf"), b"pdf-inhalt");
+    }
+
+    #[test]
+    fn archiv_funktioniert_auch_ohne_belegordner() {
+        // Wer noch nie etwas exportiert hat, hat auch noch keinen `Belege`-
+        // Ordner. Das darf das Sichern nicht verhindern.
+        let dir = tempfile::tempdir().unwrap();
+        let db = datenbank_anlegen(dir.path(), "inhalt");
+
+        let bytes = archiv_bauen(&db, dir.path()).unwrap();
+
+        assert_eq!(zip_eintraege(&bytes), vec!["daten.db"]);
     }
 
     #[test]

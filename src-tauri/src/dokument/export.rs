@@ -26,11 +26,19 @@ fn ablegen(verzeichnis: &std::path::Path, dateiname: &str, bytes: &[u8]) -> AppR
     Ok(())
 }
 
+/// Das Belegarchiv: erzeugte PDFs, XRechnungen und ZUGFeRD-Dateien.
+///
+/// Liegt neben der Datenbank, nicht darin — die Dateien wären sonst BLOBs in
+/// einer sonst schlanken Tabelle. Genau deshalb deckt eine Sicherung der
+/// Datenbank allein dieses Archiv nicht ab; siehe `backup::archiv_bauen`.
+pub(crate) fn belege_verzeichnis(app_data_dir: &std::path::Path) -> std::path::PathBuf {
+    app_data_dir.join("Belege")
+}
+
 fn im_app_verzeichnis_ablegen<R: tauri::Runtime>(app: &tauri::AppHandle<R>, dateiname: &str, bytes: &[u8]) -> AppResult<()> {
-    let verzeichnis = app.path().app_data_dir()
-        .map_err(|e| crate::error::AppError::Technisch(e.to_string()))?
-        .join("Belege");
-    ablegen(&verzeichnis, dateiname, bytes)
+    let app_data_dir = app.path().app_data_dir()
+        .map_err(|e| crate::error::AppError::Technisch(e.to_string()))?;
+    ablegen(&belege_verzeichnis(&app_data_dir), dateiname, bytes)
 }
 
 pub(crate) async fn firma_logo(pool: &SqlitePool) -> AppResult<Option<Vec<u8>>> {

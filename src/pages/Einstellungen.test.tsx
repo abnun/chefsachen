@@ -11,7 +11,7 @@ afterEach(() => {
 
 vi.mock("@tauri-apps/plugin-dialog", () => ({
   open: vi.fn().mockResolvedValue(null),
-  save: vi.fn().mockResolvedValue("/ziel/sicherung.db"),
+  save: vi.fn().mockResolvedValue("/ziel/sicherung.zip"),
 }));
 // Der Abschnitt „Programmversion" gehört zu dieser Seite; seine eigenen Tests
 // stehen in Aktualisierung.test.tsx. Hier reicht es, ihn stumm zu stellen.
@@ -248,6 +248,7 @@ describe("Einstellungen", () => {
 
   it("speichert eine Sicherung an einen selbst gewählten Ort", async () => {
     // Die automatischen Kopien liegen auf derselben Platte wie das Original.
+    const { save } = await import("@tauri-apps/plugin-dialog");
     const { writeFile } = await import("@tauri-apps/plugin-fs");
     vi.mocked(api.sicherungen.liste).mockResolvedValue([
       { zeitstempel: "2026-08-01_09-00-00", groesse_bytes: 2048, pfad: "/p/a.db" },
@@ -258,5 +259,17 @@ describe("Einstellungen", () => {
     fireEvent.click(screen.getByRole("button", { name: "Speichern unter …" }));
     await waitFor(() => expect(api.sicherungen.exportieren).toHaveBeenCalledWith("2026-08-01_09-00-00"));
     await waitFor(() => expect(writeFile).toHaveBeenCalled());
+    // Zip statt nackter Datenbank: Die Sicherung trägt seither auch das
+    // Belegarchiv, nicht nur die Datenbank.
+    expect(save).toHaveBeenCalledWith(
+      expect.objectContaining({ defaultPath: expect.stringMatching(/\.zip$/) }),
+    );
+  });
+
+  it("nennt das Belegarchiv im Hinweis zur Sicherung", async () => {
+    // Ohne diesen Satz hält man „Speichern unter" für eine reine
+    // Datenbank-Kopie und übersieht, dass mehr als das exportiert wird.
+    render(<Einstellungen />);
+    await waitFor(() => expect(screen.getByText(/Belegarchiv/)).toBeTruthy());
   });
 });
