@@ -7,6 +7,24 @@ auf GitHub ändert daran nichts mehr.
 
 Deshalb hier in der Sprache der Anwender, nicht in der der Commits.
 
+## 0.9.2
+
+**Übersicht**
+- Neuer Knopf „Rundgang" neben dem Seitentitel: hebt nacheinander sechs
+  Bereiche der Übersicht hervor und erklärt sie kurz — vereinnahmter
+  Umsatz, offene Rechnungen, offene Angebote, zuletzt bearbeitete Belege
+  und die Kleinunternehmergrenzen.
+
+**Angebote und Rechnungen**
+- Der Knopf „Neues Angebot"/„Neue Rechnung" steht jetzt oben neben Suche
+  und Statusfilter, wie bei Kunden und Artikeln — vorher stand er
+  unterhalb der Tabelle und war auf jeder Seite woanders zu finden.
+
+**Kunden, Artikel, Angebote, Rechnungen**
+- Die bestehende Liste bleibt jetzt vollständig ausgeblendet, solange das
+  Anlage- oder Bearbeiten-Formular offen ist. Vorher blieb sie sichtbar
+  und wirkte wie ein Teil des neuen Eintrags.
+
 ## 0.9.1
 
 **Hinweis auf eine neue Version**
