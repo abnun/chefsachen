@@ -17,7 +17,36 @@ import { useErfolgsHinweis } from "../hooks/useErfolgsHinweis";
 import { useBestaetigung } from "../hooks/useBestaetigung";
 import { useListenTastenkuerzel } from "../hooks/useListenTastenkuerzel";
 import { KundenpreiseDialog } from "../components/KundenpreiseDialog";
+import { type FuehrungsSchritt } from "../components/Fuehrung";
+import { SeitenkopfMitRundgang } from "../components/SeitenkopfMitRundgang";
 import { formatCent, parseEuro } from "../geld";
+
+/**
+ * Statisch außerhalb der Komponente, wie auf der Übersicht: Ein je Rendern
+ * neues Array ließe den Positionierungs-Effekt der Führung durchdrehen.
+ */
+const RUNDGANG_SCHRITTE: FuehrungsSchritt[] = [
+  {
+    ziel: "[data-tour='titel']",
+    titel: "Artikel & Leistungen",
+    text: "Was du verkaufst — Stundensätze, Pauschalen, Produkte. Ein einmal angelegter Artikel lässt sich in jedem Angebot und jeder Rechnung als Position einfügen, mit Preis und Einheit gleich dabei.",
+  },
+  {
+    ziel: "[data-tour='neu']",
+    titel: "Neuer Artikel",
+    text: "Legt einen Artikel mit Bezeichnung, Einheit und Standardpreis an — auch per ⌘N (Strg+N). Der Preis ist eine Vorgabe: In einem Beleg lässt er sich pro Position überschreiben.",
+  },
+  {
+    ziel: "[data-tour='tabelle']",
+    titel: "Die Artikelliste",
+    text: "Bearbeiten ändert den Artikel für künftige Belege — bereits festgeschriebene bleiben unverändert, sie haben den damaligen Stand eingefroren.",
+  },
+  {
+    ziel: "[data-tour='kundenpreise']",
+    titel: "Kundenpreise",
+    text: "Ausnahmen vom Standardpreis für einzelne Kunden — etwa ein Treuerabatt. Beim Erfassen einer Position zieht automatisch der Preis, der für den Kunden des Belegs gilt.",
+  },
+];
 
 const ARTIKEL_NEU_LEER = {
   bezeichnung: "",
@@ -197,7 +226,7 @@ export function Artikel({ zeigeFormularBeimStart, onFormularUebernommen, onZuKun
 
   return (
     <div>
-      <h1 className="seiten-kopf">Artikel &amp; Leistungen</h1>
+      <SeitenkopfMitRundgang titel="Artikel & Leistungen" schritte={RUNDGANG_SCHRITTE} />
       <Fehler fehler={fehler} />
       {hinweis}
       {dialog}
@@ -213,7 +242,7 @@ export function Artikel({ zeigeFormularBeimStart, onFormularUebernommen, onZuKun
 
       <Werkzeugleiste
         aktion={
-          <button type="button" className="btn btn-primaer" onClick={neuFormular}>
+          <button type="button" className="btn btn-primaer" data-tour="neu" onClick={neuFormular}>
             Neuer Artikel
           </button>
         }
@@ -303,7 +332,7 @@ export function Artikel({ zeigeFormularBeimStart, onFormularUebernommen, onZuKun
             </Hinweis>
           )}
 
-          <table className="tabelle">
+          <table className="tabelle" data-tour="tabelle">
             <thead>
               <tr>
                 <SortierKopf spalte="nummer" aktiv={sortierung.spalte} richtung={sortierung.richtung} onSortieren={sortieren}>
@@ -338,6 +367,7 @@ export function Artikel({ zeigeFormularBeimStart, onFormularUebernommen, onZuKun
                     <button
                       type="button"
                       className="btn btn-leise"
+                      data-tour="kundenpreise"
                       onClick={() => setPreiseFuer(a)}
                       aria-label={`Kundenpreise für ${a.bezeichnung}`}
                     >

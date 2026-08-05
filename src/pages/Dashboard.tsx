@@ -4,7 +4,8 @@ import { Fehler } from "../components/Fehler";
 import { Laden } from "../components/Laden";
 import { ZeilenKnopf } from "../components/ZeilenKnopf";
 import { ErsteSchritte, type Schritt } from "../components/ErsteSchritte";
-import { Fuehrung, type FuehrungsSchritt } from "../components/Fuehrung";
+import { type FuehrungsSchritt } from "../components/Fuehrung";
+import { SeitenkopfMitRundgang } from "../components/SeitenkopfMitRundgang";
 import { formatCent } from "../geld";
 import { datumDeutsch } from "../datum";
 
@@ -153,7 +154,6 @@ function HinweisKarte({ hinweis }: { hinweis: Hinweis }) {
 export function Dashboard({ onRechnungOeffnen, onAngebotOeffnen, onErsterSchritt }: DashboardProps) {
   const [daten, setDaten] = useState<DashboardDaten | null>(null);
   const [fehler, setFehler] = useState<AppFehler | null>(null);
-  const [zeigtRundgang, setZeigtRundgang] = useState(false);
 
   useEffect(() => {
     api.dashboard
@@ -187,16 +187,7 @@ export function Dashboard({ onRechnungOeffnen, onAngebotOeffnen, onErsterSchritt
 
   return (
     <div>
-      <div className="seiten-kopf-zeile">
-        <h1 className="seiten-kopf" data-tour="titel">Übersicht {daten.jahr}</h1>
-        <button type="button" className="btn" onClick={() => setZeigtRundgang(true)}>
-          Rundgang
-        </button>
-      </div>
-
-      {zeigtRundgang && (
-        <Fuehrung schritte={RUNDGANG_SCHRITTE} onBeenden={() => setZeigtRundgang(false)} />
-      )}
+      <SeitenkopfMitRundgang titel={<>Übersicht {daten.jahr}</>} schritte={RUNDGANG_SCHRITTE} />
 
       {/* Ganz oben: Wer noch am Anfang steht, soll nicht erst an Umsatzzahlen
           vorbeiscrollen, die alle auf null stehen. */}

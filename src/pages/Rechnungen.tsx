@@ -12,7 +12,41 @@ import { datumDeutsch, heuteIso } from "../datum";
 import { formatCent } from "../geld";
 import { useBelegListe } from "../hooks/useBelegListe";
 import { useListenTastenkuerzel } from "../hooks/useListenTastenkuerzel";
+import { type FuehrungsSchritt } from "../components/Fuehrung";
+import { SeitenkopfMitRundgang } from "../components/SeitenkopfMitRundgang";
 import { type Zahlungsstand } from "../api";
+
+/**
+ * Statisch außerhalb der Komponente, wie auf der Übersicht: Ein je Rendern
+ * neues Array ließe den Positionierungs-Effekt der Führung durchdrehen.
+ */
+const RUNDGANG_SCHRITTE: FuehrungsSchritt[] = [
+  {
+    ziel: "[data-tour='titel']",
+    titel: "Rechnungen",
+    text: "Vom Entwurf über das Stellen (feste Nummer, unveränderbar) bis zur Zahlung. Korrekturen an einer gestellten Rechnung gehen nur noch per Storno — so verlangt es die GoBD.",
+  },
+  {
+    ziel: "[data-tour='suche']",
+    titel: "Suche",
+    text: "Findet Rechnungen nach Nummer oder Kundenname — auch nach dem beim Stellen eingefrorenen Namen. ⌘F (Strg+F) springt hierher.",
+  },
+  {
+    ziel: "[data-tour='status']",
+    titel: "Statusfilter",
+    text: "Entwurf, gestellt oder storniert. Wer offene Posten sucht, ist auf der Übersicht schneller — dort stehen sie mit Fälligkeit gesammelt.",
+  },
+  {
+    ziel: "[data-tour='neu']",
+    titel: "Neue Rechnung",
+    text: "Kunde und Datum wählen, dann öffnet sich der Entwurf — auch per ⌘N (Strg+N). Aus einem angenommenen Angebot entsteht eine Rechnung übrigens direkt im Angebot selbst.",
+  },
+  {
+    ziel: "[data-tour='tabelle']",
+    titel: "Die Rechnungsliste",
+    text: "Neben Status und Summe stehen hier Zahlungsstand, Fälligkeit (überfällig rot) und der noch offene Betrag. Ein Klick auf eine Zeile öffnet die Rechnung samt Zahlungserfassung.",
+  },
+];
 
 interface RechnungenProps {
   onOeffnen: (id: string) => void;
@@ -66,12 +100,12 @@ export function Rechnungen({ onOeffnen }: RechnungenProps) {
 
   return (
     <div>
-      <h1 className="seiten-kopf">Rechnungen</h1>
+      <SeitenkopfMitRundgang titel="Rechnungen" schritte={RUNDGANG_SCHRITTE} />
       {liste.fehler && <Fehler fehler={liste.fehler} />}
       <Werkzeugleiste
         filter={
           <>
-            <label className="feld">
+            <label className="feld" data-tour="suche">
               Suche
               <input
                 ref={sucheRef}
@@ -81,7 +115,7 @@ export function Rechnungen({ onOeffnen }: RechnungenProps) {
                 placeholder="Nummer oder Kunde"
               />
             </label>
-            <label className="feld">
+            <label className="feld" data-tour="status">
               Status
               <select
                 value={liste.statusFilter}
@@ -102,6 +136,7 @@ export function Rechnungen({ onOeffnen }: RechnungenProps) {
             <button
               type="button"
               className="btn btn-primaer"
+              data-tour="neu"
               onClick={() => liste.setZeigeFormular(true)}
             >
               Neue Rechnung
@@ -136,7 +171,7 @@ export function Rechnungen({ onOeffnen }: RechnungenProps) {
             </p>
           )}
 
-          <table className="tabelle tabelle-klickbar">
+          <table className="tabelle tabelle-klickbar" data-tour="tabelle">
             <thead>
               <tr>
                 <SortierKopf

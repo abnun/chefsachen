@@ -8,6 +8,35 @@ import { Werkzeugleiste } from "../components/Werkzeugleiste";
 import { formatCent, formatCentZahl } from "../geld";
 import { datumDeutsch } from "../datum";
 import { zuCsv } from "../csv";
+import { type FuehrungsSchritt } from "../components/Fuehrung";
+import { SeitenkopfMitRundgang } from "../components/SeitenkopfMitRundgang";
+
+/**
+ * Statisch außerhalb der Komponente, wie auf der Übersicht: Ein je Rendern
+ * neues Array ließe den Positionierungs-Effekt der Führung durchdrehen.
+ */
+const RUNDGANG_SCHRITTE: FuehrungsSchritt[] = [
+  {
+    ziel: "[data-tour='titel']",
+    titel: "Auswertung",
+    text: "Die Zuarbeit für den Jahresabschluss: alle vereinnahmten Zahlungen eines Jahres, mit Beleg und Kunde. Gezählt wird nach Zufluss (§ 19 Abs. 2 UStG) — wann das Geld kam, nicht wann die Rechnung gestellt wurde.",
+  },
+  {
+    ziel: "[data-tour='jahr']",
+    titel: "Jahresauswahl",
+    text: "Zur Wahl stehen alle Jahre, in denen Zahlungen eingegangen sind — auch zurückliegende, etwa für eine nachträgliche Steuerberater-Anfrage.",
+  },
+  {
+    ziel: "[data-tour='csv']",
+    titel: "Als CSV exportieren",
+    text: "Erzeugt eine Datei für Excel und die Steuerberater-Zuarbeit: deutsches Dezimalkomma, Semikolon als Trenner, Erstattungen als negative Beträge.",
+  },
+  {
+    ziel: "[data-tour='tabelle']",
+    titel: "Die Zahlungsliste",
+    text: "Jede Zeile ist ein Zahlungseingang mit Datum, Rechnungsnummer und Kunde. Die Summe unten entspricht dem vereinnahmten Umsatz der Übersicht für dasselbe Jahr.",
+  },
+];
 
 /**
  * Auswertung für den Jahresabschluss: vereinnahmte Zahlungen eines Jahres,
@@ -77,13 +106,13 @@ export function Auswertung() {
 
   return (
     <div>
-      <h1 className="seiten-kopf">Auswertung</h1>
+      <SeitenkopfMitRundgang titel="Auswertung" schritte={RUNDGANG_SCHRITTE} />
       <Fehler fehler={fehler} />
 
       <Werkzeugleiste
         filter={
           jahre && jahr !== null ? (
-            <label className="feld">
+            <label className="feld" data-tour="jahr">
               Jahr
               <select value={jahr} onChange={(e) => setJahr(Number(e.currentTarget.value))}>
                 {jahre.map((j) => (
@@ -99,6 +128,7 @@ export function Auswertung() {
           <button
             type="button"
             className="btn btn-primaer"
+            data-tour="csv"
             disabled={!daten || daten.vereinnahmungen.length === 0}
             onClick={csvExportieren}
           >
@@ -122,7 +152,7 @@ export function Auswertung() {
           {daten.vereinnahmungen.length === 0 ? (
             <p>Keine vereinnahmten Zahlungen in {daten.jahr}.</p>
           ) : (
-            <table className="tabelle">
+            <table className="tabelle" data-tour="tabelle">
               <thead>
                 <tr>
                   <th>Datum</th>

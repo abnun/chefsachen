@@ -39,6 +39,15 @@ afterEach(() => {
 const LEER = (jahr: number) => ({ jahr, summe_cent: 0, vereinnahmungen: [] });
 
 describe("Auswertung", () => {
+  it("startet den Rundgang über den Knopf im Seitenkopf", async () => {
+    vi.mocked(api.auswertung.verfuegbareJahre).mockResolvedValue([]);
+    vi.mocked(api.auswertung.jahresauswertung).mockResolvedValue(LEER(2026));
+    render(<Auswertung />);
+    await waitFor(() => expect(screen.getByText(/Keine vereinnahmten Zahlungen/)).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Rundgang" }));
+    expect(screen.getByText("1 von 4")).toBeTruthy();
+  });
+
   it("wählt ohne Zahlungen das laufende Jahr", async () => {
     vi.mocked(api.auswertung.verfuegbareJahre).mockResolvedValue([]);
     vi.mocked(api.auswertung.jahresauswertung).mockResolvedValue(LEER(2026));

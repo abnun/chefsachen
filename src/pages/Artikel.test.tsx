@@ -278,6 +278,13 @@ describe("Artikel", () => {
     expect(screen.getByLabelText("Bezeichnung")).toHaveValue("Halb getippt");
   });
 
+  it("startet den Rundgang über den Knopf im Seitenkopf", async () => {
+    render(<Artikel />);
+    await waitFor(() => expect(screen.getByText("Beratung")).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Rundgang" }));
+    expect(screen.getByText("1 von 4")).toBeTruthy();
+  });
+
   it("blendet die Artikelliste aus, während das Formular offen ist", async () => {
     render(<Artikel />);
     await waitFor(() => expect(screen.getByText("Beratung")).toBeTruthy());

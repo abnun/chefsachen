@@ -11,7 +11,36 @@ import { Hinweis } from "../components/Hinweis";
 import { useErfolgsHinweis } from "../hooks/useErfolgsHinweis";
 import { useBestaetigung } from "../hooks/useBestaetigung";
 import { useListenTastenkuerzel } from "../hooks/useListenTastenkuerzel";
+import { type FuehrungsSchritt } from "../components/Fuehrung";
+import { SeitenkopfMitRundgang } from "../components/SeitenkopfMitRundgang";
 import type { Reiter } from "./KundeDetail";
+
+/**
+ * Statisch außerhalb der Komponente, wie auf der Übersicht: Ein je Rendern
+ * neues Array ließe den Positionierungs-Effekt der Führung durchdrehen.
+ */
+const RUNDGANG_SCHRITTE: FuehrungsSchritt[] = [
+  {
+    ziel: "[data-tour='titel']",
+    titel: "Kunden",
+    text: "Alle Auftraggeber an einem Ort. Ohne Kunden lässt sich kein Angebot und keine Rechnung schreiben — hier beginnt jeder neue Vorgang.",
+  },
+  {
+    ziel: "[data-tour='suche']",
+    titel: "Suche",
+    text: "Findet Kunden nach Nummer oder Name. ⌘F (Strg+F) springt von überall auf dieser Seite hierher.",
+  },
+  {
+    ziel: "[data-tour='neu']",
+    titel: "Neuer Kunde",
+    text: "Legt einen Kunden an — es reicht der Name, alles Weitere lässt sich nachtragen. Auch per ⌘N (Strg+N). Adresse und Ansprechpartner kommen danach auf der Detailseite dazu.",
+  },
+  {
+    ziel: "[data-tour='tabelle']",
+    titel: "Die Kundenliste",
+    text: "Ein Klick auf eine Zeile öffnet die Detailseite mit Stammdaten, Adressen und Ansprechpartnern. Das Warnsymbol neben einem Namen heißt: Es fehlt noch eine Rechnungsadresse — ohne sie lässt sich keine Rechnung stellen.",
+  },
+];
 
 interface KundenProps {
   onOeffnen: (id: string, startReiter?: Reiter) => void;
@@ -151,7 +180,7 @@ export function Kunden({
 
   return (
     <div>
-      <h1 className="seiten-kopf">Kunden</h1>
+      <SeitenkopfMitRundgang titel="Kunden" schritte={RUNDGANG_SCHRITTE} />
       <Fehler fehler={fehler} />
       {hinweis}
       {dialog}
@@ -180,7 +209,7 @@ export function Kunden({
 
       <Werkzeugleiste
         filter={
-          <label className="feld">
+          <label className="feld" data-tour="suche">
             Suche
             <input
               ref={sucheRef}
@@ -195,6 +224,7 @@ export function Kunden({
           <button
             type="button"
             className="btn btn-primaer"
+            data-tour="neu"
             onClick={() => setZeigeFormular(true)}
           >
             Neuer Kunde
@@ -323,7 +353,7 @@ export function Kunden({
             <p>Keine Kunden gefunden für „{suche}".</p>
           )}
 
-          <table className="tabelle tabelle-klickbar">
+          <table className="tabelle tabelle-klickbar" data-tour="tabelle">
             <thead>
               <tr>
                 <SortierKopf spalte="nummer" aktiv={sortierung.spalte} richtung={sortierung.richtung} onSortieren={sortieren}>

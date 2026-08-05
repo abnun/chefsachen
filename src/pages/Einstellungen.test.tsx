@@ -108,6 +108,13 @@ function EinstellungenMitAnbieter() {
 }
 
 describe("Einstellungen", () => {
+  it("startet den Rundgang über den Knopf im Seitenkopf", async () => {
+    render(<EinstellungenMitAnbieter />);
+    await waitFor(() => expect(screen.getByDisplayValue("Musterfirma")).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Rundgang" }));
+    expect(screen.getByText("1 von 7")).toBeTruthy();
+  });
+
   it("laedt und zeigt Firmendaten, Einheiten und Nummernkreise", async () => {
     render(<EinstellungenMitAnbieter />);
     await waitFor(() => expect(screen.getByDisplayValue("Musterfirma")).toBeTruthy());

@@ -18,6 +18,50 @@ import { useUngespeichert } from "../hooks/useUngespeichert";
 import { Aktualisierung } from "../components/Aktualisierung";
 import { Belegvorlage } from "../components/Belegvorlage";
 import { zeitpunktDeutsch } from "../datum";
+import { type FuehrungsSchritt } from "../components/Fuehrung";
+import { SeitenkopfMitRundgang } from "../components/SeitenkopfMitRundgang";
+
+/**
+ * Statisch außerhalb der Komponente, wie auf der Übersicht: Ein je Rendern
+ * neues Array ließe den Positionierungs-Effekt der Führung durchdrehen.
+ */
+const RUNDGANG_SCHRITTE: FuehrungsSchritt[] = [
+  {
+    ziel: "[data-tour='titel']",
+    titel: "Einstellungen",
+    text: "Alles Grundsätzliche an einem Ort: Firmendaten, Sicherungen, Nummernkreise, Textbausteine, das Aussehen der Belege und die Programmversion. Jeder Abschnitt speichert für sich.",
+  },
+  {
+    ziel: "[data-tour='firmendaten']",
+    titel: "Firmendaten",
+    text: "Anschrift, Steuernummer, Bankverbindung, Kontaktdaten und Logo — sie erscheinen auf jedem Beleg. E-Mail und Telefon sind zugleich Pflichtangaben für den XRechnung-Export.",
+  },
+  {
+    ziel: "[data-tour='sicherungen']",
+    titel: "Sicherungen",
+    text: "Bei jedem Start entsteht automatisch eine Kopie der Datenbank. Wichtig: Die liegt auf derselben Platte — erst Speichern unter bringt eine echte Sicherung woandershin, samt Belegarchiv als Zip, die sich hier auch wieder einspielen lässt.",
+  },
+  {
+    ziel: "[data-tour='nummernkreise']",
+    titel: "Nummernkreise",
+    text: "Bestimmen, wie Angebots- und Rechnungsnummern aussehen. Vergeben wird lückenlos und nie doppelt — eine einmal verbrauchte Nummer kommt nicht wieder (GoBD).",
+  },
+  {
+    ziel: "[data-tour='textbausteine']",
+    titel: "Textbausteine",
+    text: "Vorgaben für Kopf- und Fußtexte neuer Belege, den Kleinunternehmer-Hinweis und die Zahlungserinnerung. In jedem einzelnen Beleg lassen sich die Texte weiter anpassen.",
+  },
+  {
+    ziel: "[data-tour='belegvorlage']",
+    titel: "Belegvorlage",
+    text: "Das Aussehen von Angebot und Rechnung: Logo-Position, Farben, Spalten, Ränder — mit Vorschau daneben, die sofort mitzeichnet. Pflichtangaben und das DIN-5008-Anschriftfeld sind bewusst nicht verstellbar.",
+  },
+  {
+    ziel: "[data-tour='programmversion']",
+    titel: "Programmversion",
+    text: "Zeigt die installierte Version und sucht nach Aktualisierungen — beim Start automatisch, hier auch von Hand. Installiert wird nie ungefragt.",
+  },
+];
 
 /**
  * Einstellungsseite mit unabhängigen Abschnitten: Firmendaten, Sicherungen,
@@ -28,7 +72,7 @@ import { zeitpunktDeutsch } from "../datum";
 export function Einstellungen() {
   return (
     <div>
-      <h1 className="seiten-kopf">Einstellungen</h1>
+      <SeitenkopfMitRundgang titel="Einstellungen" schritte={RUNDGANG_SCHRITTE} />
       <FirmendatenAbschnitt />
       <SicherungenAbschnitt />
       <EinheitenAbschnitt />
@@ -173,7 +217,7 @@ function FirmendatenAbschnitt() {
   }
 
   return (
-    <section>
+    <section data-tour="firmendaten">
       <h2>Firmendaten</h2>
       <Fehler fehler={bannerFehler} />
       {hinweis}
@@ -512,7 +556,7 @@ function SicherungenAbschnitt() {
   }
 
   return (
-    <section className="karte">
+    <section className="karte" data-tour="sicherungen">
       <h2>Sicherungen</h2>
       <Fehler fehler={fehler} />
       {hinweis}
@@ -745,7 +789,7 @@ function NummernkreiseAbschnitt() {
   }
 
   return (
-    <section>
+    <section data-tour="nummernkreise">
       <h2>Nummernkreise</h2>
       <Fehler fehler={fehler} />
       {hinweis}
@@ -893,7 +937,7 @@ function TextbausteineAbschnitt() {
   }
 
   return (
-    <section>
+    <section data-tour="textbausteine">
       <h2>Textbausteine</h2>
       <Fehler fehler={fehler} />
       {hinweis}

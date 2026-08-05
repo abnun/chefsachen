@@ -148,7 +148,7 @@ export function Belegvorlage() {
   }
 
   return (
-    <section className="karte">
+    <section className="karte" data-tour="belegvorlage">
       <h2>Belegvorlage</h2>
       {hinweis}
       <Fehler fehler={fehler} />

@@ -181,6 +181,15 @@ describe("Kunden", () => {
     expect(document.activeElement).toBe(screen.getByLabelText("Suche"));
   });
 
+  it("startet den Rundgang über den Knopf im Seitenkopf", async () => {
+    render(<Kunden onOeffnen={() => {}} />);
+    await waitFor(() => expect(screen.getByText("ACME GmbH")).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Rundgang" }));
+    expect(screen.getByText("1 von 4")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Beenden" }));
+    expect(screen.queryByText("1 von 4")).toBeNull();
+  });
+
   it("blendet die Kundenliste aus, während das Anlage-Formular offen ist", async () => {
     // Vorher blieb die Liste sichtbar und wirkte wie ein Teil des neuen
     // Kunden. Nach dem Speichern (oder Abbrechen) erscheint sie wieder.

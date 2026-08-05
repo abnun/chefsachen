@@ -7,6 +7,24 @@ auf GitHub ändert daran nichts mehr.
 
 Deshalb hier in der Sprache der Anwender, nicht in der der Commits.
 
+## 0.9.4
+
+**Rundgang auf jeder Seite**
+- Der geführte Rundgang von der Übersicht steht jetzt auf allen Seiten
+  bereit: Kunden, Artikel, Angebote, Rechnungen, Eingangsrechnungen,
+  Auswertung und Einstellungen. Der Knopf neben dem Seitentitel hebt
+  nacheinander die wichtigsten Stellen hervor und erklärt sie kurz.
+
+**Beleg-Vorlage**
+- Neue Einstellung „Volle Gitterlinien um jede Zelle der
+  Positionstabelle" — bei vielen Positionen hilft das Gitter dem Auge
+  beim Zeilen-Halten, wie in einer Buchhaltungstabelle. Ohne Einstellung
+  bleibt es bei der bisherigen schlanken Linie.
+
+**Firmendaten**
+- Die Logo-Vorschau erschien in die Breite verzerrt; jetzt behält das
+  Bild seine Proportionen.
+
 ## 0.9.3
 
 **Firmendaten**

@@ -12,6 +12,40 @@ import { datumDeutsch } from "../datum";
 import { formatCent } from "../geld";
 import { useBelegListe } from "../hooks/useBelegListe";
 import { useListenTastenkuerzel } from "../hooks/useListenTastenkuerzel";
+import { type FuehrungsSchritt } from "../components/Fuehrung";
+import { SeitenkopfMitRundgang } from "../components/SeitenkopfMitRundgang";
+
+/**
+ * Statisch außerhalb der Komponente, wie auf der Übersicht: Ein je Rendern
+ * neues Array ließe den Positionierungs-Effekt der Führung durchdrehen.
+ */
+const RUNDGANG_SCHRITTE: FuehrungsSchritt[] = [
+  {
+    ziel: "[data-tour='titel']",
+    titel: "Angebote",
+    text: "Der übliche Anfang eines Auftrags: Angebot schreiben, festschreiben, als PDF verschicken — und bei Zusage mit einem Klick in eine Rechnung überführen.",
+  },
+  {
+    ziel: "[data-tour='suche']",
+    titel: "Suche",
+    text: "Findet Angebote nach Nummer oder Kundenname — auch nach dem Namen, der beim Festschreiben eingefroren wurde, falls der Kunde inzwischen anders heißt. ⌘F (Strg+F) springt hierher.",
+  },
+  {
+    ziel: "[data-tour='status']",
+    titel: "Statusfilter",
+    text: "Entwurf, festgeschrieben, angenommen, abgelehnt, abgelaufen — der Filter blendet alles andere aus, etwa für den Blick auf alles, was noch auf Antwort wartet.",
+  },
+  {
+    ziel: "[data-tour='neu']",
+    titel: "Neues Angebot",
+    text: "Kunde und Datum wählen, dann öffnet sich der Entwurf für Positionen und Texte — auch per ⌘N (Strg+N). Ein Entwurf hat noch keine Nummer und lässt sich jederzeit ändern oder löschen.",
+  },
+  {
+    ziel: "[data-tour='tabelle']",
+    titel: "Die Angebotsliste",
+    text: "Ein Klick auf eine Zeile öffnet das Angebot. Spaltenköpfe sortieren; bei mehr als 25 Einträgen wird unten geblättert.",
+  },
+];
 
 interface AngeboteProps {
   onOeffnen: (id: string) => void;
@@ -28,12 +62,12 @@ export function Angebote({ onOeffnen }: AngeboteProps) {
 
   return (
     <div>
-      <h1 className="seiten-kopf">Angebote</h1>
+      <SeitenkopfMitRundgang titel="Angebote" schritte={RUNDGANG_SCHRITTE} />
       {liste.fehler && <Fehler fehler={liste.fehler} />}
       <Werkzeugleiste
         filter={
           <>
-            <label className="feld">
+            <label className="feld" data-tour="suche">
               Suche
               <input
                 ref={sucheRef}
@@ -43,7 +77,7 @@ export function Angebote({ onOeffnen }: AngeboteProps) {
                 placeholder="Nummer oder Kunde"
               />
             </label>
-            <label className="feld">
+            <label className="feld" data-tour="status">
               Status
               <select
                 value={liste.statusFilter}
@@ -64,6 +98,7 @@ export function Angebote({ onOeffnen }: AngeboteProps) {
             <button
               type="button"
               className="btn btn-primaer"
+              data-tour="neu"
               onClick={() => liste.setZeigeFormular(true)}
             >
               Neues Angebot
@@ -98,7 +133,7 @@ export function Angebote({ onOeffnen }: AngeboteProps) {
             </p>
           )}
 
-          <table className="tabelle tabelle-klickbar">
+          <table className="tabelle tabelle-klickbar" data-tour="tabelle">
             <thead>
               <tr>
                 <SortierKopf

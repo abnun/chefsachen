@@ -62,6 +62,13 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { Eingangsrechnungen } from "./Eingangsrechnungen";
 
 describe("Eingangsrechnungen", () => {
+  it("startet den Rundgang über den Knopf im Seitenkopf", async () => {
+    render(<Eingangsrechnungen onOeffnen={() => {}} />);
+    await waitFor(() => expect(screen.getByText("Lieferant GmbH")).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Rundgang" }));
+    expect(screen.getByText("1 von 3")).toBeTruthy();
+  });
+
   it("zeigt die Liste importierter Eingangsrechnungen", async () => {
     render(<Eingangsrechnungen onOeffnen={() => {}} />);
     await waitFor(() => expect(screen.getByText("Lieferant GmbH")).toBeTruthy());

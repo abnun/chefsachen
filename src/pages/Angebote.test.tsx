@@ -78,6 +78,13 @@ describe("Angebote", () => {
     expect(document.activeElement).toBe(screen.getByPlaceholderText("Nummer oder Kunde"));
   });
 
+  it("startet den Rundgang über den Knopf im Seitenkopf", async () => {
+    render(<Angebote onOeffnen={() => {}} />);
+    await waitFor(() => expect(screen.getByText("AN-2026-0001")).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Rundgang" }));
+    expect(screen.getByText("1 von 5")).toBeTruthy();
+  });
+
   it("blendet die Angebotsliste aus, während das Anlage-Formular offen ist", async () => {
     render(<Angebote onOeffnen={() => {}} />);
     await waitFor(() => expect(screen.getByText("AN-2026-0001")).toBeTruthy());

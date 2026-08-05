@@ -12,6 +12,30 @@ import { Werkzeugleiste } from "../components/Werkzeugleiste";
 import { useSortierung } from "../hooks/useSortierung";
 import { formatCentMitWaehrung, formatMenge, parseEuro } from "../geld";
 import { datumDeutsch } from "../datum";
+import { type FuehrungsSchritt } from "../components/Fuehrung";
+import { SeitenkopfMitRundgang } from "../components/SeitenkopfMitRundgang";
+
+/**
+ * Statisch außerhalb der Komponente, wie auf der Übersicht: Ein je Rendern
+ * neues Array ließe den Positionierungs-Effekt der Führung durchdrehen.
+ */
+const RUNDGANG_SCHRITTE: FuehrungsSchritt[] = [
+  {
+    ziel: "[data-tour='titel']",
+    titel: "Eingangsrechnungen",
+    text: "Rechnungen, die du selbst erhältst — als E-Rechnung (XRechnung, ZUGFeRD) oder als reines PDF. Die Originaldatei wird unverändert archiviert, wie die GoBD es verlangen.",
+  },
+  {
+    ziel: "[data-tour='importieren']",
+    titel: "Importieren",
+    text: "Wählt eine Datei aus: Bei einer E-Rechnung werden die Angaben (Verkäufer, Beträge, Positionen) automatisch übernommen, bei einem reinen PDF trägst du sie von Hand nach. Doppelte Importe derselben Rechnung werden erkannt und gemeldet.",
+  },
+  {
+    ziel: "[data-tour='tabelle']",
+    titel: "Die Liste",
+    text: "Ein Klick auf eine Zeile öffnet die Detailseite mit allen übernommenen Angaben und der archivierten Originaldatei. Nachträgliche Korrekturen werden dort mit altem und neuem Wert protokolliert.",
+  },
+];
 
 const FORMAT_LABEL: Record<string, string> = {
   xrechnung: "XRechnung",
@@ -116,7 +140,7 @@ export function Eingangsrechnungen({ onOeffnen }: EingangsrechnungenProps) {
 
   return (
     <div>
-      <h1 className="seiten-kopf">Eingangsrechnungen</h1>
+      <SeitenkopfMitRundgang titel="Eingangsrechnungen" schritte={RUNDGANG_SCHRITTE} />
       <Fehler fehler={fehler} />
 
       {zeigeDuplikatWarnung && (
@@ -130,7 +154,7 @@ export function Eingangsrechnungen({ onOeffnen }: EingangsrechnungenProps) {
 
       <Werkzeugleiste
         aktion={
-          <button type="button" className="btn btn-primaer" onClick={dateiImportierenAuswaehlen}>
+          <button type="button" className="btn btn-primaer" data-tour="importieren" onClick={dateiImportierenAuswaehlen}>
             Importieren
           </button>
         }
@@ -208,7 +232,7 @@ export function Eingangsrechnungen({ onOeffnen }: EingangsrechnungenProps) {
           )}
 
           {vorschau.felder.positionen.length > 0 && (
-            <table className="tabelle">
+            <table className="tabelle" data-tour="tabelle">
               <thead>
                 <tr>
                   <th>Bezeichnung</th>
