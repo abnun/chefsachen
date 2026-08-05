@@ -67,6 +67,12 @@ pub struct Vorlage {
     /// Einheit als eigene Spalte statt hinter der Menge.
     pub einheit_eigene_spalte: bool,
     pub spalte_einzelpreis: bool,
+    /// Volle Gitterlinien um jede Zelle der Positionstabelle, statt nur einer
+    /// Linie unter Kopf- und Positionszeilen — wie eine Buchhaltungstabelle
+    /// in Excel. Wer nur wenige Positionen hat, findet die schlanke Vorgabe
+    /// oft übersichtlicher; bei vielen Positionen hilft das volle Gitter dem
+    /// Auge beim Zeilen-Halten.
+    pub tabelle_gitterlinien: bool,
     pub bankverbindung: BankPosition,
     pub rand_oben_mm: f64,
     pub rand_unten_mm: f64,
@@ -86,6 +92,7 @@ impl Default for Vorlage {
             spalte_nummer: true,
             einheit_eigene_spalte: false,
             spalte_einzelpreis: true,
+            tabelle_gitterlinien: false,
             bankverbindung: BankPosition::Fuss,
             rand_oben_mm: 25.0,
             rand_unten_mm: 25.0,
@@ -164,6 +171,10 @@ impl Vorlage {
                 standard.einheit_eigene_spalte,
             ),
             spalte_einzelpreis: ja(hole("vorlage.spalte_einzelpreis"), standard.spalte_einzelpreis),
+            tabelle_gitterlinien: ja(
+                hole("vorlage.tabelle_gitterlinien"),
+                standard.tabelle_gitterlinien,
+            ),
             bankverbindung: match hole("vorlage.bankverbindung").as_deref() {
                 Some("nach_summe") => BankPosition::NachSumme,
                 _ => BankPosition::Fuss,
@@ -194,6 +205,7 @@ impl Vorlage {
             ("v_spalte_nummer", ja_nein(self.spalte_nummer)),
             ("v_einheit_eigene_spalte", ja_nein(self.einheit_eigene_spalte)),
             ("v_spalte_einzelpreis", ja_nein(self.spalte_einzelpreis)),
+            ("v_tabelle_gitterlinien", ja_nein(self.tabelle_gitterlinien)),
             (
                 "v_bankverbindung",
                 match self.bankverbindung {
@@ -263,6 +275,7 @@ mod tests {
             ("vorlage.logo_position", "rechts"),
             ("vorlage.absenderzeile", "nein"),
             ("vorlage.spalte_einzelpreis", "nein"),
+            ("vorlage.tabelle_gitterlinien", "ja"),
             ("vorlage.bankverbindung", "nach_summe"),
             ("vorlage.rand_oben_mm", "30"),
         ] {
@@ -273,6 +286,7 @@ mod tests {
         assert_eq!(v.logo_position, LogoPosition::Rechts);
         assert!(!v.absenderzeile);
         assert!(!v.spalte_einzelpreis);
+        assert!(v.tabelle_gitterlinien);
         assert_eq!(v.bankverbindung, BankPosition::NachSumme);
         assert_eq!(v.rand_oben_mm, 30.0);
         // Nicht Gesetztes bleibt bei der Vorgabe.

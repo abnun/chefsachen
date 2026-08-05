@@ -602,6 +602,25 @@ pub(crate) mod tests {
         assert!(t3.contains("Bankverbindung"), "Bankverbindung fehlt:\n{t3}");
     }
 
+    /// Volle Gitterlinien statt der schlanken Vorgabe — wer viele Positionen
+    /// hat, verliert beim Lesen sonst leicht die Zeile.
+    ///
+    /// Am extrahierten Text lässt sich eine Strichstärke nicht ablesen (Typst
+    /// schreibt Linien als Vektorpfade, nicht als Zeichen) — geprüft wird
+    /// deshalb, dass die Einstellung überhaupt bis in die erzeugten PDF-Bytes
+    /// durchdringt, wie schon bei der Belegvorlage-Vorschau.
+    #[test]
+    fn tabelle_gitterlinien_aendern_das_dokument() {
+        use crate::dokument::vorlage::Vorlage;
+
+        let ohne = rendern(&test_kontext(), None, &Vorlage::default()).unwrap();
+        let mit = rendern(
+            &test_kontext(), None,
+            &Vorlage { tabelle_gitterlinien: true, ..Default::default() },
+        ).unwrap();
+        assert_ne!(ohne, mit, "vorlage.tabelle_gitterlinien wirkt sich nicht auf den Beleg aus");
+    }
+
     #[test]
     fn positionen_sind_durchnummeriert() {
         // Ohne Nummer lässt sich am Telefon nicht auf eine Zeile verweisen

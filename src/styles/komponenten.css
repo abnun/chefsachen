@@ -629,7 +629,11 @@ label.feld textarea {
    tatsächliche Größe. */
 .logo-vorschau {
   display: block;
-  max-height: 60px;
+  /* .feld ist flex-direction: column mit dem Flexbox-Standard align-items:
+     stretch — der dehnt ein Kind mit width: auto auf die volle Breite, was
+     das Logo verzerrte. align-self hebt das für dieses eine Element auf. */
+  align-self: flex-start;
+  max-height: 48px;
   max-width: 100%;
   width: auto;
   margin: var(--abstand-s) 0;

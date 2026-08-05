@@ -149,6 +149,7 @@ Datum: #sys.inputs.datum
   // ohne die Summe je Position ergibt die Gesamtsumme keinen nachvollziehbaren
   // Zusammenhang.
   #let mit_nummer = ja(sys.inputs.v_spalte_nummer)
+  #let mit_gitterlinien = ja(sys.inputs.v_tabelle_gitterlinien)
   #let mit_einheit = ja(sys.inputs.v_einheit_eigene_spalte)
   #let mit_einzelpreis = ja(sys.inputs.v_spalte_einzelpreis)
 
@@ -200,10 +201,18 @@ Datum: #sys.inputs.datum
   // genug, damit die Beträge nicht sauber untereinanderstehen, wie man es aus
   // einer Buchhaltungstabelle kennt. Als Tabellenzeile trifft die Summe exakt
   // dieselbe rechte Kante wie jede Positionssumme darüber.
+  // Voll umrandet statt nur der schlanken Linie unter Kopf- und
+  // Positionszeilen — wer viele Positionen hat, verliert beim Lesen sonst
+  // leicht die Zeile. Die Gesamtsumme darunter behält ihre eigene Betonung
+  // (dickere Linie in der Akzentfarbe) in beiden Varianten.
   #table(
     columns: spalten,
     align: ausrichtung,
-    stroke: (x, y) => if y == 0 { (bottom: 0.6pt + akzent) } else { (bottom: 0.4pt + rgb("#dddddd")) },
+    stroke: if mit_gitterlinien {
+      0.4pt + rgb("#bbbbbb")
+    } else {
+      (x, y) => if y == 0 { (bottom: 0.6pt + akzent) } else { (bottom: 0.4pt + rgb("#dddddd")) }
+    },
     table.header(..kopfzeile),
     ..positionen.map(zeile).flatten(),
     table.cell(

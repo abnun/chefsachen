@@ -90,6 +90,17 @@ describe("Belegvorlage", () => {
     expect(einleitung).toHaveTextContent("§ 14 Abs. 4 Nr. 5 UStG");
   });
 
+  it("startet mit vollen Gitterlinien abgewählt, wie die Rust-Vorgabe", async () => {
+    // Sonst zeigte die Vorschau ein anderes Aussehen als der Beleg, den
+    // Vorlage::default() für jeden Bestandsnutzer ohne gespeicherte
+    // Einstellung erzeugt.
+    render(<Belegvorlage />);
+    await waitFor(() =>
+      expect(screen.getByLabelText(/Volle Gitterlinien/)).toBeTruthy(),
+    );
+    expect(screen.getByLabelText(/Volle Gitterlinien/)).not.toBeChecked();
+  });
+
   it("meldet einen Fehler der Vorschau, statt ein leeres Feld zu zeigen", async () => {
     vi.mocked(api.vorlage.vorschau).mockRejectedValue({
       typ: "unbekannt",

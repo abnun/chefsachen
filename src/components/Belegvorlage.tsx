@@ -59,6 +59,14 @@ const SCHALTER: Schalter[] = [
   },
   { schluessel: "vorlage.spalte_einzelpreis", label: "Spalte „Einzelpreis“", art: "ja_nein" },
   {
+    schluessel: "vorlage.tabelle_gitterlinien",
+    label: "Volle Gitterlinien um jede Zelle der Positionstabelle",
+    hinweis:
+      "Sonst nur eine schlanke Linie unter Kopf- und Positionszeilen. Bei vielen Positionen hilft das " +
+      "volle Gitter dem Auge beim Zeilen-Halten.",
+    art: "ja_nein",
+  },
+  {
     schluessel: "vorlage.bankverbindung",
     label: "Bankverbindung",
     art: "auswahl",
@@ -128,12 +136,15 @@ export function Belegvorlage() {
     }
   }
 
-  /** Vorgabe „ja", solange nichts gespeichert ist — wie im Rust-Teil. */
+  /** Schalter, deren Vorgabe „nein" ist — alle anderen starten bei „ja". */
+  const VORGABE_NEIN = ["vorlage.einheit_eigene_spalte", "vorlage.tabelle_gitterlinien"];
+
+  /** Vorgabe, solange nichts gespeichert ist — wie im Rust-Teil (`Vorlage::default()`). */
   function istJa(schluessel: string): boolean {
     const wert = werte[schluessel];
     if (wert === "ja") return true;
     if (wert === "nein") return false;
-    return schluessel !== "vorlage.einheit_eigene_spalte";
+    return !VORGABE_NEIN.includes(schluessel);
   }
 
   return (
