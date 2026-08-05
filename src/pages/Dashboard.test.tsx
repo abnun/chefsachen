@@ -234,4 +234,17 @@ describe("Dashboard", () => {
     render(<Dashboard {...props} />);
     await waitFor(() => expect(screen.getByText(/technischer Fehler/i)).toBeTruthy());
   });
+
+  it("startet und beendet den Rundgang über den Knopf im Seitenkopf", async () => {
+    laden().mockResolvedValue(LEER);
+    render(<Dashboard {...props} />);
+    await waitFor(() => expect(screen.getByText("Keine offenen Rechnungen.")).toBeTruthy());
+
+    fireEvent.click(screen.getByRole("button", { name: "Rundgang" }));
+    expect(screen.getByText("Die Übersicht")).toBeTruthy();
+    expect(screen.getByText("1 von 6")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Beenden" }));
+    expect(screen.queryByText("1 von 6")).toBeNull();
+  });
 });

@@ -4,8 +4,47 @@ import { Fehler } from "../components/Fehler";
 import { Laden } from "../components/Laden";
 import { ZeilenKnopf } from "../components/ZeilenKnopf";
 import { ErsteSchritte, type Schritt } from "../components/ErsteSchritte";
+import { Fuehrung, type FuehrungsSchritt } from "../components/Fuehrung";
 import { formatCent } from "../geld";
 import { datumDeutsch } from "../datum";
+
+/**
+ * Statisch außerhalb der Komponente: Ein bei jedem Rendern neu erzeugtes
+ * Array brächte `Fuehrung`s Positionierungs-Effekt dazu, sich selbst als
+ * verändert zu sehen und bei jedem Rendern der Übersicht neu zu scrollen.
+ */
+const RUNDGANG_SCHRITTE: FuehrungsSchritt[] = [
+  {
+    ziel: "[data-tour='titel']",
+    titel: "Die Übersicht",
+    text: "Der erste Blick beim Start: laufender Umsatz, was noch offen ist und wie nah die Kleinunternehmergrenzen sind. Ein kurzer Rundgang zeigt die sechs wichtigsten Stellen.",
+  },
+  {
+    ziel: "[data-tour='umsatz']",
+    titel: "Vereinnahmter Umsatz",
+    text: "Was in diesem Jahr tatsächlich bezahlt wurde — nicht was in Rechnung gestellt ist. Für § 19 UStG zählt der Zufluss, nicht das Rechnungsdatum.",
+  },
+  {
+    ziel: "[data-tour='offene-rechnungen']",
+    titel: "Offene Rechnungen",
+    text: "Gestellte Rechnungen, die noch nicht (vollständig) bezahlt sind, mit Fälligkeit — überfällige sind farblich markiert.",
+  },
+  {
+    ziel: "[data-tour='offene-angebote']",
+    titel: "Offene Angebote",
+    text: "Angebote, die noch auf eine Antwort warten. Abgelaufene verschwinden von selbst aus dieser Liste.",
+  },
+  {
+    ziel: "[data-tour='zuletzt-bearbeitet']",
+    titel: "Zuletzt bearbeitet",
+    text: "Die letzten Angebote und Rechnungen, unabhängig vom Status — der schnellste Weg zurück zu etwas, an dem gerade gearbeitet wurde.",
+  },
+  {
+    ziel: "[data-tour='kleinunternehmergrenzen']",
+    titel: "Kleinunternehmergrenzen",
+    text: "Wie nah der Umsatz an den beiden Grenzen aus § 19 UStG liegt — ein Frühwarnsystem, keine verbindliche Auskunft.",
+  },
+];
 
 interface DashboardProps {
   onRechnungOeffnen: (id: string) => void;
@@ -114,6 +153,7 @@ function HinweisKarte({ hinweis }: { hinweis: Hinweis }) {
 export function Dashboard({ onRechnungOeffnen, onAngebotOeffnen, onErsterSchritt }: DashboardProps) {
   const [daten, setDaten] = useState<DashboardDaten | null>(null);
   const [fehler, setFehler] = useState<AppFehler | null>(null);
+  const [zeigtRundgang, setZeigtRundgang] = useState(false);
 
   useEffect(() => {
     api.dashboard
@@ -147,13 +187,22 @@ export function Dashboard({ onRechnungOeffnen, onAngebotOeffnen, onErsterSchritt
 
   return (
     <div>
-      <h1 className="seiten-kopf">Übersicht {daten.jahr}</h1>
+      <div className="seiten-kopf-zeile">
+        <h1 className="seiten-kopf" data-tour="titel">Übersicht {daten.jahr}</h1>
+        <button type="button" className="btn" onClick={() => setZeigtRundgang(true)}>
+          Rundgang
+        </button>
+      </div>
+
+      {zeigtRundgang && (
+        <Fuehrung schritte={RUNDGANG_SCHRITTE} onBeenden={() => setZeigtRundgang(false)} />
+      )}
 
       {/* Ganz oben: Wer noch am Anfang steht, soll nicht erst an Umsatzzahlen
           vorbeiscrollen, die alle auf null stehen. */}
       <ErsteSchritte hatBelege={daten.letzte_belege.length > 0} onStarten={onErsterSchritt} />
 
-      <section className="karte">
+      <section className="karte" data-tour="umsatz">
         <h2>Vereinnahmter Umsatz</h2>
         <p className="kennzahl">{formatCent(daten.umsatz_laufendes_jahr_cent)}</p>
         <p className="kennzahl-neben">
@@ -165,7 +214,7 @@ export function Dashboard({ onRechnungOeffnen, onAngebotOeffnen, onErsterSchritt
         </p>
       </section>
 
-      <section className="karte">
+      <section className="karte" data-tour="offene-rechnungen">
         <h2>Offene Rechnungen</h2>
         {daten.offene_rechnungen.length === 0 ? (
           <p>Keine offenen Rechnungen.</p>
@@ -197,7 +246,7 @@ export function Dashboard({ onRechnungOeffnen, onAngebotOeffnen, onErsterSchritt
         )}
       </section>
 
-      <section className="karte">
+      <section className="karte" data-tour="offene-angebote">
         <h2>Offene Angebote</h2>
         {daten.offene_angebote.length === 0 ? (
           <p>Keine offenen Angebote.</p>
@@ -231,7 +280,7 @@ export function Dashboard({ onRechnungOeffnen, onAngebotOeffnen, onErsterSchritt
         )}
       </section>
 
-      <section className="karte">
+      <section className="karte" data-tour="zuletzt-bearbeitet">
         <h2>Zuletzt bearbeitet</h2>
         {daten.letzte_belege.length === 0 ? (
           <p>Noch keine Belege angelegt.</p>
@@ -274,7 +323,7 @@ export function Dashboard({ onRechnungOeffnen, onAngebotOeffnen, onErsterSchritt
           und Angebote geht vor — die Grenzen ändern sich selten von einem Tag
           auf den anderen. */}
       {g && (
-        <section className="karte">
+        <section className="karte" data-tour="kleinunternehmergrenzen">
           <h2>
             Kleinunternehmergrenzen
             {g.ist_gruendungsjahr && <span className="marke"> Gründungsjahr</span>}

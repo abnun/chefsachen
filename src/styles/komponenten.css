@@ -74,6 +74,20 @@
   color: var(--text-leise);
 }
 
+/* Seitenkopf mit einer Aktion daneben (etwa der Rundgang-Knopf auf der
+   Übersicht) — der Titel behält seinen üblichen Abstand nach unten, jetzt
+   nur am Zeilenende statt am eigenen. */
+.seiten-kopf-zeile {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--abstand-m);
+}
+
+.seiten-kopf-zeile .seiten-kopf {
+  margin-bottom: 0;
+}
+
 /* Formularfelder */
 .feld,
 label.feld {
@@ -924,4 +938,55 @@ label.feld textarea {
   border: 1px solid var(--rand);
   border-radius: var(--radius-s);
   box-shadow: var(--schatten);
+}
+
+/* ── Rundgang (Fuehrung.tsx) ─────────────────────────────────────────────── */
+
+/* Deckt das ganze Fenster ab und fängt Klicks außerhalb von Ring und Tooltip
+   ab (schließt den Rundgang) — die eigentliche Abdunklung liefert der
+   Riesenschatten des Rings, nicht dieser Hintergrund selbst. */
+.fuehrung-abdunklung {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+}
+
+/* pointer-events: none, damit ein Klick auf das hervorgehobene Element
+   durchgereicht wird zur Abdunklung darunter (schließt den Rundgang), statt
+   an einem unsichtbaren Element hängenzubleiben. */
+.fuehrung-ring {
+  position: fixed;
+  z-index: 1;
+  border-radius: var(--radius-m);
+  box-shadow:
+    0 0 0 9999px rgba(20, 24, 33, 0.55),
+    0 0 0 3px var(--akzent);
+  pointer-events: none;
+  transition:
+    top 0.2s ease,
+    left 0.2s ease,
+    width 0.2s ease,
+    height 0.2s ease;
+}
+
+.fuehrung-tooltip {
+  position: fixed;
+  z-index: 2;
+  background: var(--flaeche);
+  border-radius: var(--radius-m);
+  box-shadow: 0 8px 30px rgba(20, 24, 33, 0.25);
+  padding: var(--abstand-l);
+}
+
+.fuehrung-tooltip h3 {
+  margin: 0 0 var(--abstand-xs);
+}
+
+.fuehrung-tooltip p {
+  margin: 0 0 var(--abstand-m);
+}
+
+.fuehrung-schritt {
+  color: var(--text-leise);
+  font-size: var(--text-s);
 }
