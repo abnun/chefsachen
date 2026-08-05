@@ -284,6 +284,11 @@ export function Einrichtung({ onFertig }: EinrichtungProps) {
             />
             Ich falle unter die Kleinunternehmerregelung
           </label>
+          <p className="feld-hinweis">
+            Ohne Häkchen gilt Regelbesteuerung: Belege weisen die enthaltene
+            Umsatzsteuer aus, der Steuersatz wird je Artikel gewählt (19/7/0 %),
+            die Preise bleiben Bruttopreise.
+          </p>
           <div className="aktionen aktionen-formular">
             <button type="button" className="btn btn-leise" onClick={() => setSchritt(2)}>
               Zurück

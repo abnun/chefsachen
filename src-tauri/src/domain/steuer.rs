@@ -73,8 +73,12 @@ pub fn aufschluesselung(positionen: &[(i64, i64)]) -> Vec<SteuerZeile> {
 /// Nettobetrag je Position, für die XRechnung (BT-131): Dort muss die Summe
 /// der Positionsnetti eines Satzes **exakt** dem Gruppennetto entsprechen
 /// (BR-45, BR-CO-10) — einzeln gerundete Netti verfehlen das um Rest-Cents.
-/// Die Differenz wird auf die betragsgrößte Position der Gruppe geschlagen:
-/// Dort fällt ein Cent relativ am wenigsten auf.
+///
+/// Die Differenz wird cent-weise über die Positionen verteilt, betragsgrößte
+/// zuerst (dort fällt ein Cent relativ am wenigsten auf). Nicht alles auf
+/// eine Position: Der Rest wächst mit der Positionszahl, und viele kleine
+/// Beträge könnten einer einzelnen Position sonst ein negatives Netto
+/// eintragen (13 × 0,01 € bei 19 %: Rest −2 ct auf 1 ct Netto).
 pub fn positions_netti(positionen: &[(i64, i64)]) -> Vec<i64> {
     let mut netti: Vec<i64> = positionen
         .iter()
@@ -82,20 +86,20 @@ pub fn positions_netti(positionen: &[(i64, i64)]) -> Vec<i64> {
         .collect();
 
     for zeile in aufschluesselung(positionen) {
-        let indizes: Vec<usize> = positionen
+        let mut indizes: Vec<usize> = positionen
             .iter()
             .enumerate()
             .filter(|(_, (s, _))| *s == zeile.satz_prozent)
             .map(|(i, _)| i)
             .collect();
+        indizes.sort_by_key(|&i| std::cmp::Reverse(positionen[i].1.abs()));
         let summe: i64 = indizes.iter().map(|&i| netti[i]).sum();
         let rest = zeile.netto_cent - summe;
-        if rest != 0 {
-            let groesste = *indizes
-                .iter()
-                .max_by_key(|&&i| positionen[i].1.abs())
-                .expect("Gruppe hat mindestens eine Position");
-            netti[groesste] += rest;
+        // |rest| ≤ Positionen/2 (je Position höchstens ein halber Cent
+        // Rundungsfehler) — reihum reicht also höchstens ein Cent je Position.
+        let schritt = if rest > 0 { 1 } else { -1 };
+        for n in 0..rest.unsigned_abs() as usize {
+            netti[indizes[n % indizes.len()]] += schritt;
         }
     }
     netti
@@ -198,11 +202,29 @@ mod tests {
     #[test]
     fn rest_cent_landet_auf_der_betragsgroessten_position() {
         // 4 × 0,05 € bei 19 %: einzeln je 4 ct netto (16 ct), Gruppennetto
-        // von 20 ct ist 17 ct — 1 Rest-Cent auf genau eine Position (bei
-        // Betragsgleichstand nimmt max_by_key die letzte).
+        // von 20 ct ist 17 ct — 1 Rest-Cent auf die erste (bei Gleichstand
+        // stabil sortierte) Position.
         let positionen = [(19, 5), (19, 5), (19, 5), (19, 5)];
         let netti = positions_netti(&positionen);
         assert_eq!(netti.iter().sum::<i64>(), 17);
-        assert_eq!(netti, vec![4, 4, 4, 5]);
+        assert_eq!(netti, vec![5, 4, 4, 4]);
+    }
+
+    #[test]
+    fn rest_cent_verteilung_macht_kein_positionsnetto_negativ() {
+        // 13 × 0,01 € bei 19 %: Einzelnetti je 1 ct (Σ 13), Gruppennetto 11 —
+        // Rest −2. Alles auf eine Position ergäbe dort −1 ct; verteilt gehen
+        // zwei Positionen auf 0.
+        let positionen: Vec<(i64, i64)> = std::iter::repeat_n((19_i64, 1_i64), 13).collect();
+        let netti = positions_netti(&positionen);
+        assert_eq!(netti.iter().sum::<i64>(), 11);
+        assert!(netti.iter().all(|&n| n >= 0), "negatives Positionsnetto: {netti:?}");
+
+        // Gegenrichtung: 10 × 0,04 € bei 19 % hat Rest +4 — verteilt bleibt
+        // jedes Netto höchstens einen Cent über dem einzeln gerundeten Wert.
+        let positionen: Vec<(i64, i64)> = std::iter::repeat_n((19_i64, 4_i64), 10).collect();
+        let netti = positions_netti(&positionen);
+        assert_eq!(netti.iter().sum::<i64>(), 34);
+        assert!(netti.iter().all(|&n| n <= 4), "Positionsnetto über Brutto: {netti:?}");
     }
 }

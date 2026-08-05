@@ -342,14 +342,17 @@ pub async fn get(pool: &SqlitePool, id: String) -> AppResult<BelegDetail> {
 
     // Steuermodus wie beim Dokumenten-Export (kontext.rs): Bei gestellten
     // Belegen entscheidet das eingefrorene Kleinunternehmer-Flag im Snapshot,
-    // bei Entwürfen die aktuelle Firmeneinstellung. So bleiben alte Belege
-    // nach dem Wechsel zur Regelbesteuerung ohne Steuerausweis.
-    let kleinunternehmer = serde_json::from_str::<serde_json::Value>(&beleg.kunde_snapshot)
-        .ok()
-        .and_then(|s| s["firma"]["kleinunternehmer"].as_bool());
-    let kleinunternehmer = match kleinunternehmer {
-        Some(k) => k,
-        None => crate::commands::firma::get(pool).await?.kleinunternehmer,
+    // bei Entwürfen die aktuelle Firmeneinstellung. Fehlt das Flag in einem
+    // gestellten Beleg, stammt er aus der Zeit vor seiner Einführung — damals
+    // gab es nur Kleinunternehmer-Belege; der Live-Wert würde solche Altbelege
+    // nach dem Wechsel zur Regelbesteuerung rückwirkend umdeuten.
+    let kleinunternehmer = if beleg.status == "entwurf" {
+        crate::commands::firma::get(pool).await?.kleinunternehmer
+    } else {
+        serde_json::from_str::<serde_json::Value>(&beleg.kunde_snapshot)
+            .ok()
+            .and_then(|s| s["firma"]["kleinunternehmer"].as_bool())
+            .unwrap_or(true)
     };
     let steuerzeilen = if kleinunternehmer {
         Vec::new()
@@ -2152,6 +2155,36 @@ mod tests {
         assert_eq!(snapshot["kunde"]["leitweg_id"], "991-12345-67");
         assert_eq!(snapshot["kunde"]["kaeuferreferenz"], "PO-42");
         assert_eq!(snapshot["firma"]["kleinunternehmer"], true);
+    }
+
+    #[tokio::test]
+    async fn altbeleg_ohne_snapshot_flag_bleibt_nach_moduswechsel_kleinunternehmer() {
+        // Belege aus der Zeit, bevor das Kleinunternehmer-Flag in den Snapshot
+        // eingefroren wurde: Fällt get() dort auf die Live-Einstellung zurück,
+        // bekäme jeder solche Altbeleg nach dem Wechsel zur Regelbesteuerung
+        // rückwirkend Steuerzeilen — der festgeschriebene Beleg wäre nicht
+        // mehr reproduzierbar (GoBD).
+        let (_dir, pool) = test_pool().await;
+        let kunde_id = kunde_anlegen(&pool).await;
+        let artikel_id = artikel_anlegen(&pool, 9500).await;
+        let beleg = create(&pool, beleg_neu("rechnung", &kunde_id)).await.unwrap();
+        position_speichern(&pool, BelegpositionNeu {
+            id: "".into(), beleg_id: beleg.id.clone(), artikel_id: Some(artikel_id),
+            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000, ust_satz_prozent: None,
+        }).await.unwrap();
+        let gestellt = stellen(&pool, beleg.id).await.unwrap();
+
+        // Alten Snapshot-Stand nachbilden: firma-Objekt ohne das Flag.
+        let mut snapshot: serde_json::Value = serde_json::from_str(&gestellt.kunde_snapshot).unwrap();
+        snapshot["firma"].as_object_mut().unwrap().remove("kleinunternehmer");
+        sqlx::query("UPDATE beleg SET kunde_snapshot = ? WHERE id = ?")
+            .bind(snapshot.to_string()).bind(&gestellt.id)
+            .execute(&pool).await.unwrap();
+        // Moduswechsel: Die Firma ist ab jetzt regelbesteuert.
+        sqlx::query("UPDATE firma SET kleinunternehmer = 0").execute(&pool).await.unwrap();
+
+        let detail = get(&pool, gestellt.id).await.unwrap();
+        assert!(detail.steuerzeilen.is_empty(), "Altbeleg wurde rückwirkend regelbesteuert");
     }
 
     #[tokio::test]

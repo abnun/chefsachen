@@ -19,7 +19,7 @@ const RUNDGANG_SCHRITTE: FuehrungsSchritt[] = [
   {
     ziel: "[data-tour='titel']",
     titel: "Auswertung",
-    text: "Die Zuarbeit für den Jahresabschluss: alle vereinnahmten Zahlungen eines Jahres, mit Beleg und Kunde. Gezählt wird nach Zufluss (§ 19 Abs. 2 UStG) — wann das Geld kam, nicht wann die Rechnung gestellt wurde.",
+    text: "Die Zuarbeit für den Jahresabschluss: alle vereinnahmten Zahlungen eines Jahres, mit Beleg und Kunde. Gezählt wird nach Zufluss — wann das Geld kam, nicht wann die Rechnung gestellt wurde.",
   },
   {
     ziel: "[data-tour='jahr']",
@@ -144,9 +144,9 @@ export function Auswertung() {
       ) : (
         <>
           <p className="feld-hinweis hinweis-absatz">
-            Vereinnahmte Zahlungen nach § 19 Abs. 2 UStG — maßgeblich ist, wann das Geld
-            geflossen ist, nicht wann die Rechnung gestellt wurde. Das ersetzt keine
-            EÜR-Anlage, nur die Zuarbeit dafür.
+            Vereinnahmte Zahlungen nach dem Zuflussprinzip — maßgeblich ist, wann das
+            Geld geflossen ist, nicht wann die Rechnung gestellt wurde. Das ersetzt
+            keine EÜR-Anlage, nur die Zuarbeit dafür.
           </p>
 
           {daten.vereinnahmungen.length === 0 ? (

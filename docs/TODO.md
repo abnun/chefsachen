@@ -23,6 +23,10 @@ Kleinunternehmergrenze überschritten. Umschalter ist das bestehende
   Befreiungsgrund außerhalb § 19) nicht abgedeckt; Positionen aus
   Vor-Migrations-Angeboten tragen den Default 19 % (korrigierbar durch
   Neu-Speichern der Position).
+- Kritisches Review mit vier Blickwinkeln nach dem Erstcommit, alle
+  Befunde behoben (u. a. BR-CO-26 bei Export ohne USt-IdNr.,
+  GoBD-Fallback für Alt-Snapshots): siehe
+  [2026-08-06-review-ust.md](2026-08-06-review-ust.md).
 
 ## Stand (2026-08-05)
 

@@ -25,6 +25,12 @@ Deshalb hier in der Sprache der Anwender, nicht in der der Commits.
 - XRechnung und ZUGFeRD tragen die Steuer normkonform (Kategorie S bzw.
   Z bei 0 %), geprüft gegen den amtlichen KoSIT-Validator — auch mit
   gemischten Sätzen und bei Stornos.
+- Behoben: Der XRechnung-Export ohne USt-IdNr. (nur mit Steuernummer)
+  wurde vom amtlichen Validator abgelehnt — die Steuernummer wird jetzt
+  zusätzlich als Verkäufer-Kennung mitgeschrieben.
+- Belege, die vor Mitte Juli gestellt wurden, behalten nach dem Wechsel
+  zur Regelbesteuerung sicher ihren Kleinunternehmer-Status beim
+  erneuten Export.
 
 **Rundgang auf jeder Seite**
 - Der geführte Rundgang von der Übersicht steht jetzt auf allen Seiten

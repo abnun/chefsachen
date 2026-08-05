@@ -12,6 +12,22 @@ fn cent_zu_dezimal(cent: i64) -> String {
     format!("{}{}.{:02}", vorzeichen, betrag / 100, betrag % 100)
 }
 
+/// Netto-Einzelpreis (BT-146) bei Regelbesteuerung, als Euro-Betrag mit vier
+/// Nachkommastellen. Abgeleitet aus dem Zeilennetto statt einzeln gerundet:
+/// Ein auf ganze Cent gerundeter Stückpreis multipliziert seinen
+/// Rundungsfehler mit der Menge, und ab wenigen Stück meldet die
+/// Peppol-Prüfung PEPPOL-EN16931-R120 (Zeilenbetrag ≠ Menge × Preis,
+/// Toleranz ±0,02 €). Vier Nachkommastellen sind für Preise ausdrücklich
+/// zulässig und halten die Abweichung bei üblichen Mengen unter der Toleranz.
+fn netto_einzelpreis_dezimal(zeilennetto_cent: i64, menge_x1000: i64) -> String {
+    debug_assert!(menge_x1000 > 0);
+    // Euro × 10^4: netto_cent/100 € geteilt durch menge/1000 Stück.
+    let zaehler = i128::from(zeilennetto_cent) * 100_000;
+    let nenner = i128::from(menge_x1000);
+    let gerundet = ((2 * zaehler + nenner) / (2 * nenner)) as i64;
+    format!("{}.{:04}", gerundet / 10_000, gerundet % 10_000)
+}
+
 fn menge_zu_dezimal(menge_x1000: i64) -> String {
     // Vorzeichen wie bei cent_zu_dezimal explizit behandeln, sonst entstünde
     // bei -1500 die Zeichenfolge "-1.-500".
@@ -228,14 +244,13 @@ pub fn xml_erzeugen(kontext: &BelegKontext) -> AppResult<String> {
         // (TypeCode 384) trägt der Beleg negierte Preise; die Norm erwartet dort
         // positive Beträge, die Korrektur-Semantik steckt im TypeCode.
         // Bei Regelbesteuerung ist BT-146 der Netto-Einzelpreis — der
-        // gespeicherte Preis ist brutto, die Steuer wird herausgerechnet.
-        let einzelpreis = pos.einzelpreis_cent.abs();
-        let einzelpreis_netto = if regelbesteuert {
-            einzelpreis - crate::domain::steuer::ust_aus_brutto(einzelpreis, pos.ust_satz_prozent)
+        // gespeicherte Preis ist brutto, die Steuer wird herausgerechnet
+        // (abgeleitet aus dem Zeilennetto, siehe netto_einzelpreis_dezimal).
+        if regelbesteuert {
+            xml.feld( "ram:ChargeAmount", &netto_einzelpreis_dezimal(positionsnetti[i], pos.menge.abs()));
         } else {
-            einzelpreis
-        };
-        schreibe_betrag(&mut xml, "ram:ChargeAmount", einzelpreis_netto);
+            schreibe_betrag(&mut xml, "ram:ChargeAmount", pos.einzelpreis_cent.abs());
+        }
         xml.zu("ram:NetPriceProductTradePrice");
         xml.zu("ram:SpecifiedLineTradeAgreement");
         xml.auf("ram:SpecifiedLineTradeDelivery");
@@ -275,6 +290,15 @@ pub fn xml_erzeugen(kontext: &BelegKontext) -> AppResult<String> {
     };
     xml.feld( "ram:BuyerReference", buyer_reference);
     xml.auf("ram:SellerTradeParty");
+    // BR-CO-26 verlangt vom Verkäufer mindestens eine Kennung (BT-29/BT-30)
+    // oder eine USt-IdNr. (BT-31, schemeID VA). Die bloße Steuernummer
+    // (BT-32, schemeID FC) erfüllt die Regel NICHT — der amtliche Validator
+    // lehnt fatal ab. Für den Übergangsfall „USt-IdNr. noch nicht erteilt"
+    // wird die Steuernummer deshalb zusätzlich als Verkäufer-Kennung BT-29
+    // geschrieben; mit USt-IdNr. bleibt die Datei unverändert.
+    if kontext.firma.ust_idnr.trim().is_empty() && !kontext.firma.steuernummer.trim().is_empty() {
+        xml.feld( "ram:ID", kontext.firma.steuernummer.trim());
+    }
     xml.feld( "ram:Name", &kontext.firma.name);
     // SELLER CONTACT (BG-6) — in XRechnung Pflicht (BR-DE-2). Im CII-Schema
     // steht der Kontakt vor der Anschrift.
@@ -682,6 +706,49 @@ pub(crate) mod tests {
         assert!(xml.contains("<ram:CalculatedAmount>0.70</ram:CalculatedAmount>"));
         assert!(xml.contains(r#"<ram:TaxTotalAmount currencyID="EUR">19.70</ram:TaxTotalAmount>"#));
         assert!(xml.contains("<ram:GrandTotalAmount>129.70</ram:GrandTotalAmount>"));
+    }
+
+    #[test]
+    fn xml_erzeugen_schreibt_ohne_ustidnr_die_steuernummer_als_verkaeuferkennung() {
+        // BR-CO-26: Ohne USt-IdNr. (schemeID VA) braucht der Verkäufer eine
+        // Kennung — die Steuernummer als BT-32/FC allein reicht dem amtlichen
+        // Validator nicht.
+        let mut kontext = test_kontext(None, 9500);
+        kontext.firma.ust_idnr = "".into();
+        let xml = xml_erzeugen(&kontext).unwrap();
+        assert!(xml.contains("<ram:ID>12/345</ram:ID>"), "BT-29 fehlt:\n{xml}");
+
+        // Mit USt-IdNr. bleibt die Datei unverändert ohne BT-29.
+        let xml = xml_erzeugen(&test_kontext(None, 9500)).unwrap();
+        assert!(!xml.contains("<ram:ID>12/345</ram:ID>"));
+    }
+
+    #[test]
+    fn xrechnung_ohne_ustidnr_ist_normkonform() {
+        if let Some(grund) = crate::dokument::kosit::nicht_verfuegbar_weil() {
+            eprintln!("übersprungen: {grund}");
+            return;
+        }
+        // Der Übergangsfall „regelbesteuert, USt-IdNr. noch nicht erteilt" —
+        // und zugleich der Kleinunternehmer ohne USt-IdNr. (der Regelfall).
+        // Beide liefen vorher in BR-CO-26 (fatal); die CI-Normtests sahen das
+        // nie, weil test_kontext immer eine USt-IdNr. trägt.
+        for regelbesteuert in [false, true] {
+            let mut kontext = if regelbesteuert {
+                regelbesteuert_kontext(None, &[(19, 9500)])
+            } else {
+                test_kontext(None, 9500)
+            };
+            kontext.firma.ust_idnr = "".into();
+            let xml = xml_erzeugen(&kontext).unwrap();
+            let bericht = crate::dokument::kosit::validieren(&xml).expect("Validator-Aufruf fehlgeschlagen");
+            assert!(
+                bericht.gueltig,
+                "Abgelehnt (regelbesteuert={regelbesteuert}). Befunde ({}):\n{}",
+                bericht.befunde().len(),
+                bericht.befunde().iter().map(|v| format!("  - {v}")).collect::<Vec<_>>().join("\n")
+            );
+        }
     }
 
     #[test]

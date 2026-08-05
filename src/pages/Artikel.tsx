@@ -335,6 +335,10 @@ export function Artikel({ zeigeFormularBeimStart, onFormularUebernommen, onZuKun
             {feldFehler("ust_satz_prozent") && (
               <div className="feld-fehler" role="alert">{feldFehler("ust_satz_prozent")}</div>
             )}
+            <p className="feld-hinweis">
+              Wirkt nur bei Regelbesteuerung. Mit gesetztem Kleinunternehmer-Häkchen
+              (Einstellungen) weisen Belege keine Umsatzsteuer aus.
+            </p>
           </div>
           <div className="aktionen aktionen-formular">
             <button type="submit" className="btn btn-primaer">Speichern</button>

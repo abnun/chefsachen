@@ -23,7 +23,7 @@ const RUNDGANG_SCHRITTE: FuehrungsSchritt[] = [
   {
     ziel: "[data-tour='umsatz']",
     titel: "Vereinnahmter Umsatz",
-    text: "Was in diesem Jahr tatsächlich bezahlt wurde — nicht was in Rechnung gestellt ist. Für § 19 UStG zählt der Zufluss, nicht das Rechnungsdatum.",
+    text: "Was in diesem Jahr tatsächlich bezahlt wurde — nicht was in Rechnung gestellt ist. Gezählt wird nach Zufluss: wann das Geld kam, nicht wann die Rechnung gestellt wurde.",
   },
   {
     ziel: "[data-tour='offene-rechnungen']",
@@ -200,8 +200,8 @@ export function Dashboard({ onRechnungOeffnen, onAngebotOeffnen, onErsterSchritt
           Vorjahr: {formatCent(daten.umsatz_vorjahr_cent)}
         </p>
         <p className="feld-hinweis">
-          Gezählt wird, wann Geld geflossen ist, nicht wann eine Rechnung gestellt wurde
-          (§ 19 Abs. 2 UStG). Erstattungen mindern den Betrag.
+          Gezählt wird, wann Geld geflossen ist, nicht wann eine Rechnung gestellt
+          wurde (Zuflussprinzip). Erstattungen mindern den Betrag.
         </p>
       </section>
 

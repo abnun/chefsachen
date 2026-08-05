@@ -110,7 +110,12 @@ fn firma_aus_snapshot(snapshot: &serde_json::Value, vorlage: &crate::commands::f
         telefon: feld_str(f, "telefon"),
         fax: feld_str(f, "fax"),
         kontakt_name: feld_str(f, "kontakt_name"),
-        kleinunternehmer: f.get("kleinunternehmer").and_then(|v| v.as_bool()).unwrap_or(vorlage.kleinunternehmer),
+        // Fehlt das Flag im Snapshot, ist der Beleg vor dessen Einführung
+        // gestellt worden — und damals war die Anwendung ein reines
+        // Kleinunternehmer-Werkzeug. Der Live-Wert wäre hier falsch: Nach dem
+        // Wechsel zur Regelbesteuerung exportierte jeder solche Altbeleg
+        // plötzlich mit Steuerausweis statt mit § 19-Hinweis.
+        kleinunternehmer: f.get("kleinunternehmer").and_then(|v| v.as_bool()).unwrap_or(true),
     }
 }
 
@@ -144,7 +149,11 @@ pub async fn kontext_aus_beleg(pool: &SqlitePool, beleg_id: String) -> AppResult
     let firma = if snapshot.get("firma").is_some() {
         firma_aus_snapshot(&snapshot, &firma_live)
     } else {
-        firma_live
+        // Sehr alter Beleg, gestellt bevor Firmendaten überhaupt eingefroren
+        // wurden: Anschrift und Bankdaten kommen notgedrungen live, aber der
+        // Steuermodus nicht — damals gab es nur Kleinunternehmer-Belege, und
+        // ein Moduswechsel darf sie nicht rückwirkend umdeuten.
+        crate::commands::firma::Firma { kleinunternehmer: true, ..firma_live }
     };
 
     let kf = if snapshot_hat_erweiterte_felder {
