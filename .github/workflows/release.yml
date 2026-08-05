@@ -89,8 +89,6 @@ jobs:
           {
             echo "text<<CHANGELOG_ENDE"
             echo "$text"
-            echo ""
-            echo "Installationsanleitung: siehe docs/installation-freunde.md"
             echo "CHANGELOG_ENDE"
           } >> "$GITHUB_OUTPUT"
 
