@@ -291,69 +291,75 @@ export function Artikel({ zeigeFormularBeimStart, onFormularUebernommen, onZuKun
         </form>
       )}
 
-      {!geladen && <Laden was="Artikel" />}
+      {/* Solange das Formular offen ist (Anlegen oder Bearbeiten), bleibt die
+          Liste komplett ausgeblendet — sonst wirkte sie wie Teil davon. */}
+      {!zeigeFormular && (
+        <>
+          {!geladen && <Laden was="Artikel" />}
 
-      {geladen && artikel.length === 0 && !leerHinweisVersteckt && (
-        <Hinweis onSchliessen={() => setLeerHinweisVersteckt(true)}>
-          Noch keine Artikel oder Leistungen — leg direkt los.
-        </Hinweis>
+          {geladen && artikel.length === 0 && !leerHinweisVersteckt && (
+            <Hinweis onSchliessen={() => setLeerHinweisVersteckt(true)}>
+              Noch keine Artikel oder Leistungen — leg direkt los.
+            </Hinweis>
+          )}
+
+          <table className="tabelle">
+            <thead>
+              <tr>
+                <SortierKopf spalte="nummer" aktiv={sortierung.spalte} richtung={sortierung.richtung} onSortieren={sortieren}>
+                  Nummer
+                </SortierKopf>
+                <SortierKopf spalte="bezeichnung" aktiv={sortierung.spalte} richtung={sortierung.richtung} onSortieren={sortieren}>
+                  Bezeichnung
+                </SortierKopf>
+                <SortierKopf spalte="einheit" aktiv={sortierung.spalte} richtung={sortierung.richtung} onSortieren={sortieren}>
+                  Einheit
+                </SortierKopf>
+                <SortierKopf spalte="preis" aktiv={sortierung.spalte} richtung={sortierung.richtung} onSortieren={sortieren}>
+                  Preis
+                </SortierKopf>
+                <SortierKopf spalte="kundenpreise" aktiv={sortierung.spalte} richtung={sortierung.richtung} onSortieren={sortieren}>
+                  Kundenpreise
+                </SortierKopf>
+                <th>Aktionen</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sortierteArtikel.map((a) => (
+                <tr key={a.id}>
+                  <td className="tabelle-num">{a.artikelnummer}</td>
+                  <td>{a.bezeichnung}</td>
+                  <td>{einheitKuerzel(a.einheit_id)}</td>
+                  <td>{formatCent(a.standardpreis_cent)}</td>
+                  <td>
+                    {/* Eigene Spalte statt eines dritten Knopfes im Aktionsfeld:
+                        Die Anzahl ist eine Angabe zum Artikel und gehört zu den
+                        anderen Angaben, nicht zwischen „Bearbeiten" und „Löschen". */}
+                    <button
+                      type="button"
+                      className="btn btn-leise"
+                      onClick={() => setPreiseFuer(a)}
+                      aria-label={`Kundenpreise für ${a.bezeichnung}`}
+                    >
+                      {a.kundenpreise_anzahl === 0
+                        ? "keine"
+                        : `${a.kundenpreise_anzahl} ${a.kundenpreise_anzahl === 1 ? "Ausnahme" : "Ausnahmen"}`}
+                    </button>
+                  </td>
+                  <td className="aktionen">
+                    <button type="button" className="btn" onClick={() => bearbeiten(a)}>
+                      Bearbeiten
+                    </button>
+                    <button type="button" className="btn btn-gefahr" onClick={() => loeschen(a)}>
+                      Löschen
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </>
       )}
-
-      <table className="tabelle">
-        <thead>
-          <tr>
-            <SortierKopf spalte="nummer" aktiv={sortierung.spalte} richtung={sortierung.richtung} onSortieren={sortieren}>
-              Nummer
-            </SortierKopf>
-            <SortierKopf spalte="bezeichnung" aktiv={sortierung.spalte} richtung={sortierung.richtung} onSortieren={sortieren}>
-              Bezeichnung
-            </SortierKopf>
-            <SortierKopf spalte="einheit" aktiv={sortierung.spalte} richtung={sortierung.richtung} onSortieren={sortieren}>
-              Einheit
-            </SortierKopf>
-            <SortierKopf spalte="preis" aktiv={sortierung.spalte} richtung={sortierung.richtung} onSortieren={sortieren}>
-              Preis
-            </SortierKopf>
-            <SortierKopf spalte="kundenpreise" aktiv={sortierung.spalte} richtung={sortierung.richtung} onSortieren={sortieren}>
-              Kundenpreise
-            </SortierKopf>
-            <th>Aktionen</th>
-          </tr>
-        </thead>
-        <tbody>
-          {sortierteArtikel.map((a) => (
-            <tr key={a.id}>
-              <td className="tabelle-num">{a.artikelnummer}</td>
-              <td>{a.bezeichnung}</td>
-              <td>{einheitKuerzel(a.einheit_id)}</td>
-              <td>{formatCent(a.standardpreis_cent)}</td>
-              <td>
-                {/* Eigene Spalte statt eines dritten Knopfes im Aktionsfeld:
-                    Die Anzahl ist eine Angabe zum Artikel und gehört zu den
-                    anderen Angaben, nicht zwischen „Bearbeiten" und „Löschen". */}
-                <button
-                  type="button"
-                  className="btn btn-leise"
-                  onClick={() => setPreiseFuer(a)}
-                  aria-label={`Kundenpreise für ${a.bezeichnung}`}
-                >
-                  {a.kundenpreise_anzahl === 0
-                    ? "keine"
-                    : `${a.kundenpreise_anzahl} ${a.kundenpreise_anzahl === 1 ? "Ausnahme" : "Ausnahmen"}`}
-                </button>
-              </td>
-              <td className="aktionen">
-                <button type="button" className="btn" onClick={() => bearbeiten(a)}>
-                  Bearbeiten
-                </button>
-                <button type="button" className="btn btn-gefahr" onClick={() => loeschen(a)}>
-                  Löschen
-                </button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
 
       {preiseFuer && (
         <KundenpreiseDialog

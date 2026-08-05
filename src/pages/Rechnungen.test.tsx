@@ -146,6 +146,15 @@ describe("Rechnungen", () => {
     fireEvent.keyDown(window, { key: "f", metaKey: true });
     expect(document.activeElement).toBe(screen.getByPlaceholderText("Nummer oder Kunde"));
   });
+
+  it("blendet die Rechnungsliste aus, während das Anlage-Formular offen ist", async () => {
+    render(<Rechnungen onOeffnen={() => {}} />);
+    await waitFor(() => expect(screen.getByText("RE-2026-0001")).toBeTruthy());
+
+    fireEvent.click(screen.getByRole("button", { name: "Neue Rechnung" }));
+    expect(screen.queryByText("RE-2026-0001")).toBeNull();
+    expect(screen.getByRole("button", { name: "Anlegen" })).toBeTruthy();
+  });
 });
 
 /** Die Belegnummern der Tabelle in der angezeigten Reihenfolge. */

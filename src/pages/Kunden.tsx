@@ -307,63 +307,69 @@ export function Kunden({
         </form>
       )}
 
-      {!geladen && <Laden was="Kunden" />}
+      {/* Solange das Anlage-Formular offen ist, bleibt die Liste komplett
+          ausgeblendet — sonst wirkte sie wie ein Teil des neuen Kunden. */}
+      {!zeigeFormular && (
+        <>
+          {!geladen && <Laden was="Kunden" />}
 
-      {geladen && kunden.length === 0 && suche === "" && !leerHinweisVersteckt && (
-        <Hinweis onSchliessen={() => setLeerHinweisVersteckt(true)}>
-          Noch keine Kunden — leg direkt los.
-        </Hinweis>
+          {geladen && kunden.length === 0 && suche === "" && !leerHinweisVersteckt && (
+            <Hinweis onSchliessen={() => setLeerHinweisVersteckt(true)}>
+              Noch keine Kunden — leg direkt los.
+            </Hinweis>
+          )}
+
+          {geladen && kunden.length === 0 && suche !== "" && (
+            <p>Keine Kunden gefunden für „{suche}".</p>
+          )}
+
+          <table className="tabelle tabelle-klickbar">
+            <thead>
+              <tr>
+                <SortierKopf spalte="nummer" aktiv={sortierung.spalte} richtung={sortierung.richtung} onSortieren={sortieren}>
+                  Nummer
+                </SortierKopf>
+                <SortierKopf spalte="name" aktiv={sortierung.spalte} richtung={sortierung.richtung} onSortieren={sortieren}>
+                  Name
+                </SortierKopf>
+                <SortierKopf spalte="typ" aktiv={sortierung.spalte} richtung={sortierung.richtung} onSortieren={sortieren}>
+                  Typ
+                </SortierKopf>
+                <th>Aktionen</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sortierteKunden.map((kunde) => (
+                <tr key={kunde.id} onClick={() => onOeffnen(kunde.id)}>
+                  <td className="tabelle-num">
+                    <ZeilenKnopf onOeffnen={() => onOeffnen(kunde.id)}>{kunde.kundennummer}</ZeilenKnopf>
+                  </td>
+                  <td>
+                    {kunde.name}
+                    {!kunde.hat_adresse && (
+                      <span title="Keine Adresse hinterlegt">{WARNUNG_ICON}</span>
+                    )}
+                  </td>
+                  <td>{KUNDE_TYP_LABEL[kunde.typ] ?? kunde.typ}</td>
+                  <td>
+                    <button
+                      type="button"
+                      className="btn btn-gefahr"
+                      disabled={kunde.hat_offene_entwuerfe}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        loeschen(kunde);
+                      }}
+                    >
+                      Löschen
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </>
       )}
-
-      {geladen && kunden.length === 0 && suche !== "" && (
-        <p>Keine Kunden gefunden für „{suche}".</p>
-      )}
-
-      <table className="tabelle tabelle-klickbar">
-        <thead>
-          <tr>
-            <SortierKopf spalte="nummer" aktiv={sortierung.spalte} richtung={sortierung.richtung} onSortieren={sortieren}>
-              Nummer
-            </SortierKopf>
-            <SortierKopf spalte="name" aktiv={sortierung.spalte} richtung={sortierung.richtung} onSortieren={sortieren}>
-              Name
-            </SortierKopf>
-            <SortierKopf spalte="typ" aktiv={sortierung.spalte} richtung={sortierung.richtung} onSortieren={sortieren}>
-              Typ
-            </SortierKopf>
-            <th>Aktionen</th>
-          </tr>
-        </thead>
-        <tbody>
-          {sortierteKunden.map((kunde) => (
-            <tr key={kunde.id} onClick={() => onOeffnen(kunde.id)}>
-              <td className="tabelle-num">
-                <ZeilenKnopf onOeffnen={() => onOeffnen(kunde.id)}>{kunde.kundennummer}</ZeilenKnopf>
-              </td>
-              <td>
-                {kunde.name}
-                {!kunde.hat_adresse && (
-                  <span title="Keine Adresse hinterlegt">{WARNUNG_ICON}</span>
-                )}
-              </td>
-              <td>{KUNDE_TYP_LABEL[kunde.typ] ?? kunde.typ}</td>
-              <td>
-                <button
-                  type="button"
-                  className="btn btn-gefahr"
-                  disabled={kunde.hat_offene_entwuerfe}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    loeschen(kunde);
-                  }}
-                >
-                  Löschen
-                </button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
     </div>
   );
 }

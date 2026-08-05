@@ -180,4 +180,17 @@ describe("Kunden", () => {
     fireEvent.keyDown(window, { key: "f", metaKey: true });
     expect(document.activeElement).toBe(screen.getByLabelText("Suche"));
   });
+
+  it("blendet die Kundenliste aus, während das Anlage-Formular offen ist", async () => {
+    // Vorher blieb die Liste sichtbar und wirkte wie ein Teil des neuen
+    // Kunden. Nach dem Speichern (oder Abbrechen) erscheint sie wieder.
+    render(<Kunden onOeffnen={() => {}} />);
+    await waitFor(() => expect(screen.getByText("ACME GmbH")).toBeTruthy());
+
+    fireEvent.click(screen.getByRole("button", { name: "Neuer Kunde" }));
+    expect(screen.queryByText("ACME GmbH")).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Abbrechen" }));
+    await waitFor(() => expect(screen.getByText("ACME GmbH")).toBeTruthy());
+  });
 });

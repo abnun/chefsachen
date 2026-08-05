@@ -6,6 +6,7 @@ import { Blaettern } from "../components/Blaettern";
 import { Laden } from "../components/Laden";
 import { SortierKopf } from "../components/SortierKopf";
 import { StatusMarke } from "../components/StatusMarke";
+import { Werkzeugleiste } from "../components/Werkzeugleiste";
 import { RECHNUNG_STATUS, statusAuswahl } from "../belegStatus";
 import { datumDeutsch, heuteIso } from "../datum";
 import { formatCent } from "../geld";
@@ -67,150 +68,50 @@ export function Rechnungen({ onOeffnen }: RechnungenProps) {
     <div>
       <h1 className="seiten-kopf">Rechnungen</h1>
       {liste.fehler && <Fehler fehler={liste.fehler} />}
-      <div className="werkzeugleiste">
-        <label className="feld">
-          Suche
-          <input
-            ref={sucheRef}
-            type="search"
-            value={liste.suche}
-            onChange={(e) => liste.setSuche(e.currentTarget.value)}
-            placeholder="Nummer oder Kunde"
-          />
-        </label>
-        <label className="feld">
-          Status
-          <select
-            value={liste.statusFilter}
-            onChange={(e) => liste.setStatusFilter(e.currentTarget.value)}
-          >
-            <option value="">Alle</option>
-            {statusAuswahl(RECHNUNG_STATUS).map(([wert, label]) => (
-              <option key={wert} value={wert}>
-                {label}
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
-      {!liste.geladen && <Laden was="Rechnungen" />}
-
-      {liste.geladen && liste.belege.length === 0 && (
-        <p>
-          {liste.suche
-            ? `Keine Rechnungen gefunden für „${liste.suche}".`
-            : liste.statusFilter
-              ? "Keine Rechnungen mit diesem Status."
-              : "Noch keine Rechnungen — leg oben eine an."}
-        </p>
-      )}
-
-      <table className="tabelle tabelle-klickbar">
-        <thead>
-          <tr>
-            <SortierKopf
-              spalte="nummer"
-              aktiv={liste.sortierung.spalte}
-              richtung={liste.sortierung.richtung}
-              onSortieren={liste.sortieren}
-            >
-              Nummer
-            </SortierKopf>
-            <SortierKopf
-              spalte="kunde"
-              aktiv={liste.sortierung.spalte}
-              richtung={liste.sortierung.richtung}
-              onSortieren={liste.sortieren}
-            >
-              Kunde
-            </SortierKopf>
-            <SortierKopf
-              spalte="datum"
-              aktiv={liste.sortierung.spalte}
-              richtung={liste.sortierung.richtung}
-              onSortieren={liste.sortieren}
-            >
-              Datum
-            </SortierKopf>
-            <SortierKopf
-              spalte="status"
-              aktiv={liste.sortierung.spalte}
-              richtung={liste.sortierung.richtung}
-              onSortieren={liste.sortieren}
-            >
+      <Werkzeugleiste
+        filter={
+          <>
+            <label className="feld">
+              Suche
+              <input
+                ref={sucheRef}
+                type="search"
+                value={liste.suche}
+                onChange={(e) => liste.setSuche(e.currentTarget.value)}
+                placeholder="Nummer oder Kunde"
+              />
+            </label>
+            <label className="feld">
               Status
-            </SortierKopf>
-            <th>Zahlung</th>
-            <SortierKopf
-              spalte="faellig"
-              aktiv={liste.sortierung.spalte}
-              richtung={liste.sortierung.richtung}
-              onSortieren={liste.sortieren}
+              <select
+                value={liste.statusFilter}
+                onChange={(e) => liste.setStatusFilter(e.currentTarget.value)}
+              >
+                <option value="">Alle</option>
+                {statusAuswahl(RECHNUNG_STATUS).map(([wert, label]) => (
+                  <option key={wert} value={wert}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </>
+        }
+        aktion={
+          !liste.zeigeFormular && (
+            <button
+              type="button"
+              className="btn btn-primaer"
+              onClick={() => liste.setZeigeFormular(true)}
             >
-              Fällig
-            </SortierKopf>
-            <SortierKopf
-              spalte="summe"
-              aktiv={liste.sortierung.spalte}
-              richtung={liste.sortierung.richtung}
-              onSortieren={liste.sortieren}
-            >
-              Summe
-            </SortierKopf>
-            <SortierKopf
-              spalte="offen"
-              aktiv={liste.sortierung.spalte}
-              richtung={liste.sortierung.richtung}
-              onSortieren={liste.sortieren}
-            >
-              Offen
-            </SortierKopf>
-          </tr>
-        </thead>
-        <tbody>
-          {liste.belege.map((r) => (
-            <tr key={r.id} onClick={() => onOeffnen(r.id)}>
-              <td className="tabelle-num nicht-umbrechen">
-                <ZeilenKnopf onOeffnen={() => onOeffnen(r.id)}>{r.nummer ?? "Entwurf"}</ZeilenKnopf>
-              </td>
-              <td>{liste.kundeName(r)}</td>
-              <td className="nicht-umbrechen">{datumDeutsch(r.datum)}</td>
-              <td>
-                <StatusMarke status={r.status} />
-                {r.storno_von_id && <span className="marke">Storno</span>}
-              </td>
-              <td>
-                {r.zahlungsstand ? (
-                  <span className={`status ${ZAHLUNGSSTAND_KLASSE[r.zahlungsstand]}`}>
-                    {(r.storno_von_id ? GUTSCHRIFT_LABEL : ZAHLUNGSSTAND_LABEL)[r.zahlungsstand]}
-                  </span>
-                ) : (
-                  "—"
-                )}
-              </td>
-              {(() => {
-                const f = faelligkeit(r.faellig_am, r.zahlungsstand);
-                return (
-                  <td className={`nicht-umbrechen ${f.ueberfaellig ? "ueberfaellig" : ""}`}>{f.text}</td>
-                );
-              })()}
-              <td className="nicht-umbrechen">{formatCent(r.summe_cent)}</td>
-              <td className="nicht-umbrechen">
-                {r.zahlungsstand && r.zahlungsstand !== "bezahlt"
-                  ? formatCent(r.summe_cent - (r.bezahlt_cent ?? 0))
-                  : "—"}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-
-      <Blaettern
-        seite={liste.seite}
-        seitenAnzahl={liste.seitenAnzahl}
-        gesamt={liste.trefferAnzahl}
-        onSeite={liste.setSeite}
+              Neue Rechnung
+            </button>
+          )
+        }
       />
+
+      {/* Solange das Anlage-Formular offen ist, bleibt die Liste komplett
+          ausgeblendet — sonst wirkte sie wie ein Teil der neuen Rechnung. */}
       {liste.zeigeFormular ? (
         <BelegAnlegen
           kunden={liste.kunden}
@@ -222,13 +123,126 @@ export function Rechnungen({ onOeffnen }: RechnungenProps) {
           onAnlegen={liste.anlegen}
         />
       ) : (
-        <button
-          type="button"
-          className="btn btn-primaer"
-          onClick={() => liste.setZeigeFormular(true)}
-        >
-          Neue Rechnung
-        </button>
+        <>
+          {!liste.geladen && <Laden was="Rechnungen" />}
+
+          {liste.geladen && liste.belege.length === 0 && (
+            <p>
+              {liste.suche
+                ? `Keine Rechnungen gefunden für „${liste.suche}".`
+                : liste.statusFilter
+                  ? "Keine Rechnungen mit diesem Status."
+                  : "Noch keine Rechnungen — leg oben eine an."}
+            </p>
+          )}
+
+          <table className="tabelle tabelle-klickbar">
+            <thead>
+              <tr>
+                <SortierKopf
+                  spalte="nummer"
+                  aktiv={liste.sortierung.spalte}
+                  richtung={liste.sortierung.richtung}
+                  onSortieren={liste.sortieren}
+                >
+                  Nummer
+                </SortierKopf>
+                <SortierKopf
+                  spalte="kunde"
+                  aktiv={liste.sortierung.spalte}
+                  richtung={liste.sortierung.richtung}
+                  onSortieren={liste.sortieren}
+                >
+                  Kunde
+                </SortierKopf>
+                <SortierKopf
+                  spalte="datum"
+                  aktiv={liste.sortierung.spalte}
+                  richtung={liste.sortierung.richtung}
+                  onSortieren={liste.sortieren}
+                >
+                  Datum
+                </SortierKopf>
+                <SortierKopf
+                  spalte="status"
+                  aktiv={liste.sortierung.spalte}
+                  richtung={liste.sortierung.richtung}
+                  onSortieren={liste.sortieren}
+                >
+                  Status
+                </SortierKopf>
+                <th>Zahlung</th>
+                <SortierKopf
+                  spalte="faellig"
+                  aktiv={liste.sortierung.spalte}
+                  richtung={liste.sortierung.richtung}
+                  onSortieren={liste.sortieren}
+                >
+                  Fällig
+                </SortierKopf>
+                <SortierKopf
+                  spalte="summe"
+                  aktiv={liste.sortierung.spalte}
+                  richtung={liste.sortierung.richtung}
+                  onSortieren={liste.sortieren}
+                >
+                  Summe
+                </SortierKopf>
+                <SortierKopf
+                  spalte="offen"
+                  aktiv={liste.sortierung.spalte}
+                  richtung={liste.sortierung.richtung}
+                  onSortieren={liste.sortieren}
+                >
+                  Offen
+                </SortierKopf>
+              </tr>
+            </thead>
+            <tbody>
+              {liste.belege.map((r) => (
+                <tr key={r.id} onClick={() => onOeffnen(r.id)}>
+                  <td className="tabelle-num nicht-umbrechen">
+                    <ZeilenKnopf onOeffnen={() => onOeffnen(r.id)}>{r.nummer ?? "Entwurf"}</ZeilenKnopf>
+                  </td>
+                  <td>{liste.kundeName(r)}</td>
+                  <td className="nicht-umbrechen">{datumDeutsch(r.datum)}</td>
+                  <td>
+                    <StatusMarke status={r.status} />
+                    {r.storno_von_id && <span className="marke">Storno</span>}
+                  </td>
+                  <td>
+                    {r.zahlungsstand ? (
+                      <span className={`status ${ZAHLUNGSSTAND_KLASSE[r.zahlungsstand]}`}>
+                        {(r.storno_von_id ? GUTSCHRIFT_LABEL : ZAHLUNGSSTAND_LABEL)[r.zahlungsstand]}
+                      </span>
+                    ) : (
+                      "—"
+                    )}
+                  </td>
+                  {(() => {
+                    const f = faelligkeit(r.faellig_am, r.zahlungsstand);
+                    return (
+                      <td className={`nicht-umbrechen ${f.ueberfaellig ? "ueberfaellig" : ""}`}>{f.text}</td>
+                    );
+                  })()}
+                  <td className="nicht-umbrechen">{formatCent(r.summe_cent)}</td>
+                  <td className="nicht-umbrechen">
+                    {r.zahlungsstand && r.zahlungsstand !== "bezahlt"
+                      ? formatCent(r.summe_cent - (r.bezahlt_cent ?? 0))
+                      : "—"}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+
+          <Blaettern
+            seite={liste.seite}
+            seitenAnzahl={liste.seitenAnzahl}
+            gesamt={liste.trefferAnzahl}
+            onSeite={liste.setSeite}
+          />
+        </>
       )}
     </div>
   );

@@ -277,4 +277,15 @@ describe("Artikel", () => {
 
     expect(screen.getByLabelText("Bezeichnung")).toHaveValue("Halb getippt");
   });
+
+  it("blendet die Artikelliste aus, während das Formular offen ist", async () => {
+    render(<Artikel />);
+    await waitFor(() => expect(screen.getByText("Beratung")).toBeTruthy());
+
+    fireEvent.click(screen.getByRole("button", { name: "Neuer Artikel" }));
+    expect(screen.queryByText("Beratung")).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Abbrechen" }));
+    await waitFor(() => expect(screen.getByText("Beratung")).toBeTruthy());
+  });
 });

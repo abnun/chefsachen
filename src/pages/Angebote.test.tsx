@@ -77,4 +77,13 @@ describe("Angebote", () => {
     fireEvent.keyDown(window, { key: "f", metaKey: true });
     expect(document.activeElement).toBe(screen.getByPlaceholderText("Nummer oder Kunde"));
   });
+
+  it("blendet die Angebotsliste aus, während das Anlage-Formular offen ist", async () => {
+    render(<Angebote onOeffnen={() => {}} />);
+    await waitFor(() => expect(screen.getByText("AN-2026-0001")).toBeTruthy());
+
+    fireEvent.click(screen.getByRole("button", { name: "Neues Angebot" }));
+    expect(screen.queryByText("AN-2026-0001")).toBeNull();
+    expect(screen.getByRole("button", { name: "Anlegen" })).toBeTruthy();
+  });
 });
