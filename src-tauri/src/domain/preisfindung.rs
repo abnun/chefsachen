@@ -44,7 +44,7 @@ mod tests {
         let artikel = artikel_create(pool, ArtikelNeu {
             bezeichnung: "Beratung".into(), beschreibung: "".into(),
             einheit_id: "e0000000-0000-0000-0000-000000000001".into(),
-            standardpreis_cent: 9500,
+            standardpreis_cent: 9500, ust_satz_prozent: 19,
         }).await.unwrap();
         (artikel.id, kunde.id)
     }

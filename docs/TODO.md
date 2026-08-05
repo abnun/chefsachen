@@ -3,6 +3,27 @@
 Priorisierte Arbeitsliste, abgeleitet aus [MVP-Review vom 2026-08-02](2026-08-02-mvp-review.md).
 Reihenfolge = Empfehlung. Jeder Punkt trägt die Referenz aus dem Review.
 
+## Stand (2026-08-05, Umsatzsteuer)
+
+**Umsatzsteuer (Regelbesteuerung) implementiert** — der Nutzer hat die
+Kleinunternehmergrenze überschritten. Umschalter ist das bestehende
+`firma.kleinunternehmer`-Häkchen; abgewählt gilt Regelbesteuerung:
+
+- Steuersatz je Artikel (19/7/0 %, Migration 0020), beim Speichern einer
+  Position eingefroren wie Bezeichnung und Preis; Freitextpositionen mit
+  eigenem Auswahlfeld. Preise bleiben brutto, die USt wird herausgerechnet
+  (`domain/steuer.rs`, symmetrische Rundung, Rest-Cent-Verteilung für die
+  XRechnung-Positionsnetti).
+- Gestellte Belege behalten ihren Steuermodus über das eingefrorene
+  `kleinunternehmer`-Flag im Kunden-Snapshot — Altbelege bleiben unverändert.
+- PDF mit Aufschlüsselung je Satz (§ 14 Abs. 4 Nr. 7–8 UStG), XRechnung/
+  ZUGFeRD mit Kategorie S bzw. Z (0 %); vier neue KoSIT-Normtests (S 19 %,
+  gemischt, Z, Storno) laufen in der CI mit `KOSIT_PFLICHT=1`.
+- Bekannte, dokumentierte Grenzen: §-4-Befreiungen (Kategorie E mit
+  Befreiungsgrund außerhalb § 19) nicht abgedeckt; Positionen aus
+  Vor-Migrations-Angeboten tragen den Default 19 % (korrigierbar durch
+  Neu-Speichern der Position).
+
 ## Stand (2026-08-05)
 
 Nutzer-gemeldete Befunde an Beleg-Vorlage und Firmen-Stammdaten, alle behoben

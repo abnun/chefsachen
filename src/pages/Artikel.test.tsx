@@ -21,7 +21,7 @@ vi.mock("../api", () => ({
           bezeichnung: "Beratung",
           beschreibung: "",
           einheit_id: "e1",
-          standardpreis_cent: 9550,
+          standardpreis_cent: 9550, ust_satz_prozent: 19,
           kundenpreise_anzahl: 0,
         },
       ]),
@@ -71,7 +71,7 @@ describe("Artikel", () => {
     fireEvent.click(screen.getByRole("button", { name: "Neuer Artikel" }));
     fireEvent.change(screen.getByLabelText("Bezeichnung"), { target: { value: "Beratung" } });
     fireEvent.change(screen.getByLabelText("Einheit"), { target: { value: "e1" } });
-    fireEvent.change(screen.getByLabelText("Standardpreis (€)"), { target: { value: "50,00" } });
+    fireEvent.change(screen.getByLabelText("Standardpreis (€, brutto)"), { target: { value: "50,00" } });
     fireEvent.click(screen.getByRole("button", { name: "Speichern" }));
     await waitFor(() =>
       expect(screen.getByRole("button", { name: /jetzt auch einen Kunden anlegen/ })).toBeTruthy(),
@@ -93,7 +93,7 @@ describe("Artikel", () => {
     vi.mocked(api.artikel.list).mockResolvedValueOnce([
       {
         id: "a1", artikelnummer: "ART-0001", bezeichnung: "Beratung",
-        beschreibung: "", einheit_id: "e1", standardpreis_cent: 9550, kundenpreise_anzahl: 2,
+        beschreibung: "", einheit_id: "e1", standardpreis_cent: 9550, ust_satz_prozent: 19, kundenpreise_anzahl: 2,
       },
     ]);
     render(<Artikel />);
@@ -138,7 +138,7 @@ describe("Artikel", () => {
     // Die Einheit ist im Formular Pflicht; ohne Auswahl blockiert der Browser
     // das Abschicken und der Backend-Fehler entstünde gar nicht erst.
     fireEvent.change(screen.getByLabelText("Einheit"), { target: { value: "e1" } });
-    fireEvent.change(screen.getByLabelText("Standardpreis (€)"), { target: { value: "50,00" } });
+    fireEvent.change(screen.getByLabelText("Standardpreis (€, brutto)"), { target: { value: "50,00" } });
     fireEvent.click(screen.getByRole("button", { name: "Speichern" }));
     await waitFor(() => expect(screen.getByText('Artikel „Konzeption" angelegt')).toBeTruthy());
   });
@@ -160,9 +160,26 @@ describe("Artikel", () => {
     // Die Einheit ist im Formular Pflicht; ohne Auswahl blockiert der Browser
     // das Abschicken und der Backend-Fehler entstünde gar nicht erst.
     fireEvent.change(screen.getByLabelText("Einheit"), { target: { value: "e1" } });
-    fireEvent.change(screen.getByLabelText("Standardpreis (€)"), { target: { value: "50,00" } });
+    fireEvent.change(screen.getByLabelText("Standardpreis (€, brutto)"), { target: { value: "50,00" } });
     fireEvent.click(screen.getByRole("button", { name: "Speichern" }));
     await waitFor(() => expect(screen.getByText(meldung)).toBeTruthy());
+  });
+
+  it("sendet den gewählten Umsatzsteuersatz beim Anlegen mit", async () => {
+    const { api } = await import("../api");
+    render(<Artikel />);
+    await waitFor(() => expect(screen.getByText("Beratung")).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Neuer Artikel" }));
+    fireEvent.change(screen.getByLabelText("Bezeichnung"), { target: { value: "Fachbuch" } });
+    fireEvent.change(screen.getByLabelText("Einheit"), { target: { value: "e1" } });
+    fireEvent.change(screen.getByLabelText("Standardpreis (€, brutto)"), { target: { value: "10,70" } });
+    fireEvent.change(screen.getByLabelText("Umsatzsteuersatz"), { target: { value: "7" } });
+    fireEvent.click(screen.getByRole("button", { name: "Speichern" }));
+    await waitFor(() =>
+      expect(api.artikel.create).toHaveBeenCalledWith(
+        expect.objectContaining({ ust_satz_prozent: 7 }),
+      ),
+    );
   });
 
   it("zeigt nach dem Bearbeiten eines Artikels einen Erfolgs-Hinweis", async () => {
@@ -201,7 +218,7 @@ describe("Artikel", () => {
     vi.mocked(api.artikel.list).mockResolvedValueOnce([
       {
         id: "a1", artikelnummer: "ART-0001", bezeichnung: "Beratung", beschreibung: "",
-        einheit_id: "e1", standardpreis_cent: 9550, kundenpreise_anzahl: 2,
+        einheit_id: "e1", standardpreis_cent: 9550, ust_satz_prozent: 19, kundenpreise_anzahl: 2,
       },
     ]);
     render(<Artikel />);
@@ -235,7 +252,7 @@ describe("Artikel", () => {
     await waitFor(() => expect(screen.getByRole("button", { name: "Neuer Artikel" })).toBeTruthy());
     fireEvent.click(screen.getByRole("button", { name: "Neuer Artikel" }));
     fireEvent.change(screen.getByLabelText("Bezeichnung"), { target: { value: "Konzeption" } });
-    fireEvent.change(screen.getByLabelText("Standardpreis (€)"), { target: { value: "50,00" } });
+    fireEvent.change(screen.getByLabelText("Standardpreis (€, brutto)"), { target: { value: "50,00" } });
     fireEvent.click(screen.getByRole("button", { name: "Speichern" }));
 
     await waitFor(() => expect(screen.getByText("Bitte eine Einheit wählen")).toBeTruthy());
@@ -252,7 +269,7 @@ describe("Artikel", () => {
     await waitFor(() => expect(screen.getByRole("button", { name: "Neuer Artikel" })).toBeTruthy());
     fireEvent.click(screen.getByRole("button", { name: "Neuer Artikel" }));
     fireEvent.change(screen.getByLabelText("Einheit"), { target: { value: "e1" } });
-    fireEvent.change(screen.getByLabelText("Standardpreis (€)"), { target: { value: "50,00" } });
+    fireEvent.change(screen.getByLabelText("Standardpreis (€, brutto)"), { target: { value: "50,00" } });
     fireEvent.click(screen.getByRole("button", { name: "Speichern" }));
 
     await waitFor(() => expect(screen.getByText("Bezeichnung darf nicht leer sein")).toBeTruthy());

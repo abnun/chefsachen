@@ -7,7 +7,24 @@ auf GitHub ändert daran nichts mehr.
 
 Deshalb hier in der Sprache der Anwender, nicht in der der Commits.
 
-## 0.9.4
+## 0.10.0
+
+**Umsatzsteuer (Regelbesteuerung)**
+- Wer die Kleinunternehmergrenze überschreitet, entfernt in den
+  Einstellungen das Häkchen „Kleinunternehmer (§19 UStG)" — neue Belege
+  weisen dann die Umsatzsteuer aus. Bereits festgeschriebene Belege
+  bleiben unverändert Kleinunternehmer-Belege.
+- Der Steuersatz (19 %, 7 % oder 0 %) wird je Artikel gewählt und beim
+  Erfassen einer Position eingefroren; Freitextpositionen haben ein
+  eigenes Auswahlfeld.
+- Die Preise bleiben Bruttopreise: Der Kunde zahlt denselben Betrag wie
+  bisher, die enthaltene Umsatzsteuer wird herausgerechnet und auf
+  Angebot und Rechnung je Steuersatz aufgeschlüsselt (§ 14 Abs. 4
+  Nr. 7–8 UStG). Der Belegeditor zeigt die Aufschlüsselung schon unter
+  der Summe.
+- XRechnung und ZUGFeRD tragen die Steuer normkonform (Kategorie S bzw.
+  Z bei 0 %), geprüft gegen den amtlichen KoSIT-Validator — auch mit
+  gemischten Sätzen und bei Stornos.
 
 **Rundgang auf jeder Seite**
 - Der geführte Rundgang von der Übersicht steht jetzt auf allen Seiten

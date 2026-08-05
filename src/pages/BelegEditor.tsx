@@ -71,7 +71,7 @@ export function BelegEditor({ id, onZurueck, onGeaendert, onRechnungErstellt, on
     return <main>{fehler ? <Fehler fehler={fehler} /> : <Laden />}</main>;
   }
 
-  const { beleg, positionen, zahlungen, offener_betrag_cent } = detail;
+  const { beleg, positionen, zahlungen, offener_betrag_cent, steuerzeilen } = detail;
   const istEntwurf = beleg.status === "entwurf";
 
   async function stammdatenSpeichern(felder: {
@@ -126,6 +126,16 @@ export function BelegEditor({ id, onZurueck, onGeaendert, onRechnungErstellt, on
         <dd>
           {positionen.length}, Summe {formatCent(beleg.summe_cent)}
         </dd>
+        {steuerzeilen.length > 0 && (
+          <>
+            <dt>Enthaltene USt</dt>
+            <dd>
+              {steuerzeilen
+                .map((z) => `${z.satz_prozent} %: ${formatCent(z.ust_cent)}`)
+                .join(", ")}
+            </dd>
+          </>
+        )}
         {istAngebot && (
           <>
             <dt>Gültig bis</dt>
@@ -434,6 +444,15 @@ export function BelegEditor({ id, onZurueck, onGeaendert, onRechnungErstellt, on
       />
 
       <p className="beleg-summe">Summe: {formatCent(beleg.summe_cent)}</p>
+      {/* Aufschlüsselung nur bei Regelbesteuerung — bei Kleinunternehmer-Belegen
+          liefert das Backend keine Steuerzeilen. Die Beträge stehen so schon im
+          Editor, nicht erst auf dem exportierten PDF. */}
+      {steuerzeilen.map((z) => (
+        <p key={z.satz_prozent} className="beleg-steuerzeile">
+          Enthaltene USt {z.satz_prozent} % (aus Nettobetrag {formatCent(z.netto_cent)}):{" "}
+          {formatCent(z.ust_cent)}
+        </p>
+      ))}
 
       {beleg.typ === "rechnung" && beleg.storno_von_id !== null && (
         <p>Dies ist ein Stornobeleg.</p>

@@ -36,6 +36,19 @@ const GESCHAEFTSPROZESS: &str = "urn:fdc:peppol.eu:2017:poacc:billing:01:1.0";
 /// Begründung der Steuerbefreiung (BT-120) für Kleinunternehmer nach § 19 UStG.
 const BEFREIUNGSGRUND: &str = "Kleinunternehmer gemäß § 19 UStG";
 
+/// Steuerkategorie (BT-151/BT-118) bei Regelbesteuerung. 0 % ist Kategorie „Z"
+/// (Nullsatz), nicht „S mit 0.00" — BR-S-5 verlangt bei „S" einen Satz über
+/// null. Weder S noch Z tragen einen Befreiungsgrund (BR-S-8, BR-Z-8 —
+/// ExemptionReason ist der Kategorie E vorbehalten).
+fn steuerkategorie(satz_prozent: i64) -> &'static str {
+    if satz_prozent > 0 { "S" } else { "Z" }
+}
+
+/// Prozentsatz im von der Norm erwarteten Dezimalformat, z. B. „19.00".
+fn satz_zu_dezimal(satz_prozent: i64) -> String {
+    format!("{satz_prozent}.00")
+}
+
 /// Übersetzt die im Programm gepflegten Einheitenkürzel in UN/ECE-Rec-20-Codes,
 /// wie sie EN 16931 verlangt. Unbekannte Kürzel werden zu C62 (Stück) —
 /// dem neutralen Sammelcode —, damit ein selbst angelegtes Kürzel den Export
@@ -155,6 +168,19 @@ pub fn xml_erzeugen(kontext: &BelegKontext) -> AppResult<String> {
     let mut xml = Xml::neu();
     let type_code = if kontext.beleg.storno_von_id.is_some() { "384" } else { "380" };
 
+    // Regelbesteuerung: Die gespeicherten Beträge sind brutto, die Norm will
+    // Nettobeträge. Alles wird vorab auf den Absolutwerten gerechnet — die
+    // Beträge stehen im XML durchweg als `.abs()` (Storno-Semantik trägt der
+    // TypeCode 384), und so bleiben die Summenproben auch im Storno exakt.
+    let regelbesteuert = !kontext.firma.kleinunternehmer;
+    let brutto_je_position: Vec<(i64, i64)> = kontext
+        .positionen
+        .iter()
+        .map(|p| (p.ust_satz_prozent, p.positionssumme_cent.abs()))
+        .collect();
+    let positionsnetti = crate::domain::steuer::positions_netti(&brutto_je_position);
+    let steuerzeilen = crate::domain::steuer::aufschluesselung(&brutto_je_position);
+
     xml.deklaration();
     xml.auf_mit("rsm:CrossIndustryInvoice", &[
             ("xmlns:rsm", "urn:un:unece:uncefact:data:standard:CrossIndustryInvoice:100"),
@@ -201,7 +227,15 @@ pub fn xml_erzeugen(kontext: &BelegKontext) -> AppResult<String> {
         // BR-27: Der Einzelpreis darf nicht negativ sein. Bei einer Korrektur
         // (TypeCode 384) trägt der Beleg negierte Preise; die Norm erwartet dort
         // positive Beträge, die Korrektur-Semantik steckt im TypeCode.
-        schreibe_betrag(&mut xml, "ram:ChargeAmount", pos.einzelpreis_cent.abs());
+        // Bei Regelbesteuerung ist BT-146 der Netto-Einzelpreis — der
+        // gespeicherte Preis ist brutto, die Steuer wird herausgerechnet.
+        let einzelpreis = pos.einzelpreis_cent.abs();
+        let einzelpreis_netto = if regelbesteuert {
+            einzelpreis - crate::domain::steuer::ust_aus_brutto(einzelpreis, pos.ust_satz_prozent)
+        } else {
+            einzelpreis
+        };
+        schreibe_betrag(&mut xml, "ram:ChargeAmount", einzelpreis_netto);
         xml.zu("ram:NetPriceProductTradePrice");
         xml.zu("ram:SpecifiedLineTradeAgreement");
         xml.auf("ram:SpecifiedLineTradeDelivery");
@@ -212,11 +246,20 @@ pub fn xml_erzeugen(kontext: &BelegKontext) -> AppResult<String> {
         xml.auf("ram:SpecifiedLineTradeSettlement");
         xml.auf("ram:ApplicableTradeTax");
         xml.feld( "ram:TypeCode", "VAT");
-        xml.feld( "ram:CategoryCode", "E");
-        xml.feld( "ram:RateApplicablePercent", "0.00");
+        if regelbesteuert {
+            xml.feld( "ram:CategoryCode", steuerkategorie(pos.ust_satz_prozent));
+            xml.feld( "ram:RateApplicablePercent", &satz_zu_dezimal(pos.ust_satz_prozent));
+        } else {
+            xml.feld( "ram:CategoryCode", "E");
+            xml.feld( "ram:RateApplicablePercent", "0.00");
+        }
         xml.zu("ram:ApplicableTradeTax");
         xml.auf("ram:SpecifiedTradeSettlementLineMonetarySummation");
-        schreibe_betrag(&mut xml, "ram:LineTotalAmount", pos.positionssumme_cent.abs());
+        // BT-131: netto (mit Rest-Cent-Verteilung, damit die Positionsnetti je
+        // Satz exakt auf das Gruppennetto summieren — BR-45, BR-CO-10); bei
+        // Kleinunternehmern unverändert der Bruttobetrag.
+        let zeilensumme = if regelbesteuert { positionsnetti[i] } else { pos.positionssumme_cent.abs() };
+        schreibe_betrag(&mut xml, "ram:LineTotalAmount", zeilensumme);
         xml.zu("ram:SpecifiedTradeSettlementLineMonetarySummation");
         xml.zu("ram:SpecifiedLineTradeSettlement");
         xml.zu("ram:IncludedSupplyChainTradeLineItem");
@@ -338,18 +381,33 @@ pub fn xml_erzeugen(kontext: &BelegKontext) -> AppResult<String> {
         }
         xml.zu("ram:SpecifiedTradeSettlementPaymentMeans");
     }
-    // Kopf-Steuerzeile (BG-23). Hier — nicht auf Positionsebene — werten
-    // Empfängersysteme die Steuerbefreiung aus. Ohne diesen Block ist die
-    // Kleinunternehmer-Kennzeichnung faktisch nicht vorhanden (BR-E-1, BR-E-10).
+    // Kopf-Steuerzeilen (BG-23). Hier — nicht auf Positionsebene — werten
+    // Empfängersysteme die Steuer aus.
     let netto = kontext.beleg.summe_cent.abs();
-    xml.auf("ram:ApplicableTradeTax");
-    schreibe_betrag(&mut xml, "ram:CalculatedAmount", 0);
-    xml.feld( "ram:TypeCode", "VAT");
-    xml.feld( "ram:ExemptionReason", BEFREIUNGSGRUND);
-    schreibe_betrag(&mut xml, "ram:BasisAmount", netto);
-    xml.feld( "ram:CategoryCode", "E");
-    xml.feld( "ram:RateApplicablePercent", "0.00");
-    xml.zu("ram:ApplicableTradeTax");
+    if regelbesteuert {
+        // Eine Zeile je Steuersatz (BR-S-1/BR-Z-1); kein ExemptionReason —
+        // der ist der Kategorie E vorbehalten (BR-S-8).
+        for zeile in &steuerzeilen {
+            xml.auf("ram:ApplicableTradeTax");
+            schreibe_betrag(&mut xml, "ram:CalculatedAmount", zeile.ust_cent);
+            xml.feld( "ram:TypeCode", "VAT");
+            schreibe_betrag(&mut xml, "ram:BasisAmount", zeile.netto_cent);
+            xml.feld( "ram:CategoryCode", steuerkategorie(zeile.satz_prozent));
+            xml.feld( "ram:RateApplicablePercent", &satz_zu_dezimal(zeile.satz_prozent));
+            xml.zu("ram:ApplicableTradeTax");
+        }
+    } else {
+        // Ohne diesen Block ist die Kleinunternehmer-Kennzeichnung faktisch
+        // nicht vorhanden (BR-E-1, BR-E-10).
+        xml.auf("ram:ApplicableTradeTax");
+        schreibe_betrag(&mut xml, "ram:CalculatedAmount", 0);
+        xml.feld( "ram:TypeCode", "VAT");
+        xml.feld( "ram:ExemptionReason", BEFREIUNGSGRUND);
+        schreibe_betrag(&mut xml, "ram:BasisAmount", netto);
+        xml.feld( "ram:CategoryCode", "E");
+        xml.feld( "ram:RateApplicablePercent", "0.00");
+        xml.zu("ram:ApplicableTradeTax");
+    }
 
     // BG-14: Bei einem Leistungszeitraum gehört die Spanne in den
     // Abrechnungszeitraum. Sie steht laut CII-Schema vor den Zahlungsbedingungen.
@@ -386,13 +444,31 @@ pub fn xml_erzeugen(kontext: &BelegKontext) -> AppResult<String> {
     xml.zu("ram:SpecifiedTradePaymentTerms");
 
     xml.auf("ram:SpecifiedTradeSettlementHeaderMonetarySummation");
-    // BT-106 fehlte bisher ganz — ohne sie ist die Summenprobe BR-CO-10 verletzt.
-    let positionssumme: i64 = kontext.positionen.iter().map(|p| p.positionssumme_cent.abs()).sum();
-    schreibe_betrag(&mut xml, "ram:LineTotalAmount", positionssumme);
-    schreibe_betrag(&mut xml, "ram:TaxBasisTotalAmount", netto);
-    schreibe_steuersumme(&mut xml, 0);
-    schreibe_betrag(&mut xml, "ram:GrandTotalAmount", netto);
-    schreibe_betrag(&mut xml, "ram:DuePayableAmount", netto);
+    if regelbesteuert {
+        // Die Summenproben verlangen exakte Gleichheit: BT-106 = Σ BT-131
+        // (BR-CO-10), BT-109 = Σ BT-116 (BR-CO-14 über BR-CO-13), BT-110 =
+        // Σ BT-117 (BR-CO-14), BT-112 = BT-109 + BT-110 (BR-CO-15). Alle vier
+        // sind hier durch Konstruktion erfüllt: Die Positionsnetti summieren
+        // je Satz exakt auf das Gruppennetto, und netto + Steuer je Gruppe
+        // ergibt exakt die gespeicherte Bruttosumme.
+        let netto_gesamt: i64 = steuerzeilen.iter().map(|z| z.netto_cent).sum();
+        let ust_gesamt: i64 = steuerzeilen.iter().map(|z| z.ust_cent).sum();
+        debug_assert_eq!(netto_gesamt + ust_gesamt, netto, "Aufschlüsselung deckt die Belegsumme nicht");
+        debug_assert_eq!(positionsnetti.iter().sum::<i64>(), netto_gesamt);
+        schreibe_betrag(&mut xml, "ram:LineTotalAmount", netto_gesamt);
+        schreibe_betrag(&mut xml, "ram:TaxBasisTotalAmount", netto_gesamt);
+        schreibe_steuersumme(&mut xml, ust_gesamt);
+        schreibe_betrag(&mut xml, "ram:GrandTotalAmount", netto);
+        schreibe_betrag(&mut xml, "ram:DuePayableAmount", netto);
+    } else {
+        // BT-106 fehlte bisher ganz — ohne sie ist die Summenprobe BR-CO-10 verletzt.
+        let positionssumme: i64 = kontext.positionen.iter().map(|p| p.positionssumme_cent.abs()).sum();
+        schreibe_betrag(&mut xml, "ram:LineTotalAmount", positionssumme);
+        schreibe_betrag(&mut xml, "ram:TaxBasisTotalAmount", netto);
+        schreibe_steuersumme(&mut xml, 0);
+        schreibe_betrag(&mut xml, "ram:GrandTotalAmount", netto);
+        schreibe_betrag(&mut xml, "ram:DuePayableAmount", netto);
+    }
     xml.zu("ram:SpecifiedTradeSettlementHeaderMonetarySummation");
 
     // BG-3: Bei einer Korrektur (TypeCode 384) muss auf die Vorrechnung
@@ -452,7 +528,7 @@ pub(crate) mod tests {
             positionen: vec![Belegposition {
                 id: "p1".into(), beleg_id: "b1".into(), artikel_id: None,
                 bezeichnung: "Beratung".into(), einheit_kuerzel: "Std.".into(),
-                einzelpreis_cent: 9500, menge: 1000, positionssumme_cent: 9500, reihenfolge: 0,
+                einzelpreis_cent: 9500, menge: 1000, positionssumme_cent: 9500, ust_satz_prozent: 19, reihenfolge: 0,
             }],
             firma: Firma {
                 id: "f1".into(), name: "Meine Firma".into(), strasse: "Weg 1".into(), plz: "10115".into(),
@@ -551,6 +627,113 @@ pub(crate) mod tests {
     fn xml_erzeugen_setzt_steuerkategorie_e_fuer_kleinunternehmer() {
         let xml = xml_erzeugen(&test_kontext(None, 9500)).unwrap();
         assert!(xml.contains("<ram:CategoryCode>E</ram:CategoryCode>"));
+    }
+
+    /// Kontext eines regelbesteuerten Belegs: eine Position je übergebenem
+    /// (Satz, Bruttobetrag); die Belegsumme ist deren Summe.
+    pub(crate) fn regelbesteuert_kontext(storno_von: Option<&str>, positionen: &[(i64, i64)]) -> BelegKontext {
+        let summe: i64 = positionen.iter().map(|(_, brutto)| brutto).sum();
+        let mut kontext = test_kontext(storno_von, summe);
+        kontext.firma.kleinunternehmer = false;
+        kontext.positionen = positionen
+            .iter()
+            .enumerate()
+            .map(|(i, (satz, brutto))| Belegposition {
+                id: format!("p{i}"), beleg_id: "b1".into(), artikel_id: None,
+                bezeichnung: format!("Leistung {i}"), einheit_kuerzel: "Std.".into(),
+                einzelpreis_cent: *brutto, menge: 1000, positionssumme_cent: *brutto,
+                ust_satz_prozent: *satz, reihenfolge: i as i64,
+            })
+            .collect();
+        kontext
+    }
+
+    #[test]
+    fn xml_erzeugen_rechnet_bei_regelbesteuerung_die_ust_heraus() {
+        // 95,00 € brutto bei 19 % → 79,83 € netto, 15,17 € USt.
+        let xml = xml_erzeugen(&regelbesteuert_kontext(None, &[(19, 9500)])).unwrap();
+        assert!(xml.contains("<ram:CategoryCode>S</ram:CategoryCode>"));
+        assert!(!xml.contains("<ram:CategoryCode>E</ram:CategoryCode>"));
+        assert!(!xml.contains("ExemptionReason"), "S trägt keinen Befreiungsgrund (BR-S-8)");
+        assert!(xml.contains("<ram:RateApplicablePercent>19.00</ram:RateApplicablePercent>"));
+        assert!(xml.contains("<ram:BasisAmount>79.83</ram:BasisAmount>"));
+        assert!(xml.contains("<ram:CalculatedAmount>15.17</ram:CalculatedAmount>"));
+        assert!(xml.contains("<ram:TaxBasisTotalAmount>79.83</ram:TaxBasisTotalAmount>"));
+        assert!(xml.contains(r#"<ram:TaxTotalAmount currencyID="EUR">15.17</ram:TaxTotalAmount>"#));
+        assert!(xml.contains("<ram:GrandTotalAmount>95.00</ram:GrandTotalAmount>"));
+        assert!(xml.contains("<ram:DuePayableAmount>95.00</ram:DuePayableAmount>"));
+    }
+
+    #[test]
+    fn xml_erzeugen_setzt_kategorie_z_fuer_nullsatz() {
+        let xml = xml_erzeugen(&regelbesteuert_kontext(None, &[(0, 9500)])).unwrap();
+        // 0 % ist Kategorie Z, nicht „S mit 0.00" (BR-S-5).
+        assert!(xml.contains("<ram:CategoryCode>Z</ram:CategoryCode>"));
+        assert!(!xml.contains("<ram:CategoryCode>S</ram:CategoryCode>"));
+        assert!(xml.contains(r#"<ram:TaxTotalAmount currencyID="EUR">0.00</ram:TaxTotalAmount>"#));
+    }
+
+    #[test]
+    fn xml_erzeugen_schreibt_je_steuersatz_eine_kopfzeile() {
+        let xml = xml_erzeugen(&regelbesteuert_kontext(None, &[(19, 11900), (7, 1070)])).unwrap();
+        assert!(xml.contains("<ram:BasisAmount>100.00</ram:BasisAmount>"), "Netto der 19-%-Gruppe");
+        assert!(xml.contains("<ram:CalculatedAmount>19.00</ram:CalculatedAmount>"));
+        assert!(xml.contains("<ram:BasisAmount>10.00</ram:BasisAmount>"), "Netto der 7-%-Gruppe");
+        assert!(xml.contains("<ram:CalculatedAmount>0.70</ram:CalculatedAmount>"));
+        assert!(xml.contains(r#"<ram:TaxTotalAmount currencyID="EUR">19.70</ram:TaxTotalAmount>"#));
+        assert!(xml.contains("<ram:GrandTotalAmount>129.70</ram:GrandTotalAmount>"));
+    }
+
+    #[test]
+    fn regelbesteuerte_xrechnung_ist_normkonform() {
+        if let Some(grund) = crate::dokument::kosit::nicht_verfuegbar_weil() {
+            eprintln!("übersprungen: {grund}");
+            return;
+        }
+        let xml = xml_erzeugen(&regelbesteuert_kontext(None, &[(19, 9500)])).unwrap();
+        let bericht = crate::dokument::kosit::validieren(&xml).expect("Validator-Aufruf fehlgeschlagen");
+        assert!(
+            bericht.gueltig,
+            "Die regelbesteuerte XRechnung wurde abgelehnt. Befunde ({}):\n{}",
+            bericht.befunde().len(),
+            bericht.befunde().iter().map(|v| format!("  - {v}")).collect::<Vec<_>>().join("\n")
+        );
+    }
+
+    #[test]
+    fn regelbesteuerte_xrechnung_mit_gemischten_saetzen_ist_normkonform() {
+        if let Some(grund) = crate::dokument::kosit::nicht_verfuegbar_weil() {
+            eprintln!("übersprungen: {grund}");
+            return;
+        }
+        // Unrunde Beträge mit Absicht: Genau hier entstehen Rest-Cents, an
+        // denen die Summenproben BR-45/BR-CO-10/BR-CO-14 scheitern würden.
+        let xml = xml_erzeugen(&regelbesteuert_kontext(None, &[(19, 12345), (19, 5), (7, 999), (0, 100)])).unwrap();
+        let bericht = crate::dokument::kosit::validieren(&xml).expect("Validator-Aufruf fehlgeschlagen");
+        assert!(
+            bericht.gueltig,
+            "Die XRechnung mit gemischten Sätzen wurde abgelehnt. Befunde ({}):\n{}",
+            bericht.befunde().len(),
+            bericht.befunde().iter().map(|v| format!("  - {v}")).collect::<Vec<_>>().join("\n")
+        );
+    }
+
+    #[test]
+    fn regelbesteuerte_storno_xrechnung_ist_normkonform() {
+        if let Some(grund) = crate::dokument::kosit::nicht_verfuegbar_weil() {
+            eprintln!("übersprungen: {grund}");
+            return;
+        }
+        // Storno trägt negierte Beträge; ins XML gehen Absolutwerte, die
+        // Korrektur-Semantik steckt im TypeCode 384.
+        let xml = xml_erzeugen(&regelbesteuert_kontext(Some("r1"), &[(19, -9500)])).unwrap();
+        let bericht = crate::dokument::kosit::validieren(&xml).expect("Validator-Aufruf fehlgeschlagen");
+        assert!(
+            bericht.gueltig,
+            "Die regelbesteuerte Storno-XRechnung wurde abgelehnt. Befunde ({}):\n{}",
+            bericht.befunde().len(),
+            bericht.befunde().iter().map(|v| format!("  - {v}")).collect::<Vec<_>>().join("\n")
+        );
     }
 
     #[test]

@@ -535,6 +535,25 @@ mod tests {
     }
 
     #[test]
+    fn parse_cii_liest_die_steuerzeilen_eines_regelbesteuerten_exports() {
+        // Round-Trip für den S/Z-Pfad: 119,00 € brutto zu 19 % und 10,70 € zu
+        // 7 % — der Parser muss beide Kopf-Steuerzeilen mit Netto, Satz und
+        // Steuerbetrag wiederfinden.
+        let kontext = crate::dokument::xrechnung::tests::regelbesteuert_kontext(None, &[(19, 11900), (7, 1070)]);
+        let xml = crate::dokument::xrechnung::xml_erzeugen(&kontext).unwrap();
+        let ergebnis = parse_cii(&xml).unwrap();
+
+        assert_eq!(ergebnis.betrag_cent, 12970);
+        assert_eq!(ergebnis.steuerzeilen.len(), 2);
+        let neunzehn = ergebnis.steuerzeilen.iter().find(|z| z.steuersatz_promille == 190).expect("19-%-Zeile fehlt");
+        assert_eq!(neunzehn.nettobetrag_cent, 10000);
+        assert_eq!(neunzehn.steuerbetrag_cent, 1900);
+        let sieben = ergebnis.steuerzeilen.iter().find(|z| z.steuersatz_promille == 70).expect("7-%-Zeile fehlt");
+        assert_eq!(sieben.nettobetrag_cent, 1000);
+        assert_eq!(sieben.steuerbetrag_cent, 70);
+    }
+
+    #[test]
     fn parse_cii_lehnt_xml_ohne_kernfelder_ab() {
         let err = parse_cii("<rsm:CrossIndustryInvoice></rsm:CrossIndustryInvoice>").unwrap_err();
         assert!(matches!(err, AppError::Technisch(_)));

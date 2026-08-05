@@ -147,6 +147,32 @@ pub(crate) fn dokument_bauen(
     )
     .map_err(|e| AppError::Technisch(e.to_string()))?;
 
+    // Steueraufschlüsselung nach § 14 Abs. 4 Nr. 7–8 UStG — nur bei
+    // Regelbesteuerung; für Kleinunternehmer bleibt die Liste leer und die
+    // Vorlage druckt stattdessen den § 19-Hinweis.
+    let steuerzeilen_json = if kontext.firma.kleinunternehmer {
+        "[]".to_string()
+    } else {
+        let gruppen: Vec<(i64, i64)> = kontext
+            .positionen
+            .iter()
+            .map(|p| (p.ust_satz_prozent, p.positionssumme_cent))
+            .collect();
+        serde_json::to_string(
+            &crate::domain::steuer::aufschluesselung(&gruppen)
+                .iter()
+                .map(|z| {
+                    serde_json::json!({
+                        "satz": z.satz_prozent.to_string(),
+                        "netto": cent_format(z.netto_cent),
+                        "ust": cent_format(z.ust_cent),
+                    })
+                })
+                .collect::<Vec<_>>(),
+        )
+        .map_err(|e| AppError::Technisch(e.to_string()))?
+    };
+
     let logo_dateiname = if vorlage.logo_position == crate::dokument::vorlage::LogoPosition::Keins {
         ""
     } else {
@@ -208,6 +234,7 @@ pub(crate) fn dokument_bauen(
         ("firma_fax", kontext.firma.fax.clone()),
         ("firma_email", kontext.firma.email.clone()),
         ("positionen_json", positionen_json),
+        ("steuerzeilen_json", steuerzeilen_json),
         ("summe", cent_format(kontext.beleg.summe_cent)),
         ("kopftext", kontext.beleg.kopftext.clone()),
         ("fusstext", kontext.beleg.fusstext.clone()),
@@ -352,7 +379,7 @@ pub(crate) mod tests {
             positionen: vec![Belegposition {
                 id: "p1".into(), beleg_id: "b1".into(), artikel_id: None,
                 bezeichnung: "Beratung".into(), einheit_kuerzel: "Std.".into(),
-                einzelpreis_cent: 9500, menge: 1000, positionssumme_cent: 9500, reihenfolge: 0,
+                einzelpreis_cent: 9500, menge: 1000, positionssumme_cent: 9500, ust_satz_prozent: 19, reihenfolge: 0,
             }],
             firma: Firma {
                 id: "f1".into(), name: "Meine Firma".into(), strasse: "Weg 1".into(), plz: "10115".into(),
@@ -781,6 +808,32 @@ pub(crate) mod tests {
         .map(|(bezeichnung, _)| *bezeichnung)
         .collect();
         assert!(fehlend.is_empty(), "auf der Rechnung fehlen: {fehlend:?}\n\nText:\n{t}");
+    }
+
+    /// § 14 Abs. 4 Nr. 7–8 UStG bei Regelbesteuerung: Entgelt (netto),
+    /// Steuersatz und Steuerbetrag müssen auf der Rechnung stehen.
+    #[test]
+    fn regelbesteuerte_rechnung_zeigt_die_steueraufschluesselung() {
+        let mut kontext = test_kontext();
+        kontext.firma.kleinunternehmer = false;
+        let t = text(&kontext);
+        // 95,00 € brutto bei 19 % → 79,83 € netto, 15,17 € USt.
+        let fehlend: Vec<&str> = [
+            ("Steuersatz", "Enthaltene USt 19 %"),
+            ("Entgelt (netto)", "79,83"),
+            ("Steuerbetrag", "15,17"),
+        ]
+        .iter()
+        .filter(|(_, wert)| !t.contains(wert))
+        .map(|(bezeichnung, _)| *bezeichnung)
+        .collect();
+        assert!(fehlend.is_empty(), "auf der Rechnung fehlen: {fehlend:?}\n\nText:\n{t}");
+    }
+
+    #[test]
+    fn kleinunternehmer_rechnung_zeigt_keine_steueraufschluesselung() {
+        let t = text(&test_kontext());
+        assert!(!t.contains("Enthaltene USt"), "Kleinunternehmer-Beleg weist Steuer aus:\n{t}");
     }
 
     #[test]

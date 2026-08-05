@@ -205,6 +205,12 @@ Datum: #sys.inputs.datum
   // Positionszeilen — wer viele Positionen hat, verliert beim Lesen sonst
   // leicht die Zeile. Die Gesamtsumme darunter behält ihre eigene Betonung
   // (dickere Linie in der Akzentfarbe) in beiden Varianten.
+  // Steueraufschlüsselung (§ 14 Abs. 4 Nr. 7–8 UStG) bei Regelbesteuerung:
+  // eine Zeile je Steuersatz, *in* der Tabelle — aus demselben Grund wie die
+  // Gesamtsumme: nur so treffen die Beträge exakt deren rechte Kante.
+  #let steuerzeilen = json(bytes(sys.inputs.at("steuerzeilen_json", default: "[]")))
+  #let steuerzelle(inhalt) = table.cell(stroke: none, inset: (y: 2pt))[#text(size: 9pt)[#inhalt]]
+
   #table(
     columns: spalten,
     align: ausrichtung,
@@ -221,6 +227,12 @@ Datum: #sys.inputs.datum
       stroke: (top: 0.6pt + akzent, bottom: none),
     )[*Gesamt:*],
     table.cell(stroke: (top: 0.6pt + akzent, bottom: none))[*#sys.inputs.summe*],
+    ..steuerzeilen.map(z => (
+      table.cell(colspan: spalten.len() - 1, align: right, stroke: none, inset: (y: 2pt))[
+        #text(size: 9pt)[Enthaltene USt #z.satz % (aus Nettobetrag #z.netto):]
+      ],
+      steuerzelle(z.ust),
+    )).flatten(),
   )
 
   #if sys.inputs.kleinunternehmer == "ja" [

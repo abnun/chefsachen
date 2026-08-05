@@ -117,6 +117,9 @@ pub struct BelegDetail {
     pub zahlungen: Vec<Zahlung>,
     pub bezahlt_cent: i64,
     pub offener_betrag_cent: i64,
+    /// Netto/USt je Steuersatz, aus den Bruttobeträgen herausgerechnet.
+    /// Leer bei Kleinunternehmer-Belegen — dort gibt es nichts auszuweisen.
+    pub steuerzeilen: Vec<crate::domain::steuer::SteuerZeile>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
@@ -126,9 +129,13 @@ pub struct Belegposition {
     pub artikel_id: Option<String>,
     pub bezeichnung: String,
     pub einheit_kuerzel: String,
+    /// Bruttopreis — die USt wird bei Regelbesteuerung herausgerechnet.
     pub einzelpreis_cent: i64,
     pub menge: i64,
     pub positionssumme_cent: i64,
+    /// Beim Speichern vom Artikel eingefroren (wie Bezeichnung und Preis) —
+    /// ein späterer Satzwechsel am Artikel ändert keinen bestehenden Beleg.
+    pub ust_satz_prozent: i64,
     pub reihenfolge: i64,
 }
 
@@ -141,6 +148,10 @@ pub struct BelegpositionNeu {
     pub einheit_kuerzel: String,
     pub einzelpreis_cent: Option<i64>,
     pub menge: i64,
+    /// Nur bei Freitextpositionen ausgewertet; Artikelpositionen erben den
+    /// Satz vom Artikel. `None` heißt 19 % (Regelsatz).
+    #[serde(default)]
+    pub ust_satz_prozent: Option<i64>,
 }
 
 #[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
@@ -153,6 +164,12 @@ pub struct Zahlung {
 }
 
 pub(crate) const BELEG_SPALTEN: &str = "id, typ, nummer, status, kunde_id, datum, leistungsdatum, leistungsdatum_bis, gueltig_bis, zahlungsziel_tage, kopftext, fusstext, summe_cent, ursprungsangebot_id, storno_von_id, kunde_snapshot, adresse_id, ansprechpartner_id";
+
+/// Spalten einer Belegposition — an einer Stelle statt viermal wortgleich:
+/// Beim Feld `ust_satz_prozent` fiel auf, dass jede neue Spalte sonst an vier
+/// SELECT-Stellen einzeln nachgezogen werden muss und das Vergessen einer
+/// davon erst zur Laufzeit auffällt.
+pub(crate) const BELEGPOSITION_SPALTEN: &str = "id, beleg_id, artikel_id, bezeichnung, einheit_kuerzel, einzelpreis_cent, menge, positionssumme_cent, ust_satz_prozent, reihenfolge";
 
 #[allow(clippy::too_many_arguments)]
 fn pruefe_beleg_neu(
@@ -315,15 +332,36 @@ pub async fn list(
 pub async fn get(pool: &SqlitePool, id: String) -> AppResult<BelegDetail> {
     let beleg = lade_beleg(pool, &id).await?;
     let positionen: Vec<Belegposition> = sqlx::query_as(
-        "SELECT id, beleg_id, artikel_id, bezeichnung, einheit_kuerzel, einzelpreis_cent, menge, positionssumme_cent, reihenfolge \
-         FROM belegposition WHERE beleg_id = ? AND deleted_at IS NULL ORDER BY reihenfolge")
+        &format!("SELECT {BELEGPOSITION_SPALTEN} FROM belegposition WHERE beleg_id = ? AND deleted_at IS NULL ORDER BY reihenfolge"))
         .bind(&id).fetch_all(pool).await?;
     let zahlungen: Vec<Zahlung> = sqlx::query_as(
         "SELECT id, rechnung_id, datum, betrag_cent, notiz FROM zahlung WHERE rechnung_id = ? AND deleted_at IS NULL ORDER BY datum")
         .bind(&id).fetch_all(pool).await?;
     let bezahlt_cent: i64 = zahlungen.iter().map(|z| z.betrag_cent).sum();
     let offener_betrag_cent = beleg.summe_cent - bezahlt_cent;
-    Ok(BelegDetail { beleg, positionen, zahlungen, bezahlt_cent, offener_betrag_cent })
+
+    // Steuermodus wie beim Dokumenten-Export (kontext.rs): Bei gestellten
+    // Belegen entscheidet das eingefrorene Kleinunternehmer-Flag im Snapshot,
+    // bei Entwürfen die aktuelle Firmeneinstellung. So bleiben alte Belege
+    // nach dem Wechsel zur Regelbesteuerung ohne Steuerausweis.
+    let kleinunternehmer = serde_json::from_str::<serde_json::Value>(&beleg.kunde_snapshot)
+        .ok()
+        .and_then(|s| s["firma"]["kleinunternehmer"].as_bool());
+    let kleinunternehmer = match kleinunternehmer {
+        Some(k) => k,
+        None => crate::commands::firma::get(pool).await?.kleinunternehmer,
+    };
+    let steuerzeilen = if kleinunternehmer {
+        Vec::new()
+    } else {
+        let gruppen: Vec<(i64, i64)> = positionen
+            .iter()
+            .map(|p| (p.ust_satz_prozent, p.positionssumme_cent))
+            .collect();
+        crate::domain::steuer::aufschluesselung(&gruppen)
+    };
+
+    Ok(BelegDetail { beleg, positionen, zahlungen, bezahlt_cent, offener_betrag_cent, steuerzeilen })
 }
 
 pub async fn update(pool: &SqlitePool, d: BelegUpdate) -> AppResult<Beleg> {
@@ -391,8 +429,7 @@ pub async fn duplizieren(pool: &SqlitePool, id: String) -> AppResult<Beleg> {
         });
     }
     let positionen: Vec<Belegposition> = sqlx::query_as(
-        "SELECT id, beleg_id, artikel_id, bezeichnung, einheit_kuerzel, einzelpreis_cent, menge, positionssumme_cent, reihenfolge \
-         FROM belegposition WHERE beleg_id = ? AND deleted_at IS NULL ORDER BY reihenfolge")
+        &format!("SELECT {BELEGPOSITION_SPALTEN} FROM belegposition WHERE beleg_id = ? AND deleted_at IS NULL ORDER BY reihenfolge"))
         .bind(&id).fetch_all(pool).await?;
 
     // Adresse und Ansprechpartner nur übernehmen, wenn es sie noch gibt —
@@ -443,11 +480,11 @@ pub async fn duplizieren(pool: &SqlitePool, id: String) -> AppResult<Beleg> {
         // Preis aus dem *aktuellen* Artikelstand neu ableiten. Eine Kopie
         // soll aber genau abbilden, was der Ursprungsbeleg auswies —
         // unabhängig davon, ob sich der Artikel seither geändert hat.
-        sqlx::query("INSERT INTO belegposition (id, beleg_id, artikel_id, bezeichnung, einheit_kuerzel, einzelpreis_cent, menge, positionssumme_cent, reihenfolge, created_at, updated_at) VALUES (?,?,NULL,?,?,?,?,?,?,?,?)")
+        sqlx::query("INSERT INTO belegposition (id, beleg_id, artikel_id, bezeichnung, einheit_kuerzel, einzelpreis_cent, menge, positionssumme_cent, ust_satz_prozent, reihenfolge, created_at, updated_at) VALUES (?,?,NULL,?,?,?,?,?,?,?,?,?)")
             .bind(Uuid::new_v4().to_string()).bind(&kopie_id)
             .bind(&pos.bezeichnung).bind(&pos.einheit_kuerzel)
             .bind(pos.einzelpreis_cent).bind(pos.menge)
-            .bind(pos.positionssumme_cent).bind(pos.reihenfolge)
+            .bind(pos.positionssumme_cent).bind(pos.ust_satz_prozent).bind(pos.reihenfolge)
             .bind(jetzt()).bind(jetzt())
             .execute(&mut *tx).await?;
     }
@@ -520,9 +557,12 @@ pub async fn position_speichern(pool: &SqlitePool, d: BelegpositionNeu) -> AppRe
         return Err(AppError::Validation { feld: "menge".into(), meldung: "Menge muss größer als 0 sein".into() });
     }
 
-    let (bezeichnung, einheit_kuerzel, einzelpreis_cent) = if let Some(artikel_id) = &d.artikel_id {
-        let artikel: (String, String) = sqlx::query_as(
-            "SELECT a.bezeichnung, e.kuerzel FROM artikel a JOIN einheit e ON e.id = a.einheit_id \
+    let (bezeichnung, einheit_kuerzel, einzelpreis_cent, ust_satz_prozent) = if let Some(artikel_id) = &d.artikel_id {
+        // Der Steuersatz wird wie Bezeichnung und Preis vom Artikel übernommen
+        // und eingefroren: Ein späterer Satzwechsel am Artikel darf einen
+        // bereits erfassten Beleg nicht verändern.
+        let artikel: (String, String, i64) = sqlx::query_as(
+            "SELECT a.bezeichnung, e.kuerzel, a.ust_satz_prozent FROM artikel a JOIN einheit e ON e.id = a.einheit_id \
              WHERE a.id = ? AND a.deleted_at IS NULL")
             .bind(artikel_id).fetch_optional(pool).await?
             .ok_or_else(|| AppError::Validation { feld: "artikel_id".into(), meldung: "Artikel existiert nicht".into() })?;
@@ -530,7 +570,7 @@ pub async fn position_speichern(pool: &SqlitePool, d: BelegpositionNeu) -> AppRe
             Some(p) => p,
             None => effektiver_preis(pool, artikel_id, &beleg.kunde_id, &beleg.datum).await?,
         };
-        (artikel.0, artikel.1, preis)
+        (artikel.0, artikel.1, preis, artikel.2)
     } else {
         let preis = d.einzelpreis_cent.ok_or_else(|| AppError::Validation {
             feld: "einzelpreis_cent".into(),
@@ -539,7 +579,9 @@ pub async fn position_speichern(pool: &SqlitePool, d: BelegpositionNeu) -> AppRe
         if d.bezeichnung.trim().is_empty() {
             return Err(AppError::Validation { feld: "bezeichnung".into(), meldung: "Bezeichnung darf nicht leer sein".into() });
         }
-        (d.bezeichnung.trim().to_string(), d.einheit_kuerzel.clone(), preis)
+        let satz = d.ust_satz_prozent.unwrap_or(19);
+        crate::commands::artikel::pruefe_ust_satz(satz)?;
+        (d.bezeichnung.trim().to_string(), d.einheit_kuerzel.clone(), preis, satz)
     };
 
     let summe = positionssumme_cent(d.menge, einzelpreis_cent)?;
@@ -551,12 +593,12 @@ pub async fn position_speichern(pool: &SqlitePool, d: BelegpositionNeu) -> AppRe
         let pos = Belegposition {
             id: Uuid::new_v4().to_string(), beleg_id: d.beleg_id.clone(), artikel_id: d.artikel_id.clone(),
             bezeichnung, einheit_kuerzel, einzelpreis_cent, menge: d.menge,
-            positionssumme_cent: summe, reihenfolge,
+            positionssumme_cent: summe, ust_satz_prozent, reihenfolge,
         };
-        sqlx::query("INSERT INTO belegposition (id, beleg_id, artikel_id, bezeichnung, einheit_kuerzel, einzelpreis_cent, menge, positionssumme_cent, reihenfolge, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)")
+        sqlx::query("INSERT INTO belegposition (id, beleg_id, artikel_id, bezeichnung, einheit_kuerzel, einzelpreis_cent, menge, positionssumme_cent, ust_satz_prozent, reihenfolge, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)")
             .bind(&pos.id).bind(&pos.beleg_id).bind(&pos.artikel_id).bind(&pos.bezeichnung)
             .bind(&pos.einheit_kuerzel).bind(pos.einzelpreis_cent).bind(pos.menge)
-            .bind(pos.positionssumme_cent).bind(pos.reihenfolge).bind(jetzt()).bind(jetzt())
+            .bind(pos.positionssumme_cent).bind(pos.ust_satz_prozent).bind(pos.reihenfolge).bind(jetzt()).bind(jetzt())
             .execute(&mut *tx).await?;
         pos
     } else {
@@ -568,14 +610,14 @@ pub async fn position_speichern(pool: &SqlitePool, d: BelegpositionNeu) -> AppRe
         // unveränderter Summe.
         let bestehende: (i64,) = sqlx::query_as("SELECT reihenfolge FROM belegposition WHERE id = ? AND beleg_id = ? AND deleted_at IS NULL")
             .bind(&d.id).bind(&d.beleg_id).fetch_optional(&mut *tx).await?.ok_or(AppError::NichtGefunden)?;
-        sqlx::query("UPDATE belegposition SET artikel_id=?, bezeichnung=?, einheit_kuerzel=?, einzelpreis_cent=?, menge=?, positionssumme_cent=?, updated_at=? WHERE id=?")
+        sqlx::query("UPDATE belegposition SET artikel_id=?, bezeichnung=?, einheit_kuerzel=?, einzelpreis_cent=?, menge=?, positionssumme_cent=?, ust_satz_prozent=?, updated_at=? WHERE id=?")
             .bind(&d.artikel_id).bind(&bezeichnung).bind(&einheit_kuerzel).bind(einzelpreis_cent)
-            .bind(d.menge).bind(summe).bind(jetzt()).bind(&d.id)
+            .bind(d.menge).bind(summe).bind(ust_satz_prozent).bind(jetzt()).bind(&d.id)
             .execute(&mut *tx).await?;
         Belegposition {
             id: d.id.clone(), beleg_id: d.beleg_id.clone(), artikel_id: d.artikel_id.clone(),
             bezeichnung, einheit_kuerzel, einzelpreis_cent, menge: d.menge,
-            positionssumme_cent: summe, reihenfolge: bestehende.0,
+            positionssumme_cent: summe, ust_satz_prozent, reihenfolge: bestehende.0,
         }
     };
 
@@ -874,14 +916,13 @@ pub async fn angebot_ueberfuehren(pool: &SqlitePool, angebot_id: String) -> AppR
         .execute(&mut *tx).await?;
 
     let positionen: Vec<Belegposition> = sqlx::query_as(
-        "SELECT id, beleg_id, artikel_id, bezeichnung, einheit_kuerzel, einzelpreis_cent, menge, positionssumme_cent, reihenfolge \
-         FROM belegposition WHERE beleg_id = ? AND deleted_at IS NULL ORDER BY reihenfolge")
+        &format!("SELECT {BELEGPOSITION_SPALTEN} FROM belegposition WHERE beleg_id = ? AND deleted_at IS NULL ORDER BY reihenfolge"))
         .bind(&angebot_id).fetch_all(&mut *tx).await?;
     for pos in positionen {
-        sqlx::query("INSERT INTO belegposition (id, beleg_id, artikel_id, bezeichnung, einheit_kuerzel, einzelpreis_cent, menge, positionssumme_cent, reihenfolge, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)")
+        sqlx::query("INSERT INTO belegposition (id, beleg_id, artikel_id, bezeichnung, einheit_kuerzel, einzelpreis_cent, menge, positionssumme_cent, ust_satz_prozent, reihenfolge, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)")
             .bind(Uuid::new_v4().to_string()).bind(&rechnung.id).bind(&pos.artikel_id).bind(&pos.bezeichnung)
             .bind(&pos.einheit_kuerzel).bind(pos.einzelpreis_cent).bind(pos.menge)
-            .bind(pos.positionssumme_cent).bind(pos.reihenfolge).bind(jetzt()).bind(jetzt())
+            .bind(pos.positionssumme_cent).bind(pos.ust_satz_prozent).bind(pos.reihenfolge).bind(jetzt()).bind(jetzt())
             .execute(&mut *tx).await?;
     }
 
@@ -943,14 +984,14 @@ pub async fn storniere_rechnung(pool: &SqlitePool, id: String) -> AppResult<Bele
         .execute(&mut *tx).await?;
 
     let positionen: Vec<Belegposition> = sqlx::query_as(
-        "SELECT id, beleg_id, artikel_id, bezeichnung, einheit_kuerzel, einzelpreis_cent, menge, positionssumme_cent, reihenfolge \
-         FROM belegposition WHERE beleg_id = ? AND deleted_at IS NULL ORDER BY reihenfolge")
+        &format!("SELECT {BELEGPOSITION_SPALTEN} FROM belegposition WHERE beleg_id = ? AND deleted_at IS NULL ORDER BY reihenfolge"))
         .bind(&id).fetch_all(&mut *tx).await?;
     for pos in positionen {
-        sqlx::query("INSERT INTO belegposition (id, beleg_id, artikel_id, bezeichnung, einheit_kuerzel, einzelpreis_cent, menge, positionssumme_cent, reihenfolge, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)")
+        // Der Steuersatz bleibt unnegiert: negativ ist der Betrag, nicht der Satz.
+        sqlx::query("INSERT INTO belegposition (id, beleg_id, artikel_id, bezeichnung, einheit_kuerzel, einzelpreis_cent, menge, positionssumme_cent, ust_satz_prozent, reihenfolge, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)")
             .bind(Uuid::new_v4().to_string()).bind(&storno.id).bind(&pos.artikel_id).bind(&pos.bezeichnung)
             .bind(&pos.einheit_kuerzel).bind(-pos.einzelpreis_cent).bind(pos.menge)
-            .bind(-pos.positionssumme_cent).bind(pos.reihenfolge).bind(jetzt()).bind(jetzt())
+            .bind(-pos.positionssumme_cent).bind(pos.ust_satz_prozent).bind(pos.reihenfolge).bind(jetzt()).bind(jetzt())
             .execute(&mut *tx).await?;
     }
 
@@ -1137,7 +1178,7 @@ mod tests {
         let artikel = artikel_anlegen(&pool, 5000).await;
         position_speichern(&pool, BelegpositionNeu {
             id: "".into(), beleg_id: angebot.id.clone(), artikel_id: Some(artikel),
-            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000,
+            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000, ust_satz_prozent: None,
         }).await.unwrap();
         update(&pool, BelegUpdate {
             id: angebot.id.clone(), kunde_id: kunde.clone(),
@@ -1171,7 +1212,7 @@ mod tests {
         let artikel = artikel_anlegen(&pool, 5000).await;
         position_speichern(&pool, BelegpositionNeu {
             id: "".into(), beleg_id: angebot.id.clone(), artikel_id: Some(artikel),
-            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000,
+            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000, ust_satz_prozent: None,
         }).await.unwrap();
         stellen(&pool, angebot.id.clone()).await.unwrap();
 
@@ -1420,7 +1461,7 @@ mod tests {
             let p = position_speichern(pool, BelegpositionNeu {
                 id: "".into(), beleg_id: beleg_id.into(), artikel_id: None,
                 bezeichnung: format!("Position {i}"), einheit_kuerzel: "Std".into(),
-                einzelpreis_cent: Some(1000), menge: 1000,
+                einzelpreis_cent: Some(1000), menge: 1000, ust_satz_prozent: None,
             }).await.unwrap();
             ids.push(p.id);
         }
@@ -1602,7 +1643,7 @@ mod tests {
         let artikel_id = artikel_anlegen(&pool, 5000).await;
         position_speichern(&pool, BelegpositionNeu {
             id: "".into(), beleg_id: a.id.clone(), artikel_id: Some(artikel_id),
-            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000,
+            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000, ust_satz_prozent: None,
         }).await.unwrap();
         let gestellt = stellen(&pool, a.id.clone()).await.unwrap();
         let nummer = gestellt.nummer.clone().unwrap();
@@ -1632,7 +1673,7 @@ mod tests {
         let artikel_id = artikel_anlegen(&pool, 5000).await;
         position_speichern(&pool, BelegpositionNeu {
             id: "".into(), beleg_id: beleg.id.clone(), artikel_id: Some(artikel_id),
-            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000,
+            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000, ust_satz_prozent: None,
         }).await.unwrap();
         stellen(&pool, beleg.id.clone()).await.unwrap();
 
@@ -1729,7 +1770,7 @@ mod tests {
         crate::commands::artikel::create(pool, crate::commands::artikel::ArtikelNeu {
             bezeichnung: "Beratung".into(), beschreibung: "".into(),
             einheit_id: "e0000000-0000-0000-0000-000000000001".into(),
-            standardpreis_cent,
+            standardpreis_cent, ust_satz_prozent: 19,
         }).await.unwrap().id
     }
 
@@ -1747,12 +1788,12 @@ mod tests {
         }).await.unwrap();
         position_speichern(&pool, BelegpositionNeu {
             id: "".into(), beleg_id: original.id.clone(), artikel_id: Some(artikel),
-            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 2000,
+            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 2000, ust_satz_prozent: None,
         }).await.unwrap();
         position_speichern(&pool, BelegpositionNeu {
             id: "".into(), beleg_id: original.id.clone(), artikel_id: None,
             bezeichnung: "Sonderposten".into(), einheit_kuerzel: "Stk".into(),
-            einzelpreis_cent: Some(500), menge: 1000,
+            einzelpreis_cent: Some(500), menge: 1000, ust_satz_prozent: None,
         }).await.unwrap();
         stellen(&pool, original.id.clone()).await.unwrap();
 
@@ -1826,7 +1867,7 @@ mod tests {
         let artikel = artikel_anlegen(&pool, 1000).await;
         position_speichern(&pool, BelegpositionNeu {
             id: "".into(), beleg_id: original.id.clone(), artikel_id: Some(artikel),
-            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000,
+            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000, ust_satz_prozent: None,
         }).await.unwrap();
         let gestellt = stellen(&pool, original.id).await.unwrap();
 
@@ -1847,7 +1888,7 @@ mod tests {
         let beleg = create(&pool, beleg_neu("rechnung", &kunde_id)).await.unwrap();
         position_speichern(&pool, BelegpositionNeu {
             id: "".into(), beleg_id: beleg.id.clone(), artikel_id: Some(artikel_id),
-            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000,
+            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000, ust_satz_prozent: None,
         }).await.unwrap();
         let gestellt = stellen(&pool, beleg.id).await.unwrap();
         let storno = storniere_rechnung(&pool, gestellt.id.clone()).await.unwrap();
@@ -1880,7 +1921,7 @@ mod tests {
         let beleg = create(&pool, beleg_neu("rechnung", &kunde_id)).await.unwrap();
         position_speichern(&pool, BelegpositionNeu {
             id: "".into(), beleg_id: beleg.id.clone(), artikel_id: Some(artikel_id),
-            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000,
+            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000, ust_satz_prozent: None,
         }).await.unwrap();
         let gestellt = stellen(&pool, beleg.id).await.unwrap();
         crate::commands::kunden::delete(&pool, kunde_id, false).await.unwrap();
@@ -1945,7 +1986,7 @@ mod tests {
         let beleg = create(&pool, beleg_neu("angebot", &kunde_id)).await.unwrap();
         let pos = position_speichern(&pool, BelegpositionNeu {
             id: "".into(), beleg_id: beleg.id.clone(), artikel_id: Some(artikel_id),
-            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 2000,
+            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 2000, ust_satz_prozent: None,
         }).await.unwrap();
         assert_eq!(pos.einzelpreis_cent, 9500);
         assert_eq!(pos.bezeichnung, "Beratung");
@@ -1962,7 +2003,7 @@ mod tests {
         let err = position_speichern(&pool, BelegpositionNeu {
             id: "".into(), beleg_id: beleg.id, artikel_id: None,
             bezeichnung: "Sonderleistung".into(), einheit_kuerzel: "Std.".into(),
-            einzelpreis_cent: None, menge: 1000,
+            einzelpreis_cent: None, menge: 1000, ust_satz_prozent: None,
         }).await.unwrap_err();
         assert!(matches!(err, AppError::Validation { .. }));
     }
@@ -1975,7 +2016,7 @@ mod tests {
         let pos = position_speichern(&pool, BelegpositionNeu {
             id: "".into(), beleg_id: beleg.id, artikel_id: None,
             bezeichnung: "Sonderleistung".into(), einheit_kuerzel: "Std.".into(),
-            einzelpreis_cent: Some(12000), menge: 1000,
+            einzelpreis_cent: Some(12000), menge: 1000, ust_satz_prozent: None,
         }).await.unwrap();
         assert_eq!(pos.bezeichnung, "Sonderleistung");
         assert_eq!(pos.positionssumme_cent, 12000);
@@ -1989,11 +2030,11 @@ mod tests {
         let beleg = create(&pool, beleg_neu("angebot", &kunde_id)).await.unwrap();
         let pos1 = position_speichern(&pool, BelegpositionNeu {
             id: "".into(), beleg_id: beleg.id.clone(), artikel_id: Some(artikel_id.clone()),
-            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000,
+            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000, ust_satz_prozent: None,
         }).await.unwrap();
         position_speichern(&pool, BelegpositionNeu {
             id: "".into(), beleg_id: beleg.id.clone(), artikel_id: Some(artikel_id),
-            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000,
+            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000, ust_satz_prozent: None,
         }).await.unwrap();
         position_loeschen(&pool, pos1.id).await.unwrap();
         let beleg_neu = get(&pool, beleg.id).await.unwrap().beleg;
@@ -2010,7 +2051,7 @@ mod tests {
             .bind(&beleg.id).execute(&pool).await.unwrap();
         let err = position_speichern(&pool, BelegpositionNeu {
             id: "".into(), beleg_id: beleg.id, artikel_id: Some(artikel_id),
-            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000,
+            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000, ust_satz_prozent: None,
         }).await.unwrap_err();
         assert!(matches!(err, AppError::Validation { .. }));
     }
@@ -2031,13 +2072,13 @@ mod tests {
         let pos_von_a = position_speichern(&pool, BelegpositionNeu {
             id: "".into(), beleg_id: beleg_a.id.clone(), artikel_id: None,
             bezeichnung: "Beratung".into(), einheit_kuerzel: "Std".into(),
-            einzelpreis_cent: Some(9500), menge: 1000,
+            einzelpreis_cent: Some(9500), menge: 1000, ust_satz_prozent: None,
         }).await.unwrap();
 
         let err = position_speichern(&pool, BelegpositionNeu {
             id: pos_von_a.id.clone(), beleg_id: beleg_b.id.clone(), artikel_id: None,
             bezeichnung: "Manipuliert".into(), einheit_kuerzel: "Std".into(),
-            einzelpreis_cent: Some(1), menge: 1000,
+            einzelpreis_cent: Some(1), menge: 1000, ust_satz_prozent: None,
         }).await.unwrap_err();
         assert!(matches!(err, AppError::NichtGefunden));
 
@@ -2055,7 +2096,7 @@ mod tests {
         let beleg = create(&pool, beleg_neu("angebot", &kunde_id)).await.unwrap();
         let pos = position_speichern(&pool, BelegpositionNeu {
             id: "".into(), beleg_id: beleg.id.clone(), artikel_id: Some(artikel_id),
-            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000,
+            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000, ust_satz_prozent: None,
         }).await.unwrap();
         sqlx::query("UPDATE beleg SET status = 'festgeschrieben' WHERE id = ?")
             .bind(&beleg.id).execute(&pool).await.unwrap();
@@ -2071,7 +2112,7 @@ mod tests {
         let beleg = create(&pool, beleg_neu("angebot", &kunde_id)).await.unwrap();
         position_speichern(&pool, BelegpositionNeu {
             id: "".into(), beleg_id: beleg.id.clone(), artikel_id: Some(artikel_id),
-            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000,
+            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000, ust_satz_prozent: None,
         }).await.unwrap();
         let gestellt = stellen(&pool, beleg.id).await.unwrap();
         assert_eq!(gestellt.status, "festgeschrieben");
@@ -2100,7 +2141,7 @@ mod tests {
         let beleg = create(&pool, beleg_neu("rechnung", &kunde_id)).await.unwrap();
         position_speichern(&pool, BelegpositionNeu {
             id: "".into(), beleg_id: beleg.id.clone(), artikel_id: Some(artikel_id),
-            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000,
+            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000, ust_satz_prozent: None,
         }).await.unwrap();
         let gestellt = stellen(&pool, beleg.id).await.unwrap();
 
@@ -2126,7 +2167,7 @@ mod tests {
         let beleg = create(&pool, beleg_neu("rechnung", &kunde_id)).await.unwrap();
         position_speichern(&pool, BelegpositionNeu {
             id: "".into(), beleg_id: beleg.id.clone(), artikel_id: Some(artikel_id),
-            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000,
+            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000, ust_satz_prozent: None,
         }).await.unwrap();
 
         let pool_a = pool.clone();
@@ -2168,7 +2209,7 @@ mod tests {
         let beleg = create(&pool, beleg_neu("rechnung", &kunde_id)).await.unwrap();
         position_speichern(&pool, BelegpositionNeu {
             id: "".into(), beleg_id: beleg.id.clone(), artikel_id: Some(artikel_id),
-            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000,
+            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000, ust_satz_prozent: None,
         }).await.unwrap();
         let gestellt = stellen(&pool, beleg.id).await.unwrap();
         assert_eq!(gestellt.status, "gestellt");
@@ -2191,7 +2232,7 @@ mod tests {
         let beleg = create(&pool, beleg_neu("angebot", &kunde_id)).await.unwrap();
         position_speichern(&pool, BelegpositionNeu {
             id: "".into(), beleg_id: beleg.id.clone(), artikel_id: Some(artikel_id),
-            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000,
+            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000, ust_satz_prozent: None,
         }).await.unwrap();
         let gestellt = stellen(&pool, beleg.id).await.unwrap();
         let aktualisiert = setze_angebot_status(&pool, gestellt.id, "angenommen".into()).await.unwrap();
@@ -2206,7 +2247,7 @@ mod tests {
         let beleg = create(&pool, beleg_neu("angebot", &kunde_id)).await.unwrap();
         position_speichern(&pool, BelegpositionNeu {
             id: "".into(), beleg_id: beleg.id.clone(), artikel_id: Some(artikel_id),
-            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000,
+            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000, ust_satz_prozent: None,
         }).await.unwrap();
         let gestellt = stellen(&pool, beleg.id).await.unwrap();
         let err = setze_angebot_status(&pool, gestellt.id, "storniert".into()).await.unwrap_err();
@@ -2221,7 +2262,7 @@ mod tests {
         let angebot = create(&pool, beleg_neu("angebot", &kunde_id)).await.unwrap();
         position_speichern(&pool, BelegpositionNeu {
             id: "".into(), beleg_id: angebot.id.clone(), artikel_id: Some(artikel_id),
-            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 2000,
+            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 2000, ust_satz_prozent: None,
         }).await.unwrap();
         let gestellt = stellen(&pool, angebot.id).await.unwrap();
 
@@ -2268,7 +2309,7 @@ mod tests {
         let angebot = create(&pool, beleg_neu("angebot", &kunde_id)).await.unwrap();
         position_speichern(&pool, BelegpositionNeu {
             id: "".into(), beleg_id: angebot.id.clone(), artikel_id: Some(artikel_id),
-            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000,
+            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000, ust_satz_prozent: None,
         }).await.unwrap();
         let gestellt = stellen(&pool, angebot.id).await.unwrap();
 
@@ -2303,7 +2344,7 @@ mod tests {
         let rechnung = create(&pool, beleg_neu("rechnung", &kunde_id)).await.unwrap();
         position_speichern(&pool, BelegpositionNeu {
             id: "".into(), beleg_id: rechnung.id.clone(), artikel_id: Some(artikel_id),
-            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000,
+            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000, ust_satz_prozent: None,
         }).await.unwrap();
         let gestellt = stellen(&pool, rechnung.id).await.unwrap();
 
@@ -2328,7 +2369,7 @@ mod tests {
         let beleg = create(&pool, beleg_neu("rechnung", &kunde_id)).await.unwrap();
         position_speichern(&pool, BelegpositionNeu {
             id: "".into(), beleg_id: beleg.id.clone(), artikel_id: Some(artikel_id),
-            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000,
+            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000, ust_satz_prozent: None,
         }).await.unwrap();
 
         delete(&pool, beleg.id.clone()).await.unwrap();
@@ -2349,7 +2390,7 @@ mod tests {
         let rechnung = create(&pool, beleg_neu("rechnung", &kunde_id)).await.unwrap();
         position_speichern(&pool, BelegpositionNeu {
             id: "".into(), beleg_id: rechnung.id.clone(), artikel_id: Some(artikel_id),
-            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000,
+            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000, ust_satz_prozent: None,
         }).await.unwrap();
         let gestellt = stellen(&pool, rechnung.id).await.unwrap();
         let zahlung = erfasse_zahlung(&pool, ZahlungNeu {
@@ -2376,7 +2417,7 @@ mod tests {
         let rechnung = create(&pool, beleg_neu("rechnung", &kunde_id)).await.unwrap();
         position_speichern(&pool, BelegpositionNeu {
             id: "".into(), beleg_id: rechnung.id.clone(), artikel_id: Some(artikel_id),
-            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000,
+            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000, ust_satz_prozent: None,
         }).await.unwrap();
         let gestellt = stellen(&pool, rechnung.id).await.unwrap();
 
@@ -2429,7 +2470,7 @@ mod tests {
         let rechnung = create(&pool, beleg_neu("rechnung", &kunde_id)).await.unwrap();
         position_speichern(&pool, BelegpositionNeu {
             id: "".into(), beleg_id: rechnung.id.clone(), artikel_id: Some(artikel_id),
-            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000,
+            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000, ust_satz_prozent: None,
         }).await.unwrap();
 
         let err = stellen(&pool, rechnung.id.clone()).await.unwrap_err();
@@ -2452,7 +2493,7 @@ mod tests {
         let rechnung = create(&pool, beleg_neu("rechnung", &kunde_id)).await.unwrap();
         position_speichern(&pool, BelegpositionNeu {
             id: "".into(), beleg_id: rechnung.id.clone(), artikel_id: Some(artikel_id),
-            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000,
+            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000, ust_satz_prozent: None,
         }).await.unwrap();
 
         let gestellt = stellen(&pool, rechnung.id).await.unwrap();
@@ -2471,7 +2512,7 @@ mod tests {
         let angebot = create(&pool, beleg_neu("angebot", &kunde_id)).await.unwrap();
         position_speichern(&pool, BelegpositionNeu {
             id: "".into(), beleg_id: angebot.id.clone(), artikel_id: Some(artikel_id),
-            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000,
+            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000, ust_satz_prozent: None,
         }).await.unwrap();
 
         let gestellt = stellen(&pool, angebot.id).await.unwrap();
@@ -2489,7 +2530,7 @@ mod tests {
         let rechnung = create(&pool, beleg_neu("rechnung", &kunde_id)).await.unwrap();
         position_speichern(&pool, BelegpositionNeu {
             id: "".into(), beleg_id: rechnung.id.clone(), artikel_id: Some(artikel_id),
-            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000,
+            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000, ust_satz_prozent: None,
         }).await.unwrap();
         let gestellt = stellen(&pool, rechnung.id).await.unwrap();
         let storno = storniere_rechnung(&pool, gestellt.id).await.unwrap();
@@ -2518,7 +2559,7 @@ mod tests {
         let rechnung = create(&pool, beleg_neu("rechnung", &kunde_id)).await.unwrap();
         position_speichern(&pool, BelegpositionNeu {
             id: "".into(), beleg_id: rechnung.id.clone(), artikel_id: Some(artikel_id),
-            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000,
+            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000, ust_satz_prozent: None,
         }).await.unwrap();
         let gestellt = stellen(&pool, rechnung.id).await.unwrap();
 
@@ -2540,7 +2581,7 @@ mod tests {
         let rechnung = create(&pool, beleg_neu("rechnung", &kunde_id)).await.unwrap();
         position_speichern(&pool, BelegpositionNeu {
             id: "".into(), beleg_id: rechnung.id.clone(), artikel_id: Some(artikel_id),
-            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000,
+            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000, ust_satz_prozent: None,
         }).await.unwrap();
         let gestellt = stellen(&pool, rechnung.id).await.unwrap();
 
@@ -2587,7 +2628,7 @@ mod tests {
         let rechnung = create(&pool, beleg_neu("rechnung", &kunde_id)).await.unwrap();
         position_speichern(&pool, BelegpositionNeu {
             id: "".into(), beleg_id: rechnung.id.clone(), artikel_id: Some(artikel_id),
-            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000,
+            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000, ust_satz_prozent: None,
         }).await.unwrap();
         let gestellt = stellen(&pool, rechnung.id).await.unwrap();
 
@@ -2624,7 +2665,7 @@ mod tests {
         let rechnung = create(&pool, beleg_neu("rechnung", &kunde_id)).await.unwrap();
         position_speichern(&pool, BelegpositionNeu {
             id: "".into(), beleg_id: rechnung.id.clone(), artikel_id: Some(artikel_id),
-            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000,
+            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000, ust_satz_prozent: None,
         }).await.unwrap();
         let gestellt = stellen(&pool, rechnung.id).await.unwrap();
         erfasse_zahlung(&pool, ZahlungNeu {
@@ -2647,7 +2688,7 @@ mod tests {
         let bezahlt_beleg = create(&pool, beleg_neu("rechnung", &kunde_id)).await.unwrap();
         position_speichern(&pool, BelegpositionNeu {
             id: "".into(), beleg_id: bezahlt_beleg.id.clone(), artikel_id: Some(artikel_id.clone()),
-            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000,
+            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000, ust_satz_prozent: None,
         }).await.unwrap();
         let bezahlt_gestellt = stellen(&pool, bezahlt_beleg.id).await.unwrap();
         erfasse_zahlung(&pool, ZahlungNeu {
@@ -2657,7 +2698,7 @@ mod tests {
         let offen_beleg = create(&pool, beleg_neu("rechnung", &kunde_id)).await.unwrap();
         position_speichern(&pool, BelegpositionNeu {
             id: "".into(), beleg_id: offen_beleg.id.clone(), artikel_id: Some(artikel_id),
-            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000,
+            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000, ust_satz_prozent: None,
         }).await.unwrap();
         let offen_gestellt = stellen(&pool, offen_beleg.id).await.unwrap();
 
@@ -2691,7 +2732,7 @@ mod tests {
         let entwurf = create(&pool, beleg_neu("angebot", &kunde_id)).await.unwrap();
         position_speichern(&pool, BelegpositionNeu {
             id: "".into(), beleg_id: entwurf.id.clone(), artikel_id: Some(artikel_id),
-            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000,
+            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000, ust_satz_prozent: None,
         }).await.unwrap();
 
         // WICHTIG: stellen() ändert dieselbe Zeile per UPDATE, erzeugt keine neue —
@@ -2718,7 +2759,7 @@ mod tests {
         let entwurf = create(&pool, beleg_neu("angebot", &kunde_id)).await.unwrap();
         position_speichern(&pool, BelegpositionNeu {
             id: "".into(), beleg_id: entwurf.id.clone(), artikel_id: Some(artikel_id),
-            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000,
+            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000, ust_satz_prozent: None,
         }).await.unwrap();
         let gestellt = stellen(&pool, entwurf.id).await.unwrap();
 

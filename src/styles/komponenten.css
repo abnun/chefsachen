@@ -809,6 +809,20 @@ label.feld textarea {
   margin-bottom: var(--abstand-l);
 }
 
+/* Steueraufschlüsselung direkt unter der Summe: gleiche rechte Kante,
+   aber leiser — sie erläutert die Summe, sie ist keine zweite Summe. */
+.beleg-steuerzeile {
+  color: var(--text-leise);
+  font-size: var(--text-s);
+  text-align: right;
+  margin-top: calc(-1 * var(--abstand-l) + var(--abstand-xs));
+  margin-bottom: var(--abstand-l);
+}
+
+.beleg-steuerzeile + .beleg-steuerzeile {
+  margin-top: calc(-1 * var(--abstand-l));
+}
+
 /* Erste Schritte */
 .schritt-liste {
   list-style: none;

@@ -24,7 +24,7 @@ use sqlx::SqlitePool;
 fn muster_beleg(firma: crate::commands::firma::Firma) -> BelegKontext {
     use crate::commands::belege::{Beleg, Belegposition};
 
-    let position = |nr: &str, bez: &str, einheit: &str, preis: i64, menge: i64| Belegposition {
+    let position = |nr: &str, bez: &str, einheit: &str, preis: i64, menge: i64, ust_satz: i64| Belegposition {
         id: nr.into(),
         beleg_id: "muster".into(),
         artikel_id: None,
@@ -33,13 +33,17 @@ fn muster_beleg(firma: crate::commands::firma::Firma) -> BelegKontext {
         einzelpreis_cent: preis,
         menge,
         positionssumme_cent: preis * menge / 1000,
+        ust_satz_prozent: ust_satz,
         reihenfolge: 0,
     };
 
+    // Gemischte Steuersätze mit Absicht: Bei Regelbesteuerung zeigt die
+    // Vorschau so eine Aufschlüsselung mit zwei Zeilen — an einem einzigen
+    // Satz sähe man nicht, wie mehrere Zeilen untereinander wirken.
     let positionen = vec![
-        position("p1", "Beratung und Konzeption", "Std.", 9500, 4000),
-        position("p2", "Umsetzung der Startseite einschließlich Bildbearbeitung", "Std.", 8500, 12500),
-        position("p3", "Schulung vor Ort", "Tag", 65000, 1000),
+        position("p1", "Beratung und Konzeption", "Std.", 9500, 4000, 19),
+        position("p2", "Umsetzung der Startseite einschließlich Bildbearbeitung", "Std.", 8500, 12500, 19),
+        position("p3", "Schulung vor Ort", "Tag", 65000, 1000, 7),
     ];
     let summe = positionen.iter().map(|p| p.positionssumme_cent).sum();
 

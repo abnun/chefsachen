@@ -26,6 +26,13 @@ kein Konto, keine Cloud.
   Vorjahres und die 100.000-€-Grenze des laufenden Jahres, mit einer
   Erläuterung der finanziellen Folgen — inklusive der Umsatzsteuer, die bei
   einem Überschreiten fällig würde
+- **Regelbesteuerung nach dem Überschreiten der Grenze**: Ohne das
+  Kleinunternehmer-Häkchen weisen neue Belege die Umsatzsteuer aus — Satz je
+  Artikel (19/7/0 %), Preise bleiben brutto, die enthaltene Steuer wird je
+  Satz aufgeschlüsselt (§ 14 Abs. 4 Nr. 7–8 UStG). Festgeschriebene Belege
+  behalten ihren damaligen Steuermodus; XRechnung/ZUGFeRD tragen Kategorie
+  S bzw. Z, geprüft gegen den KoSIT-Validator. §-4-Steuerbefreiungen mit
+  Befreiungsgrund (Kategorie E außerhalb von § 19) sind nicht abgedeckt.
 - **Kunden und Artikel** mit kundenspezifischen Preisen
 - **Zahlungen** mit Teilzahlungen und abgeleitetem Zahlungsstand
 - **Zahlungserinnerung** als PDF für überfällige Rechnungen, mit Fälligkeit,

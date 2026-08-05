@@ -377,7 +377,7 @@ mod tests {
         let kunde_id = create(&pool, neu("ACME GmbH")).await.unwrap().id;
         let artikel_id = crate::commands::artikel::create(&pool, crate::commands::artikel::ArtikelNeu {
             bezeichnung: "Beratung".into(), beschreibung: "".into(),
-            einheit_id: "e0000000-0000-0000-0000-000000000001".into(), standardpreis_cent: 5000,
+            einheit_id: "e0000000-0000-0000-0000-000000000001".into(), standardpreis_cent: 5000, ust_satz_prozent: 19,
         }).await.unwrap().id;
         let beleg = crate::commands::belege::create(&pool, crate::commands::belege::BelegNeu {
             typ: "angebot".into(), kunde_id: kunde_id.clone(), datum: "2026-07-10".into(),
@@ -386,7 +386,7 @@ mod tests {
         }).await.unwrap();
         crate::commands::belege::position_speichern(&pool, crate::commands::belege::BelegpositionNeu {
             id: "".into(), beleg_id: beleg.id.clone(), artikel_id: Some(artikel_id),
-            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000,
+            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000, ust_satz_prozent: None,
         }).await.unwrap();
         crate::commands::belege::stellen(&pool, beleg.id).await.unwrap();
 
@@ -396,7 +396,7 @@ mod tests {
     async fn artikel_mit_kundenpreis(pool: &SqlitePool, kunde_id: &str) {
         let artikel_id = crate::commands::artikel::create(pool, crate::commands::artikel::ArtikelNeu {
             bezeichnung: "Beratung".into(), beschreibung: "".into(),
-            einheit_id: "e0000000-0000-0000-0000-000000000001".into(), standardpreis_cent: 5000,
+            einheit_id: "e0000000-0000-0000-0000-000000000001".into(), standardpreis_cent: 5000, ust_satz_prozent: 19,
         }).await.unwrap().id;
         crate::commands::artikel::kundenpreis_speichern(pool, crate::commands::artikel::Kundenpreis {
             id: "".into(), artikel_id, kunde_id: kunde_id.into(), preis_cent: 4000, gueltig_ab: None,

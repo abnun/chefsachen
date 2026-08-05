@@ -399,6 +399,11 @@ function FirmendatenAbschnitt() {
           />
           Kleinunternehmer (§19 UStG)
         </label>
+        <p className="feld-hinweis">
+          Abgewählt gilt Regelbesteuerung: Neue Belege weisen die Umsatzsteuer aus
+          (Satz je Artikel, Preise bleiben brutto). Bereits festgeschriebene Belege
+          behalten ihren damaligen Steuermodus.
+        </p>
         <div className="aktionen aktionen-formular">
           <button type="submit" className="btn btn-primaer">Speichern</button>
         </div>

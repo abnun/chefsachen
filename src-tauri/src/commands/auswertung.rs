@@ -131,7 +131,7 @@ mod tests {
         let artikel_id = crate::commands::artikel::create(pool, crate::commands::artikel::ArtikelNeu {
             bezeichnung: "Leistung".into(), beschreibung: "".into(),
             einheit_id: "e0000000-0000-0000-0000-000000000001".into(),
-            standardpreis_cent: betrag_cent,
+            standardpreis_cent: betrag_cent, ust_satz_prozent: 19,
         }).await.unwrap().id;
         let beleg = beleg_create(pool, BelegNeu {
             typ: "rechnung".into(), kunde_id, datum: datum.into(),
@@ -140,7 +140,7 @@ mod tests {
         }).await.unwrap();
         position_speichern(pool, BelegpositionNeu {
             id: "".into(), beleg_id: beleg.id.clone(), artikel_id: Some(artikel_id),
-            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000,
+            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000, ust_satz_prozent: None,
         }).await.unwrap();
         stellen(pool, beleg.id).await.unwrap().id
     }

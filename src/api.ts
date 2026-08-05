@@ -52,6 +52,8 @@ export interface Artikel {
   beschreibung: string;
   einheit_id: string;
   standardpreis_cent: number;
+  /** Umsatzsteuersatz (19, 7 oder 0). Preise sind brutto; die USt wird herausgerechnet. */
+  ust_satz_prozent: number;
   kundenpreise_anzahl: number;
 }
 export interface Kundenpreis {
@@ -184,6 +186,8 @@ export interface Belegposition {
   einzelpreis_cent: number;
   menge: number;
   positionssumme_cent: number;
+  /** Beim Speichern eingefroren — wie Bezeichnung und Preis. */
+  ust_satz_prozent: number;
   reihenfolge: number;
 }
 export interface BelegpositionNeu {
@@ -194,6 +198,8 @@ export interface BelegpositionNeu {
   einheit_kuerzel: string;
   einzelpreis_cent: number | null;
   menge: number;
+  /** Nur bei Freitextpositionen ausgewertet; Artikelpositionen erben den Satz vom Artikel. */
+  ust_satz_prozent?: number | null;
 }
 export interface Zahlung {
   id: string;
@@ -203,12 +209,21 @@ export interface Zahlung {
   notiz: string;
 }
 export type ZahlungNeu = Omit<Zahlung, "id">;
+/** Eine Zeile der Steueraufschlüsselung: alle Positionen eines Steuersatzes zusammengefasst. */
+export interface SteuerZeile {
+  satz_prozent: number;
+  netto_cent: number;
+  ust_cent: number;
+  brutto_cent: number;
+}
 export interface BelegDetail {
   beleg: Beleg;
   positionen: Belegposition[];
   zahlungen: Zahlung[];
   bezahlt_cent: number;
   offener_betrag_cent: number;
+  /** Leer bei Kleinunternehmer-Belegen; sonst eine Zeile je Steuersatz. */
+  steuerzeilen: SteuerZeile[];
 }
 export interface OffenerPosten {
   beleg: Beleg;

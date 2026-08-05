@@ -225,7 +225,7 @@ mod tests {
         let artikel = crate::commands::artikel::create(pool, crate::commands::artikel::ArtikelNeu {
             bezeichnung: "Beratung".into(), beschreibung: "".into(),
             einheit_id: "e0000000-0000-0000-0000-000000000001".into(),
-            standardpreis_cent: 9500,
+            standardpreis_cent: 9500, ust_satz_prozent: 19,
         }).await.unwrap();
         let beleg = crate::commands::belege::create(pool, crate::commands::belege::BelegNeu {
             typ: "rechnung".into(), kunde_id: kunde.id.clone(), datum: "2026-07-11".into(),
@@ -234,7 +234,7 @@ mod tests {
         }).await.unwrap();
         crate::commands::belege::position_speichern(pool, crate::commands::belege::BelegpositionNeu {
             id: "".into(), beleg_id: beleg.id.clone(), artikel_id: Some(artikel.id),
-            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000,
+            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000, ust_satz_prozent: None,
         }).await.unwrap();
         let gestellt = crate::commands::belege::stellen(pool, beleg.id).await.unwrap();
         gestellt.id
@@ -266,7 +266,7 @@ mod tests {
         let artikel = crate::commands::artikel::create(&pool, crate::commands::artikel::ArtikelNeu {
             bezeichnung: "Beratung".into(), beschreibung: "".into(),
             einheit_id: "e0000000-0000-0000-0000-000000000001".into(),
-            standardpreis_cent: 9500,
+            standardpreis_cent: 9500, ust_satz_prozent: 19,
         }).await.unwrap();
         let beleg = crate::commands::belege::create(&pool, crate::commands::belege::BelegNeu {
             typ: "rechnung".into(), kunde_id: kunde.id.clone(), datum: "2026-07-11".into(),
@@ -275,7 +275,7 @@ mod tests {
         }).await.unwrap();
         crate::commands::belege::position_speichern(&pool, crate::commands::belege::BelegpositionNeu {
             id: "".into(), beleg_id: beleg.id.clone(), artikel_id: Some(artikel.id),
-            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000,
+            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000, ust_satz_prozent: None,
         }).await.unwrap();
         let gestellt = crate::commands::belege::stellen(&pool, beleg.id).await.unwrap();
 

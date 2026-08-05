@@ -14,11 +14,11 @@ vi.mock("../api", () => ({
         positionen: [],
         zahlungen: [],
         bezahlt_cent: 0,
-        offener_betrag_cent: 0,
+        offener_betrag_cent: 0, steuerzeilen: [],
       }),
       positionSave: vi.fn().mockResolvedValue({
         id: "p1", beleg_id: "b1", artikel_id: null, bezeichnung: "", einheit_kuerzel: "",
-        einzelpreis_cent: 0, menge: 1000, positionssumme_cent: 0, reihenfolge: 0,
+        einzelpreis_cent: 0, menge: 1000, positionssumme_cent: 0, ust_satz_prozent: 19, reihenfolge: 0,
       }),
       positionDelete: vi.fn().mockResolvedValue(undefined),
       positionVerschieben: vi.fn().mockResolvedValue(undefined),
@@ -99,7 +99,7 @@ describe("BelegEditor", () => {
       positionen: [],
       zahlungen: [],
       bezahlt_cent: 0,
-      offener_betrag_cent: 0,
+      offener_betrag_cent: 0, steuerzeilen: [],
     });
     render(<BelegEditor id="b1" />);
     await waitFor(() => expect(screen.getByText("Entwurf", { selector: ".status" })).toBeTruthy());
@@ -116,7 +116,7 @@ describe("BelegEditor", () => {
         kopftext: "", fusstext: "", summe_cent: 9550, ursprungsangebot_id: null, storno_von_id: null,
         kunde_snapshot_name: "ACME GmbH (alter Name)",
       },
-      positionen: [], zahlungen: [], bezahlt_cent: 0, offener_betrag_cent: 9550,
+      positionen: [], zahlungen: [], bezahlt_cent: 0, offener_betrag_cent: 9550, steuerzeilen: [],
     });
     render(<BelegEditor id="b1" />);
     await waitFor(() => expect(screen.getByText("Kunde: ACME GmbH (alter Name)")).toBeTruthy());
@@ -135,7 +135,7 @@ describe("BelegEditor – Als Kopie anlegen", () => {
         datum: "2026-07-10", leistungsdatum: "2026-07-10", zahlungsziel_tage: 14,
         kopftext: "", fusstext: "", summe_cent: 0, ursprungsangebot_id: null, storno_von_id: null,
       },
-      positionen: [], zahlungen: [], bezahlt_cent: 0, offener_betrag_cent: 0,
+      positionen: [], zahlungen: [], bezahlt_cent: 0, offener_betrag_cent: 0, steuerzeilen: [],
     });
     const onDupliziert = vi.fn();
     render(<BelegEditor id="b1" onDupliziert={onDupliziert} />);
@@ -157,7 +157,7 @@ describe("BelegEditor – Als Kopie anlegen", () => {
         datum: "2026-07-10", leistungsdatum: "2026-07-10", zahlungsziel_tage: 14,
         kopftext: "", fusstext: "", summe_cent: 0, ursprungsangebot_id: null, storno_von_id: null,
       },
-      positionen: [], zahlungen: [], bezahlt_cent: 0, offener_betrag_cent: 0,
+      positionen: [], zahlungen: [], bezahlt_cent: 0, offener_betrag_cent: 0, steuerzeilen: [],
     });
     render(<BelegEditor id="b1" />);
     await waitFor(() => expect(screen.getByRole("button", { name: "Als Kopie anlegen" })).toBeTruthy());
@@ -181,7 +181,7 @@ describe("BelegEditor – Gültigkeit des Angebots", () => {
         kopftext: "", fusstext: "", summe_cent: 0, ursprungsangebot_id: null, storno_von_id: null,
         gueltig_bis: "2026-08-09",
       },
-      positionen: [], zahlungen: [], bezahlt_cent: 0, offener_betrag_cent: 0,
+      positionen: [], zahlungen: [], bezahlt_cent: 0, offener_betrag_cent: 0, steuerzeilen: [],
     });
     render(<BelegEditor id="b1" />);
     await waitFor(() => expect(screen.getByLabelText("Gültig bis")).toHaveValue("2026-08-09"));
@@ -194,7 +194,7 @@ describe("BelegEditor – Gültigkeit des Angebots", () => {
         datum: "2026-07-10", leistungsdatum: "2026-07-10", zahlungsziel_tage: 14,
         kopftext: "", fusstext: "", summe_cent: 0, ursprungsangebot_id: null, storno_von_id: null,
       },
-      positionen: [], zahlungen: [], bezahlt_cent: 0, offener_betrag_cent: 0,
+      positionen: [], zahlungen: [], bezahlt_cent: 0, offener_betrag_cent: 0, steuerzeilen: [],
     });
     render(<BelegEditor id="b1" />);
     await waitFor(() => expect(screen.getByLabelText("Datum")).toBeTruthy());
@@ -209,7 +209,7 @@ describe("BelegEditor – Gültigkeit des Angebots", () => {
         kopftext: "", fusstext: "", summe_cent: 0, ursprungsangebot_id: null, storno_von_id: null,
         gueltig_bis: "2026-08-09",
       },
-      positionen: [], zahlungen: [], bezahlt_cent: 0, offener_betrag_cent: 0,
+      positionen: [], zahlungen: [], bezahlt_cent: 0, offener_betrag_cent: 0, steuerzeilen: [],
     });
     render(<BelegEditor id="b1" />);
     await waitFor(() => expect(screen.getByLabelText("Gültig bis")).toHaveValue("2026-08-09"));
@@ -232,7 +232,7 @@ describe("BelegEditor – Gültigkeit des Angebots", () => {
         kopftext: "", fusstext: "", summe_cent: 0, ursprungsangebot_id: null, storno_von_id: null,
         gueltig_bis: null,
       },
-      positionen: [], zahlungen: [], bezahlt_cent: 0, offener_betrag_cent: 0,
+      positionen: [], zahlungen: [], bezahlt_cent: 0, offener_betrag_cent: 0, steuerzeilen: [],
     });
     render(<BelegEditor id="b1" />);
     await waitFor(() => expect(screen.getByText("Gültig bis: unbefristet")).toBeTruthy());
@@ -249,9 +249,9 @@ describe("BelegEditor – Gültigkeit des Angebots", () => {
       positionen: [{
         id: "p1", beleg_id: "b1", artikel_id: null, bezeichnung: "Beratung",
         einheit_kuerzel: "Std", einzelpreis_cent: 9550, menge: 1000,
-        positionssumme_cent: 9550, reihenfolge: 0,
+        positionssumme_cent: 9550, ust_satz_prozent: 19, reihenfolge: 0,
       }],
-      zahlungen: [], bezahlt_cent: 0, offener_betrag_cent: 9550,
+      zahlungen: [], bezahlt_cent: 0, offener_betrag_cent: 9550, steuerzeilen: [],
     });
     render(<BelegEditor id="b1" />);
     await waitFor(() => expect(screen.getByRole("button", { name: "Festschreiben" })).toBeTruthy());
@@ -277,12 +277,12 @@ describe("BelegEditor – Herkunft des Preises", () => {
         datum: "2026-07-10", leistungsdatum: "2026-07-10", zahlungsziel_tage: 14,
         kopftext: "", fusstext: "", summe_cent: 0, ursprungsangebot_id: null, storno_von_id: null,
       },
-      positionen: [], zahlungen: [], bezahlt_cent: 0, offener_betrag_cent: 0,
+      positionen: [], zahlungen: [], bezahlt_cent: 0, offener_betrag_cent: 0, steuerzeilen: [],
     } as never);
     vi.mocked(api.artikel.list).mockResolvedValue([
       {
         id: "a1", artikelnummer: "ART-0001", bezeichnung: "Beratung",
-        beschreibung: "", einheit_id: "e1", standardpreis_cent: 9550, kundenpreise_anzahl: 1,
+        beschreibung: "", einheit_id: "e1", standardpreis_cent: 9550, ust_satz_prozent: 19, kundenpreise_anzahl: 1,
       },
     ] as never);
   }
@@ -355,12 +355,12 @@ describe("BelegEditor – Position hinzufügen", () => {
       positionen: [],
       zahlungen: [],
       bezahlt_cent: 0,
-      offener_betrag_cent: 0,
+      offener_betrag_cent: 0, steuerzeilen: [],
     });
     vi.mocked(api.artikel.list).mockResolvedValue([
       {
         id: "a1", artikelnummer: "ART-0001", bezeichnung: "Beratung",
-        beschreibung: "", einheit_id: "e1", standardpreis_cent: 9550, kundenpreise_anzahl: 0,
+        beschreibung: "", einheit_id: "e1", standardpreis_cent: 9550, ust_satz_prozent: 19, kundenpreise_anzahl: 0,
       },
     ]);
 
@@ -380,6 +380,7 @@ describe("BelegEditor – Position hinzufügen", () => {
         einheit_kuerzel: "",
         einzelpreis_cent: null,
         menge: 1000,
+        ust_satz_prozent: null,
       }),
     );
     await waitFor(() => expect(vi.mocked(api.belege.get).mock.calls.length).toBeGreaterThanOrEqual(2));
@@ -392,12 +393,12 @@ describe("BelegEditor – Position hinzufügen", () => {
         datum: "2026-07-10", leistungsdatum: "2026-07-10", zahlungsziel_tage: 14,
         kopftext: "", fusstext: "", summe_cent: 0, ursprungsangebot_id: null, storno_von_id: null,
       },
-      positionen: [], zahlungen: [], bezahlt_cent: 0, offener_betrag_cent: 0,
+      positionen: [], zahlungen: [], bezahlt_cent: 0, offener_betrag_cent: 0, steuerzeilen: [],
     });
     vi.mocked(api.artikel.list).mockResolvedValue([
       {
         id: "a1", artikelnummer: "ART-0001", bezeichnung: "Beratung",
-        beschreibung: "", einheit_id: "e1", standardpreis_cent: 9550, kundenpreise_anzahl: 0,
+        beschreibung: "", einheit_id: "e1", standardpreis_cent: 9550, ust_satz_prozent: 19, kundenpreise_anzahl: 0,
       },
     ]);
     render(<BelegEditor id="b1" />);
@@ -421,12 +422,12 @@ describe("BelegEditor – Stellen", () => {
         {
           id: "p1", beleg_id: "b1", artikel_id: null, bezeichnung: "Beratung",
           einheit_kuerzel: "Std", einzelpreis_cent: 9550, menge: 1000,
-          positionssumme_cent: 9550, reihenfolge: 0,
+          positionssumme_cent: 9550, ust_satz_prozent: 19, reihenfolge: 0,
         },
       ],
       zahlungen: [],
       bezahlt_cent: 0,
-      offener_betrag_cent: 0,
+      offener_betrag_cent: 0, steuerzeilen: [],
     });
 
     render(<BelegEditor id="b1" />);
@@ -458,7 +459,7 @@ describe("BelegEditor – In Rechnung überführen", () => {
       positionen: [],
       zahlungen: [],
       bezahlt_cent: 0,
-      offener_betrag_cent: 0,
+      offener_betrag_cent: 0, steuerzeilen: [],
     });
 
     const onRechnungErstellt = vi.fn();
@@ -484,7 +485,7 @@ describe("BelegEditor – Zahlungen", () => {
       positionen: [],
       zahlungen: [],
       bezahlt_cent: 0,
-      offener_betrag_cent: 5000,
+      offener_betrag_cent: 5000, steuerzeilen: [],
     });
 
     render(<BelegEditor id="b1" />);
@@ -513,7 +514,7 @@ describe("BelegEditor – Zahlungen", () => {
         datum: "2026-07-10", leistungsdatum: "2026-07-10", zahlungsziel_tage: 14,
         kopftext: "", fusstext: "", summe_cent: 5000, ursprungsangebot_id: null, storno_von_id: null,
       },
-      positionen: [], zahlungen: [], bezahlt_cent: 0, offener_betrag_cent: 5000,
+      positionen: [], zahlungen: [], bezahlt_cent: 0, offener_betrag_cent: 5000, steuerzeilen: [],
     });
     render(<BelegEditor id="b1" />);
     await waitFor(() => expect(screen.getByText("Gestellt", { selector: ".status" })).toBeTruthy());
@@ -531,7 +532,7 @@ describe("BelegEditor – Export", () => {
         datum: "2026-07-11", leistungsdatum: "2026-07-11", zahlungsziel_tage: 14,
         kopftext: "", fusstext: "", summe_cent: 9500, ursprungsangebot_id: null, storno_von_id: null,
       },
-      positionen: [], zahlungen: [], bezahlt_cent: 0, offener_betrag_cent: 9500,
+      positionen: [], zahlungen: [], bezahlt_cent: 0, offener_betrag_cent: 9500, steuerzeilen: [],
     });
     render(<BelegEditor id="b1" />);
     await waitFor(() => expect(screen.getByRole("button", { name: "Als PDF exportieren" })).toBeTruthy());
@@ -555,7 +556,7 @@ describe("BelegEditor – Export", () => {
         datum: "2026-07-11", leistungsdatum: "2026-07-11", zahlungsziel_tage: 14,
         kopftext: "", fusstext: "", summe_cent: 9500, ursprungsangebot_id: null, storno_von_id: null,
       },
-      positionen: [], zahlungen: [], bezahlt_cent: 0, offener_betrag_cent: 9500,
+      positionen: [], zahlungen: [], bezahlt_cent: 0, offener_betrag_cent: 9500, steuerzeilen: [],
     });
     vi.mocked(save).mockResolvedValueOnce(null);
     render(<BelegEditor id="b1" />);
@@ -574,7 +575,7 @@ describe("BelegEditor – Export", () => {
         datum: "2026-07-11", leistungsdatum: "2026-07-11", zahlungsziel_tage: 14,
         kopftext: "", fusstext: "", summe_cent: 9500, ursprungsangebot_id: null, storno_von_id: null,
       },
-      positionen: [], zahlungen: [], bezahlt_cent: 0, offener_betrag_cent: 9500,
+      positionen: [], zahlungen: [], bezahlt_cent: 0, offener_betrag_cent: 9500, steuerzeilen: [],
     });
     render(<BelegEditor id="b1" />);
     await waitFor(() =>
@@ -592,7 +593,7 @@ describe("BelegEditor – Export", () => {
         datum: "2026-07-11", leistungsdatum: "2026-07-11", zahlungsziel_tage: 14,
         kopftext: "", fusstext: "", summe_cent: 9500, ursprungsangebot_id: null, storno_von_id: null,
       },
-      positionen: [], zahlungen: [], bezahlt_cent: 0, offener_betrag_cent: 9500,
+      positionen: [], zahlungen: [], bezahlt_cent: 0, offener_betrag_cent: 9500, steuerzeilen: [],
     });
     render(<BelegEditor id="b1" />);
     await waitFor(() =>
@@ -610,7 +611,7 @@ describe("BelegEditor – Export", () => {
         datum: "2026-07-11", leistungsdatum: "2026-07-11", zahlungsziel_tage: 14,
         kopftext: "", fusstext: "", summe_cent: 9500, ursprungsangebot_id: null, storno_von_id: null,
       },
-      positionen: [], zahlungen: [], bezahlt_cent: 0, offener_betrag_cent: 9500,
+      positionen: [], zahlungen: [], bezahlt_cent: 0, offener_betrag_cent: 9500, steuerzeilen: [],
     });
     vi.mocked(api.belege.xrechnungExportieren).mockRejectedValue({
       typ: "validation",
@@ -633,7 +634,7 @@ describe("BelegEditor – Export", () => {
         datum: "2026-07-11", leistungsdatum: "2026-07-11", zahlungsziel_tage: 14,
         kopftext: "", fusstext: "", summe_cent: 9500, ursprungsangebot_id: null, storno_von_id: null,
       },
-      positionen: [], zahlungen: [], bezahlt_cent: 0, offener_betrag_cent: 9500,
+      positionen: [], zahlungen: [], bezahlt_cent: 0, offener_betrag_cent: 9500, steuerzeilen: [],
     });
     render(<BelegEditor id="b1" />);
     await waitFor(() => expect(screen.getByRole("button", { name: "Als PDF exportieren" })).toBeTruthy());
@@ -652,7 +653,7 @@ describe("BelegEditor – Zahlungserinnerung", () => {
         kopftext: "", fusstext: "", summe_cent: 9500, ursprungsangebot_id: null, storno_von_id: null,
       },
       positionen: [], zahlungen: [], bezahlt_cent: 9500 - offenerBetragCent,
-      offener_betrag_cent: offenerBetragCent,
+      offener_betrag_cent: offenerBetragCent, steuerzeilen: [],
     });
   }
 
@@ -688,7 +689,7 @@ describe("BelegEditor – Zahlungserinnerung", () => {
         datum: "2026-07-11", leistungsdatum: "2026-07-11", zahlungsziel_tage: 14,
         kopftext: "", fusstext: "", summe_cent: 9500, ursprungsangebot_id: null, storno_von_id: null,
       },
-      positionen: [], zahlungen: [], bezahlt_cent: 0, offener_betrag_cent: 9500,
+      positionen: [], zahlungen: [], bezahlt_cent: 0, offener_betrag_cent: 9500, steuerzeilen: [],
     });
     render(<BelegEditor id="b1" />);
     await waitFor(() => expect(screen.getByRole("button", { name: "Als PDF exportieren" })).toBeTruthy());
@@ -720,7 +721,7 @@ describe("BelegEditor – Erfolgs-Hinweis", () => {
         datum: "2026-07-10", leistungsdatum: "2026-07-10", zahlungsziel_tage: 14,
         kopftext: "", fusstext: "", summe_cent: 0, ursprungsangebot_id: null, storno_von_id: null,
       },
-      positionen: [], zahlungen: [], bezahlt_cent: 0, offener_betrag_cent: 0,
+      positionen: [], zahlungen: [], bezahlt_cent: 0, offener_betrag_cent: 0, steuerzeilen: [],
     });
     render(<BelegEditor id="b1" />);
     await waitFor(() => expect(screen.getByRole("button", { name: "Speichern" })).toBeTruthy());
@@ -740,10 +741,10 @@ describe("BelegEditor – Erfolgs-Hinweis", () => {
         {
           id: "p1", beleg_id: "b1", artikel_id: null, bezeichnung: "Beratung",
           einheit_kuerzel: "Std", einzelpreis_cent: 9550, menge: 1000,
-          positionssumme_cent: 9550, reihenfolge: 0,
+          positionssumme_cent: 9550, ust_satz_prozent: 19, reihenfolge: 0,
         },
       ],
-      zahlungen: [], bezahlt_cent: 0, offener_betrag_cent: 0,
+      zahlungen: [], bezahlt_cent: 0, offener_betrag_cent: 0, steuerzeilen: [],
     });
     render(<BelegEditor id="b1" />);
     await waitFor(() => expect(screen.getByText("Beratung")).toBeTruthy());
@@ -759,7 +760,7 @@ describe("BelegEditor – Erfolgs-Hinweis", () => {
         datum: "2026-07-10", leistungsdatum: "2026-07-10", zahlungsziel_tage: 14,
         kopftext: "", fusstext: "", summe_cent: 9550, ursprungsangebot_id: null, storno_von_id: null,
       },
-      positionen: [], zahlungen: [], bezahlt_cent: 0, offener_betrag_cent: 0,
+      positionen: [], zahlungen: [], bezahlt_cent: 0, offener_betrag_cent: 0, steuerzeilen: [],
     });
     render(<BelegEditor id="b1" />);
     await waitFor(() => expect(screen.getByRole("button", { name: "Angenommen" })).toBeTruthy());
@@ -774,7 +775,7 @@ describe("BelegEditor – Erfolgs-Hinweis", () => {
         datum: "2026-07-10", leistungsdatum: "2026-07-10", zahlungsziel_tage: 14,
         kopftext: "", fusstext: "", summe_cent: 9550, ursprungsangebot_id: null, storno_von_id: null,
       },
-      positionen: [], zahlungen: [], bezahlt_cent: 0, offener_betrag_cent: 9550,
+      positionen: [], zahlungen: [], bezahlt_cent: 0, offener_betrag_cent: 9550, steuerzeilen: [],
     });
     render(<BelegEditor id="b1" />);
     await waitFor(() => expect(screen.getByRole("button", { name: "Stornieren" })).toBeTruthy());
@@ -791,7 +792,7 @@ describe("BelegEditor – Erfolgs-Hinweis", () => {
       kopftext: "", fusstext: "", summe_cent: 9550, ursprungsangebot_id: null,
       storno_von_id: null, ...zusatz,
     },
-    positionen: [], zahlungen: [], bezahlt_cent: 0, offener_betrag_cent: 9550,
+    positionen: [], zahlungen: [], bezahlt_cent: 0, offener_betrag_cent: 9550, steuerzeilen: [],
   });
 
   it("storniert nicht, wenn die Rückfrage abgebrochen wird", async () => {
@@ -809,7 +810,7 @@ describe("BelegEditor – Erfolgs-Hinweis", () => {
       positionen: [{
         id: "p1", beleg_id: "b1", artikel_id: null, bezeichnung: "Beratung",
         einheit_kuerzel: "Std", einzelpreis_cent: 9550, menge: 1000,
-        positionssumme_cent: 9550, reihenfolge: 0,
+        positionssumme_cent: 9550, ust_satz_prozent: 19, reihenfolge: 0,
       }],
     });
     render(<BelegEditor id="b1" />);
@@ -905,7 +906,7 @@ describe("BelegEditor – Erfolgs-Hinweis", () => {
       positionen: [{
         id: "p1", beleg_id: "b1", artikel_id: null, bezeichnung: "Beratung",
         einheit_kuerzel: "Std", einzelpreis_cent: 9550, menge: 1000,
-        positionssumme_cent: 9550, reihenfolge: 0,
+        positionssumme_cent: 9550, ust_satz_prozent: 19, reihenfolge: 0,
       }],
     });
     render(<BelegEditor id="b1" />);
@@ -930,10 +931,10 @@ describe("BelegEditor – Erfolgs-Hinweis", () => {
         {
           id: "p1", beleg_id: "b1", artikel_id: null, bezeichnung: "Beratung",
           einheit_kuerzel: "Std", einzelpreis_cent: 9550, menge: 1000,
-          positionssumme_cent: 9550, reihenfolge: 0,
+          positionssumme_cent: 9550, ust_satz_prozent: 19, reihenfolge: 0,
         },
       ],
-      zahlungen: [], bezahlt_cent: 0, offener_betrag_cent: 0,
+      zahlungen: [], bezahlt_cent: 0, offener_betrag_cent: 0, steuerzeilen: [],
     });
     render(<BelegEditor id="b1" />);
     await waitFor(() => expect(screen.getByText("Beratung")).toBeTruthy());
@@ -956,10 +957,10 @@ describe("BelegEditor – Erfolgs-Hinweis", () => {
         {
           id: "p1", beleg_id: "b1", artikel_id: null, bezeichnung: "Beratung",
           einheit_kuerzel: "Std", einzelpreis_cent: 9550, menge: 1000,
-          positionssumme_cent: 9550, reihenfolge: 0,
+          positionssumme_cent: 9550, ust_satz_prozent: 19, reihenfolge: 0,
         },
       ],
-      zahlungen: [], bezahlt_cent: 0, offener_betrag_cent: 0,
+      zahlungen: [], bezahlt_cent: 0, offener_betrag_cent: 0, steuerzeilen: [],
     });
     render(<BelegEditor id="b1" />);
     await waitFor(() => expect(screen.getByText("Beratung")).toBeTruthy());
@@ -1013,12 +1014,12 @@ describe("BelegEditor – Positionen bearbeiten und sortieren", () => {
       positionen: [
         { id: "p1", beleg_id: "b1", artikel_id: null, bezeichnung: "Konzept",
           einheit_kuerzel: "Std", einzelpreis_cent: 9550, menge: 1000,
-          positionssumme_cent: 9550, reihenfolge: 1 },
+          positionssumme_cent: 9550, ust_satz_prozent: 19, reihenfolge: 1 },
         { id: "p2", beleg_id: "b1", artikel_id: null, bezeichnung: "Umsetzung",
           einheit_kuerzel: "Std", einzelpreis_cent: 9550, menge: 1000,
-          positionssumme_cent: 9550, reihenfolge: 2 },
+          positionssumme_cent: 9550, ust_satz_prozent: 19, reihenfolge: 2 },
       ],
-      zahlungen: [], bezahlt_cent: 0, offener_betrag_cent: 0,
+      zahlungen: [], bezahlt_cent: 0, offener_betrag_cent: 0, steuerzeilen: [],
     } as never);
     vi.mocked(api.artikel.list).mockResolvedValue([]);
   }
@@ -1087,6 +1088,56 @@ describe("BelegEditor – Positionen bearbeiten und sortieren", () => {
     fireEvent.change(screen.getByLabelText("Menge"), { target: { value: "drei" } });
     await waitFor(() => expect(screen.getByText(/Menge unklar/)).toBeTruthy());
   });
+
+  it("sendet bei einer Freitextposition den gewählten Steuersatz mit", async () => {
+    entwurfMitPositionen();
+    render(<BelegEditor id="b1" />);
+    await waitFor(() => expect(screen.getByText("Konzept")).toBeTruthy());
+
+    fireEvent.click(screen.getByLabelText("Freitextposition"));
+    fireEvent.change(screen.getByLabelText("Bezeichnung"), { target: { value: "Fachbuch" } });
+    fireEvent.change(screen.getByLabelText("Einzelpreis"), { target: { value: "10,70" } });
+    fireEvent.change(screen.getByLabelText("Umsatzsteuersatz"), { target: { value: "7" } });
+    fireEvent.click(screen.getByRole("button", { name: "Position hinzufügen" }));
+
+    await waitFor(() =>
+      expect(api.belege.positionSave).toHaveBeenCalledWith(
+        expect.objectContaining({ bezeichnung: "Fachbuch", ust_satz_prozent: 7 }),
+      ),
+    );
+  });
+});
+
+describe("BelegEditor – Steueraufschlüsselung", () => {
+  it("zeigt bei Regelbesteuerung die enthaltene USt unter der Summe", async () => {
+    vi.mocked(api.belege.get).mockResolvedValue({
+      beleg: {
+        id: "b1", typ: "rechnung", nummer: null, status: "entwurf", kunde_id: "k1",
+        datum: "2026-07-10", leistungsdatum: "2026-07-10", zahlungsziel_tage: 14,
+        kopftext: "", fusstext: "", summe_cent: 9500, ursprungsangebot_id: null, storno_von_id: null,
+      },
+      positionen: [], zahlungen: [], bezahlt_cent: 0, offener_betrag_cent: 9500,
+      steuerzeilen: [{ satz_prozent: 19, netto_cent: 7983, ust_cent: 1517, brutto_cent: 9500 }],
+    } as never);
+    render(<BelegEditor id="b1" />);
+    await waitFor(() =>
+      expect(screen.getByText(/Enthaltene USt 19 % \(aus Nettobetrag 79,83/)).toBeTruthy(),
+    );
+  });
+
+  it("zeigt bei Kleinunternehmer-Belegen keine Aufschlüsselung", async () => {
+    vi.mocked(api.belege.get).mockResolvedValue({
+      beleg: {
+        id: "b1", typ: "rechnung", nummer: null, status: "entwurf", kunde_id: "k1",
+        datum: "2026-07-10", leistungsdatum: "2026-07-10", zahlungsziel_tage: 14,
+        kopftext: "", fusstext: "", summe_cent: 9500, ursprungsangebot_id: null, storno_von_id: null,
+      },
+      positionen: [], zahlungen: [], bezahlt_cent: 0, offener_betrag_cent: 9500, steuerzeilen: [],
+    } as never);
+    render(<BelegEditor id="b1" />);
+    await waitFor(() => expect(screen.getByText(/Summe: 95,00/)).toBeTruthy());
+    expect(screen.queryByText(/Enthaltene USt/)).toBeNull();
+  });
 });
 
 describe("BelegEditor – Anschrift und Ansprechpartner", () => {
@@ -1098,7 +1149,7 @@ describe("BelegEditor – Anschrift und Ansprechpartner", () => {
         kopftext: "", fusstext: "", summe_cent: 0, ursprungsangebot_id: null,
         storno_von_id: null, adresse_id: null, ansprechpartner_id: null,
       },
-      positionen: [], zahlungen: [], bezahlt_cent: 0, offener_betrag_cent: 0,
+      positionen: [], zahlungen: [], bezahlt_cent: 0, offener_betrag_cent: 0, steuerzeilen: [],
     } as never);
     vi.mocked(api.kunden.list).mockResolvedValue([
       { id: "k1", typ: "firma", name: "ACME GmbH", kundennummer: "KD-0001", zahlungsziel_tage: 14,
@@ -1185,9 +1236,9 @@ describe("BelegEditor – Anschrift und Ansprechpartner", () => {
       positionen: [
         { id: "p1", beleg_id: "b1", artikel_id: null, bezeichnung: "Konzept",
           einheit_kuerzel: "Std", einzelpreis_cent: 9550, menge: 1000,
-          positionssumme_cent: 9550, reihenfolge: 1 },
+          positionssumme_cent: 9550, ust_satz_prozent: 19, reihenfolge: 1 },
       ],
-      zahlungen: [], bezahlt_cent: 0, offener_betrag_cent: 0,
+      zahlungen: [], bezahlt_cent: 0, offener_betrag_cent: 0, steuerzeilen: [],
     } as never);
   }
 

@@ -13,7 +13,11 @@ pub struct Artikel {
     pub bezeichnung: String,
     pub beschreibung: String,
     pub einheit_id: String,
+    /// Bruttopreis — die USt wird bei Regelbesteuerung herausgerechnet.
     pub standardpreis_cent: i64,
+    /// Umsatzsteuersatz (19, 7 oder 0). Wirkt nur bei Regelbesteuerung;
+    /// bei Kleinunternehmern (§ 19 UStG) bleibt er ohne Folgen.
+    pub ust_satz_prozent: i64,
     pub kundenpreise_anzahl: i64,
 }
 
@@ -23,6 +27,19 @@ pub struct ArtikelNeu {
     pub beschreibung: String,
     pub einheit_id: String,
     pub standardpreis_cent: i64,
+    pub ust_satz_prozent: i64,
+}
+
+/// Die in Deutschland gängigen Sätze. Alles andere ist ein Tippfehler — ein
+/// Beleg mit 91 % statt 19 % fiele sonst erst beim Kunden auf.
+pub(crate) fn pruefe_ust_satz(satz: i64) -> AppResult<()> {
+    if ![0, 7, 19].contains(&satz) {
+        return Err(AppError::Validation {
+            feld: "ust_satz_prozent".into(),
+            meldung: "Der Steuersatz muss 0, 7 oder 19 Prozent sein".into(),
+        });
+    }
+    Ok(())
 }
 
 #[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
@@ -34,13 +51,14 @@ pub struct Kundenpreis {
     pub gueltig_ab: Option<String>,
 }
 
-async fn pruefe_artikel(pool: &SqlitePool, bezeichnung: &str, standardpreis_cent: i64, einheit_id: &str) -> AppResult<()> {
+async fn pruefe_artikel(pool: &SqlitePool, bezeichnung: &str, standardpreis_cent: i64, einheit_id: &str, ust_satz_prozent: i64) -> AppResult<()> {
     if bezeichnung.trim().is_empty() {
         return Err(AppError::Validation { feld: "bezeichnung".into(), meldung: "Bezeichnung darf nicht leer sein".into() });
     }
     if standardpreis_cent < 0 {
         return Err(AppError::Validation { feld: "standardpreis_cent".into(), meldung: "Standardpreis darf nicht negativ sein".into() });
     }
+    pruefe_ust_satz(ust_satz_prozent)?;
     // Nichts gewählt und „gibt es nicht" sind zwei verschiedene Lagen. Der Satz
     // „Einheit existiert nicht" ist für den häufigen Fall — das Auswahlfeld
     // steht noch auf dem Strich — schlicht verwirrend.
@@ -57,7 +75,7 @@ async fn pruefe_artikel(pool: &SqlitePool, bezeichnung: &str, standardpreis_cent
 }
 
 pub async fn create(pool: &SqlitePool, d: ArtikelNeu) -> AppResult<Artikel> {
-    pruefe_artikel(pool, &d.bezeichnung, d.standardpreis_cent, &d.einheit_id).await?;
+    pruefe_artikel(pool, &d.bezeichnung, d.standardpreis_cent, &d.einheit_id, d.ust_satz_prozent).await?;
     let mut tx = pool.begin().await?;
     let artikelnummer = naechste_nummer(&mut tx, "artikel", None).await?;
     let a = Artikel {
@@ -67,11 +85,12 @@ pub async fn create(pool: &SqlitePool, d: ArtikelNeu) -> AppResult<Artikel> {
         beschreibung: d.beschreibung,
         einheit_id: d.einheit_id,
         standardpreis_cent: d.standardpreis_cent,
+        ust_satz_prozent: d.ust_satz_prozent,
         kundenpreise_anzahl: 0,
     };
-    sqlx::query("INSERT INTO artikel (id, artikelnummer, bezeichnung, beschreibung, einheit_id, standardpreis_cent, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?)")
+    sqlx::query("INSERT INTO artikel (id, artikelnummer, bezeichnung, beschreibung, einheit_id, standardpreis_cent, ust_satz_prozent, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?)")
         .bind(&a.id).bind(&a.artikelnummer).bind(&a.bezeichnung).bind(&a.beschreibung)
-        .bind(&a.einheit_id).bind(a.standardpreis_cent).bind(jetzt()).bind(jetzt())
+        .bind(&a.einheit_id).bind(a.standardpreis_cent).bind(a.ust_satz_prozent).bind(jetzt()).bind(jetzt())
         .execute(&mut *tx).await?;
     tx.commit().await?;
     Ok(a)
@@ -80,21 +99,21 @@ pub async fn create(pool: &SqlitePool, d: ArtikelNeu) -> AppResult<Artikel> {
 pub async fn list(pool: &SqlitePool, suche: Option<String>) -> AppResult<Vec<Artikel>> {
     let muster = format!("%{}%", suche.unwrap_or_default().to_lowercase());
     Ok(sqlx::query_as(
-        "SELECT a.id, a.artikelnummer, a.bezeichnung, a.beschreibung, a.einheit_id, a.standardpreis_cent, \
+        "SELECT a.id, a.artikelnummer, a.bezeichnung, a.beschreibung, a.einheit_id, a.standardpreis_cent, a.ust_satz_prozent, \
                 (SELECT COUNT(*) FROM kundenpreis kp WHERE kp.artikel_id = a.id AND kp.deleted_at IS NULL) AS kundenpreise_anzahl \
          FROM artikel a WHERE a.deleted_at IS NULL AND (lower(a.bezeichnung) LIKE ? OR lower(a.artikelnummer) LIKE ?) ORDER BY a.bezeichnung")
         .bind(&muster).bind(&muster).fetch_all(pool).await?)
 }
 
 pub async fn update(pool: &SqlitePool, artikel: Artikel) -> AppResult<Artikel> {
-    pruefe_artikel(pool, &artikel.bezeichnung, artikel.standardpreis_cent, &artikel.einheit_id).await?;
+    pruefe_artikel(pool, &artikel.bezeichnung, artikel.standardpreis_cent, &artikel.einheit_id, artikel.ust_satz_prozent).await?;
     // WICHTIG: artikelnummer wird hier bewusst NICHT geschrieben — die vergebene
     // Nummer ist nach der Vergabe unveränderlich, auch wenn `artikel.artikelnummer`
     // aus dem Frontend einen (ggf. veralteten) Wert enthält.
     let r = sqlx::query(
-        "UPDATE artikel SET bezeichnung=?, beschreibung=?, einheit_id=?, standardpreis_cent=?, updated_at=? WHERE id=? AND deleted_at IS NULL")
+        "UPDATE artikel SET bezeichnung=?, beschreibung=?, einheit_id=?, standardpreis_cent=?, ust_satz_prozent=?, updated_at=? WHERE id=? AND deleted_at IS NULL")
         .bind(artikel.bezeichnung.trim()).bind(&artikel.beschreibung).bind(&artikel.einheit_id)
-        .bind(artikel.standardpreis_cent).bind(jetzt()).bind(&artikel.id)
+        .bind(artikel.standardpreis_cent).bind(artikel.ust_satz_prozent).bind(jetzt()).bind(&artikel.id)
         .execute(pool).await?;
     if r.rows_affected() == 0 { return Err(AppError::NichtGefunden); }
     Ok(artikel)
@@ -280,7 +299,7 @@ mod tests {
     fn neu(bezeichnung: &str) -> ArtikelNeu {
         ArtikelNeu {
             bezeichnung: bezeichnung.into(), beschreibung: "".into(),
-            einheit_id: STUNDE.into(), standardpreis_cent: 9500,
+            einheit_id: STUNDE.into(), standardpreis_cent: 9500, ust_satz_prozent: 19,
         }
     }
 
@@ -300,7 +319,7 @@ mod tests {
         let pool = crate::db::init_db(&dir.path().join("t.db")).await.unwrap();
         let fehler = create(&pool, ArtikelNeu {
             bezeichnung: "Beratung".into(), beschreibung: String::new(),
-            einheit_id: String::new(), standardpreis_cent: 5000,
+            einheit_id: String::new(), standardpreis_cent: 5000, ust_satz_prozent: 19,
         }).await.unwrap_err();
 
         match fehler {
@@ -531,7 +550,7 @@ mod tests {
         let artikel = create(&pool, ArtikelNeu {
             bezeichnung: "Beratung".into(), beschreibung: "".into(),
             einheit_id: "e0000000-0000-0000-0000-000000000001".into(),
-            standardpreis_cent: 12_000,
+            standardpreis_cent: 12_000, ust_satz_prozent: 19,
         }).await.unwrap();
         kundenpreis_speichern(&pool, Kundenpreis {
             id: "".into(), artikel_id: artikel.id.clone(), kunde_id: kunde_id.clone(),
@@ -558,7 +577,7 @@ mod tests {
         let artikel = create(&pool, ArtikelNeu {
             bezeichnung: "Alt".into(), beschreibung: "".into(),
             einheit_id: "e0000000-0000-0000-0000-000000000001".into(),
-            standardpreis_cent: 1_000,
+            standardpreis_cent: 1_000, ust_satz_prozent: 19,
         }).await.unwrap();
         kundenpreis_speichern(&pool, Kundenpreis {
             id: "".into(), artikel_id: artikel.id.clone(), kunde_id: kunde_id.clone(),

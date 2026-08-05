@@ -34,7 +34,7 @@ const RUNDGANG_SCHRITTE: FuehrungsSchritt[] = [
   {
     ziel: "[data-tour='neu']",
     titel: "Neuer Artikel",
-    text: "Legt einen Artikel mit Bezeichnung, Einheit und Standardpreis an — auch per ⌘N (Strg+N). Der Preis ist eine Vorgabe: In einem Beleg lässt er sich pro Position überschreiben.",
+    text: "Legt einen Artikel mit Bezeichnung, Einheit, Standardpreis und Steuersatz an — auch per ⌘N (Strg+N). Der Preis ist eine Brutto-Vorgabe: In einem Beleg lässt er sich pro Position überschreiben.",
   },
   {
     ziel: "[data-tour='tabelle']",
@@ -53,6 +53,7 @@ const ARTIKEL_NEU_LEER = {
   beschreibung: "",
   einheit_id: "",
   standardpreis_cent: 0,
+  ust_satz_prozent: 19,
 };
 
 /**
@@ -157,6 +158,7 @@ export function Artikel({ zeigeFormularBeimStart, onFormularUebernommen, onZuKun
       beschreibung: a.beschreibung,
       einheit_id: a.einheit_id,
       standardpreis_cent: a.standardpreis_cent,
+      ust_satz_prozent: a.ust_satz_prozent,
     });
     setPreisText(formatCent(a.standardpreis_cent).replace(" €", ""));
     setPreisFehlerText(null);
@@ -182,6 +184,7 @@ export function Artikel({ zeigeFormularBeimStart, onFormularUebernommen, onZuKun
           beschreibung: form.beschreibung,
           einheit_id: form.einheit_id,
           standardpreis_cent: cent,
+          ust_satz_prozent: form.ust_satz_prozent,
         });
         zeigen(`Artikel „${form.bezeichnung}" gespeichert`);
       } else {
@@ -190,6 +193,7 @@ export function Artikel({ zeigeFormularBeimStart, onFormularUebernommen, onZuKun
           beschreibung: form.beschreibung,
           einheit_id: form.einheit_id,
           standardpreis_cent: cent,
+          ust_satz_prozent: form.ust_satz_prozent,
         });
         if (kunden.length === 0) {
           setZeigtKundenHinweis(true);
@@ -210,6 +214,7 @@ export function Artikel({ zeigeFormularBeimStart, onFormularUebernommen, onZuKun
     "bezeichnung",
     "einheit_id",
     "standardpreis_cent",
+    "ust_satz_prozent",
   ]);
 
   const { sortiert: sortierteArtikel, sortierung, sortieren } = useSortierung(
@@ -219,6 +224,7 @@ export function Artikel({ zeigeFormularBeimStart, onFormularUebernommen, onZuKun
       bezeichnung: (a) => a.bezeichnung,
       einheit: (a) => einheitKuerzel(a.einheit_id),
       preis: (a) => a.standardpreis_cent,
+      ust: (a) => a.ust_satz_prozent,
       kundenpreise: (a) => a.kundenpreise_anzahl,
     },
     "nummer",
@@ -302,13 +308,32 @@ export function Artikel({ zeigeFormularBeimStart, onFormularUebernommen, onZuKun
           </div>
           <div className="feld">
             <label>
-              Standardpreis (€)
+              Standardpreis (€, brutto)
               <input value={preisText} onChange={(e) => setPreisText(e.currentTarget.value)} />
             </label>
             {(preisFehlerText || feldFehler("standardpreis_cent")) && (
               <div className="feld-fehler" role="alert">
                 {preisFehlerText ?? feldFehler("standardpreis_cent")}
               </div>
+            )}
+          </div>
+          <div className="feld">
+            <label>
+              Umsatzsteuersatz
+              {/* Der Satz wirkt nur bei Regelbesteuerung; Kleinunternehmer-Belege
+                  weisen nie Steuer aus. Preise bleiben brutto — die USt wird auf
+                  dem Beleg herausgerechnet, der Kunde zahlt denselben Betrag. */}
+              <select
+                value={form.ust_satz_prozent}
+                onChange={(e) => setForm({ ...form, ust_satz_prozent: Number(e.currentTarget.value) })}
+              >
+                <option value={19}>19 % (Regelsatz)</option>
+                <option value={7}>7 % (ermäßigt)</option>
+                <option value={0}>0 % (steuerfrei)</option>
+              </select>
+            </label>
+            {feldFehler("ust_satz_prozent") && (
+              <div className="feld-fehler" role="alert">{feldFehler("ust_satz_prozent")}</div>
             )}
           </div>
           <div className="aktionen aktionen-formular">
@@ -347,6 +372,9 @@ export function Artikel({ zeigeFormularBeimStart, onFormularUebernommen, onZuKun
                 <SortierKopf spalte="preis" aktiv={sortierung.spalte} richtung={sortierung.richtung} onSortieren={sortieren}>
                   Preis
                 </SortierKopf>
+                <SortierKopf spalte="ust" aktiv={sortierung.spalte} richtung={sortierung.richtung} onSortieren={sortieren}>
+                  USt
+                </SortierKopf>
                 <SortierKopf spalte="kundenpreise" aktiv={sortierung.spalte} richtung={sortierung.richtung} onSortieren={sortieren}>
                   Kundenpreise
                 </SortierKopf>
@@ -360,6 +388,7 @@ export function Artikel({ zeigeFormularBeimStart, onFormularUebernommen, onZuKun
                   <td>{a.bezeichnung}</td>
                   <td>{einheitKuerzel(a.einheit_id)}</td>
                   <td>{formatCent(a.standardpreis_cent)}</td>
+                  <td>{a.ust_satz_prozent} %</td>
                   <td>
                     {/* Eigene Spalte statt eines dritten Knopfes im Aktionsfeld:
                         Die Anzahl ist eine Angabe zum Artikel und gehört zu den

@@ -34,6 +34,8 @@ export function PositionenAbschnitt({
   const [einheitKuerzel, setEinheitKuerzel] = useState("");
   const [einzelpreis, setEinzelpreis] = useState("");
   const [menge, setMenge] = useState("1");
+  /** Steuersatz für Freitextpositionen; Artikelpositionen erben ihn im Backend vom Artikel. */
+  const [ustSatz, setUstSatz] = useState(19);
   /** Id der Position, die gerade bearbeitet wird; leer beim Anlegen. */
   const [bearbeiteId, setBearbeiteId] = useState("");
   const [fehler, setFehler] = useState<AppFehler | null>(null);
@@ -89,6 +91,7 @@ export function PositionenAbschnitt({
     setEinheitKuerzel("");
     setEinzelpreis("");
     setMenge("1");
+    setUstSatz(19);
     setArtikelId("");
     setFehler(null);
   }
@@ -100,6 +103,7 @@ export function PositionenAbschnitt({
     setEinheitKuerzel(p.einheit_kuerzel);
     setEinzelpreis((p.einzelpreis_cent / 100).toFixed(2).replace(".", ","));
     setMenge(formatMenge(p.menge));
+    setUstSatz(p.ust_satz_prozent);
     setArtikelId(p.artikel_id ?? "");
     setFehler(null);
   }
@@ -149,6 +153,7 @@ export function PositionenAbschnitt({
         einheit_kuerzel: freitext ? einheitKuerzel : "",
         einzelpreis_cent: einzelpreisCent,
         menge: mengeX1000,
+        ust_satz_prozent: freitext ? ustSatz : null,
       });
       const geaendert = bearbeiteId !== "";
       formularLeeren();
@@ -267,6 +272,14 @@ export function PositionenAbschnitt({
               <label className="feld">
                 Einzelpreis
                 <input value={einzelpreis} onChange={(e) => setEinzelpreis(e.currentTarget.value)} placeholder="95,00" />
+              </label>
+              <label className="feld">
+                Umsatzsteuersatz
+                <select value={ustSatz} onChange={(e) => setUstSatz(Number(e.currentTarget.value))}>
+                  <option value={19}>19 % (Regelsatz)</option>
+                  <option value={7}>7 % (ermäßigt)</option>
+                  <option value={0}>0 % (steuerfrei)</option>
+                </select>
               </label>
             </>
           ) : (
