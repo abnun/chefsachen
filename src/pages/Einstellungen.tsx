@@ -44,12 +44,41 @@ export function Einstellungen() {
   );
 }
 
+/**
+ * PNG erkennt man an der Signatur `\x89PNG`; alles andere, was diese Anwendung
+ * entgegennimmt, ist JPEG (siehe `logo_dateiname` im Rust-Teil — dieselbe
+ * Unterscheidung, hier nur fürs Anzeigen statt fürs Ablegen im Archiv).
+ */
+function logoMimetyp(bytes: number[]): string {
+  const istPng = bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47;
+  return istPng ? "image/png" : "image/jpeg";
+}
+
+/**
+ * Bytes als Base64 — in Stücken, damit ein großes Logo nicht am Aufruflimit
+ * von `String.fromCharCode(...bytes)` scheitert (Firefox/Safari brechen bei
+ * einigen Zehntausend Argumenten ab).
+ */
+function bytesZuBase64(bytes: number[]): string {
+  const GROESSE = 0x8000;
+  let binaer = "";
+  for (let i = 0; i < bytes.length; i += GROESSE) {
+    binaer += String.fromCharCode(...bytes.slice(i, i + GROESSE));
+  }
+  return btoa(binaer);
+}
+
 function FirmendatenAbschnitt() {
   const [firma, setFirma] = useState<Firma | null>(null);
   /** Der zuletzt gespeicherte Stand, um Änderungen zu erkennen. */
   const [gespeichert, setGespeichert] = useState<Firma | null>(null);
   const [fehler, setFehler] = useState<AppFehler | null>(null);
-  const [logoGroesse, setLogoGroesse] = useState<number | null>(null);
+  /**
+   * Die Logo-Bytes selbst, nicht nur ihre Länge — für die Vorschau. Vorher
+   * stand hier nur „Logo hinterlegt (2160 KB)": ob das die richtige Datei ist
+   * (oder ein falscher Screenshot), ließ sich erst auf dem fertigen Beleg sehen.
+   */
+  const [logoBytes, setLogoBytes] = useState<number[] | null>(null);
   const { zeigen, hinweis } = useErfolgsHinweis();
 
   useUngespeichert(
@@ -64,8 +93,12 @@ function FirmendatenAbschnitt() {
         setGespeichert(f);
       })
       .catch((e) => setFehler(e as AppFehler));
-    api.firma.logoGet().then((b) => setLogoGroesse(b ? b.length : null)).catch(() => {});
+    api.firma.logoGet().then((b) => setLogoBytes(b && b.length > 0 ? b : null)).catch(() => {});
   }, []);
+
+  const logoGroesse = logoBytes?.length ?? null;
+  const logoDataUrl =
+    logoBytes && logoBytes.length > 0 ? `data:${logoMimetyp(logoBytes)};base64,${bytesZuBase64(logoBytes)}` : null;
 
   /**
    * Der Einrichtungsassistent sagt zu, das Logo lasse sich später hier ändern —
@@ -81,7 +114,7 @@ function FirmendatenAbschnitt() {
       if (!pfad || typeof pfad !== "string") return;
       const bytes = Array.from(await readFile(pfad));
       await api.firma.logoSet(bytes);
-      setLogoGroesse(bytes.length);
+      setLogoBytes(bytes);
       zeigen("Logo gespeichert");
     } catch (e) {
       setFehler(e as AppFehler);
@@ -93,7 +126,7 @@ function FirmendatenAbschnitt() {
     try {
       // Ein leeres Feld entfernt das Logo — das Backend kennt keinen eigenen Befehl dafür.
       await api.firma.logoSet([]);
-      setLogoGroesse(null);
+      setLogoBytes(null);
       zeigen("Logo entfernt");
     } catch (e) {
       setFehler(e as AppFehler);
@@ -125,6 +158,7 @@ function FirmendatenAbschnitt() {
     "bic",
     "email",
     "telefon",
+    "fax",
     "kontakt_name",
     "gruendungsjahr",
   ]);
@@ -247,6 +281,17 @@ function FirmendatenAbschnitt() {
         </div>
         <div className="feld">
           <label>
+            Fax
+            <input
+              value={firma.fax}
+              onChange={(e) => setFirma({ ...firma, fax: e.currentTarget.value })}
+            />
+          </label>
+          <p className="feld-hinweis">Optional — nicht vorgeschrieben, manche Kunden verlangen sie trotzdem.</p>
+          {feldFehler("fax") && <div role="alert" className="feld-fehler">{feldFehler("fax")}</div>}
+        </div>
+        <div className="feld">
+          <label>
             Ansprechpartner
             <input
               value={firma.kontakt_name}
@@ -263,6 +308,12 @@ function FirmendatenAbschnitt() {
               ? "Kein Logo hinterlegt — die Rechnungen erscheinen ohne."
               : `Logo hinterlegt (${logoGroesse < 1024 ? `${logoGroesse} Bytes` : `${Math.round(logoGroesse / 1024)} KB`}).`}
           </p>
+          {logoDataUrl && (
+            // Ohne diese Vorschau ließ sich nur an der Dateigröße erahnen, ob
+            // das gewählte Bild auch wirklich das gewünschte Logo ist — sicher
+            // wusste man es erst auf dem fertigen Beleg.
+            <img src={logoDataUrl} alt="Hinterlegtes Logo" className="logo-vorschau" />
+          )}
           <div className="werkzeugleiste">
             <button type="button" className="btn" onClick={logoWaehlen}>
               {logoGroesse === null ? "Logo wählen" : "Logo ersetzen"}

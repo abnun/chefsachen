@@ -3,6 +3,29 @@
 Priorisierte Arbeitsliste, abgeleitet aus [MVP-Review vom 2026-08-02](2026-08-02-mvp-review.md).
 Reihenfolge = Empfehlung. Jeder Punkt trägt die Referenz aus dem Review.
 
+## Stand (2026-08-05)
+
+Nutzer-gemeldete Befunde an Beleg-Vorlage und Firmen-Stammdaten, alle behoben
+(Version 0.9.3):
+
+- **Logo „Oben rechts" verschob die Firmenanschrift an den linken
+  Seitenrand.** Eine Gitterspalte reichte den Inhalt an ihre linke statt
+  rechte Kante durch — die Anschrift landete weit vom Logo entfernt, statt
+  wie die Beschriftung „neben der Anschrift" es verspricht daneben zu
+  stehen.
+- **Kein Bild des hinterlegten Logos in den Firmen-Stammdaten.** Nur die
+  Dateigröße stand dort in Worten; ob es das richtige Bild ist, ließ sich
+  erst auf dem fertigen Beleg sehen.
+- **Telefon, Fax, E-Mail der eigenen Firma fehlten auf dem Beleg.** Die
+  Felder existierten in den Stammdaten (für den XRechnung-Export Pflicht),
+  wurden aber nirgends an die Typst-Vorlage weitergereicht. Fax als neues,
+  rein optionales Feld ergänzt (Migration 0019).
+- **Positionssummen und Gesamtsumme standen nicht sauber untereinander.**
+  Die Gesamtsumme war ein eigener, rechtsbündiger Absatz nach der Tabelle —
+  der Zellenabstand der Tabelle ließ ihre Summe-Spalte ein Stück vor dem
+  Seitenrand enden, an dem sich der Absatz orientierte. Jetzt ist die
+  Gesamtsumme die letzte Zeile derselben Tabelle.
+
 ## Stand (2026-08-04)
 
 Kritische Durchsicht zur Frage „reicht der Stand für eine 1.0?" in

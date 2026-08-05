@@ -669,7 +669,7 @@ fn kunde_snapshot_json(
         "firma": {
             "name": firma.name, "strasse": firma.strasse, "plz": firma.plz, "ort": firma.ort, "land": firma.land,
             "steuernummer": firma.steuernummer, "ust_idnr": firma.ust_idnr, "iban": firma.iban, "bic": firma.bic,
-            "email": firma.email, "telefon": firma.telefon, "kontakt_name": firma.kontakt_name,
+            "email": firma.email, "telefon": firma.telefon, "fax": firma.fax, "kontakt_name": firma.kontakt_name,
             "kleinunternehmer": firma.kleinunternehmer,
         },
     }).to_string()

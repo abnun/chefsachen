@@ -88,6 +88,8 @@ export interface Firma {
   email: string;
   /** Telefon des Ansprechpartners (BT-42) — Teil der Pflichtgruppe SELLER CONTACT. */
   telefon: string;
+  /** Fax — rein optional, rechtlich nicht vorgeschrieben. */
+  fax: string;
   /** Name des Ansprechpartners (BT-41). Leer bedeutet: Firmenname wird verwendet. */
   kontakt_name: string;
   /**

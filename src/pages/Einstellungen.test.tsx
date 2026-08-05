@@ -50,7 +50,7 @@ vi.mock("../api", () => ({
         ust_idnr: "",
         iban: "",
         bic: "",
-        email: "", telefon: "", kontakt_name: "", gruendungsjahr: null,
+        email: "", telefon: "", fax: "", kontakt_name: "", gruendungsjahr: null,
         kleinunternehmer: true,
         eingerichtet: true,
       }),
@@ -131,7 +131,7 @@ describe("Einstellungen", () => {
     vi.mocked(api.firma.save).mockResolvedValueOnce({
       id: "1", name: "Musterfirma", strasse: "Musterstr. 1", plz: "12345", ort: "Musterstadt",
       land: "DE", steuernummer: "123/456/789", ust_idnr: "", iban: "", bic: "",
-      email: "", telefon: "", kontakt_name: "", gruendungsjahr: null,
+      email: "", telefon: "", fax: "", kontakt_name: "", gruendungsjahr: null,
       kleinunternehmer: true, eingerichtet: true,
     });
     render(<EinstellungenMitAnbieter />);
@@ -140,6 +140,25 @@ describe("Einstellungen", () => {
     // "Speichern"-Button ist damit im DOM immer der erste unter diesem Namen.
     fireEvent.click(screen.getAllByRole("button", { name: "Speichern" })[0]);
     await waitFor(() => expect(screen.getByText("Firmendaten gespeichert")).toBeTruthy());
+  });
+
+  it("speichert eine geänderte Fax-Nummer mit", async () => {
+    const { api } = await import("../api");
+    vi.mocked(api.firma.save).mockResolvedValueOnce({
+      id: "1", name: "Musterfirma", strasse: "Musterstr. 1", plz: "12345", ort: "Musterstadt",
+      land: "DE", steuernummer: "123/456/789", ust_idnr: "", iban: "", bic: "",
+      email: "", telefon: "", fax: "030 123456-9", kontakt_name: "", gruendungsjahr: null,
+      kleinunternehmer: true, eingerichtet: true,
+    });
+    render(<EinstellungenMitAnbieter />);
+    await waitFor(() => expect(screen.getByDisplayValue("Musterfirma")).toBeTruthy());
+
+    fireEvent.change(screen.getByLabelText("Fax"), { target: { value: "030 123456-9" } });
+    fireEvent.click(screen.getAllByRole("button", { name: "Speichern" })[0]);
+
+    await waitFor(() =>
+      expect(api.firma.save).toHaveBeenCalledWith(expect.objectContaining({ fax: "030 123456-9" })),
+    );
   });
 
   it("zeigt nach dem Anlegen einer neuen Einheit einen Erfolgs-Hinweis", async () => {
@@ -211,6 +230,25 @@ describe("Einstellungen", () => {
     fireEvent.click(screen.getByRole("button", { name: "Logo entfernen" }));
     await waitFor(() => expect(api.firma.logoSet).toHaveBeenLastCalledWith([]));
     await waitFor(() => expect(screen.getByText(/Kein Logo hinterlegt/)).toBeTruthy());
+  });
+
+  it("zeigt eine Bildvorschau des hinterlegten Logos", async () => {
+    // Vorher stand hier nur die Dateigröße als Text — ob das die richtige
+    // Datei ist, ließ sich erst auf dem fertigen Beleg sehen.
+    const { api } = await import("../api");
+    vi.mocked(api.firma.logoGet).mockResolvedValue([0x89, 0x50, 0x4e, 0x47, 1, 2, 3]);
+    render(<EinstellungenMitAnbieter />);
+    await waitFor(() => expect(screen.getByAltText("Hinterlegtes Logo")).toBeTruthy());
+    const bild = screen.getByAltText("Hinterlegtes Logo") as HTMLImageElement;
+    expect(bild.src).toMatch(/^data:image\/png;base64,/);
+  });
+
+  it("zeigt keine Logo-Vorschau, solange kein Logo hinterlegt ist", async () => {
+    const { api } = await import("../api");
+    vi.mocked(api.firma.logoGet).mockResolvedValue(null);
+    render(<EinstellungenMitAnbieter />);
+    await waitFor(() => expect(screen.getByText(/Kein Logo hinterlegt/)).toBeTruthy());
+    expect(screen.queryByAltText("Hinterlegtes Logo")).toBeNull();
   });
 
   it("bricht die Logo-Auswahl ohne Fehler ab, wenn kein Bild gewählt wurde", async () => {

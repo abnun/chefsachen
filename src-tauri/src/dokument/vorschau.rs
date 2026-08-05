@@ -133,6 +133,7 @@ mod tests {
             bic: "BYLADEM1001".into(),
             email: String::new(),
             telefon: String::new(),
+            fax: String::new(),
             kontakt_name: String::new(),
             gruendungsjahr: None,
             kleinunternehmer: true,
@@ -165,6 +166,7 @@ mod tests {
             id: "f1".into(), name: "F".into(), strasse: "W 1".into(), plz: "1".into(),
             ort: "B".into(), land: "DE".into(), steuernummer: "1".into(), ust_idnr: String::new(),
             iban: String::new(), bic: String::new(), email: String::new(), telefon: String::new(),
+            fax: String::new(),
             kontakt_name: String::new(), gruendungsjahr: None, kleinunternehmer: true,
             eingerichtet: true,
         };

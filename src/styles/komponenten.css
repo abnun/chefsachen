@@ -623,6 +623,22 @@ label.feld textarea {
   color: var(--text-leise);
 }
 
+/* Vorschau des hinterlegten Logos in den Firmen-Stammdaten. Begrenzt auf eine
+   Zeilenhöhe, damit ein hochauflösendes Logo den Formularfluss nicht sprengt —
+   auf dem Beleg selbst bestimmt ohnehin die eigene Logohöhe-Einstellung die
+   tatsächliche Größe. */
+.logo-vorschau {
+  display: block;
+  max-height: 60px;
+  max-width: 100%;
+  width: auto;
+  margin: var(--abstand-s) 0;
+  background: var(--flaeche);
+  border: 1px solid var(--rand);
+  border-radius: var(--radius-s);
+  padding: var(--abstand-xs);
+}
+
 /* Nummern, Beträge und Daten sollen nicht mitten im Wert umbrechen — eine
    zerrissene Rechnungsnummer ist schlechter lesbar als eine breitere Spalte. */
 .nicht-umbrechen {

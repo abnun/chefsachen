@@ -108,6 +108,7 @@ fn firma_aus_snapshot(snapshot: &serde_json::Value, vorlage: &crate::commands::f
         bic: feld_str(f, "bic"),
         email: feld_str(f, "email"),
         telefon: feld_str(f, "telefon"),
+        fax: feld_str(f, "fax"),
         kontakt_name: feld_str(f, "kontakt_name"),
         kleinunternehmer: f.get("kleinunternehmer").and_then(|v| v.as_bool()).unwrap_or(vorlage.kleinunternehmer),
     }

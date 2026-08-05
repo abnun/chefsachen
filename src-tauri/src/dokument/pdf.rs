@@ -204,6 +204,9 @@ pub(crate) fn dokument_bauen(
         ("firma_ust_idnr", kontext.firma.ust_idnr.clone()),
         ("firma_iban", iban_format(&kontext.firma.iban)),
         ("firma_bic", kontext.firma.bic.clone()),
+        ("firma_telefon", kontext.firma.telefon.clone()),
+        ("firma_fax", kontext.firma.fax.clone()),
+        ("firma_email", kontext.firma.email.clone()),
         ("positionen_json", positionen_json),
         ("summe", cent_format(kontext.beleg.summe_cent)),
         ("kopftext", kontext.beleg.kopftext.clone()),
@@ -302,6 +305,9 @@ pub fn rendern_zahlungserinnerung(
         ("firma_ust_idnr", kontext.firma.ust_idnr.clone()),
         ("firma_iban", iban_format(&kontext.firma.iban)),
         ("firma_bic", kontext.firma.bic.clone()),
+        ("firma_telefon", kontext.firma.telefon.clone()),
+        ("firma_fax", kontext.firma.fax.clone()),
+        ("firma_email", kontext.firma.email.clone()),
         ("ist_erinnerung", "ja".to_string()),
         ("erinnerungstext", erinnerungstext.to_string()),
         ("erinnerung_rechnung_nummer", kontext.beleg.nummer.clone().unwrap_or_default()),
@@ -353,6 +359,7 @@ pub(crate) mod tests {
                 ort: "Berlin".into(), land: "DE".into(), steuernummer: "12/345/67890".into(), ust_idnr: "".into(),
                 iban: "DE02120300000000202051".into(), bic: "BYLADEM1001".into(),
                 email: "rechnung@meine-firma.de".into(), telefon: "030 123456".into(),
+                fax: "030 123456-9".into(),
                 kontakt_name: "Max Mustermann".into(),
                 gruendungsjahr: None,
                 kleinunternehmer: true, eingerichtet: true,
@@ -524,6 +531,41 @@ pub(crate) mod tests {
                 links / MM,
             );
         }
+    }
+
+    /// „Oben rechts, neben der Anschrift" verspricht, dass das Logo und die
+    /// eigene Firmenanschrift nebeneinander stehen — nicht auf entgegengesetzten
+    /// Seiten der Kopfzeile. Vorher stand die Anschrift am linken Seitenrand,
+    /// weit vom Logo entfernt, weil eine breite Gitterspalte ihren Inhalt an
+    /// deren linke statt rechte Kante rückte.
+    #[test]
+    fn firma_anschrift_steht_bei_logo_rechts_daneben_nicht_am_linken_rand() {
+        const MM: f32 = 72.0 / 25.4;
+        const SEITENHOEHE: f32 = 297.0 * MM;
+        const SEITENBREITE: f32 = 210.0 * MM;
+        const LOGO: &[u8] = include_bytes!("../../resources/test/logo_1x1.png");
+
+        let vorlage = crate::dokument::vorlage::Vorlage {
+            logo_position: crate::dokument::vorlage::LogoPosition::Rechts,
+            ..Default::default()
+        };
+        let bytes = rendern(&test_kontext(), Some(LOGO), &vorlage).unwrap();
+
+        // Die Kopfzeile steht oberhalb des Anschriftfensters, das laut Norm bei
+        // 45 mm von oben beginnt — mit Sicherheitsabstand nach unten gefiltert.
+        let kopf: Vec<_> = textpositionen(&bytes)
+            .into_iter()
+            .map(|(x, y)| (x, SEITENHOEHE - y))
+            .filter(|(_, y)| *y < 40.0 * MM)
+            .collect();
+        assert!(!kopf.is_empty(), "keine Texte oberhalb des Anschriftfensters gefunden");
+
+        let links = kopf.iter().map(|(x, _)| *x).fold(f32::MAX, f32::min);
+        assert!(
+            links > SEITENBREITE / 2.0,
+            "Firmenanschrift beginnt bei {:.1} mm — das ist die linke statt die rechte Seitenhälfte",
+            links / MM,
+        );
     }
 
     /// Was sich abschalten lässt, verschwindet — und was nicht, bleibt.
@@ -767,6 +809,37 @@ pub(crate) mod tests {
         assert!(!t.contains("Leistungszeitraum"));
     }
 
+    #[test]
+    fn gesamtsumme_steht_exakt_unter_der_positionssumme() {
+        const MM: f32 = 72.0 / 25.4;
+        // test_kontext() trägt eine einzelne Position über 95,00 € — sie macht
+        // die gesamte Rechnung aus, Positionssumme und Gesamtsumme zeigen also
+        // denselben Text "95,00 €". Stehen beide in derselben Tabellenspalte,
+        // beginnt ihr Text an exakt derselben x-Position; ein außenstehender
+        // Absatz (wie vor dieser Änderung) träfe diese Stelle nicht exakt, weil
+        // der Zellenabstand der Tabelle die Spalte etwas schmaler macht als die
+        // volle Textbreite der Seite.
+        let bytes = rendern(&test_kontext(), None, &crate::dokument::vorlage::Vorlage::default()).unwrap();
+        let rechte_haelfte: Vec<i32> = textpositionen(&bytes)
+            .into_iter()
+            .map(|(x, _)| x)
+            .filter(|&x| x > 100.0 * MM)
+            // Zehntel-Punkt gerundet gegen Fließkomma-Rauschen aus Typsts eigener Rundung.
+            .map(|x| (x * 10.0).round() as i32)
+            .collect();
+
+        let mut zaehler: std::collections::HashMap<i32, i32> = std::collections::HashMap::new();
+        for x in &rechte_haelfte {
+            *zaehler.entry(*x).or_insert(0) += 1;
+        }
+        let treffer = zaehler.values().copied().max().unwrap_or(0);
+        assert!(
+            treffer >= 2,
+            "Positionssumme und Gesamtsumme beginnen an keiner gemeinsamen x-Position \
+             (rechte Seitenhälfte, Zehntel-Punkt): {rechte_haelfte:?}",
+        );
+    }
+
     /// Ohne Bankverbindung kann der Empfänger die Rechnung nicht bezahlen.
     /// Gesetzlich nicht zwingend, praktisch aber der Zweck des Dokuments.
     #[test]
@@ -774,6 +847,42 @@ pub(crate) mod tests {
         let t = text(&test_kontext());
         assert!(t.contains("DE02 1203 0000 0000 2020 51"), "IBAN fehlt.\n\nText:\n{t}");
         assert!(t.contains("BYLADEM1001"), "BIC fehlt.\n\nText:\n{t}");
+    }
+
+    /// Vorher stand keine Kontaktangabe auf dem Beleg — wer anrufen oder
+    /// schreiben wollte, musste anderswo nachsehen. `test_kontext()` trägt
+    /// Telefon, Fax und E-Mail, alle drei müssen erscheinen.
+    #[test]
+    fn rechnung_enthaelt_telefon_fax_und_email() {
+        let t = text(&test_kontext());
+        assert!(t.contains("030 123456"), "Telefon fehlt.\n\nText:\n{t}");
+        assert!(t.contains("030 123456-9"), "Fax fehlt.\n\nText:\n{t}");
+        assert!(t.contains("rechnung@meine-firma.de"), "E-Mail fehlt.\n\nText:\n{t}");
+    }
+
+    /// Nur was gepflegt ist, erscheint — kein „Fax: " ins Leere.
+    #[test]
+    fn rechnung_zeigt_keine_leeren_kontaktangaben() {
+        let mut kontext = test_kontext();
+        kontext.firma.telefon = String::new();
+        kontext.firma.fax = String::new();
+        kontext.firma.email = String::new();
+        let t = text(&kontext);
+        assert!(!t.contains("Telefon:"), "Telefon-Zeile trotz leerem Feld:\n{t}");
+        assert!(!t.contains("Fax:"), "Fax-Zeile trotz leerem Feld:\n{t}");
+        assert!(!t.contains("E-Mail:"), "E-Mail-Zeile trotz leerem Feld:\n{t}");
+    }
+
+    /// Die Zahlungserinnerung teilt sich den Fuß mit der Rechnung — die
+    /// Kontaktzeile muss also auch dort erscheinen, nicht nur beim Export der
+    /// eigentlichen Rechnung.
+    #[test]
+    fn zahlungserinnerung_enthaelt_telefon_fax_und_email() {
+        let kontext = test_kontext();
+        let t = text_erinnerung(&kontext, tag("2026-08-04"), "Text");
+        assert!(t.contains("030 123456"), "Telefon fehlt.\n\nText:\n{t}");
+        assert!(t.contains("030 123456-9"), "Fax fehlt.\n\nText:\n{t}");
+        assert!(t.contains("rechnung@meine-firma.de"), "E-Mail fehlt.\n\nText:\n{t}");
     }
 
     /// Der Kopftext wird im Editor gepflegt und aus Textbausteinen vorbelegt.

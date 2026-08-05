@@ -20,6 +20,9 @@ pub struct Firma {
     pub email: String,
     /// Telefon des Ansprechpartners (BT-42).
     pub telefon: String,
+    /// Fax — rechtlich nicht vorgeschrieben, anders als die übrigen Kontaktfelder,
+    /// manche Kunden verlangen sie trotzdem noch.
+    pub fax: String,
     /// Name des Ansprechpartners (BT-41). Ohne die Gruppe SELLER CONTACT (BG-6)
     /// lehnt der amtliche Validator die Rechnung ab (BR-DE-2).
     pub kontakt_name: String,
@@ -91,7 +94,7 @@ pub fn pruefen(firma: Firma) -> AppResult<()> {
 
 pub async fn get(pool: &SqlitePool) -> AppResult<Firma> {
     Ok(sqlx::query_as(
-        "SELECT id, name, strasse, plz, ort, land, steuernummer, ust_idnr, iban, bic, email, telefon, kontakt_name, gruendungsjahr, kleinunternehmer, eingerichtet \
+        "SELECT id, name, strasse, plz, ort, land, steuernummer, ust_idnr, iban, bic, email, telefon, fax, kontakt_name, gruendungsjahr, kleinunternehmer, eingerichtet \
          FROM firma WHERE deleted_at IS NULL LIMIT 1",
     )
     .fetch_one(pool)
@@ -104,7 +107,7 @@ pub async fn save(pool: &SqlitePool, mut firma: Firma) -> AppResult<Firma> {
     // Ersteinrichtungs-Assistenten als abgeschlossen.
     firma.eingerichtet = true;
     let r = sqlx::query(
-        "UPDATE firma SET name=?, strasse=?, plz=?, ort=?, land=?, steuernummer=?, ust_idnr=?, iban=?, bic=?, email=?, telefon=?, kontakt_name=?, gruendungsjahr=?, kleinunternehmer=?, eingerichtet=1, updated_at=? \
+        "UPDATE firma SET name=?, strasse=?, plz=?, ort=?, land=?, steuernummer=?, ust_idnr=?, iban=?, bic=?, email=?, telefon=?, fax=?, kontakt_name=?, gruendungsjahr=?, kleinunternehmer=?, eingerichtet=1, updated_at=? \
          WHERE deleted_at IS NULL",
     )
     .bind(firma.name.trim())
@@ -118,6 +121,7 @@ pub async fn save(pool: &SqlitePool, mut firma: Firma) -> AppResult<Firma> {
     .bind(&firma.bic)
     .bind(firma.email.trim())
     .bind(firma.telefon.trim())
+    .bind(firma.fax.trim())
     .bind(firma.kontakt_name.trim())
     .bind(firma.gruendungsjahr)
     .bind(firma.kleinunternehmer)
@@ -278,6 +282,18 @@ mod tests {
         f.steuernummer = "12/345/67890".into();
         let err = save(&pool, f).await.unwrap_err();
         assert!(matches!(err, AppError::Validation { feld, .. } if feld == "name"));
+    }
+
+    /// Fax ist rein optional — anders als Steuernummer/USt-IdNr oder die
+    /// XRechnung-Pflichtfelder E-Mail/Telefon gibt es dafür keine Prüfung,
+    /// nur das Speichern und Wiederauslesen muss stimmen.
+    #[tokio::test]
+    async fn fax_wird_gespeichert_und_wieder_ausgelesen() {
+        let (_dir, pool) = test_pool().await;
+        let mut f = gueltige_firma(&pool).await;
+        f.fax = "030 123456-9".into();
+        save(&pool, f).await.unwrap();
+        assert_eq!(get(&pool).await.unwrap().fax, "030 123456-9");
     }
 
     #[tokio::test]

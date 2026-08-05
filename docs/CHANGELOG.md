@@ -7,6 +7,22 @@ auf GitHub ändert daran nichts mehr.
 
 Deshalb hier in der Sprache der Anwender, nicht in der der Commits.
 
+## 0.9.3
+
+**Firmendaten**
+- Neues Feld „Fax" — optional, rechtlich nicht vorgeschrieben.
+- Das hinterlegte Logo wird jetzt als Bild angezeigt, nicht mehr nur als
+  Dateigröße in Worten.
+
+**Beleg-Vorlage und Belege**
+- Steht das Logo „Oben rechts, neben der Anschrift", steht die eigene
+  Firmenanschrift jetzt tatsächlich daneben. Vorher landete sie am linken
+  Seitenrand, weit vom Logo entfernt.
+- Telefon, Fax und E-Mail der eigenen Firma erscheinen jetzt auf Angebot
+  und Rechnung, sofern gepflegt.
+- Die Gesamtsumme steht jetzt exakt unter den Positionssummen — rechtsbündig
+  in derselben Spalte, wie in einer Buchhaltungstabelle.
+
 ## 0.9.2
 
 **Übersicht**

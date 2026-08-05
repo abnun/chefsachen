@@ -35,7 +35,7 @@
   image(sys.inputs.hat_logo, height: mass(sys.inputs.v_logo_hoehe_mm))
 } else { none }
 
-#let firma_block = align(if sys.inputs.v_logo_position == "rechts" { left } else { right })[
+#let firma_block = align(right)[
   #sys.inputs.firma_name \
   #sys.inputs.firma_strasse \
   #sys.inputs.firma_plz #sys.inputs.firma_ort
@@ -44,7 +44,11 @@
 #if logo == none [
   #firma_block
 ] else if sys.inputs.v_logo_position == "rechts" [
-  #grid(columns: (1fr, auto), align: (left + horizon, right), firma_block, logo)
+  // "Neben der Anschrift": Beides gehört auf dieselbe Seite der Kopfzeile,
+  // nicht auf entgegengesetzte Ecken. Die erste Spalte bleibt 1fr breit (sie
+  // schluckt den Freiraum), aber ihr Inhalt wird an ihren rechten Rand
+  // gerückt — direkt neben die Logo-Spalte, statt an den linken Seitenrand.
+  #grid(columns: (1fr, auto), align: (right + horizon, right + horizon), firma_block, logo)
 ] else [
   #logo
   #firma_block
@@ -188,15 +192,27 @@ Datum: #sys.inputs.datum
 
   // table.header(repeat: true) wiederholt die Kopfzeile auf Folgeseiten — ohne das
   // stünden bei einer langen Rechnung ab Seite 2 namenlose Zahlenspalten.
+  //
+  // Die Gesamtsumme steht als letzte Zeile *in* dieser Tabelle, nicht als
+  // eigener Absatz danach: Ein außenstehendes `align(right)` richtet sich nach
+  // dem Seitenrand, während die Summe-Spalte durch den Zellenabstand der
+  // Tabelle ein Stück davor endet — auf den ersten Blick nicht zu sehen, aber
+  // genug, damit die Beträge nicht sauber untereinanderstehen, wie man es aus
+  // einer Buchhaltungstabelle kennt. Als Tabellenzeile trifft die Summe exakt
+  // dieselbe rechte Kante wie jede Positionssumme darüber.
   #table(
     columns: spalten,
     align: ausrichtung,
     stroke: (x, y) => if y == 0 { (bottom: 0.6pt + akzent) } else { (bottom: 0.4pt + rgb("#dddddd")) },
     table.header(..kopfzeile),
-    ..positionen.map(zeile).flatten()
+    ..positionen.map(zeile).flatten(),
+    table.cell(
+      colspan: spalten.len() - 1,
+      align: right,
+      stroke: (top: 0.6pt + akzent, bottom: none),
+    )[*Gesamt:*],
+    table.cell(stroke: (top: 0.6pt + akzent, bottom: none))[*#sys.inputs.summe*],
   )
-
-  #align(right)[*Gesamt: #sys.inputs.summe*]
 
   #if sys.inputs.kleinunternehmer == "ja" [
     #v(0.3cm)
@@ -228,6 +244,21 @@ Datum: #sys.inputs.datum
 
 #if sys.inputs.v_bankverbindung != "nach_summe" and bankverbindung != none [
   #bankverbindung
+]
+
+// Kontaktangaben: gesetzlich nicht vorgeschrieben, anders als die
+// Steuernummer/USt-IdNr. unten — nur was gepflegt ist, erscheint auch.
+// Absichtlich nicht im Kopf neben Logo und Anschrift: Der bleibt bewusst
+// knapp, wie ein DIN-5008-Briefkopf es vorsieht.
+#let kontaktzeilen = (
+  if ist_gesetzt(sys.inputs.firma_telefon) { "Telefon: " + sys.inputs.firma_telefon },
+  if ist_gesetzt(sys.inputs.firma_fax) { "Fax: " + sys.inputs.firma_fax },
+  if ist_gesetzt(sys.inputs.firma_email) { "E-Mail: " + sys.inputs.firma_email },
+).filter(z => z != none)
+
+#if kontaktzeilen.len() > 0 [
+  #v(0.3cm)
+  #text(size: 9pt)[#kontaktzeilen.join(" · ")]
 ]
 
 // Pflichtangabe nach § 14 Abs. 4 Nr. 2 UStG: Steuernummer oder USt-IdNr. des
