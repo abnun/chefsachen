@@ -271,6 +271,7 @@ pub(crate) fn dokument_bauen(
         ("steuerzeilen_json", steuerzeilen_json),
         ("girocode_matrix_json", girocode_json),
         ("summe", cent_format(kontext.beleg.summe_cent)),
+        ("gesamtauftragswert", kontext.beleg.gesamtauftragswert_cent.map(cent_format).unwrap_or_default()),
         ("kopftext", kontext.beleg.kopftext.clone()),
         ("fusstext", kontext.beleg.fusstext.clone()),
         ("hat_logo", logo_dateiname.to_string()),
@@ -1257,6 +1258,21 @@ pub(crate) mod tests {
     fn logo_dateiname_faellt_bei_unbekanntem_format_auf_png_zurueck() {
         assert_eq!(logo_dateiname(&[0x00, 0x01, 0x02, 0x03]), "logo.png");
         assert_eq!(logo_dateiname(&[]), "logo.png");
+    }
+
+    #[test]
+    fn zeigt_den_gesamtauftragswert_bei_einer_abschlagsrechnung() {
+        let mut kontext = test_kontext();
+        kontext.beleg.gesamtauftragswert_cent = Some(147000);
+        let t = text(&kontext);
+        assert!(t.contains("Gesamt-Auftragswert: 1470,00 €"), "Gesamt-Auftragswert fehlt:\n{t}");
+        assert!(t.contains("zzgl. USt"), "Hinweis auf die USt fehlt:\n{t}");
+    }
+
+    #[test]
+    fn zeigt_keinen_gesamtauftragswert_wenn_nicht_gesetzt() {
+        let t = text(&test_kontext());
+        assert!(!t.contains("Gesamt-Auftragswert"), "Gesamt-Auftragswert ohne gesetzten Wert:\n{t}");
     }
 }
 

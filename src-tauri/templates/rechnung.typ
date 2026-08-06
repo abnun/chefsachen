@@ -352,6 +352,11 @@
     table.cell(stroke: (top: 0.6pt + akzent, bottom: none))[*#sys.inputs.summe*],
   )
 
+  #if ist_gesetzt(sys.inputs.gesamtauftragswert) [
+    #v(0.2cm)
+    Gesamt-Auftragswert: #sys.inputs.gesamtauftragswert (zzgl. USt)
+  ]
+
   #v(0.3cm)
   #girocode_block(sys.inputs.girocode_matrix_json)
 
