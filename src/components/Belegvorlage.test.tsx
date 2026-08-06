@@ -101,6 +101,12 @@ describe("Belegvorlage", () => {
     expect(screen.getByLabelText(/Volle Gitterlinien/)).not.toBeChecked();
   });
 
+  it("startet mit aktivem Girocode, wie die Rust-Vorgabe", async () => {
+    render(<Belegvorlage />);
+    await waitFor(() => expect(screen.getByLabelText(/Girocode/)).toBeTruthy());
+    expect(screen.getByLabelText(/Girocode/)).toBeChecked();
+  });
+
   it("meldet einen Fehler der Vorschau, statt ein leeres Feld zu zeigen", async () => {
     vi.mocked(api.vorlage.vorschau).mockRejectedValue({
       typ: "unbekannt",

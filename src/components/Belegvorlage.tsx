@@ -66,6 +66,14 @@ const SCHALTER: Schalter[] = [
       "volle Gitter dem Auge beim Zeilen-Halten.",
     art: "ja_nein",
   },
+  {
+    schluessel: "vorlage.zeigt_girocode",
+    label: "Girocode (QR-Zahlungscode) auf Rechnungen anzeigen",
+    hinweis:
+      "Ermöglicht dem Empfänger, per Smartphone-Kamera zu bezahlen, ohne IBAN abzutippen. " +
+      "Erscheint nur auf Rechnungen und Zahlungserinnerungen, sofern eine IBAN hinterlegt ist.",
+    art: "ja_nein",
+  },
   { schluessel: "vorlage.rand_oben_mm", label: "Rand oben", art: "zahl", einheit: "mm", min: 20, max: 40 },
   { schluessel: "vorlage.rand_unten_mm", label: "Rand unten", art: "zahl", einheit: "mm", min: 25, max: 40 },
   { schluessel: "vorlage.rand_seitlich_mm", label: "Rand seitlich", art: "zahl", einheit: "mm", min: 15, max: 30 },

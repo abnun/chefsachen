@@ -64,6 +64,11 @@ pub struct Vorlage {
     /// oft übersichtlicher; bei vielen Positionen hilft das volle Gitter dem
     /// Auge beim Zeilen-Halten.
     pub tabelle_gitterlinien: bool,
+    /// Ob ein SEPA-Girocode (QR-Zahlungscode) auf Rechnung und
+    /// Zahlungserinnerung erscheint. Anders als die übrigen Einstellungen
+    /// hier standardmäßig aktiv — ausdrücklicher Nutzerwunsch, kein
+    /// Bewahren des bisherigen Aussehens.
+    pub zeigt_girocode: bool,
     pub rand_oben_mm: f64,
     pub rand_unten_mm: f64,
     pub rand_seitlich_mm: f64,
@@ -83,6 +88,7 @@ impl Default for Vorlage {
             einheit_eigene_spalte: false,
             spalte_einzelpreis: true,
             tabelle_gitterlinien: false,
+            zeigt_girocode: true,
             rand_oben_mm: 25.0,
             rand_unten_mm: 25.0,
             rand_seitlich_mm: 25.0,
@@ -164,6 +170,7 @@ impl Vorlage {
                 hole("vorlage.tabelle_gitterlinien"),
                 standard.tabelle_gitterlinien,
             ),
+            zeigt_girocode: ja(hole("vorlage.zeigt_girocode"), standard.zeigt_girocode),
             // Der obere Rand geht nicht unter 20 mm: Darunter überschnitte der
             // Briefkopf das Anschriftfeld, das bei 45 mm beginnt.
             rand_oben_mm: mm(hole("vorlage.rand_oben_mm"), standard.rand_oben_mm, 20.0, 40.0),
@@ -191,6 +198,7 @@ impl Vorlage {
             ("v_einheit_eigene_spalte", ja_nein(self.einheit_eigene_spalte)),
             ("v_spalte_einzelpreis", ja_nein(self.spalte_einzelpreis)),
             ("v_tabelle_gitterlinien", ja_nein(self.tabelle_gitterlinien)),
+            ("v_zeigt_girocode", ja_nein(self.zeigt_girocode)),
             ("v_rand_oben_mm", self.rand_oben_mm.to_string()),
             ("v_rand_unten_mm", self.rand_unten_mm.to_string()),
             ("v_rand_seitlich_mm", self.rand_seitlich_mm.to_string()),
@@ -255,6 +263,7 @@ mod tests {
             ("vorlage.spalte_einzelpreis", "nein"),
             ("vorlage.tabelle_gitterlinien", "ja"),
             ("vorlage.rand_oben_mm", "30"),
+            ("vorlage.zeigt_girocode", "nein"),
         ] {
             crate::commands::einstellungen::set(&pool, k.into(), v.into()).await.unwrap();
         }
@@ -265,8 +274,19 @@ mod tests {
         assert!(!v.spalte_einzelpreis);
         assert!(v.tabelle_gitterlinien);
         assert_eq!(v.rand_oben_mm, 30.0);
+        assert!(!v.zeigt_girocode);
         // Nicht Gesetztes bleibt bei der Vorgabe.
         assert!(v.spalte_nummer);
+    }
+
+    #[tokio::test]
+    async fn ohne_einstellung_ist_der_girocode_aktiv() {
+        // Bewusste Ausnahme vom sonstigen "neue Einstellungen ändern nichts am
+        // bisherigen Aussehen"-Prinzip — ausdrücklicher Nutzerwunsch.
+        let dir = tempfile::tempdir().unwrap();
+        let pool = crate::db::init_db(&dir.path().join("t.db")).await.unwrap();
+        let v = Vorlage::laden(&pool).await.unwrap();
+        assert!(v.zeigt_girocode);
     }
 
     #[tokio::test]
