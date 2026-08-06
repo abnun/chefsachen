@@ -64,6 +64,28 @@ fn kleinunternehmer_flag(firma: &crate::commands::firma::Firma) -> &'static str 
     if firma.kleinunternehmer { "ja" } else { "" }
 }
 
+/// Baut die Girocode-Matrix als JSON-Array von Bool-Zeilen für die Vorlage —
+/// leer, wenn kein Code gezeigt werden soll (Einstellung aus, keine IBAN,
+/// oder kein positiver Betrag). Schlägt die Erzeugung technisch fehl (z. B.
+/// eine zu lange Nutzlast), wird der Code stillschweigend weggelassen statt
+/// den Export abzubrechen — wie beim Logo.
+fn girocode_matrix_json(
+    vorlage: &crate::dokument::vorlage::Vorlage,
+    firma: &crate::commands::firma::Firma,
+    betrag_cent: i64,
+    verwendungszweck: &str,
+) -> String {
+    if !vorlage.zeigt_girocode || firma.iban.trim().is_empty() || betrag_cent <= 0 {
+        return "[]".to_string();
+    }
+    let iban = crate::domain::bankverbindung::normalisieren(&firma.iban);
+    let payload = crate::domain::girocode::epc_payload(&firma.name, &iban, &firma.bic, Some(betrag_cent), verwendungszweck);
+    match crate::domain::girocode::qr_matrix(&payload) {
+        Ok(matrix) => serde_json::to_string(&matrix).unwrap_or_else(|_| "[]".to_string()),
+        Err(_) => "[]".to_string(),
+    }
+}
+
 /// Wandelt ein ISO-Datum ("2026-07-11") in die deutsche Schreibweise
 /// ("11.07.2026"). Auf einer deutschen Rechnung ist die ISO-Form unüblich und
 /// wird von Empfängern leicht falsch gelesen. Unerwartete Eingaben bleiben
@@ -185,6 +207,17 @@ pub(crate) fn dokument_bauen(
     }
     let engine = builder.build();
 
+    // Nur echte Rechnungen (kein Angebot, kein Storno — ein negativer oder
+    // fehlender Betrag ergäbe keinen gültigen Zahlungsauftrag).
+    let girocode_json = if kontext.beleg.typ == "rechnung" && kontext.beleg.storno_von_id.is_none() {
+        girocode_matrix_json(
+            vorlage, &kontext.firma, kontext.beleg.summe_cent,
+            &format!("Rechnung {}", kontext.beleg.nummer.clone().unwrap_or_default()),
+        )
+    } else {
+        "[]".to_string()
+    };
+
     let mut felder: Vec<(&'static str, String)> = vec![
         ("titel", titel.to_string()),
         ("nummer", kontext.beleg.nummer.clone().unwrap_or_default()),
@@ -236,6 +269,7 @@ pub(crate) fn dokument_bauen(
         ("firma_email", kontext.firma.email.clone()),
         ("positionen_json", positionen_json),
         ("steuerzeilen_json", steuerzeilen_json),
+        ("girocode_matrix_json", girocode_json),
         ("summe", cent_format(kontext.beleg.summe_cent)),
         ("kopftext", kontext.beleg.kopftext.clone()),
         ("fusstext", kontext.beleg.fusstext.clone()),
@@ -314,6 +348,11 @@ pub fn rendern_zahlungserinnerung(
     // der Aufrufer sinnvoll einordnen muss (siehe Validierung im Befehl).
     let tage_ueberfaellig = faellig.map(|f| (heute - f).num_days()).unwrap_or(0);
 
+    let girocode_json = girocode_matrix_json(
+        vorlage, &kontext.firma, kontext.offener_betrag_cent,
+        &format!("Rechnung {}", kontext.beleg.nummer.clone().unwrap_or_default()),
+    );
+
     let mut felder: Vec<(&'static str, String)> = vec![
         ("titel", "Zahlungserinnerung".to_string()),
         ("nummer", String::new()),
@@ -343,6 +382,7 @@ pub fn rendern_zahlungserinnerung(
         ("erinnerung_faellig_am", faellig.map(|f| datum_format(&f.format("%Y-%m-%d").to_string())).unwrap_or_default()),
         ("erinnerung_tage_ueberfaellig", tage_ueberfaellig.to_string()),
         ("erinnerung_offener_betrag", cent_format(kontext.offener_betrag_cent)),
+        ("girocode_matrix_json", girocode_json),
     ];
     felder.extend(vorlage.als_eingaben());
     let eingabe = dict_aus_feldern(felder);
@@ -731,6 +771,51 @@ pub(crate) mod tests {
         // Die Gesamtsumme der Rechnung (95,00 €) darf nicht mit dem offenen
         // Betrag verwechselbar auftauchen.
         assert!(!t.contains("Gesamt:"), "Rechnungs-Gesamtsumme auf der Erinnerung:\n{t}");
+    }
+
+    #[test]
+    fn rechnung_zeigt_den_girocode_wenn_aktiviert_und_iban_hinterlegt() {
+        let t = text(&test_kontext());
+        assert!(t.contains("Bezahlen Sie jetzt mit GiroCode"), "Girocode-Block fehlt:\n{t}");
+    }
+
+    #[test]
+    fn rechnung_zeigt_keinen_girocode_wenn_die_einstellung_deaktiviert_ist() {
+        let vorlage = crate::dokument::vorlage::Vorlage { zeigt_girocode: false, ..Default::default() };
+        let bytes = rendern(&test_kontext(), None, &vorlage).unwrap();
+        let t = pdf_extract::extract_text_from_mem(&bytes).unwrap();
+        assert!(!t.contains("GiroCode"), "Girocode trotz deaktivierter Einstellung:\n{t}");
+    }
+
+    #[test]
+    fn rechnung_zeigt_keinen_girocode_ohne_iban() {
+        let mut kontext = test_kontext();
+        kontext.firma.iban = "".into();
+        let t = text(&kontext);
+        assert!(!t.contains("GiroCode"), "Girocode ohne IBAN:\n{t}");
+    }
+
+    #[test]
+    fn angebot_zeigt_keinen_girocode_auch_wenn_aktiviert() {
+        let mut kontext = test_kontext();
+        kontext.beleg.typ = "angebot".into();
+        let t = text(&kontext);
+        assert!(!t.contains("GiroCode"), "Girocode auf einem Angebot:\n{t}");
+    }
+
+    #[test]
+    fn storno_zeigt_keinen_girocode() {
+        let mut kontext = test_kontext();
+        kontext.beleg.storno_von_id = Some("b0".into());
+        kontext.beleg.summe_cent = -9500;
+        let t = text(&kontext);
+        assert!(!t.contains("GiroCode"), "Girocode auf einem Storno:\n{t}");
+    }
+
+    #[test]
+    fn zahlungserinnerung_zeigt_den_girocode() {
+        let t = text_erinnerung(&test_kontext(), tag("2026-08-04"), "Text");
+        assert!(t.contains("Bezahlen Sie jetzt mit GiroCode"), "Girocode fehlt auf der Erinnerung:\n{t}");
     }
 
     /// Ohne Bankverbindung könnte der Empfänger gar nicht zahlen — bei einer

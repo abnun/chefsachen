@@ -3,6 +3,39 @@
 #let ist_gesetzt(wert) = wert != none and wert != ""
 #let ja(wert) = wert == "ja"
 
+// Girocode (SEPA-QR-Zahlungscode, EPC069-12): Der Empfänger zahlt per
+// Smartphone-Kamera, ohne IBAN abzutippen. Rust liefert nur die
+// Hell/Dunkel-Matrix (wie die Positionstabelle nur Zahlen liefert) — hier
+// entstehen daraus Vektor-Rechtecke, kein Bild.
+#let girocode_groesse = 28mm
+#let girocode_block(matrix_json) = {
+  let reihen = json(bytes(matrix_json))
+  if reihen.len() > 0 {
+    let n = reihen.len()
+    box(stroke: 0.5pt + rgb("#999999"), inset: 8pt)[
+      #grid(
+        columns: (auto, 1fr),
+        column-gutter: 10pt,
+        align: horizon,
+        block(width: girocode_groesse, height: girocode_groesse)[
+          #grid(
+            columns: (1fr,) * n,
+            rows: (1fr,) * n,
+            ..reihen.map(reihe => reihe.map(dunkel => box(
+              width: 100%, height: 100%,
+              fill: if dunkel { black } else { white },
+            ))).flatten()
+          )
+        ],
+        [
+          *Bezahlen Sie jetzt mit GiroCode* \
+          #text(size: 8pt)[Einfach GiroCode auf dem Smartphone scannen und lästiges Abtippen ersparen.]
+        ],
+      )
+    ]
+  }
+}
+
 // Einstellbares aus `dokument::vorlage`. Die Vorgaben dort bilden das
 // ursprüngliche Aussehen ab; hier steht nur, wie die Werte wirken.
 #let mass(name) = float(name) * 1mm
@@ -176,6 +209,8 @@
     [Fällig seit], [#sys.inputs.at("erinnerung_faellig_am", default: "") (#sys.inputs.at("erinnerung_tage_ueberfaellig", default: "0") Tage)],
     [*Offener Betrag*], [*#sys.inputs.at("erinnerung_offener_betrag", default: "")*],
   )
+  #v(0.3cm)
+  #girocode_block(sys.inputs.girocode_matrix_json)
 ] else [
   #let nummer_label = if sys.inputs.titel == "Angebot" { "Angebotsnummer:" } else { "Rechnungsnummer:" }
   #let leistung_label = sys.inputs.leistung_beschriftung + ":"
@@ -316,6 +351,9 @@
     )[*#gesamt_label*],
     table.cell(stroke: (top: 0.6pt + akzent, bottom: none))[*#sys.inputs.summe*],
   )
+
+  #v(0.3cm)
+  #girocode_block(sys.inputs.girocode_matrix_json)
 
   #if sys.inputs.kleinunternehmer == "ja" [
     #v(0.3cm)
