@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { readFile } from "@tauri-apps/plugin-fs";
 import { api, type AppFehler, type Eingangsrechnung, type EingangsrechnungFelderNeu, type EingangsrechnungVorschau } from "../api";
 import { Bestaetigungsdialog } from "../components/Bestaetigungsdialog";
 import { EingangsrechnungZusatzfelder } from "../components/EingangsrechnungZusatzfelder";
 import { Fehler } from "../components/Fehler";
+import { useListenTastenkuerzel } from "../hooks/useListenTastenkuerzel";
 import { ZeilenKnopf } from "../components/ZeilenKnopf";
 import { Laden } from "../components/Laden";
 import { SortierKopf } from "../components/SortierKopf";
@@ -24,6 +25,11 @@ const RUNDGANG_SCHRITTE: FuehrungsSchritt[] = [
     ziel: "[data-tour='titel']",
     titel: "Eingangsrechnungen",
     text: "Rechnungen, die du selbst erhältst — als E-Rechnung (XRechnung, ZUGFeRD) oder als reines PDF. Die Originaldatei wird unverändert archiviert, wie die GoBD es verlangen.",
+  },
+  {
+    ziel: "[data-tour='suche']",
+    titel: "Suche",
+    text: "Findet Eingangsrechnungen nach Rechnungssteller oder Nummer. ⌘F (Strg+F) springt von überall auf dieser Seite hierher.",
   },
   {
     ziel: "[data-tour='importieren']",
@@ -58,10 +64,14 @@ export function Eingangsrechnungen({ onOeffnen }: EingangsrechnungenProps) {
   const [bearbeitenModus, setBearbeitenModus] = useState(false);
   const [zeigeDuplikatWarnung, setZeigeDuplikatWarnung] = useState(false);
   const [betragText, setBetragText] = useState("");
+  const [suche, setSuche] = useState("");
+  const sucheRef = useRef<HTMLInputElement>(null);
+
+  useListenTastenkuerzel({ sucheFokussieren: () => sucheRef.current?.focus() });
 
   function laden() {
     api.eingangsrechnungen
-      .list()
+      .list(suche || undefined)
       .then((l) => {
         setListe(l);
         setFehler(null);
@@ -70,7 +80,13 @@ export function Eingangsrechnungen({ onOeffnen }: EingangsrechnungenProps) {
       .finally(() => setGeladen(true));
   }
 
-  useEffect(laden, []);
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      laden();
+    }, 300);
+    return () => clearTimeout(timeout);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [suche]);
 
   async function dateiImportierenAuswaehlen() {
     const pfad = await open({ multiple: false, filters: [{ name: "E-Rechnung", extensions: ["xml", "pdf"] }] });
@@ -153,6 +169,18 @@ export function Eingangsrechnungen({ onOeffnen }: EingangsrechnungenProps) {
       )}
 
       <Werkzeugleiste
+        filter={
+          <label className="feld" data-tour="suche">
+            Suche
+            <input
+              ref={sucheRef}
+              type="search"
+              placeholder="Rechnungssteller oder Nummer"
+              value={suche}
+              onChange={(e) => setSuche(e.currentTarget.value)}
+            />
+          </label>
+        }
         aktion={
           <button type="button" className="btn btn-primaer" data-tour="importieren" onClick={dateiImportierenAuswaehlen}>
             Importieren
@@ -232,7 +260,7 @@ export function Eingangsrechnungen({ onOeffnen }: EingangsrechnungenProps) {
           )}
 
           {vorschau.felder.positionen.length > 0 && (
-            <table className="tabelle" data-tour="tabelle">
+            <table className="tabelle">
               <thead>
                 <tr>
                   <th>Bezeichnung</th>
@@ -287,11 +315,15 @@ export function Eingangsrechnungen({ onOeffnen }: EingangsrechnungenProps) {
 
       {!geladen && <Laden was="Eingangsrechnungen" />}
 
-      {geladen && liste.length === 0 && (
+      {geladen && liste.length === 0 && suche === "" && (
         <p>Noch keine Eingangsrechnungen — importiere oben eine E-Rechnung oder ein PDF.</p>
       )}
 
-      <table className="tabelle tabelle-klickbar">
+      {geladen && liste.length === 0 && suche !== "" && (
+        <p>Keine Eingangsrechnungen gefunden für „{suche}".</p>
+      )}
+
+      <table className="tabelle tabelle-klickbar" data-tour="tabelle">
         <thead>
           <tr>
             <SortierKopf spalte="steller" aktiv={sortierung.spalte} richtung={sortierung.richtung} onSortieren={sortieren}>

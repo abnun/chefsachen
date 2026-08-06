@@ -66,7 +66,7 @@ describe("Eingangsrechnungen", () => {
     render(<Eingangsrechnungen onOeffnen={() => {}} />);
     await waitFor(() => expect(screen.getByText("Lieferant GmbH")).toBeTruthy());
     fireEvent.click(screen.getByRole("button", { name: "Rundgang" }));
-    expect(screen.getByText("1 von 3")).toBeTruthy();
+    expect(screen.getByText("1 von 4")).toBeTruthy();
   });
 
   it("zeigt die Liste importierter Eingangsrechnungen", async () => {
@@ -74,6 +74,15 @@ describe("Eingangsrechnungen", () => {
     await waitFor(() => expect(screen.getByText("Lieferant GmbH")).toBeTruthy());
     expect(screen.getByText("RE-2026-0042")).toBeTruthy();
     expect(screen.getByText("238,00 €")).toBeTruthy();
+  });
+
+  it("zeigt einen Hinweis, wenn die Suche keine Treffer liefert", async () => {
+    const { api } = await import("../api");
+    render(<Eingangsrechnungen onOeffnen={() => {}} />);
+    await waitFor(() => expect(screen.getByText("Lieferant GmbH")).toBeTruthy());
+    vi.mocked(api.eingangsrechnungen.list).mockResolvedValueOnce([]);
+    fireEvent.change(screen.getByLabelText("Suche"), { target: { value: "xyz" } });
+    await waitFor(() => expect(screen.getByText('Keine Eingangsrechnungen gefunden für „xyz".')).toBeTruthy());
   });
 
   it("zeigt den Betrag mit der tatsächlichen Rechnungswährung, nicht fest mit €", async () => {

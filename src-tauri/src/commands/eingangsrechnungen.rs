@@ -141,9 +141,14 @@ pub struct EingangsrechnungOriginal {
 
 const EINGANGSRECHNUNG_SPALTEN: &str = "id, dateiname, format, rechnungssteller_name, rechnungsnummer, rechnungsdatum, betrag_cent, waehrung, manuell_erfasst, importiert_am, kaeufer_name, kaeufer_strasse, kaeufer_plz, kaeufer_ort, kaeufer_land, verkaeufer_strasse, verkaeufer_plz, verkaeufer_ort, verkaeufer_land, verkaeufer_steuernummer, verkaeufer_email, zahlungsbedingungen, faelligkeitsdatum, iban, bic, bankname, bestellnummer, leitweg_id, lieferantennummer, leistungsdatum";
 
-pub async fn list(pool: &SqlitePool) -> AppResult<Vec<Eingangsrechnung>> {
-    let sql = format!("SELECT {EINGANGSRECHNUNG_SPALTEN} FROM eingangsrechnung ORDER BY rechnungsdatum DESC");
-    Ok(sqlx::query_as(&sql).fetch_all(pool).await?)
+pub async fn list(pool: &SqlitePool, suche: Option<String>) -> AppResult<Vec<Eingangsrechnung>> {
+    let muster = format!("%{}%", suche.unwrap_or_default().to_lowercase());
+    let sql = format!(
+        "SELECT {EINGANGSRECHNUNG_SPALTEN} FROM eingangsrechnung \
+         WHERE lower(rechnungssteller_name) LIKE ? OR lower(rechnungsnummer) LIKE ? \
+         ORDER BY rechnungsdatum DESC"
+    );
+    Ok(sqlx::query_as(&sql).bind(&muster).bind(&muster).fetch_all(pool).await?)
 }
 
 pub async fn import_vorschau(pool: &SqlitePool, datei_bytes: Vec<u8>) -> AppResult<EingangsrechnungVorschau> {
@@ -372,8 +377,8 @@ pub async fn eingangsrechnung_speichern(pool: tauri::State<'_, SqlitePool>, date
     speichern(&pool, datei_bytes, dateiname, felder).await
 }
 #[tauri::command]
-pub async fn eingangsrechnung_list(pool: tauri::State<'_, SqlitePool>) -> AppResult<Vec<Eingangsrechnung>> {
-    list(&pool).await
+pub async fn eingangsrechnung_list(pool: tauri::State<'_, SqlitePool>, suche: Option<String>) -> AppResult<Vec<Eingangsrechnung>> {
+    list(&pool, suche).await
 }
 #[tauri::command]
 pub async fn eingangsrechnung_get(pool: tauri::State<'_, SqlitePool>, id: String) -> AppResult<EingangsrechnungDetail> {
@@ -401,8 +406,25 @@ mod tests {
     #[tokio::test]
     async fn list_liefert_leere_liste_ohne_eintraege() {
         let (_dir, pool) = test_pool().await;
-        let liste = list(&pool).await.unwrap();
+        let liste = list(&pool, None).await.unwrap();
         assert!(liste.is_empty());
+    }
+
+    #[tokio::test]
+    async fn list_filtert_nach_rechnungssteller_oder_nummer() {
+        let (_dir, pool) = test_pool().await;
+        let kontext = crate::dokument::xrechnung::tests::test_kontext(None, 9500);
+        let xml = crate::dokument::xrechnung::xml_erzeugen(&kontext).unwrap();
+        let felder = EingangsrechnungFelderNeu {
+            rechnungssteller_name: "Meine Firma".into(), rechnungsnummer: "RE-2026-0001".into(),
+            rechnungsdatum: "2026-07-11".into(), betrag_cent: 9500, waehrung: "EUR".into(),
+            ..Default::default()
+        };
+        speichern(&pool, xml.into_bytes(), "rechnung.xml".into(), felder).await.unwrap();
+
+        assert_eq!(list(&pool, Some("meine".into())).await.unwrap().len(), 1, "Treffer über den Rechnungssteller");
+        assert_eq!(list(&pool, Some("RE-2026".into())).await.unwrap().len(), 1, "Treffer über die Nummer");
+        assert!(list(&pool, Some("nichts passt".into())).await.unwrap().is_empty());
     }
 
     #[tokio::test]
@@ -456,7 +478,7 @@ mod tests {
         assert_eq!(gespeichert.format, "xrechnung");
         assert!(!gespeichert.manuell_erfasst);
 
-        let liste = list(&pool).await.unwrap();
+        let liste = list(&pool, None).await.unwrap();
         assert_eq!(liste.len(), 1);
     }
 

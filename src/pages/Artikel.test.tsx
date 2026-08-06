@@ -62,6 +62,15 @@ describe("Artikel", () => {
     await waitFor(() => expect(screen.getByText(/Noch keine Artikel/)).toBeTruthy());
   });
 
+  it("zeigt einen Hinweis, wenn die Suche keine Treffer liefert", async () => {
+    const { api } = await import("../api");
+    render(<Artikel />);
+    await waitFor(() => expect(screen.getByText("Beratung")).toBeTruthy());
+    vi.mocked(api.artikel.list).mockResolvedValueOnce([]);
+    fireEvent.change(screen.getByLabelText("Suche"), { target: { value: "xyz" } });
+    await waitFor(() => expect(screen.getByText('Keine Artikel gefunden für „xyz".')).toBeTruthy());
+  });
+
   it("zeigt nach dem Anlegen einen Kunden-Hinweis, wenn noch keine Kunden existieren", async () => {
     const { api } = await import("../api");
     vi.mocked(api.kunden.list).mockResolvedValueOnce([]);
@@ -299,7 +308,7 @@ describe("Artikel", () => {
     render(<Artikel />);
     await waitFor(() => expect(screen.getByText("Beratung")).toBeTruthy());
     fireEvent.click(screen.getByRole("button", { name: "Rundgang" }));
-    expect(screen.getByText("1 von 4")).toBeTruthy();
+    expect(screen.getByText("1 von 5")).toBeTruthy();
   });
 
   it("blendet die Artikelliste aus, während das Formular offen ist", async () => {

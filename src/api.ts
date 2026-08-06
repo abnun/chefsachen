@@ -584,7 +584,7 @@ export const api = {
       invoke<EingangsrechnungVorschau>("eingangsrechnung_import_vorschau", { dateiBytes }),
     speichern: (dateiBytes: number[], dateiname: string, felder: EingangsrechnungFelderNeu) =>
       invoke<Eingangsrechnung>("eingangsrechnung_speichern", { dateiBytes, dateiname, felder }),
-    list: () => invoke<Eingangsrechnung[]>("eingangsrechnung_list"),
+    list: (suche?: string) => invoke<Eingangsrechnung[]>("eingangsrechnung_list", { suche: suche ?? null }),
     get: (id: string) => invoke<EingangsrechnungDetail>("eingangsrechnung_get", { id }),
     update: (daten: EingangsrechnungUpdate) => invoke<Eingangsrechnung>("eingangsrechnung_update", { daten }),
     originalExportieren: (id: string) => invoke<EingangsrechnungOriginal>("eingangsrechnung_original_exportieren", { id }),

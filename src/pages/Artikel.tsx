@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   api,
   type AppFehler,
@@ -30,6 +30,11 @@ const RUNDGANG_SCHRITTE: FuehrungsSchritt[] = [
     ziel: "[data-tour='titel']",
     titel: "Artikel & Leistungen",
     text: "Was du verkaufst — Stundensätze, Pauschalen, Produkte. Ein einmal angelegter Artikel lässt sich in jedem Angebot und jeder Rechnung als Position einfügen, mit Preis und Einheit gleich dabei.",
+  },
+  {
+    ziel: "[data-tour='suche']",
+    titel: "Suche",
+    text: "Findet Artikel nach Nummer oder Bezeichnung. ⌘F (Strg+F) springt von überall auf dieser Seite hierher.",
   },
   {
     ziel: "[data-tour='neu']",
@@ -85,8 +90,10 @@ export function Artikel({ zeigeFormularBeimStart, onFormularUebernommen, onZuKun
   const [preiseFuer, setPreiseFuer] = useState<ArtikelTyp | null>(null);
   const [leerHinweisVersteckt, setLeerHinweisVersteckt] = useState(false);
   const [zeigtKundenHinweis, setZeigtKundenHinweis] = useState(false);
+  const [suche, setSuche] = useState("");
   const { zeigen, hinweis } = useErfolgsHinweis();
   const { bestaetigen, dialog } = useBestaetigung();
+  const sucheRef = useRef<HTMLInputElement>(null);
 
   // Nur bei geschlossenem Formular: `neuFormular()` leert alle Felder — ein
   // ⌘N mitten im Ausfüllen (oder Bearbeiten) würde die Eingaben kommentarlos
@@ -96,6 +103,7 @@ export function Artikel({ zeigeFormularBeimStart, onFormularUebernommen, onZuKun
     neu: () => {
       if (!zeigeFormular) neuFormular();
     },
+    sucheFokussieren: () => sucheRef.current?.focus(),
   });
 
   useEffect(() => {
@@ -107,7 +115,7 @@ export function Artikel({ zeigeFormularBeimStart, onFormularUebernommen, onZuKun
 
   function ladeArtikel() {
     api.artikel
-      .list()
+      .list(suche || undefined)
       .then((liste) => {
         setArtikel(liste);
         setFehler(null);
@@ -133,10 +141,17 @@ export function Artikel({ zeigeFormularBeimStart, onFormularUebernommen, onZuKun
   }
 
   useEffect(() => {
-    ladeArtikel();
     api.einheiten.list().then(setEinheiten).catch((e) => setFehler(e as AppFehler));
     api.kunden.list().then(setKunden).catch((e) => setFehler(e as AppFehler));
   }, []);
+
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      ladeArtikel();
+    }, 300);
+    return () => clearTimeout(timeout);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [suche]);
 
   function einheitKuerzel(einheitId: string): string {
     return einheiten.find((e) => e.id === einheitId)?.kuerzel ?? "";
@@ -247,6 +262,18 @@ export function Artikel({ zeigeFormularBeimStart, onFormularUebernommen, onZuKun
       )}
 
       <Werkzeugleiste
+        filter={
+          <label className="feld" data-tour="suche">
+            Suche
+            <input
+              ref={sucheRef}
+              type="search"
+              placeholder="Nummer oder Bezeichnung"
+              value={suche}
+              onChange={(e) => setSuche(e.currentTarget.value)}
+            />
+          </label>
+        }
         aktion={
           <button type="button" className="btn btn-primaer" data-tour="neu" onClick={neuFormular}>
             Neuer Artikel
@@ -355,10 +382,14 @@ export function Artikel({ zeigeFormularBeimStart, onFormularUebernommen, onZuKun
         <>
           {!geladen && <Laden was="Artikel" />}
 
-          {geladen && artikel.length === 0 && !leerHinweisVersteckt && (
+          {geladen && artikel.length === 0 && suche === "" && !leerHinweisVersteckt && (
             <Hinweis onSchliessen={() => setLeerHinweisVersteckt(true)}>
               Noch keine Artikel oder Leistungen — leg direkt los.
             </Hinweis>
+          )}
+
+          {geladen && artikel.length === 0 && suche !== "" && (
+            <p>Keine Artikel gefunden für „{suche}".</p>
           )}
 
           <table className="tabelle" data-tour="tabelle">
