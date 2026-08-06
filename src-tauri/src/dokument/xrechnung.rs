@@ -547,6 +547,7 @@ pub(crate) mod tests {
                 ursprungsangebot_id: None, storno_von_id: storno_von.map(String::from),
                 kunde_snapshot: String::new(), kunde_snapshot_name: None,
                 bezahlt_cent: 0, zahlungsstand: None, faellig_am: None,
+                gesamtauftragswert_cent: None,
                 adresse_id: None, ansprechpartner_id: None,
             },
             positionen: vec![Belegposition {

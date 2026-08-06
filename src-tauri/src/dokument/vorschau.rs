@@ -72,6 +72,7 @@ fn muster_beleg(firma: crate::commands::firma::Firma) -> BelegKontext {
             faellig_am: None,
             adresse_id: None,
             ansprechpartner_id: None,
+            gesamtauftragswert_cent: None,
         },
         positionen,
         firma,

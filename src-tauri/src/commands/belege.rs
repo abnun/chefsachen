@@ -47,6 +47,12 @@ pub struct Beleg {
     #[sqlx(default)]
     #[serde(default)]
     pub ansprechpartner_id: Option<String>,
+    /// Nur bei Abschlagsrechnungen gepflegt: der Wert des gesamten Auftrags,
+    /// von dem dieser Beleg nur einen Teil abrechnet. Rein informativ auf dem
+    /// PDF, fließt nicht in Summen oder die XRechnung ein.
+    #[sqlx(default)]
+    #[serde(default)]
+    pub gesamtauftragswert_cent: Option<i64>,
     /// Aus `kunde_snapshot` abgeleitet: `None` bei Entwürfen (noch kein
     /// Snapshot geschrieben), sonst der zum Zeitpunkt des Stellens
     /// eingefrorene Kundenname. Wird von `mit_snapshot_name()` befüllt,
@@ -108,6 +114,10 @@ pub struct BelegUpdate {
     /// Ansprechpartner beim Kunden. Leer heißt: keiner auf dem Beleg.
     #[serde(default)]
     pub ansprechpartner_id: Option<String>,
+    /// Gesamtwert des Auftrags, falls dies eine Abschlagsrechnung ist; `None`
+    /// heißt: keine Angabe.
+    #[serde(default)]
+    pub gesamtauftragswert_cent: Option<i64>,
 }
 
 #[derive(Debug, Serialize)]
@@ -163,7 +173,7 @@ pub struct Zahlung {
     pub notiz: String,
 }
 
-pub(crate) const BELEG_SPALTEN: &str = "id, typ, nummer, status, kunde_id, datum, leistungsdatum, leistungsdatum_bis, gueltig_bis, zahlungsziel_tage, kopftext, fusstext, summe_cent, ursprungsangebot_id, storno_von_id, kunde_snapshot, adresse_id, ansprechpartner_id";
+pub(crate) const BELEG_SPALTEN: &str = "id, typ, nummer, status, kunde_id, datum, leistungsdatum, leistungsdatum_bis, gueltig_bis, zahlungsziel_tage, kopftext, fusstext, summe_cent, ursprungsangebot_id, storno_von_id, kunde_snapshot, adresse_id, ansprechpartner_id, gesamtauftragswert_cent";
 
 /// Spalten einer Belegposition — an einer Stelle statt viermal wortgleich:
 /// Beim Feld `ust_satz_prozent` fiel auf, dass jede neue Spalte sonst an vier
@@ -210,6 +220,22 @@ fn pruefe_beleg_neu(
             return Err(AppError::Validation {
                 feld: "gueltig_bis".into(),
                 meldung: "Das Gültigkeitsdatum darf nicht vor dem Belegdatum liegen".into(),
+            });
+        }
+    }
+    Ok(())
+}
+
+/// Ein Gesamt-Auftragswert unter der bereits erfassten Summe ergäbe eine
+/// Teilrechnung, die mehr abrechnet, als der Auftrag insgesamt wert ist —
+/// ein Zahlendreher, den man besser vor dem Speichern abfängt als hinterher
+/// auf dem gedruckten Beleg zu entdecken.
+fn pruefe_gesamtauftragswert(gesamtauftragswert_cent: Option<i64>, summe_cent: i64) -> AppResult<()> {
+    if let Some(wert) = gesamtauftragswert_cent {
+        if wert < summe_cent {
+            return Err(AppError::Validation {
+                feld: "gesamtauftragswert_cent".into(),
+                meldung: "Der Gesamt-Auftragswert darf nicht unter der Rechnungssumme liegen".into(),
             });
         }
     }
@@ -273,6 +299,7 @@ pub async fn create(pool: &SqlitePool, d: BelegNeu) -> AppResult<Beleg> {
         kunde_snapshot: String::new(), kunde_snapshot_name: None,
         adresse_id: None, ansprechpartner_id: None,
         bezahlt_cent: 0, zahlungsstand: None, faellig_am: None,
+        gesamtauftragswert_cent: None,
     };
     sqlx::query("INSERT INTO beleg (id, typ, nummer, status, kunde_id, datum, leistungsdatum, leistungsdatum_bis, gueltig_bis, zahlungsziel_tage, kopftext, fusstext, summe_cent, ursprungsangebot_id, storno_von_id, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
         .bind(&beleg.id).bind(&beleg.typ).bind(&beleg.nummer).bind(&beleg.status).bind(&beleg.kunde_id)
@@ -374,6 +401,7 @@ pub async fn update(pool: &SqlitePool, d: BelegUpdate) -> AppResult<Beleg> {
         &beleg.typ, &d.datum, &d.leistungsdatum, d.leistungsdatum_bis.as_deref(),
         d.zahlungsziel_tage, d.gueltig_bis.as_deref(),
     )?;
+    pruefe_gesamtauftragswert(d.gesamtauftragswert_cent, beleg.summe_cent)?;
     pruefe_gehoert_zum_kunden(pool, "adresse", d.adresse_id.as_deref(), &d.kunde_id).await?;
     pruefe_gehoert_zum_kunden(pool, "ansprechpartner", d.ansprechpartner_id.as_deref(), &d.kunde_id).await?;
     // Leere Strings heißen „nicht gesetzt" und werden als NULL gespeichert.
@@ -383,10 +411,11 @@ pub async fn update(pool: &SqlitePool, d: BelegUpdate) -> AppResult<Beleg> {
     // Frontend normalisiert zwar selbst, aber der Vertrag gehört dem Backend.
     let gueltig_bis = d.gueltig_bis.as_deref().map(str::trim).filter(|s| !s.is_empty());
     let leistungsdatum_bis = d.leistungsdatum_bis.as_deref().map(str::trim).filter(|s| !s.is_empty());
-    sqlx::query("UPDATE beleg SET kunde_id=?, datum=?, leistungsdatum=?, leistungsdatum_bis=?, gueltig_bis=?, zahlungsziel_tage=?, kopftext=?, fusstext=?, adresse_id=?, ansprechpartner_id=?, updated_at=? WHERE id=?")
+    sqlx::query("UPDATE beleg SET kunde_id=?, datum=?, leistungsdatum=?, leistungsdatum_bis=?, gueltig_bis=?, zahlungsziel_tage=?, kopftext=?, fusstext=?, adresse_id=?, ansprechpartner_id=?, gesamtauftragswert_cent=?, updated_at=? WHERE id=?")
         .bind(&d.kunde_id).bind(&d.datum).bind(&d.leistungsdatum).bind(leistungsdatum_bis).bind(gueltig_bis)
         .bind(d.zahlungsziel_tage)
         .bind(&d.kopftext).bind(&d.fusstext).bind(&d.adresse_id).bind(&d.ansprechpartner_id)
+        .bind(d.gesamtauftragswert_cent)
         .bind(jetzt()).bind(&d.id)
         .execute(pool).await?;
     lade_beleg(pool, &d.id).await
@@ -886,6 +915,7 @@ pub async fn angebot_ueberfuehren(pool: &SqlitePool, angebot_id: String) -> AppR
         // die Rechnung.
         adresse_id: angebot.adresse_id.clone(), ansprechpartner_id: angebot.ansprechpartner_id.clone(),
         bezahlt_cent: 0, zahlungsstand: None, faellig_am: None,
+        gesamtauftragswert_cent: None,
     };
 
     // Transaktion: das Beleg-INSERT und die Positions-INSERTs müssen atomar sein,
@@ -968,6 +998,7 @@ pub async fn storniere_rechnung(pool: &SqlitePool, id: String) -> AppResult<Bele
         kunde_snapshot: snapshot.0.clone(), kunde_snapshot_name: kunde_snapshot_name(&snapshot.0),
         adresse_id: rechnung.adresse_id.clone(), ansprechpartner_id: rechnung.ansprechpartner_id.clone(),
         bezahlt_cent: 0, zahlungsstand: None, faellig_am: None,
+        gesamtauftragswert_cent: None,
     };
 
     // Transaktion: das Storno-Beleg-INSERT, die negierten Positions-INSERTs und das
@@ -1189,7 +1220,7 @@ mod tests {
             leistungsdatum_bis: None, gueltig_bis: None, zahlungsziel_tage: 14,
             kopftext: "Gern unterbreiten wir Ihnen folgendes Angebot.".into(),
             fusstext: "Dieses Angebot ist 30 Tage gültig.".into(),
-            adresse_id: None, ansprechpartner_id: None,
+            adresse_id: None, ansprechpartner_id: None, gesamtauftragswert_cent: None,
         }).await.unwrap();
         stellen(&pool, angebot.id.clone()).await.unwrap();
 
@@ -1390,6 +1421,7 @@ mod tests {
             gueltig_bis: b.gueltig_bis.clone(), zahlungsziel_tage: b.zahlungsziel_tage,
             kopftext: b.kopftext.clone(), fusstext: b.fusstext.clone(),
             adresse_id: b.adresse_id.clone(), ansprechpartner_id: b.ansprechpartner_id.clone(),
+            gesamtauftragswert_cent: b.gesamtauftragswert_cent,
         }
     }
 
@@ -1501,6 +1533,7 @@ mod tests {
             gueltig_bis: None,
             zahlungsziel_tage: 14, kopftext: "".into(), fusstext: "".into(),
             adresse_id: Some(adresse_id.clone()), ansprechpartner_id: None,
+            gesamtauftragswert_cent: None,
         }).await.unwrap();
 
         let gestellt = stellen(&pool, beleg.id.clone()).await.unwrap();
@@ -1542,6 +1575,7 @@ mod tests {
             gueltig_bis: None,
             zahlungsziel_tage: 14, kopftext: "".into(), fusstext: "".into(),
             adresse_id: None, ansprechpartner_id: Some(ap.id.clone()),
+            gesamtauftragswert_cent: None,
         }).await.unwrap();
 
         let gestellt = stellen(&pool, beleg.id.clone()).await.unwrap();
@@ -1565,6 +1599,7 @@ mod tests {
             gueltig_bis: None,
             zahlungsziel_tage: 14, kopftext: "".into(), fusstext: "".into(),
             adresse_id: Some(fremde_adresse), ansprechpartner_id: None,
+            gesamtauftragswert_cent: None,
         }).await;
         assert!(matches!(fehler, Err(AppError::Validation { .. })), "{fehler:?}");
     }
@@ -1722,6 +1757,7 @@ mod tests {
             zahlungsziel_tage: 30,
             kopftext: "Hallo".into(), fusstext: "".into(),
             adresse_id: None, ansprechpartner_id: None,
+            gesamtauftragswert_cent: None,
         }).await.unwrap();
         assert_eq!(aktualisiert.datum, "2026-07-11");
         assert_eq!(aktualisiert.zahlungsziel_tage, 30);
@@ -1739,6 +1775,7 @@ mod tests {
             gueltig_bis: None,
             zahlungsziel_tage: 14, kopftext: "".into(), fusstext: "".into(),
             adresse_id: None, ansprechpartner_id: None,
+            gesamtauftragswert_cent: None,
         }).await.unwrap_err();
         assert!(matches!(err, AppError::Validation { .. }));
     }
@@ -2127,6 +2164,7 @@ mod tests {
             zahlungsziel_tage: 14,
             kopftext: "".into(), fusstext: "".into(),
             adresse_id: None, ansprechpartner_id: None,
+            gesamtauftragswert_cent: None,
         }).await.unwrap_err();
         assert!(matches!(err, AppError::Validation { .. }), "gestellter Beleg darf nicht mehr editierbar sein");
     }
@@ -2223,6 +2261,48 @@ mod tests {
         let final_beleg = get(&pool, beleg.id.clone()).await.unwrap();
         assert_eq!(final_beleg.beleg.status, "gestellt");
         assert!(final_beleg.beleg.nummer.is_some());
+    }
+
+    #[tokio::test]
+    async fn gesamtauftragswert_unter_der_summe_wird_abgelehnt() {
+        let (_dir, pool) = test_pool().await;
+        let kunde_id = kunde_anlegen(&pool).await;
+        let artikel_id = artikel_anlegen(&pool, 100000).await; // 1.000,00 €
+        let beleg = create(&pool, beleg_neu("rechnung", &kunde_id)).await.unwrap();
+        position_speichern(&pool, BelegpositionNeu {
+            id: "".into(), beleg_id: beleg.id.clone(), artikel_id: Some(artikel_id),
+            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000, ust_satz_prozent: None,
+        }).await.unwrap();
+
+        let fehler = update(&pool, BelegUpdate {
+            id: beleg.id.clone(), kunde_id: kunde_id.clone(), datum: beleg.datum.clone(),
+            leistungsdatum: beleg.leistungsdatum.clone(), leistungsdatum_bis: None, gueltig_bis: None,
+            zahlungsziel_tage: 14, kopftext: "".into(), fusstext: "".into(),
+            adresse_id: None, ansprechpartner_id: None,
+            gesamtauftragswert_cent: Some(50000), // 500,00 € — unter der Summe von 1.000,00 €
+        }).await.unwrap_err();
+        assert!(matches!(fehler, AppError::Validation { feld, .. } if feld == "gesamtauftragswert_cent"));
+    }
+
+    #[tokio::test]
+    async fn gesamtauftragswert_ueber_der_summe_wird_gespeichert() {
+        let (_dir, pool) = test_pool().await;
+        let kunde_id = kunde_anlegen(&pool).await;
+        let artikel_id = artikel_anlegen(&pool, 73500).await; // 735,00 €
+        let beleg = create(&pool, beleg_neu("rechnung", &kunde_id)).await.unwrap();
+        position_speichern(&pool, BelegpositionNeu {
+            id: "".into(), beleg_id: beleg.id.clone(), artikel_id: Some(artikel_id),
+            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000, ust_satz_prozent: None,
+        }).await.unwrap();
+
+        let aktualisiert = update(&pool, BelegUpdate {
+            id: beleg.id.clone(), kunde_id: kunde_id.clone(), datum: beleg.datum.clone(),
+            leistungsdatum: beleg.leistungsdatum.clone(), leistungsdatum_bis: None, gueltig_bis: None,
+            zahlungsziel_tage: 14, kopftext: "".into(), fusstext: "".into(),
+            adresse_id: None, ansprechpartner_id: None,
+            gesamtauftragswert_cent: Some(147000), // 1.470,00 €
+        }).await.unwrap();
+        assert_eq!(aktualisiert.gesamtauftragswert_cent, Some(147000));
     }
 
     #[tokio::test]
