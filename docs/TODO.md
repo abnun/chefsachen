@@ -3,6 +3,27 @@
 Priorisierte Arbeitsliste, abgeleitet aus [MVP-Review vom 2026-08-02](2026-08-02-mvp-review.md).
 Reihenfolge = Empfehlung. Jeder Punkt trägt die Referenz aus dem Review.
 
+## Stand (2026-08-06, Beleg-Layout, Girocode, Abschlagsrechnung)
+
+**Kopf-Tabelle, fester Fuß, Girocode und Gesamt-Auftragswert implementiert**
+(0.10.1, noch ungetaggt):
+
+- Rechnungsnummer, Kundennummer, Datum und Leistungsdatum stehen als Tabelle
+  im Kopf; Anschrift, Steuerangaben und Bankverbindung als fester,
+  dreispaltiger Fuß auf jeder Seite. Die frühere Einstellung für die
+  Bankverbindungs-Position entfällt.
+- Neue, standardmäßig aktive Einstellung für einen SEPA-Girocode (EPC069-12)
+  auf Rechnung und Zahlungserinnerung, sofern eine IBAN hinterlegt ist.
+  Bewusst außen vor: Angebote und Stornos zeigen nie einen Girocode — dort
+  gibt es nichts zu bezahlen.
+- Neues optionales Feld „Gesamt-Auftragswert" für Abschlagsrechnungen, zeigt
+  auf dem PDF den Gesamtwert des Auftrags neben der Teilabrechnung. Fließt
+  bewusst nicht in XRechnung/ZUGFeRD ein — die Normen kennen dafür kein Feld.
+- Geometrische Prüfung der neuen Kopf-/Fuß-Platzierung und der
+  Girocode-Größe bislang nur über Textpräsenz- und Kompilier-Tests (kein
+  `pdftoppm` in dieser Umgebung); optische Prüfung durch den Nutzer steht
+  noch aus.
+
 ## Stand (2026-08-05, Umsatzsteuer)
 
 **Umsatzsteuer (Regelbesteuerung) implementiert** — der Nutzer hat die

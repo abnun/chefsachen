@@ -37,6 +37,12 @@ kein Konto, keine Cloud.
 - **Zahlungen** mit Teilzahlungen und abgeleitetem Zahlungsstand
 - **Zahlungserinnerung** als PDF für überfällige Rechnungen, mit Fälligkeit,
   Tagen im Verzug und offenem Betrag
+- **Girocode** (SEPA-QR-Code zum Bezahlen per Smartphone) auf Rechnung und
+  Zahlungserinnerung, sofern eine IBAN hinterlegt ist — standardmäßig aktiv,
+  abschaltbar in den Einstellungen
+- **Abschlagsrechnungen** mit optionalem Gesamt-Auftragswert: weist auf dem
+  Beleg zusätzlich auf den Gesamtwert des Auftrags hin, von dem die
+  Abschlagsrechnung nur einen Teil abrechnet
 - **Angebote mit Gültigkeitsdatum** (Vorgabe einstellbar); Abgelaufenes
   verschwindet von selbst aus den offenen Posten
 - **Belege duplizieren**: ein festgeschriebener Beleg dient als Vorlage für

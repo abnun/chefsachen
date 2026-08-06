@@ -9,6 +9,24 @@ Deshalb hier in der Sprache der Anwender, nicht in der der Commits.
 
 ## 0.10.1
 
+**Beleg-Layout**
+- Rechnungsnummer, Kundennummer, Datum und Leistungsdatum stehen jetzt als
+  klare Tabelle im Kopf, statt als lose Textzeilen.
+- Anschrift, Steuerangaben und Bankverbindung stehen jetzt als fester,
+  dreispaltiger Fuß auf jeder Seite — vorher als loser Text nach der
+  Positionstabelle, wahlweise an zwei einstellbaren Stellen. Die
+  Einstellung dafür entfällt entsprechend.
+
+**Girocode**
+- Neue, standardmäßig aktive Einstellung: ein SEPA-Girocode (QR-Code zum
+  Bezahlen per Smartphone) auf Rechnung und Zahlungserinnerung, sofern
+  eine IBAN hinterlegt ist.
+
+**Abschlagsrechnungen**
+- Neues optionales Feld „Gesamt-Auftragswert" — weist auf dem Beleg
+  zusätzlich auf den Gesamtwert des Auftrags hin, von dem eine
+  Abschlagsrechnung nur einen Teil abrechnet.
+
 **Rechnung bei Regelbesteuerung**
 - Nettobetrag und Umsatzsteuer stehen jetzt in eigenen, klar lesbaren
   Zeilen vor der Gesamtsumme — statt in einer einzigen, dichten Zeile.
