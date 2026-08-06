@@ -85,6 +85,7 @@ export function BelegEditor({ id, onZurueck, onGeaendert, onRechnungErstellt, on
     fusstext: string;
     adresse_id: string | null;
     ansprechpartner_id: string | null;
+    gesamtauftragswert_cent: number | null;
   }) {
     setFehler(null);
     try {

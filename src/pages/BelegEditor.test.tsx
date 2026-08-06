@@ -1265,3 +1265,41 @@ describe("BelegEditor – Anschrift und Ansprechpartner", () => {
     expect(within(dialog).getAllByText("leer")).toHaveLength(2);
   });
 });
+
+describe("BelegEditor – Gesamt-Auftragswert", () => {
+  function entwurfOhneAuftragswert() {
+    vi.mocked(api.belege.get).mockResolvedValue({
+      beleg: {
+        id: "b1", typ: "rechnung", nummer: null, status: "entwurf", kunde_id: "k1",
+        datum: "2026-07-10", leistungsdatum: "2026-07-10", zahlungsziel_tage: 14,
+        kopftext: "", fusstext: "", summe_cent: 0, ursprungsangebot_id: null, storno_von_id: null,
+      },
+      positionen: [], zahlungen: [], bezahlt_cent: 0, offener_betrag_cent: 0, steuerzeilen: [],
+    } as never);
+  }
+
+  it("sendet den Gesamt-Auftragswert beim Speichern der Stammdaten mit", async () => {
+    entwurfOhneAuftragswert();
+    render(<BelegEditor id="b1" />);
+    await waitFor(() => expect(screen.getByLabelText(/Gesamt-Auftragswert/)).toBeTruthy());
+    fireEvent.change(screen.getByLabelText(/Gesamt-Auftragswert/), { target: { value: "1.470,00" } });
+    fireEvent.click(screen.getByRole("button", { name: "Speichern" }));
+    await waitFor(() =>
+      expect(api.belege.update).toHaveBeenCalledWith(
+        expect.objectContaining({ gesamtauftragswert_cent: 147000 }),
+      ),
+    );
+  });
+
+  it("lässt den Gesamt-Auftragswert leer, wenn nichts eingegeben wurde", async () => {
+    entwurfOhneAuftragswert();
+    render(<BelegEditor id="b1" />);
+    await waitFor(() => expect(screen.getByRole("button", { name: "Speichern" })).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Speichern" }));
+    await waitFor(() =>
+      expect(api.belege.update).toHaveBeenCalledWith(
+        expect.objectContaining({ gesamtauftragswert_cent: null }),
+      ),
+    );
+  });
+});

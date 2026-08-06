@@ -138,6 +138,8 @@ export interface Beleg {
   storno_von_id: string | null;
   adresse_id?: string | null;
   ansprechpartner_id?: string | null;
+  /** Nur bei Abschlagsrechnungen gepflegt: Wert des gesamten Auftrags. */
+  gesamtauftragswert_cent?: number | null;
   kunde_snapshot_name?: string | null;
   /** Summe der erfassten Zahlungen; nur in Listen befüllt. */
   bezahlt_cent?: number;
@@ -176,6 +178,8 @@ export interface BelegUpdate {
   adresse_id?: string | null;
   /** Ansprechpartner beim Kunden; null heißt: keiner auf dem Beleg. */
   ansprechpartner_id?: string | null;
+  /** Gesamtwert des Auftrags, falls dies eine Abschlagsrechnung ist; null heißt keine Angabe. */
+  gesamtauftragswert_cent: number | null;
 }
 export interface Belegposition {
   id: string;

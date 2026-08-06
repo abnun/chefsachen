@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { api, type Beleg, type Kunde, type KundeDetail as KundeDetailTyp } from "../api";
 import { useUngespeichert } from "../hooks/useUngespeichert";
 import { datumDeutsch } from "../datum";
+import { formatCent, parseEuro } from "../geld";
 
 interface StammdatenAbschnittProps {
   beleg: Beleg;
@@ -18,6 +19,7 @@ interface StammdatenAbschnittProps {
     fusstext: string;
     adresse_id: string | null;
     ansprechpartner_id: string | null;
+    gesamtauftragswert_cent: number | null;
   }) => void;
 }
 
@@ -32,6 +34,12 @@ export function StammdatenAbschnitt({ beleg, kunden, bearbeitbar, onSpeichern }:
   const [fusstext, setFusstext] = useState(beleg.fusstext);
   const [adresseId, setAdresseId] = useState(beleg.adresse_id ?? "");
   const [ansprechpartnerId, setAnsprechpartnerId] = useState(beleg.ansprechpartner_id ?? "");
+  const [gesamtauftragswertText, setGesamtauftragswertText] = useState(
+    beleg.gesamtauftragswert_cent != null ? formatCent(beleg.gesamtauftragswert_cent).replace(" €", "") : "",
+  );
+  const [gesamtauftragswertFehler, setGesamtauftragswertFehler] = useState<string | null>(null);
+  const gesamtauftragswertCent =
+    gesamtauftragswertText.trim() === "" ? null : parseEuro(gesamtauftragswertText);
   /** Adressen und Ansprechpartner des gewählten Kunden. */
   const [kundeDetail, setKundeDetail] = useState<KundeDetailTyp | null>(null);
 
@@ -77,7 +85,8 @@ export function StammdatenAbschnitt({ beleg, kunden, bearbeitbar, onSpeichern }:
       kopftext !== beleg.kopftext ||
       fusstext !== beleg.fusstext ||
       adresseId !== (beleg.adresse_id ?? "") ||
-      ansprechpartnerId !== (beleg.ansprechpartner_id ?? ""));
+      ansprechpartnerId !== (beleg.ansprechpartner_id ?? "") ||
+      gesamtauftragswertCent !== (beleg.gesamtauftragswert_cent ?? null));
   useUngespeichert(geaendert);
 
   const kunde = kunden.find((k) => k.id === beleg.kunde_id);
@@ -97,6 +106,9 @@ export function StammdatenAbschnitt({ beleg, kunden, bearbeitbar, onSpeichern }:
           <p>Gültig bis: {beleg.gueltig_bis ? datumDeutsch(beleg.gueltig_bis) : "unbefristet"}</p>
         )}
         <p>Zahlungsziel: {beleg.zahlungsziel_tage} Tage</p>
+        {beleg.gesamtauftragswert_cent != null && (
+          <p>Gesamt-Auftragswert: {formatCent(beleg.gesamtauftragswert_cent)}</p>
+        )}
       </section>
     );
   }
@@ -107,6 +119,11 @@ export function StammdatenAbschnitt({ beleg, kunden, bearbeitbar, onSpeichern }:
       <form
         onSubmit={(e) => {
           e.preventDefault();
+          if (gesamtauftragswertText.trim() !== "" && gesamtauftragswertCent === null) {
+            setGesamtauftragswertFehler("Bitte einen gültigen Betrag eingeben, z. B. 1.470,00");
+            return;
+          }
+          setGesamtauftragswertFehler(null);
           onSpeichern({
             kunde_id: kundeId,
             datum,
@@ -118,6 +135,7 @@ export function StammdatenAbschnitt({ beleg, kunden, bearbeitbar, onSpeichern }:
             fusstext,
             adresse_id: adresseId === "" ? null : adresseId,
             ansprechpartner_id: ansprechpartnerId === "" ? null : ansprechpartnerId,
+            gesamtauftragswert_cent: gesamtauftragswertCent,
           });
         }}
       >
@@ -231,6 +249,21 @@ export function StammdatenAbschnitt({ beleg, kunden, bearbeitbar, onSpeichern }:
           Fußtext
           <textarea value={fusstext} onChange={(e) => setFusstext(e.currentTarget.value)} />
         </label>
+        <label className="feld">
+          Gesamt-Auftragswert (€)
+          <input
+            value={gesamtauftragswertText}
+            onChange={(e) => setGesamtauftragswertText(e.currentTarget.value)}
+            placeholder="nur bei Abschlagsrechnungen"
+          />
+        </label>
+        {gesamtauftragswertFehler && (
+          <div className="feld-fehler" role="alert">{gesamtauftragswertFehler}</div>
+        )}
+        <p className="feld-hinweis">
+          Nur für Abschlagsrechnungen: weist auf dem Beleg zusätzlich auf den Gesamtwert des
+          Auftrags hin, aus dem sich diese Teilrechnung ergibt.
+        </p>
         <div className="aktionen aktionen-formular">
           <button type="submit" className="btn btn-primaer">Speichern</button>
         </div>
