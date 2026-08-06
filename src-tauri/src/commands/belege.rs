@@ -801,6 +801,11 @@ pub async fn stellen(pool: &SqlitePool, id: String) -> AppResult<Beleg> {
     if anzahl_positionen.0 == 0 {
         return Err(AppError::Validation { feld: "positionen".into(), meldung: "Beleg benötigt mindestens eine Position".into() });
     }
+    // Zwischen dem Setzen des Gesamt-Auftragswerts (per update()) und dem
+    // Stellen können Positionen hinzugekommen sein, die summe_cent über den
+    // damals geprüften Wert heben. stellen() ist die letzte Gelegenheit, das
+    // abzufangen — danach ist der Beleg unveränderbar.
+    pruefe_gesamtauftragswert(beleg.gesamtauftragswert_cent, beleg.summe_cent)?;
 
     let kunde = crate::commands::kunden::get(pool, beleg.kunde_id.clone()).await?;
     // Die am Beleg gewählte Adresse geht vor; ohne Wahl bleibt es beim Standard.
@@ -2303,6 +2308,66 @@ mod tests {
             gesamtauftragswert_cent: Some(147000), // 1.470,00 €
         }).await.unwrap();
         assert_eq!(aktualisiert.gesamtauftragswert_cent, Some(147000));
+    }
+
+    #[tokio::test]
+    async fn stellen_lehnt_gesamtauftragswert_unter_der_summe_ab() {
+        // Der Gesamt-Auftragswert wird typischerweise gesetzt, während der
+        // Beleg noch keine oder wenige Positionen hat (summe_cent niedrig).
+        // Werden danach Positionen ergänzt, die summe_cent über den Wert
+        // heben, darf spätestens stellen() das nicht mehr durchlassen —
+        // update() prüft nur den zum Speicherzeitpunkt aktuellen Stand.
+        let (_dir, pool) = test_pool().await;
+        let kunde_id = kunde_anlegen(&pool).await;
+        let artikel_id = artikel_anlegen(&pool, 100000).await; // 1.000,00 €
+        let beleg = create(&pool, beleg_neu("rechnung", &kunde_id)).await.unwrap();
+
+        update(&pool, BelegUpdate {
+            id: beleg.id.clone(), kunde_id: kunde_id.clone(), datum: beleg.datum.clone(),
+            leistungsdatum: beleg.leistungsdatum.clone(), leistungsdatum_bis: None, gueltig_bis: None,
+            zahlungsziel_tage: 14, kopftext: "".into(), fusstext: "".into(),
+            adresse_id: None, ansprechpartner_id: None,
+            gesamtauftragswert_cent: Some(50000), // 500,00 € — summe_cent ist zu diesem Zeitpunkt noch 0
+        }).await.unwrap();
+
+        position_speichern(&pool, BelegpositionNeu {
+            id: "".into(), beleg_id: beleg.id.clone(), artikel_id: Some(artikel_id),
+            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000, ust_satz_prozent: None,
+        }).await.unwrap(); // hebt summe_cent auf 1.000,00 € — über den Gesamt-Auftragswert
+
+        let err = stellen(&pool, beleg.id).await.unwrap_err();
+        assert!(matches!(err, AppError::Validation { feld, .. } if feld == "gesamtauftragswert_cent"));
+    }
+
+    #[tokio::test]
+    async fn stellen_erlaubt_gesamtauftragswert_ueber_oder_ohne_summe() {
+        let (_dir, pool) = test_pool().await;
+        let kunde_id = kunde_anlegen(&pool).await;
+        let artikel_id = artikel_anlegen(&pool, 5000).await; // 50,00 €
+        let beleg = create(&pool, beleg_neu("rechnung", &kunde_id)).await.unwrap();
+        position_speichern(&pool, BelegpositionNeu {
+            id: "".into(), beleg_id: beleg.id.clone(), artikel_id: Some(artikel_id),
+            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000, ust_satz_prozent: None,
+        }).await.unwrap();
+
+        update(&pool, BelegUpdate {
+            id: beleg.id.clone(), kunde_id: kunde_id.clone(), datum: beleg.datum.clone(),
+            leistungsdatum: beleg.leistungsdatum.clone(), leistungsdatum_bis: None, gueltig_bis: None,
+            zahlungsziel_tage: 14, kopftext: "".into(), fusstext: "".into(),
+            adresse_id: None, ansprechpartner_id: None,
+            gesamtauftragswert_cent: Some(100000), // deutlich über der Summe von 50,00 €
+        }).await.unwrap();
+
+        stellen(&pool, beleg.id).await.unwrap();
+
+        // Ohne Gesamt-Auftragswert (None) darf stellen() ebenfalls nicht regressieren.
+        let beleg2 = create(&pool, beleg_neu("rechnung", &kunde_id)).await.unwrap();
+        position_speichern(&pool, BelegpositionNeu {
+            id: "".into(), beleg_id: beleg2.id.clone(), artikel_id: None,
+            bezeichnung: "Position".into(), einheit_kuerzel: "Std".into(),
+            einzelpreis_cent: Some(1000), menge: 1000, ust_satz_prozent: None,
+        }).await.unwrap();
+        stellen(&pool, beleg2.id).await.unwrap();
     }
 
     #[tokio::test]

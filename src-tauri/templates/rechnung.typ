@@ -11,6 +11,7 @@
 #let girocode_block(matrix_json) = {
   let reihen = json(bytes(matrix_json))
   if reihen.len() > 0 {
+    v(0.3cm)
     let n = reihen.len()
     box(stroke: 0.5pt + rgb("#999999"), inset: 8pt)[
       #grid(
@@ -209,7 +210,6 @@
     [Fällig seit], [#sys.inputs.at("erinnerung_faellig_am", default: "") (#sys.inputs.at("erinnerung_tage_ueberfaellig", default: "0") Tage)],
     [*Offener Betrag*], [*#sys.inputs.at("erinnerung_offener_betrag", default: "")*],
   )
-  #v(0.3cm)
   #girocode_block(sys.inputs.girocode_matrix_json)
 ] else [
   #let nummer_label = if sys.inputs.titel == "Angebot" { "Angebotsnummer:" } else { "Rechnungsnummer:" }
@@ -357,7 +357,6 @@
     Gesamt-Auftragswert: #sys.inputs.gesamtauftragswert (zzgl. USt)
   ]
 
-  #v(0.3cm)
   #girocode_block(sys.inputs.girocode_matrix_json)
 
   #if sys.inputs.kleinunternehmer == "ja" [

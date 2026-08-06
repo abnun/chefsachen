@@ -11,7 +11,6 @@ use crate::error::{AppError, AppResult};
 
 /// Kürzt auf eine Zeichenanzahl (nicht Byteanzahl — Namen mit Umlauten dürfen
 /// nicht mitten in einem UTF-8-Zeichen abgeschnitten werden).
-#[allow(dead_code)]
 fn kappe(text: &str, max_zeichen: usize) -> String {
     text.chars().take(max_zeichen).collect()
 }
@@ -22,7 +21,6 @@ fn kappe(text: &str, max_zeichen: usize) -> String {
 /// ohne Betrag lässt den Zahlenden selbst eintragen. `betrag_cent` muss, wenn
 /// gesetzt, nicht-negativ sein; das stellt der Aufrufer sicher (ein Girocode
 /// über einen negativen Betrag ergäbe keinen gültigen Zahlungsauftrag).
-#[allow(dead_code)]
 pub fn epc_payload(name: &str, iban: &str, bic: &str, betrag_cent: Option<i64>, verwendungszweck: &str) -> String {
     debug_assert!(betrag_cent.is_none_or(|c| c >= 0), "Girocode-Betrag darf nicht negativ sein");
     let betrag = betrag_cent
@@ -47,7 +45,6 @@ pub fn epc_payload(name: &str, iban: &str, bic: &str, betrag_cent: Option<i64>, 
 /// Wandelt die EPC-Nutzlast in eine quadratische Hell/Dunkel-Matrix. Typst
 /// zeichnet daraus Vektor-Rechtecke — es entsteht keine Bilddatei, anders als
 /// beim Logo.
-#[allow(dead_code)]
 pub fn qr_matrix(payload: &str) -> AppResult<Vec<Vec<bool>>> {
     let code = qrcode::QrCode::new(payload.as_bytes())
         .map_err(|e| AppError::Technisch(format!("QR-Code konnte nicht erzeugt werden: {e}")))?;

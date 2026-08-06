@@ -1302,4 +1302,19 @@ describe("BelegEditor – Gesamt-Auftragswert", () => {
       ),
     );
   });
+
+  it("zeigt den Gesamt-Auftragswert schreibgeschützt an, sobald der Beleg gestellt ist", async () => {
+    vi.mocked(api.belege.get).mockResolvedValue({
+      beleg: {
+        id: "b1", typ: "rechnung", nummer: "R-2026-0001", status: "gestellt", kunde_id: "k1",
+        datum: "2026-07-10", leistungsdatum: "2026-07-10", zahlungsziel_tage: 14,
+        kopftext: "", fusstext: "", summe_cent: 95000, ursprungsangebot_id: null, storno_von_id: null,
+        gesamtauftragswert_cent: 147000,
+      },
+      positionen: [], zahlungen: [], bezahlt_cent: 0, offener_betrag_cent: 95000, steuerzeilen: [],
+    } as never);
+    render(<BelegEditor id="b1" />);
+    await waitFor(() => expect(screen.getByText(/Gesamt-Auftragswert/)).toBeTruthy());
+    expect(screen.getByText("Gesamt-Auftragswert: 1.470,00 €")).toBeTruthy();
+  });
 });
