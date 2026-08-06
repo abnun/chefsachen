@@ -194,22 +194,33 @@ Datum: #sys.inputs.datum
   // table.header(repeat: true) wiederholt die Kopfzeile auf Folgeseiten — ohne das
   // stünden bei einer langen Rechnung ab Seite 2 namenlose Zahlenspalten.
   //
-  // Die Gesamtsumme steht als letzte Zeile *in* dieser Tabelle, nicht als
+  // Die Summenzeilen stehen als letzte Zeilen *in* dieser Tabelle, nicht als
   // eigener Absatz danach: Ein außenstehendes `align(right)` richtet sich nach
   // dem Seitenrand, während die Summe-Spalte durch den Zellenabstand der
   // Tabelle ein Stück davor endet — auf den ersten Blick nicht zu sehen, aber
   // genug, damit die Beträge nicht sauber untereinanderstehen, wie man es aus
-  // einer Buchhaltungstabelle kennt. Als Tabellenzeile trifft die Summe exakt
+  // einer Buchhaltungstabelle kennt. Als Tabellenzeile trifft jede Summe exakt
   // dieselbe rechte Kante wie jede Positionssumme darüber.
   // Voll umrandet statt nur der schlanken Linie unter Kopf- und
   // Positionszeilen — wer viele Positionen hat, verliert beim Lesen sonst
-  // leicht die Zeile. Die Gesamtsumme darunter behält ihre eigene Betonung
-  // (dickere Linie in der Akzentfarbe) in beiden Varianten.
-  // Steueraufschlüsselung (§ 14 Abs. 4 Nr. 7–8 UStG) bei Regelbesteuerung:
-  // eine Zeile je Steuersatz, *in* der Tabelle — aus demselben Grund wie die
-  // Gesamtsumme: nur so treffen die Beträge exakt deren rechte Kante.
+  // leicht die Zeile.
+  //
+  // Bei Regelbesteuerung stehen Nettobetrag und Umsatzsteuer je Steuersatz
+  // (§ 14 Abs. 4 Nr. 7–8 UStG) VOR der Gesamtsumme, ohne eigenen Rahmen — nur
+  // die abschließende Zeile trägt die Betonung (dickere Linie in der
+  // Akzentfarbe, fett), damit sie sich sichtbar von der Aufschlüsselung
+  // darüber abhebt, wie auf einem Kassenbon oder in einer Buchhaltungstabelle.
   #let steuerzeilen = json(bytes(sys.inputs.at("steuerzeilen_json", default: "[]")))
-  #let steuerzelle(inhalt) = table.cell(stroke: none, inset: (y: 2pt))[#text(size: 9pt)[#inhalt]]
+  #let gesamt_label = if sys.inputs.titel == "Angebot" { "Gesamt" } else { "Rechnungsbetrag" }
+
+  // Nettobetrag und Steuer nur mit Satzangabe, wenn mehr als ein Satz auf dem
+  // Beleg vorkommt — bei nur einem Satz macht "Nettobetrag 19 %" die Zeile
+  // eng, ohne mehr zu sagen als "Nettobetrag" allein.
+  #let mit_satzangabe = steuerzeilen.len() > 1
+  #let summenzeilen = steuerzeilen.map(z => (
+    (label: if mit_satzangabe { "Nettobetrag " + z.satz + " %" } else { "Nettobetrag" }, betrag: z.netto),
+    (label: "Umsatzsteuer " + z.satz + " %", betrag: z.ust),
+  )).flatten()
 
   #table(
     columns: spalten,
@@ -221,18 +232,18 @@ Datum: #sys.inputs.datum
     },
     table.header(..kopfzeile),
     ..positionen.map(zeile).flatten(),
+    ..summenzeilen.map(z => (
+      table.cell(colspan: spalten.len() - 1, align: right, stroke: none, inset: (y: 2pt))[
+        #text(size: 9pt)[#z.label]
+      ],
+      table.cell(stroke: none, inset: (y: 2pt))[#text(size: 9pt)[#z.betrag]],
+    )).flatten(),
     table.cell(
       colspan: spalten.len() - 1,
       align: right,
       stroke: (top: 0.6pt + akzent, bottom: none),
-    )[*Gesamt:*],
+    )[*#gesamt_label*],
     table.cell(stroke: (top: 0.6pt + akzent, bottom: none))[*#sys.inputs.summe*],
-    ..steuerzeilen.map(z => (
-      table.cell(colspan: spalten.len() - 1, align: right, stroke: none, inset: (y: 2pt))[
-        #text(size: 9pt)[Enthaltene USt #z.satz % (aus Nettobetrag #z.netto):]
-      ],
-      steuerzelle(z.ust),
-    )).flatten(),
   )
 
   #if sys.inputs.kleinunternehmer == "ja" [

@@ -7,6 +7,14 @@ auf GitHub ändert daran nichts mehr.
 
 Deshalb hier in der Sprache der Anwender, nicht in der der Commits.
 
+## 0.10.1
+
+**Rechnung bei Regelbesteuerung**
+- Nettobetrag und Umsatzsteuer stehen jetzt in eigenen, klar lesbaren
+  Zeilen vor der Gesamtsumme — statt in einer einzigen, dichten Zeile.
+  Die abschließende Zeile heißt „Rechnungsbetrag" und ist deutlicher von
+  der Aufschlüsselung darüber abgesetzt.
+
 ## 0.10.0
 
 **Umsatzsteuer (Regelbesteuerung)**

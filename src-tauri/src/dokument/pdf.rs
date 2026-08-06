@@ -819,9 +819,11 @@ pub(crate) mod tests {
         let t = text(&kontext);
         // 95,00 € brutto bei 19 % → 79,83 € netto, 15,17 € USt.
         let fehlend: Vec<&str> = [
-            ("Steuersatz", "Enthaltene USt 19 %"),
+            ("Nettobetrag-Bezeichnung", "Nettobetrag"),
             ("Entgelt (netto)", "79,83"),
+            ("Steuersatz-Bezeichnung", "Umsatzsteuer 19 %"),
             ("Steuerbetrag", "15,17"),
+            ("Bezeichnung des Gesamtbetrags", "Rechnungsbetrag"),
         ]
         .iter()
         .filter(|(_, wert)| !t.contains(wert))
@@ -830,10 +832,43 @@ pub(crate) mod tests {
         assert!(fehlend.is_empty(), "auf der Rechnung fehlen: {fehlend:?}\n\nText:\n{t}");
     }
 
+    /// Bei mehreren Steuersätzen auf demselben Beleg braucht "Nettobetrag"
+    /// die Satzangabe — sonst ließen sich die beiden Zeilen nicht mehr den
+    /// zugehörigen Umsatzsteuer-Zeilen zuordnen.
+    #[test]
+    fn regelbesteuerte_rechnung_mit_gemischten_saetzen_nennt_den_satz_am_nettobetrag() {
+        let mut kontext = test_kontext();
+        kontext.firma.kleinunternehmer = false;
+        kontext.positionen.push(Belegposition {
+            id: "p2".into(), beleg_id: "b1".into(), artikel_id: None,
+            bezeichnung: "Fachliteratur".into(), einheit_kuerzel: "Stk.".into(),
+            einzelpreis_cent: 1070, menge: 1000, positionssumme_cent: 1070,
+            ust_satz_prozent: 7, reihenfolge: 1,
+        });
+        kontext.beleg.summe_cent = 10570;
+        let t = text(&kontext);
+        assert!(t.contains("Nettobetrag 19 %"), "Satzangabe bei 19 % fehlt:\n{t}");
+        assert!(t.contains("Nettobetrag 7 %"), "Satzangabe bei 7 % fehlt:\n{t}");
+    }
+
+    /// Ein Angebot ist keine Rechnung — die Gesamtzeile soll nicht
+    /// "Rechnungsbetrag" heißen.
+    #[test]
+    fn angebot_nennt_die_gesamtzeile_nicht_rechnungsbetrag() {
+        let mut kontext = test_kontext();
+        kontext.beleg.typ = "angebot".into();
+        let t = text(&kontext);
+        assert!(t.contains("Gesamt"), "Gesamtzeile fehlt:\n{t}");
+        assert!(!t.contains("Rechnungsbetrag"), "Angebot heißt fälschlich Rechnungsbetrag:\n{t}");
+    }
+
     #[test]
     fn kleinunternehmer_rechnung_zeigt_keine_steueraufschluesselung() {
         let t = text(&test_kontext());
-        assert!(!t.contains("Enthaltene USt"), "Kleinunternehmer-Beleg weist Steuer aus:\n{t}");
+        // Nicht auf die Abwesenheit von "Umsatzsteuer" prüfen: Das Wort steht
+        // bereits im § 19-Hinweistext ("wird keine Umsatzsteuer berechnet").
+        // "Nettobetrag" ist dagegen ausschließlich Teil der Aufschlüsselung.
+        assert!(!t.contains("Nettobetrag"), "Kleinunternehmer-Beleg weist Steuer aus:\n{t}");
     }
 
     #[test]
