@@ -599,7 +599,7 @@ pub(crate) mod tests {
     /// Was sich abschalten lässt, verschwindet — und was nicht, bleibt.
     #[test]
     fn einstellungen_wirken_auf_den_beleg() {
-        use crate::dokument::vorlage::{BankPosition, Vorlage};
+        use crate::dokument::vorlage::Vorlage;
 
         let ohne = Vorlage {
             spalte_nummer: false,
@@ -622,12 +622,6 @@ pub(crate) mod tests {
         let t2 = pdf_extract::extract_text_from_mem(
             &rendern(&test_kontext(), None, &mit_einheit).unwrap()).unwrap();
         assert!(t2.contains("Einheit"), "Einheitenspalte fehlt:\n{t2}");
-
-        // Die Bankverbindung wandert, verschwindet aber nicht.
-        let nach_summe = Vorlage { bankverbindung: BankPosition::NachSumme, ..Default::default() };
-        let t3 = pdf_extract::extract_text_from_mem(
-            &rendern(&test_kontext(), None, &nach_summe).unwrap()).unwrap();
-        assert!(t3.contains("Bankverbindung"), "Bankverbindung fehlt:\n{t3}");
     }
 
     /// Volle Gitterlinien statt der schlanken Vorgabe — wer viele Positionen
@@ -1041,6 +1035,21 @@ pub(crate) mod tests {
         assert!(t.contains("Leistung 59"), "letzte Position fehlt — Umbruch verschluckt Inhalt");
         let kopfzeilen = t.matches("Einzelpreis").count();
         assert!(kopfzeilen > 1, "Tabellenkopf wird auf Folgeseiten nicht wiederholt (gefunden: {kopfzeilen})");
+    }
+
+    /// Vorher stand die Bankverbindung als einmaliger Fließtext irgendwo im
+    /// Dokument — auf einer mehrseitigen Rechnung erschien sie nur auf der
+    /// Seite, auf die sie zufällig fiel. Jetzt ist sie Teil des Seiten-Fußes.
+    #[test]
+    fn geschaeftsfuss_wiederholt_sich_auf_jeder_seite() {
+        let mut kontext = test_kontext();
+        let vorlage_pos = kontext.positionen[0].clone();
+        kontext.positionen = (0..60)
+            .map(|i| Belegposition { id: format!("p{i}"), bezeichnung: format!("Leistung {i}"), ..vorlage_pos.clone() })
+            .collect();
+        let t = text(&kontext);
+        let treffer = t.matches("DE02 1203 0000 0000 2020 51").count();
+        assert!(treffer > 1, "Bankverbindung erscheint nicht auf jeder Seite (gefunden: {treffer}x)");
     }
 
     /// Einseitige Rechnungen sollen keine Fußzeile tragen — "Seite 1 von 1" ist

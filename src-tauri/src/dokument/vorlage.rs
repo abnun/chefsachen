@@ -46,15 +46,6 @@ impl LogoPosition {
     }
 }
 
-/// Wo die Bankverbindung steht.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum BankPosition {
-    /// Am Fuß, hinter dem Fußtext — die bisherige Anordnung.
-    Fuss,
-    /// Unmittelbar unter der Gesamtsumme, wo der Blick nach dem Betrag hinfällt.
-    NachSumme,
-}
-
 /// Alles, was sich am Aussehen einstellen lässt.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Vorlage {
@@ -73,7 +64,6 @@ pub struct Vorlage {
     /// oft übersichtlicher; bei vielen Positionen hilft das volle Gitter dem
     /// Auge beim Zeilen-Halten.
     pub tabelle_gitterlinien: bool,
-    pub bankverbindung: BankPosition,
     pub rand_oben_mm: f64,
     pub rand_unten_mm: f64,
     pub rand_seitlich_mm: f64,
@@ -93,7 +83,6 @@ impl Default for Vorlage {
             einheit_eigene_spalte: false,
             spalte_einzelpreis: true,
             tabelle_gitterlinien: false,
-            bankverbindung: BankPosition::Fuss,
             rand_oben_mm: 25.0,
             rand_unten_mm: 25.0,
             rand_seitlich_mm: 25.0,
@@ -175,14 +164,10 @@ impl Vorlage {
                 hole("vorlage.tabelle_gitterlinien"),
                 standard.tabelle_gitterlinien,
             ),
-            bankverbindung: match hole("vorlage.bankverbindung").as_deref() {
-                Some("nach_summe") => BankPosition::NachSumme,
-                _ => BankPosition::Fuss,
-            },
             // Der obere Rand geht nicht unter 20 mm: Darunter überschnitte der
             // Briefkopf das Anschriftfeld, das bei 45 mm beginnt.
             rand_oben_mm: mm(hole("vorlage.rand_oben_mm"), standard.rand_oben_mm, 20.0, 40.0),
-            rand_unten_mm: mm(hole("vorlage.rand_unten_mm"), standard.rand_unten_mm, 15.0, 40.0),
+            rand_unten_mm: mm(hole("vorlage.rand_unten_mm"), standard.rand_unten_mm, 25.0, 40.0),
             // Seitlich höchstens 30 mm: Das Anschriftfeld beginnt nach DIN bei
             // 20 mm und ist 85 mm breit; ein breiterer Rand schöbe den Textblock
             // daneben weiter nach innen als das Fenster.
@@ -206,13 +191,6 @@ impl Vorlage {
             ("v_einheit_eigene_spalte", ja_nein(self.einheit_eigene_spalte)),
             ("v_spalte_einzelpreis", ja_nein(self.spalte_einzelpreis)),
             ("v_tabelle_gitterlinien", ja_nein(self.tabelle_gitterlinien)),
-            (
-                "v_bankverbindung",
-                match self.bankverbindung {
-                    BankPosition::Fuss => "fuss".into(),
-                    BankPosition::NachSumme => "nach_summe".into(),
-                },
-            ),
             ("v_rand_oben_mm", self.rand_oben_mm.to_string()),
             ("v_rand_unten_mm", self.rand_unten_mm.to_string()),
             ("v_rand_seitlich_mm", self.rand_seitlich_mm.to_string()),
@@ -276,7 +254,6 @@ mod tests {
             ("vorlage.absenderzeile", "nein"),
             ("vorlage.spalte_einzelpreis", "nein"),
             ("vorlage.tabelle_gitterlinien", "ja"),
-            ("vorlage.bankverbindung", "nach_summe"),
             ("vorlage.rand_oben_mm", "30"),
         ] {
             crate::commands::einstellungen::set(&pool, k.into(), v.into()).await.unwrap();
@@ -287,9 +264,21 @@ mod tests {
         assert!(!v.absenderzeile);
         assert!(!v.spalte_einzelpreis);
         assert!(v.tabelle_gitterlinien);
-        assert_eq!(v.bankverbindung, BankPosition::NachSumme);
         assert_eq!(v.rand_oben_mm, 30.0);
         // Nicht Gesetztes bleibt bei der Vorgabe.
         assert!(v.spalte_nummer);
+    }
+
+    #[tokio::test]
+    async fn rand_unten_hat_platz_fuer_den_geschaeftsfuss() {
+        // Ein zu geringer unterer Rand ließe keinen Platz für den dreispaltigen
+        // Geschäftsfuß — daher jetzt mindestens 25 statt bisher 15 mm, gleich
+        // dem bisherigen Standardwert: Niemand kann mehr unter das gehen, was
+        // heute schon funktioniert.
+        let dir = tempfile::tempdir().unwrap();
+        let pool = crate::db::init_db(&dir.path().join("t.db")).await.unwrap();
+        crate::commands::einstellungen::set(&pool, "vorlage.rand_unten_mm".into(), "5".into()).await.unwrap();
+        let v = Vorlage::laden(&pool).await.unwrap();
+        assert_eq!(v.rand_unten_mm, 25.0);
     }
 }

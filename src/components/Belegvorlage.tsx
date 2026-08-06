@@ -66,17 +66,8 @@ const SCHALTER: Schalter[] = [
       "volle Gitter dem Auge beim Zeilen-Halten.",
     art: "ja_nein",
   },
-  {
-    schluessel: "vorlage.bankverbindung",
-    label: "Bankverbindung",
-    art: "auswahl",
-    optionen: [
-      ["fuss", "Am Fuß, hinter dem Fußtext"],
-      ["nach_summe", "Direkt unter der Gesamtsumme"],
-    ],
-  },
   { schluessel: "vorlage.rand_oben_mm", label: "Rand oben", art: "zahl", einheit: "mm", min: 20, max: 40 },
-  { schluessel: "vorlage.rand_unten_mm", label: "Rand unten", art: "zahl", einheit: "mm", min: 15, max: 40 },
+  { schluessel: "vorlage.rand_unten_mm", label: "Rand unten", art: "zahl", einheit: "mm", min: 25, max: 40 },
   { schluessel: "vorlage.rand_seitlich_mm", label: "Rand seitlich", art: "zahl", einheit: "mm", min: 15, max: 30 },
 ];
 

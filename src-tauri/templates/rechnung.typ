@@ -11,18 +11,79 @@
 #let rand_seitlich = mass(sys.inputs.v_rand_seitlich_mm)
 #let akzent = rgb(sys.inputs.v_akzentfarbe)
 
-// Fußzeile mit Seitenzahl: Bei einer mehrseitigen Rechnung muss der Empfänger
-// erkennen können, ob das Dokument vollständig ist. Sie erscheint erst ab
-// Seite 2 — auf einer einseitigen Rechnung wäre "Seite 1 von 1" nur Ballast.
+// Geschäftsangaben für den Fuß jeder Seite — als `#let` hier oben, nicht
+// erst weiter unten im Fließtext, wo sie inhaltlich hingehören würden: Der
+// `footer`-Funktionswert von `#set page` unten bindet Variablen lexikalisch
+// an ihrer Quelltextstelle. Was erst später mit `#let` definiert würde,
+// sähe der Fuß nicht.
+//
+// Bankverbindung: gesetzlich nicht vorgeschrieben, aber ohne sie kann der
+// Empfänger nicht zahlen — bei einer Erinnerung erst recht wichtig.
+#let bankverbindung = if ist_gesetzt(sys.inputs.firma_iban) [
+  *Bankverbindung* \
+  IBAN: #sys.inputs.firma_iban
+  #if ist_gesetzt(sys.inputs.firma_bic) [
+    \ BIC: #sys.inputs.firma_bic
+  ]
+] else { [] }
+// Leeres Content-Element statt `none`: Die drei Spalten unten übergeben
+// `bankverbindung` direkt als Grid-Zelle, die dafür `content` erwartet.
+
+// Kontaktangaben: gesetzlich nicht vorgeschrieben — nur was gepflegt ist,
+// erscheint auch. Absichtlich nicht im Kopf neben Logo und Anschrift: Der
+// bleibt bewusst knapp, wie ein DIN-5008-Briefkopf es vorsieht.
+#let kontaktzeilen = (
+  if ist_gesetzt(sys.inputs.firma_telefon) { "Telefon: " + sys.inputs.firma_telefon },
+  if ist_gesetzt(sys.inputs.firma_fax) { "Fax: " + sys.inputs.firma_fax },
+  if ist_gesetzt(sys.inputs.firma_email) { "E-Mail: " + sys.inputs.firma_email },
+).filter(z => z != none)
+
+#let anschrift_und_kontakt = [
+  #sys.inputs.firma_name \
+  #sys.inputs.firma_strasse \
+  #sys.inputs.firma_plz #sys.inputs.firma_ort
+  #if kontaktzeilen.len() > 0 [
+    \ #kontaktzeilen.join(" · ")
+  ]
+]
+
+// Pflichtangabe nach § 14 Abs. 4 Nr. 2 UStG: Steuernummer oder USt-IdNr. des
+// Ausstellers. Ohne sie ist die Rechnung formell fehlerhaft und der
+// Empfänger kann sie zurückweisen.
+#let steuerangaben = [
+  #if ist_gesetzt(sys.inputs.firma_steuernummer) [
+    Steuernummer: #sys.inputs.firma_steuernummer
+  ]
+  #if ist_gesetzt(sys.inputs.firma_steuernummer) and ist_gesetzt(sys.inputs.firma_ust_idnr) [
+    #linebreak()
+  ]
+  #if ist_gesetzt(sys.inputs.firma_ust_idnr) [
+    USt-IdNr.: #sys.inputs.firma_ust_idnr
+  ]
+]
+
+// Fester Geschäfts-Fuß auf jeder Seite: Anschrift/Kontakt, Steuerangaben und
+// Bankverbindung nebeneinander — statt bisher als loser Fließtext nach der
+// Positionstabelle, an unterschiedlichen, einstellbaren Stellen. Die
+// Seitenzahl ("Seite X von Y") bleibt zusätzlich, nur bei mehr als einer
+// Seite — auf einer einseitigen Rechnung wäre sie nur Ballast.
 #set page(
   margin: (top: rand_oben, bottom: rand_unten, x: rand_seitlich),
   footer: context {
     let seiten = counter(page).final().first()
-    if seiten > 1 {
-      align(center, text(size: 8pt, fill: rgb("#666666"))[
-        #sys.inputs.titel #sys.inputs.nummer — Seite #counter(page).display() von #seiten
-      ])
-    }
+    text(size: 8pt)[
+      #grid(
+        columns: (1fr, 1fr, 1fr),
+        column-gutter: 12pt,
+        anschrift_und_kontakt, steuerangaben, bankverbindung,
+      )
+      #if seiten > 1 [
+        #v(0.15cm)
+        #align(center, text(fill: rgb("#666666"))[
+          #sys.inputs.titel #sys.inputs.nummer — Seite #counter(page).display() von #seiten
+        ])
+      ]
+    ]
   },
 )
 
@@ -262,59 +323,7 @@
   ]
 ]
 
-// Bankverbindung: gesetzlich nicht vorgeschrieben, aber ohne sie kann der
-// Empfänger nicht zahlen — bei einer Erinnerung erst recht wichtig.
-#let bankverbindung = if ist_gesetzt(sys.inputs.firma_iban) [
-  #v(0.5cm)
-  #text(size: 9pt)[
-    *Bankverbindung* \
-    IBAN: #sys.inputs.firma_iban
-    #if ist_gesetzt(sys.inputs.firma_bic) [
-      \ BIC: #sys.inputs.firma_bic
-    ]
-  ]
-] else { none }
-
-#if sys.inputs.v_bankverbindung == "nach_summe" and bankverbindung != none [
-  #bankverbindung
-]
-
 #if not ist_erinnerung and ist_gesetzt(sys.inputs.fusstext) [
   #v(0.5cm)
   #sys.inputs.fusstext
-]
-
-#if sys.inputs.v_bankverbindung != "nach_summe" and bankverbindung != none [
-  #bankverbindung
-]
-
-// Kontaktangaben: gesetzlich nicht vorgeschrieben, anders als die
-// Steuernummer/USt-IdNr. unten — nur was gepflegt ist, erscheint auch.
-// Absichtlich nicht im Kopf neben Logo und Anschrift: Der bleibt bewusst
-// knapp, wie ein DIN-5008-Briefkopf es vorsieht.
-#let kontaktzeilen = (
-  if ist_gesetzt(sys.inputs.firma_telefon) { "Telefon: " + sys.inputs.firma_telefon },
-  if ist_gesetzt(sys.inputs.firma_fax) { "Fax: " + sys.inputs.firma_fax },
-  if ist_gesetzt(sys.inputs.firma_email) { "E-Mail: " + sys.inputs.firma_email },
-).filter(z => z != none)
-
-#if kontaktzeilen.len() > 0 [
-  #v(0.3cm)
-  #text(size: 9pt)[#kontaktzeilen.join(" · ")]
-]
-
-// Pflichtangabe nach § 14 Abs. 4 Nr. 2 UStG: Steuernummer oder USt-IdNr. des
-// Ausstellers. Ohne sie ist die Rechnung formell fehlerhaft und der Empfänger
-// kann sie zurückweisen.
-#v(0.5cm)
-#text(size: 9pt)[
-  #if ist_gesetzt(sys.inputs.firma_steuernummer) [
-    Steuernummer: #sys.inputs.firma_steuernummer
-  ]
-  #if ist_gesetzt(sys.inputs.firma_steuernummer) and ist_gesetzt(sys.inputs.firma_ust_idnr) [
-    #linebreak()
-  ]
-  #if ist_gesetzt(sys.inputs.firma_ust_idnr) [
-    USt-IdNr.: #sys.inputs.firma_ust_idnr
-  ]
 ]
