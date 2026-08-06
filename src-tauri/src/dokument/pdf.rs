@@ -812,6 +812,23 @@ pub(crate) mod tests {
         assert!(!t.contains("GiroCode"), "Girocode auf einem Storno:\n{t}");
     }
 
+    /// Isoliert die `storno_von_id.is_none()`-Prüfung von der Betrags-Wache in
+    /// `girocode_matrix_json`: `storno_zeigt_keinen_girocode` setzt zusätzlich
+    /// einen negativen Betrag, sodass der `betrag_cent <= 0`-Guard allein den
+    /// Girocode schon unterdrückt hätte — der Test dort könnte eine entfernte
+    /// oder abgeschwächte Storno-Prüfung nicht aufdecken. Ein Storno mit
+    /// positivem Betrag ist real nicht möglich (eine Gutschrift hat per
+    /// Definition einen negativen oder Null-Betrag), aber genau deshalb prüft
+    /// dieser synthetische Zustand ausschließlich die Storno-Prüfung selbst.
+    #[test]
+    fn storno_mit_positivem_betrag_zeigt_trotzdem_keinen_girocode() {
+        let mut kontext = test_kontext();
+        kontext.beleg.storno_von_id = Some("b0".into());
+        kontext.beleg.summe_cent = 9500;
+        let t = text(&kontext);
+        assert!(!t.contains("GiroCode"), "Girocode auf einem Storno mit positivem Betrag:\n{t}");
+    }
+
     #[test]
     fn zahlungserinnerung_zeigt_den_girocode() {
         let t = text_erinnerung(&test_kontext(), tag("2026-08-04"), "Text");
