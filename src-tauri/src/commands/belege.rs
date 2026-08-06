@@ -498,11 +498,17 @@ pub async fn duplizieren(pool: &SqlitePool, id: String) -> AppResult<Beleg> {
     let kopie_id = Uuid::new_v4().to_string();
     let summe = belegsumme_cent(&positionen.iter().map(|p| p.positionssumme_cent).collect::<Vec<_>>());
     let mut tx = pool.begin().await?;
-    sqlx::query("INSERT INTO beleg (id, typ, nummer, status, kunde_id, datum, leistungsdatum, leistungsdatum_bis, gueltig_bis, zahlungsziel_tage, kopftext, fusstext, summe_cent, ursprungsangebot_id, storno_von_id, adresse_id, ansprechpartner_id, created_at, updated_at) VALUES (?,?,NULL,'entwurf',?,?,?,NULL,?,?,?,?,?,NULL,NULL,?,?,?,?)")
+    // Der Gesamt-Auftragswert wird mitkopiert: Mehrere Abschlagsrechnungen
+    // zum selben Auftrag sollen denselben Wert nicht jedes Mal neu tragen
+    // müssen. Da die Kopie dieselben Positionen übernimmt, bleibt ihre Summe
+    // gleich der des Originals — die beim Original geprüfte Invariante
+    // (Gesamt-Auftragswert ≥ Summe) gilt für die Kopie unverändert weiter.
+    sqlx::query("INSERT INTO beleg (id, typ, nummer, status, kunde_id, datum, leistungsdatum, leistungsdatum_bis, gueltig_bis, zahlungsziel_tage, kopftext, fusstext, summe_cent, ursprungsangebot_id, storno_von_id, adresse_id, ansprechpartner_id, gesamtauftragswert_cent, created_at, updated_at) VALUES (?,?,NULL,'entwurf',?,?,?,NULL,?,?,?,?,?,NULL,NULL,?,?,?,?,?)")
         .bind(&kopie_id).bind(&quelle.typ).bind(&quelle.kunde_id)
         .bind(&heute).bind(&heute).bind(&gueltig_bis).bind(quelle.zahlungsziel_tage)
         .bind(&quelle.kopftext).bind(&quelle.fusstext).bind(summe)
         .bind(&adresse_id).bind(&ansprechpartner_id)
+        .bind(quelle.gesamtauftragswert_cent)
         .bind(jetzt()).bind(jetzt())
         .execute(&mut *tx).await?;
 
@@ -1858,6 +1864,35 @@ mod tests {
         assert_eq!(detail.positionen[0].einzelpreis_cent, 9550);
         assert_eq!(detail.positionen[1].bezeichnung, "Sonderposten");
         assert_eq!(detail.positionen[1].einzelpreis_cent, 500);
+    }
+
+    /// Mehrere Abschlagsrechnungen zum selben Auftrag sollen den
+    /// Gesamt-Auftragswert nicht jedes Mal neu tragen müssen.
+    #[tokio::test]
+    async fn duplizieren_uebernimmt_den_gesamt_auftragswert() {
+        let (_d, pool) = test_pool().await;
+        let kunde = kunde_anlegen(&pool).await;
+        let artikel = artikel_anlegen(&pool, 50000).await;
+        let original = create(&pool, BelegNeu {
+            typ: "rechnung".into(), kunde_id: kunde.clone(), datum: "2026-01-10".into(),
+            leistungsdatum: "2026-01-10".into(), leistungsdatum_bis: None, zahlungsziel_tage: 14,
+            kopftext: "".into(), fusstext: "".into(),
+        }).await.unwrap();
+        position_speichern(&pool, BelegpositionNeu {
+            id: "".into(), beleg_id: original.id.clone(), artikel_id: Some(artikel),
+            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000, ust_satz_prozent: None,
+        }).await.unwrap();
+        update(&pool, BelegUpdate {
+            id: original.id.clone(), kunde_id: kunde.clone(), datum: original.datum.clone(),
+            leistungsdatum: original.leistungsdatum.clone(), leistungsdatum_bis: None, gueltig_bis: None,
+            zahlungsziel_tage: 14, kopftext: "".into(), fusstext: "".into(),
+            adresse_id: None, ansprechpartner_id: None,
+            gesamtauftragswert_cent: Some(147000),
+        }).await.unwrap();
+
+        let kopie = duplizieren(&pool, original.id.clone()).await.unwrap();
+
+        assert_eq!(kopie.gesamtauftragswert_cent, Some(147000));
     }
 
     /// Eine Kopie ist ein neuer Vorgang, kein rückdatiertes Duplikat — Datum
