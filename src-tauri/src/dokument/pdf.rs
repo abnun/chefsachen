@@ -214,6 +214,7 @@ pub(crate) fn dokument_bauen(
         }),
         ("storno_von_nummer", kontext.storno_von_nummer.clone().unwrap_or_default()),
         ("kunde_ansprechpartner", kontext.kunde_ansprechpartner.clone()),
+        ("kunde_kundennummer", kontext.kunde_kundennummer.clone()),
         ("kunde_name", kontext.kunde_name.clone()),
         ("kunde_strasse", kontext.adresse_strasse.clone()),
         ("kunde_plz", kontext.adresse_plz.clone()),
@@ -998,6 +999,30 @@ pub(crate) mod tests {
     fn rechnung_enthaelt_den_kopftext() {
         let t = text(&test_kontext());
         assert!(t.contains("Wie besprochen"), "Kopftext fehlt.\n\nText:\n{t}");
+    }
+
+    /// `kunde_kundennummer` existiert in `BelegKontext` bereits seit der
+    /// Kundenverwaltung, wurde aber nie an die Vorlage weitergereicht.
+    #[test]
+    fn rechnung_enthaelt_die_kundennummer() {
+        let t = text(&test_kontext());
+        assert!(t.contains("KD-0001"), "Kundennummer fehlt:\n{t}");
+    }
+
+    #[test]
+    fn kopf_zeigt_rechnungsnummer_kundennummer_und_datum_als_tabelle() {
+        let t = text(&test_kontext());
+        assert!(t.contains("Rechnungsnummer:"), "Label fehlt:\n{t}");
+        assert!(t.contains("Kundennummer:"), "Label fehlt:\n{t}");
+    }
+
+    #[test]
+    fn kopf_nennt_ein_angebot_angebotsnummer_statt_rechnungsnummer() {
+        let mut kontext = test_kontext();
+        kontext.beleg.typ = "angebot".into();
+        let t = text(&kontext);
+        assert!(t.contains("Angebotsnummer:"), "Label fehlt:\n{t}");
+        assert!(!t.contains("Rechnungsnummer:"), "falsches Label für ein Angebot:\n{t}");
     }
 
     /// Bei vielen Positionen bricht Typst um. Ohne Seitenzahl kann der Empfänger

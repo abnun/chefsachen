@@ -92,9 +92,7 @@
 // Abstand bis unter das Anschriftfeld (45 mm + 40 mm nach Norm).
 #v(85mm - rand_oben)
 
-= #sys.inputs.titel #sys.inputs.nummer
-
-Datum: #sys.inputs.datum
+= #sys.inputs.titel
 
 // Eine Zahlungserinnerung teilt Briefkopf, Anschriftfeld und Bankverbindung
 // mit der Rechnung, aber nicht die Positionstabelle und die rechtlichen
@@ -118,14 +116,26 @@ Datum: #sys.inputs.datum
     [*Offener Betrag*], [*#sys.inputs.at("erinnerung_offener_betrag", default: "")*],
   )
 ] else [
-  \ #sys.inputs.leistung_beschriftung: #sys.inputs.leistungsdatum
+  #let nummer_label = if sys.inputs.titel == "Angebot" { "Angebotsnummer:" } else { "Rechnungsnummer:" }
+  #let leistung_label = sys.inputs.leistung_beschriftung + ":"
+  #table(
+    columns: (auto, 1fr),
+    align: (left, right),
+    stroke: none,
+    inset: (y: 2pt),
+    [#nummer_label], [#sys.inputs.nummer],
+    [Kundennummer:], [#sys.inputs.kunde_kundennummer],
+    [Datum:], [#sys.inputs.datum],
+    [#leistung_label], [#sys.inputs.leistungsdatum],
+  )
+
   #if ist_gesetzt(sys.inputs.zahlungsbedingung) [
-    \ #sys.inputs.zahlungsbedingung
+    #sys.inputs.zahlungsbedingung
   ]
   // Umgekehrt: eine Gültigkeit ist eine Angebotssache. Der Fußtext versprach
   // bisher eine Frist, ohne dass ein Datum dazu auf dem Beleg stand.
   #if ist_gesetzt(sys.inputs.angebot_gueltig_bis) [
-    \ Gültig bis: #sys.inputs.angebot_gueltig_bis
+    Gültig bis: #sys.inputs.angebot_gueltig_bis
   ]
 
   // Eine Rechnungskorrektur ohne Bezug zur ursprünglichen Rechnung ist für die
