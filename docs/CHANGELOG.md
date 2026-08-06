@@ -7,6 +7,13 @@ auf GitHub ändert daran nichts mehr.
 
 Deshalb hier in der Sprache der Anwender, nicht in der der Commits.
 
+## 0.10.2
+
+**Artikel & Leistungen, Eingangsrechnungen**
+- Neues Suchfeld, wie schon bei Kunden — findet Artikel nach Nummer oder
+  Bezeichnung, Eingangsrechnungen nach Rechnungssteller oder Nummer.
+  ⌘F (Strg+F) springt von überall auf der Seite dorthin.
+
 ## 0.10.1
 
 **Beleg-Layout**
