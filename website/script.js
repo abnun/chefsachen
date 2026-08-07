@@ -18,12 +18,10 @@ function hervorheben(os) {
   if (!primaer || !sekundaer) return;
 
   const primaerHref = primaer.href;
-  const primaerText = primaer.textContent;
   primaer.href = sekundaer.href;
   primaer.textContent = "Für Windows herunterladen";
   sekundaer.href = primaerHref;
   sekundaer.textContent = "macOS-Version herunterladen";
-  void primaerText; // nur zur Klarheit im Lesefluss, kein weiterer Gebrauch
 }
 
 hervorheben(erkanntesBetriebssystem());

@@ -86,6 +86,9 @@ einmalig zu bestätigen.
 Die **Update-Pakete** sind davon unabhängig sehr wohl signiert, mit einem
 eigenen minisign-Schlüsselpaar. Ein Paket, dessen Signatur nicht zum in
 `tauri.conf.json` hinterlegten öffentlichen Schlüssel passt, wird abgelehnt.
+Der öffentliche Schlüssel ist in `src-tauri/tauri.conf.json` unter
+`plugins.updater.pubkey` hinterlegt und damit für jeden nachprüfbar; jede
+Installation prüft Update-Pakete gegen genau diesen Schlüssel.
 
 ### Eine neue Version veröffentlichen
 
