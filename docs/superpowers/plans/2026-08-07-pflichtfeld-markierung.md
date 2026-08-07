@@ -378,11 +378,13 @@ const ZEICHEN: Record<PflichtArt, string> = {
  * Kein natives `required`-Attribut allein: Die Browser-Blase sieht in jedem
  * System anders aus und verschwindet beim nächsten Klick. Dieses Zeichen
  * bleibt stehen; die eigentliche Prüfung passiert weiterhin im Rust-Teil.
- * `aria-hidden`, damit ein Screenreader nicht "Name Stern" vorliest — wer
- * eine Hilfstechnologie nutzt, bekommt die Information stattdessen über den
- * `title` beim Fokussieren des zugehörigen Eingabefelds (siehe `aria-label`-
- * Ergänzung an den Eingabefeldern selbst in den folgenden Tasks, falls die
- * Formularbeschriftung das nicht schon abdeckt).
+ *
+ * `aria-hidden`, damit ein Screenreader nicht "Name Stern" vorliest. Das ist
+ * bewusst nur eine Markierung für sehende Nutzer — dieser Task ergänzt kein
+ * `aria-required` an den Eingabefeldern selbst (das wäre eine eigene,
+ * größere Änderung an jedem einzelnen Feld). Wer eine Hilfstechnologie
+ * nutzt, erfährt die Pflicht wie bisher über die Fehlermeldung beim
+ * Abschicken.
  */
 export function PflichtMarker({ art }: { art: PflichtArt }) {
   return (
