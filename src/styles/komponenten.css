@@ -1039,3 +1039,14 @@ label.feld textarea {
   color: var(--text-leise);
   font-size: var(--text-s);
 }
+
+/* Pflichtfeld-Markierung (PflichtMarker.tsx) — dezent, keine Alarmfarbe: es
+   ist ein Hinweis, kein Fehler. */
+.pflicht-marker {
+  color: var(--text-leise);
+  font-weight: 600;
+}
+
+.pflicht-legende {
+  margin-top: var(--abstand-s);
+}
