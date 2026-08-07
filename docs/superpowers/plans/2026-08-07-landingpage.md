@@ -53,12 +53,21 @@ Pages. Design-Feinschliff über den Skill `impeccable`.
 - Create: `website/app-icon.png` (Kopie von `public/app-icon.png`)
 
 **Interfaces:**
-- Produces: die drei HTML-Seiten mit festen `id`-Attributen an den
-  Download-Buttons (`id="download-macos"`, `id="download-windows"`) und
-  einem Container `id="download-liste"` — Task 2 (OS-Erkennung) und Task 3
-  (Workflow-Link-Einspeisung) greifen darauf zu.
+- Produces: die drei HTML-Seiten mit genau zwei Download-Links —
+  `id="download-primaer"` (Haupt-Button, Vorgabe macOS) und
+  `id="download-sekundaer"` (Alternative, Vorgabe Windows). Task 2
+  (OS-Erkennung) vertauscht bei Bedarf Text und `href` zwischen beiden;
+  Task 3 (Workflow-Link-Einspeisung) setzt ihre `href`-Werte.
 - Produces: CSS-Klassen `.download-primaer` / `.download-nebenrangig` an
-  den Download-Buttons — Task 2 schaltet sie per JavaScript um.
+  den Download-Buttons.
+
+**Design-Entscheidung:** Genau zwei Links statt drei (Haupt-Button +
+zwei nebenrangige) — mit drei Links zeigte die Vorgabe (kein JavaScript
+oder unbekanntes Betriebssystem) macOS doppelt: einmal als Haupt-Button,
+einmal zusätzlich als nebenrangigen Link direkt darunter. Mit nur einem
+Sekundär-Slot gibt es diese Redundanz in keinem Zustand — ohne JavaScript
+sieht man genau einen macOS- und einen Windows-Link, nie denselben
+zweimal.
 
 - [ ] **Schritt 1: `website/fonts/Inter.ttf` anlegen**
 
@@ -151,12 +160,11 @@ header, main, footer {
     <p>Rechnungen und Angebote für Kleinunternehmer nach § 19 UStG — lokal, ohne Cloud, kostenlos.</p>
 
     <p>
-      <a id="download-macos" class="download-primaer" href="https://github.com/abnun/kleinunternehmer-verwaltung/releases/latest">Für macOS herunterladen</a>
+      <a id="download-primaer" class="download-primaer" href="https://github.com/abnun/kleinunternehmer-verwaltung/releases/latest">Für macOS herunterladen</a>
     </p>
-    <div id="download-liste">
-      <a id="download-macos-nebenrangig" class="download-nebenrangig" href="https://github.com/abnun/kleinunternehmer-verwaltung/releases/latest">macOS (.dmg)</a>
-      <a id="download-windows" class="download-nebenrangig" href="https://github.com/abnun/kleinunternehmer-verwaltung/releases/latest">Windows (.exe / .msi)</a>
-    </div>
+    <p>
+      <a id="download-sekundaer" class="download-nebenrangig" href="https://github.com/abnun/kleinunternehmer-verwaltung/releases/latest">Windows-Version herunterladen</a>
+    </p>
     <p><small>Version <span id="release-version">siehe Releases</span> · <a href="https://github.com/abnun/kleinunternehmer-verwaltung/releases">Alle Versionen</a></small></p>
   </header>
 
@@ -205,8 +213,10 @@ header, main, footer {
     <section aria-label="Open Source">
       <h2>Open Source</h2>
       <p>
-        <img src="https://img.shields.io/github/license/abnun/kleinunternehmer-verwaltung" alt="Lizenz: MIT" />
         <img src="https://github.com/abnun/kleinunternehmer-verwaltung/actions/workflows/ci.yml/badge.svg" alt="Status der automatisierten Tests" />
+      </p>
+      <p>
+        Lizenziert unter der <a href="https://github.com/abnun/kleinunternehmer-verwaltung/blob/main/LICENSE">MIT-Lizenz</a>.
       </p>
       <p>
         <a href="https://github.com/abnun/kleinunternehmer-verwaltung">Quellcode auf GitHub ansehen</a> ·
@@ -389,73 +399,69 @@ git commit -m "feat: Landingpage — Inhalt, Struktur, selbst gehostete Schrift"
   Task 1, Schritt 3 — `<script src="script.js" defer>`)
 
 **Interfaces:**
-- Consumes: `#download-macos`, `#download-macos-nebenrangig`,
-  `#download-windows`, `.download-primaer`, `.download-nebenrangig` aus
-  Task 1.
-- Verhalten: Ändert ausschließlich CSS-Klassen und die Reihenfolge der
-  Sichtbarkeit — nie `href`-Attribute. Task 3 schreibt die `href`-Werte,
-  dieses Skript fasst sie nicht an.
+- Consumes: `#download-primaer`, `#download-sekundaer` aus Task 1.
+- Verhalten: Vertauscht bei erkanntem Windows Text **und** `href`
+  zwischen den beiden Elementen. Nichts wird entfernt oder neu erzeugt —
+  dadurch bleiben immer genau zwei Links sichtbar, nie einer doppelt.
+  Task 3 schreibt die ursprünglichen `href`-Werte (macOS auf
+  `#download-primaer`, Windows auf `#download-sekundaer`); dieses Skript
+  vertauscht sie zur Laufzeit bei Bedarf, ändert aber nicht, welche zwei
+  Ziel-URLs insgesamt existieren.
 
 - [ ] **Schritt 1: `website/script.js`**
 
 ```javascript
-// Hebt den zur erkannten Plattform passenden Download-Button optisch
-// hervor. Reine Optik: Alle Links bleiben immer klickbar, auch wenn die
-// Erkennung nichts Passendes findet (z. B. auf Linux, wofür es keinen
-// Build gibt) — dann bleibt einfach die im HTML vorgegebene Reihenfolge.
+// Vertauscht Haupt- und Alternativ-Download, wenn Windows erkannt wird.
+// Vorgabe im HTML ist macOS als Haupt-Button — für macOS oder ein nicht
+// erkanntes System (z. B. Linux, wofür es keinen Build gibt) bleibt das
+// so; es wird nie etwas entfernt, nur bei Windows vertauscht. Dadurch
+// gibt es in jedem Zustand genau zwei Links, nie eine Dopplung.
 function erkanntesBetriebssystem() {
   const ua = navigator.userAgent;
-  if (ua.includes("Mac OS X") || ua.includes("Macintosh")) return "macos";
   if (ua.includes("Windows")) return "windows";
+  if (ua.includes("Mac OS X") || ua.includes("Macintosh")) return "macos";
   return null;
 }
 
 function hervorheben(os) {
-  const heroButton = document.getElementById("download-macos");
-  const macNebenrangig = document.getElementById("download-macos-nebenrangig");
-  const windowsButton = document.getElementById("download-windows");
-  if (!heroButton || !macNebenrangig || !windowsButton) return;
+  if (os !== "windows") return;
 
-  if (os === "windows") {
-    heroButton.textContent = "Für Windows herunterladen";
-    heroButton.href = windowsButton.href;
-    windowsButton.remove();
-    macNebenrangig.textContent = "macOS (.dmg)";
-  } else if (os === "macos") {
-    heroButton.textContent = "Für macOS herunterladen";
-    heroButton.href = macNebenrangig.href;
-    macNebenrangig.remove();
-  }
-  // os === null: Hero-Button bleibt bei macOS als Vorgabe, beide
-  // nebenrangigen Links bleiben stehen — niemand verliert eine Option.
+  const primaer = document.getElementById("download-primaer");
+  const sekundaer = document.getElementById("download-sekundaer");
+  if (!primaer || !sekundaer) return;
+
+  const primaerHref = primaer.href;
+  const primaerText = primaer.textContent;
+  primaer.href = sekundaer.href;
+  primaer.textContent = "Für Windows herunterladen";
+  sekundaer.href = primaerHref;
+  sekundaer.textContent = "macOS-Version herunterladen";
+  void primaerText; // nur zur Klarheit im Lesefluss, kein weiterer Gebrauch
 }
 
 hervorheben(erkanntesBetriebssystem());
 ```
 
-- [ ] **Schritt 2: Prüfen — macOS-Erkennung**
+- [ ] **Schritt 2: Prüfen — macOS-Erkennung (und unbekanntes System)**
 
 In den Entwicklertools (Chrome/Firefox) den User-Agent auf einen
-macOS-String stellen (z. B. über die Geräte-Symbolleiste „Responsive
-Design Mode" mit einem Mac-Profil, oder `Object.defineProperty(navigator, 'userAgent', {value: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"})`
-in der Konsole vor dem Neuladen). Erwartet: Der Haupt-Button zeigt „Für
-macOS herunterladen", der nebenrangige macOS-Link ist verschwunden, der
-Windows-Link bleibt sichtbar.
+macOS-String stellen, z. B. per
+`Object.defineProperty(navigator, 'userAgent', {value: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"})`
+in der Konsole vor dem Neuladen. Erwartet: keine Änderung gegenüber der
+HTML-Vorgabe — Haupt-Button „Für macOS herunterladen", Alternativ-Link
+„Windows-Version herunterladen". Denselben Test mit einem
+Linux-User-Agent wiederholen: gleiches Ergebnis, nichts ändert sich.
 
 - [ ] **Schritt 3: Prüfen — Windows-Erkennung**
 
 Denselben Test mit einem Windows-User-Agent-String wiederholen. Erwartet:
-Haupt-Button zeigt „Für Windows herunterladen", der nebenrangige
-Windows-Link ist verschwunden, der macOS-Link bleibt sichtbar.
+Haupt-Button zeigt jetzt „Für Windows herunterladen" mit der zuvor im
+Alternativ-Link stehenden `href`, der Alternativ-Link zeigt „macOS-Version
+herunterladen" mit der zuvor im Haupt-Button stehenden `href`. Beide
+`href`-Werte zusammen sind exakt dieselben zwei wie vorher — nur
+vertauscht, keiner geht verloren, keiner verdoppelt sich.
 
-- [ ] **Schritt 4: Prüfen — unbekanntes Betriebssystem**
-
-Mit einem Linux- oder unbekannten User-Agent-String wiederholen. Erwartet:
-Nichts ändert sich — beide nebenrangigen Links bleiben stehen, der
-Haupt-Button bleibt bei der HTML-Vorgabe (macOS). Kein Link verschwindet
-unbegründet.
-
-- [ ] **Schritt 5: Commit**
+- [ ] **Schritt 4: Commit**
 
 ```bash
 git add website/script.js
@@ -470,28 +476,18 @@ git commit -m "feat: Landingpage hebt Download je nach erkanntem Betriebssystem 
 - Create: `.github/workflows/pages.yml`
 
 **Interfaces:**
-- Consumes: `website/index.html`s feste Marker-Kommentare
-  `<!-- RELEASE_VERSION -->` und die `href`-Werte von `#download-macos`,
-  `#download-macos-nebenrangig`, `#download-windows` (siehe Task 1) als
-  Ersetzungsziele.
+- Consumes: `website/index.html`s feste `id`-Attribute
+  `#release-version`, `#download-primaer`, `#download-sekundaer` (siehe
+  Task 1) als Ersetzungsziele.
 - Produces: den fertigen, veröffentlichbaren Inhalt des Ordners
   `website/` als GitHub-Pages-Artefakt.
 
-- [ ] **Schritt 1: Marker in `website/index.html` ergänzen**
+- [ ] **Schritt 1: Vorbedingung prüfen**
 
-Damit der Workflow die Version textuell einsetzen kann, ohne raten zu
-müssen, welches der drei `<span>`/`<a>`-Elemente gemeint ist, wird die
-Versionsanzeige um einen Kommentar-Marker ergänzt. Ändere die Zeile aus
-Task 1, Schritt 3:
-
-Vorher:
-```html
-    <p><small>Version <span id="release-version">siehe Releases</span> · <a href="https://github.com/abnun/kleinunternehmer-verwaltung/releases">Alle Versionen</a></small></p>
-```
-
-Nachher (unverändert bis auf die `id`, die schon da war — dieser Schritt
-dokumentiert nur, dass Task 3 exakt dieses `id="release-version"`-Element
-per `sed` ersetzt; keine weitere Code-Änderung an `index.html` nötig).
+`website/index.html` aus Task 1 hat bereits die `id`-Attribute
+`release-version`, `download-primaer` und `download-sekundaer` — keine
+weitere Code-Änderung an `index.html` nötig. Dieser Schritt dokumentiert
+nur, dass Task 3 exakt diese drei Elemente per `sed` ersetzt.
 
 - [ ] **Schritt 2: `.github/workflows/pages.yml`**
 
@@ -549,15 +545,13 @@ jobs:
         run: |
           sed -i \
             -e "s#<span id=\"release-version\">siehe Releases</span>#<span id=\"release-version\">${{ steps.release.outputs.version }}</span>#" \
-            -e "s#id=\"download-macos\" class=\"download-primaer\" href=\"[^\"]*\"#id=\"download-macos\" class=\"download-primaer\" href=\"${{ steps.release.outputs.dmg }}\"#" \
-            -e "s#id=\"download-macos-nebenrangig\" class=\"download-nebenrangig\" href=\"[^\"]*\"#id=\"download-macos-nebenrangig\" class=\"download-nebenrangig\" href=\"${{ steps.release.outputs.dmg }}\"#" \
-            -e "s#id=\"download-windows\" class=\"download-nebenrangig\" href=\"[^\"]*\"#id=\"download-windows\" class=\"download-nebenrangig\" href=\"${{ steps.release.outputs.exe }}\"#" \
+            -e "s#id=\"download-primaer\" class=\"download-primaer\" href=\"[^\"]*\"#id=\"download-primaer\" class=\"download-primaer\" href=\"${{ steps.release.outputs.dmg }}\"#" \
+            -e "s#id=\"download-sekundaer\" class=\"download-nebenrangig\" href=\"[^\"]*\"#id=\"download-sekundaer\" class=\"download-nebenrangig\" href=\"${{ steps.release.outputs.exe }}\"#" \
             website/index.html
-          # Windows-MSI ist der Zweitlink hinter dem exe-Link im Fließtext
-          # ("Windows (.exe / .msi)") — die MSI-URL wird hier bewusst nicht
-          # als eigener Button eingesetzt, um die Seite nicht mit einer
-          # dritten Windows-Option zu überladen; sie bleibt über die
-          # allgemeine Release-Seite erreichbar.
+          # Die MSI-URL (steps.release.outputs.msi) wird hier bewusst nicht
+          # als eigener dritter Download-Button eingesetzt — die Seite hat
+          # genau zwei Download-Links (siehe Task 1), die MSI-Variante
+          # bleibt über die allgemeine Release-Seite erreichbar.
 
       - name: Prüfen, dass alle Platzhalter ersetzt wurden
         run: |
@@ -615,9 +609,9 @@ git commit -m "feat: GitHub-Actions-Workflow für die Landingpage (Pages-Deploy)
 **Interfaces:**
 - Consumes: den vollständigen Inhalt aus Task 1 — dieser Task ändert
   **Aussehen**, nicht Inhalt/Struktur/Copy. Alle `id`-Attribute aus Task 1
-  und 2 (`download-macos`, `download-macos-nebenrangig`,
-  `download-windows`, `release-version`) müssen erhalten bleiben, sonst
-  bricht Task 2s Skript und Task 3s `sed`-Ersetzung.
+  und 2 (`download-primaer`, `download-sekundaer`, `release-version`)
+  müssen erhalten bleiben, sonst bricht Task 2s Skript und Task 3s
+  `sed`-Ersetzung.
 
 - [ ] **Schritt 1: Kontext laden**
 
@@ -646,10 +640,10 @@ einer neuen Seite vorsieht).
 
 Nach dem Feinschliff-Durchgang:
 
-Run: `grep -c 'id="download-macos"' website/index.html`
+Run: `grep -c 'id="download-primaer"' website/index.html`
 Expected: `1` (das Attribut existiert weiterhin genau einmal)
 
-Run: `grep -c 'id="download-windows"' website/index.html`
+Run: `grep -c 'id="download-sekundaer"' website/index.html`
 Expected: `1`
 
 Run: `grep -c 'id="release-version"' website/index.html`
