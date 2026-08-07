@@ -12,7 +12,7 @@ import { join } from "node:path";
  * Webview, die auch der ausgelieferte Linux-Bau benutzt. Für WKWebView auf
  * macOS gibt es kein Gegenstück, deshalb läuft dieser Test dort nicht.
  */
-const ANWENDUNG = process.env.KUV_BINARY ?? "../src-tauri/target/debug/kleinunternehmer-verwaltung";
+const ANWENDUNG = process.env.KUV_BINARY ?? "../src-tauri/target/debug/chefsachen";
 const PORT = 4444;
 
 let treiber;

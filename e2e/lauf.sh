@@ -44,7 +44,7 @@ echo "== Durchstich fahren =="
 # Der Zielordner ist verschiebbar (CARGO_TARGET_DIR), der Pfad zur Binärdatei
 # also nicht fest. Ihn zu raten hieße, den Test an einer Datei scheitern zu
 # lassen, die es gibt — nur woanders.
-ZIEL="${CARGO_TARGET_DIR:-src-tauri/target}/debug/kleinunternehmer-verwaltung"
+ZIEL="${CARGO_TARGET_DIR:-src-tauri/target}/debug/chefsachen"
 test -x "$ZIEL" || { echo "Binärdatei nicht gefunden: $ZIEL" >&2; exit 1; }
 export KUV_BINARY="$(realpath "$ZIEL")"
 echo "Anwendung: $KUV_BINARY"

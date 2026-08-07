@@ -1,5 +1,5 @@
 {
-  "name": "kleinunternehmer-verwaltung-e2e",
+  "name": "chefsachen-e2e",
   "private": true,
   "version": "0.1.0",
   "description": "Browsergetriebener Durchstich über tauri-driver (nur Linux)",
