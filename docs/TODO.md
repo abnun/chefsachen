@@ -1,50 +1,12 @@
 # TODO
 
-**Das MVP-Ziel ist erreicht:** Version 1.0.0 wurde am 2026-08-07 veröffentlicht —
-umbenannt zu „Chefsachen", mit öffentlicher Website
-(https://abnun.github.io/chefsachen/), nach rechtlicher und
-sicherheitstechnischer Prüfung. Diese Datei führt oben nur noch, was offen
-ist; alles Abgeschlossene steht darunter im Archiv (samt Begründungen — die
-sind oft wertvoller als der Haken).
+Geplante Funktionen, offene Fehler und Sicherheitsthemen, die die
+Funktionsweise der App direkt betreffen. Version 1.0.0 wurde am 2026-08-07
+veröffentlicht; alles davor Abgeschlossene steht im Archiv weiter unten.
 
 ## Offen
 
-- **Offline-Sicherung des minisign-Schlüsselpaars** (`~/.tauri/kleinunternehmer-verwaltung.key`,
-  liegt bewusst außerhalb des Repos). Geht der Schlüssel verloren, lassen sich
-  für bestehende Installationen **nie wieder Updates** ausliefern — wichtigster
-  offener Punkt, nur vom Betreiber selbst erledigbar.
-- **Girocode mit echter Banking-App scannen.** Die EPC069-12-Nutzlast ist per
-  Rundtrip-Test geprüft, aber noch nie von einer echten Smartphone-Kamera
-  gelesen worden. Einmal eine Rechnung mit Girocode drucken/anzeigen und mit
-  einer Banking-App testen.
-- **Sporadischer Testausfall in `KundeDetail`** („fragt nicht, wenn eine
-  Änderung wieder zurückgenommen wurde") ist weiter unerklärt. Nicht
-  reproduzierbar in 25 Läufen; entschärft (Suche über Beschriftung statt
-  `getByDisplayValue`), nicht behoben. Tritt es wieder auf: sofort untersuchen.
-- **P5.6 — Signierung mit Plattform-Zertifikaten**, bewusst zurückgestellt
-  (kostenloses Projekt, Zertifikate kosten ~100 €/Jahr je Plattform). Folge:
-  Beim ersten Installieren blockiert das Betriebssystem die App einmalig
-  (siehe [installation.md](installation.md)). Beim Aktualisieren nicht — der
-  Updater tauscht die App ohne Quarantäne-Merkmal aus.
-- **P0 — iCloud Drive: bewusste Entscheidung (2026-08-03), es bleibt dabei.**
-  Bekannte Folgen: `npm ci` kann an Dubletten wie `node_modules/esbuild 2/`
-  scheitern (Abhilfe: `npm install`), Werkzeuge stolpern über ausgelagerte
-  Dateien („Resource deadlock avoided", der Container-Durchstich umgeht das
-  mit `--ignore-failed-read`), `npm test` braucht zeitweise 112 s statt ~5 s.
-  Wer auf Merkwürdigkeiten stößt — fehlende Dateien, doppelte Ordner mit
-  Leerzeichen im Namen, unerklärlich langsame Läufe —, prüft diese Ursache
-  zuerst.
-
-### Ideen / bei Bedarf
-
-- **Eigene Domain für die Website** (z. B. chefsachen.de): nur `CNAME`-Datei
-  plus DNS-Eintrag, GitHub stellt das TLS-Zertifikat; die Seite ist darauf
-  vorbereitet.
-- **Passkey/Hardware-Key als 2FA** fürs GitHub-Konto (phishing-resistent;
-  das Konto ist der Single Point of Failure inkl. Update-Signaturschlüssel
-  als Repository-Secret).
-- **PayPal-AGB im Blick behalten**, falls regelmäßig Zuwendungen eingehen
-  (Empfangsbeschränkungen bei Privatkonten).
+_Derzeit keine offenen Punkte._
 
 ---
 
@@ -52,8 +14,7 @@ sind oft wertvoller als der Haken).
 
 Ursprünglich: priorisierte Arbeitsliste, abgeleitet aus dem
 [MVP-Review vom 2026-08-02](2026-08-02-mvp-review.md). Reihenfolge war
-Empfehlung; jeder Punkt trägt die Referenz aus dem Review. Alle Punkte sind
-erledigt oder oben unter „Offen" überführt.
+Empfehlung; jeder Punkt trägt die Referenz aus dem Review.
 
 ## Stand (2026-08-06, Beleg-Layout, Girocode, Abschlagsrechnung)
 
