@@ -1,0 +1,90 @@
+name: Landingpage veröffentlichen
+
+# Baut den Ordner website/ und veröffentlicht ihn über GitHub Pages.
+# Läuft bei Änderungen an website/ auf main sowie bei jedem veröffentlichten
+# Release — Letzteres sorgt dafür, dass die Download-Links nach einer neuen
+# Version aktuell sind, auch ohne eigene Änderung an der Website.
+#
+# Die Download-Links werden hier beim Bauen fest in index.html eingesetzt,
+# nicht zur Laufzeit im Browser abgefragt (siehe docs/superpowers/specs/
+# 2026-08-07-landingpage-design.md, Abschnitt "Hosting & Architektur").
+
+on:
+  push:
+    branches: [main]
+    paths: ["website/**"]
+  release:
+    types: [released]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Neuestes Release abfragen
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          json=$(gh api repos/abnun/kleinunternehmer-verwaltung/releases/latest)
+          version=$(echo "$json" | jq -r '.tag_name' | sed 's/^v//')
+          dmg=$(echo "$json" | jq -r '.assets[] | select(.name | endswith(".dmg")) | .browser_download_url')
+          exe=$(echo "$json" | jq -r '.assets[] | select(.name | endswith("-setup.exe")) | .browser_download_url')
+          msi=$(echo "$json" | jq -r '.assets[] | select(.name | endswith(".msi")) | .browser_download_url')
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "dmg=$dmg" >> "$GITHUB_OUTPUT"
+          echo "exe=$exe" >> "$GITHUB_OUTPUT"
+          echo "msi=$msi" >> "$GITHUB_OUTPUT"
+
+      - name: Download-Links in index.html einsetzen
+        run: |
+          sed -i \
+            -e "s#<span id=\"release-version\">siehe Releases</span>#<span id=\"release-version\">${{ steps.release.outputs.version }}</span>#" \
+            -e "s#id=\"download-primaer\" class=\"download-primaer\" href=\"[^\"]*\"#id=\"download-primaer\" class=\"download-primaer\" href=\"${{ steps.release.outputs.dmg }}\"#" \
+            -e "s#id=\"download-sekundaer\" class=\"download-nebenrangig\" href=\"[^\"]*\"#id=\"download-sekundaer\" class=\"download-nebenrangig\" href=\"${{ steps.release.outputs.exe }}\"#" \
+            website/index.html
+          # Die MSI-URL (steps.release.outputs.msi) wird hier bewusst nicht
+          # als eigener dritter Download-Button eingesetzt — die Seite hat
+          # genau zwei Download-Links (siehe Task 1), die MSI-Variante
+          # bleibt über die allgemeine Release-Seite erreichbar.
+
+      - name: Prüfen, dass alle Platzhalter ersetzt wurden
+        run: |
+          if grep -q "siehe Releases" website/index.html; then
+            echo "Versionsplatzhalter wurde nicht ersetzt." >&2
+            exit 1
+          fi
+          if grep -q "releases/latest\"" website/index.html; then
+            echo "Mindestens ein Download-Link zeigt noch auf die allgemeine Release-Seite statt auf ein Asset." >&2
+            exit 1
+          fi
+
+      - name: Pages einrichten
+        uses: actions/configure-pages@v5
+
+      - name: Artefakt hochladen
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: website/
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Nach GitHub Pages veröffentlichen
+        id: deployment
+        uses: actions/deploy-pages@v4
