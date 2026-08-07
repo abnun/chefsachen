@@ -42,17 +42,41 @@ jobs:
           dmg=$(echo "$json" | jq -r '.assets[] | select(.name | endswith(".dmg")) | .browser_download_url')
           exe=$(echo "$json" | jq -r '.assets[] | select(.name | endswith("-setup.exe")) | .browser_download_url')
           msi=$(echo "$json" | jq -r '.assets[] | select(.name | endswith(".msi")) | .browser_download_url')
+
+          # Ohne diese Prüfung würde ein Release mit unerwarteter
+          # Asset-Benennung (z. B. weil release.yml sich mal ändert) eine
+          # leere href="" einsetzen — der spätere Platzhalter-Check unten
+          # sähe "releases/latest" nicht mehr und würde fälschlich grün
+          # durchlaufen, obwohl der Download-Link kaputt ist.
+          for name_wert in "version:$version" "dmg:$dmg" "exe:$exe"; do
+            wert="${name_wert#*:}"
+            if [ -z "$wert" ]; then
+              echo "Leerer Wert für '${name_wert%%:*}' — Release-Assets prüfen." >&2
+              exit 1
+            fi
+          done
+
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "dmg=$dmg" >> "$GITHUB_OUTPUT"
           echo "exe=$exe" >> "$GITHUB_OUTPUT"
           echo "msi=$msi" >> "$GITHUB_OUTPUT"
 
       - name: Download-Links in index.html einsetzen
+        env:
+          # Als Umgebungsvariablen statt direkter ${{ }}-Interpolation in
+          # das Shell-Skript: GitHub Actions setzt ${{ }}-Ausdrücke als
+          # rohen Text in den Skripttext ein, BEVOR die Shell ihn liest —
+          # ein Tag-Name mit Anführungszeichen/Backticks/`$(...)` könnte so
+          # aus dem sed-Argument ausbrechen. Über `env:` + `"$VAR"` liest
+          # die Shell den Wert stattdessen sicher als einzelnes Argument.
+          VERSION: ${{ steps.release.outputs.version }}
+          DMG_URL: ${{ steps.release.outputs.dmg }}
+          EXE_URL: ${{ steps.release.outputs.exe }}
         run: |
           sed -i \
-            -e "s#<span id=\"release-version\">siehe Releases</span>#<span id=\"release-version\">${{ steps.release.outputs.version }}</span>#" \
-            -e "s#id=\"download-primaer\" class=\"download-primaer\" href=\"[^\"]*\"#id=\"download-primaer\" class=\"download-primaer\" href=\"${{ steps.release.outputs.dmg }}\"#" \
-            -e "s#id=\"download-sekundaer\" class=\"download-nebenrangig\" href=\"[^\"]*\"#id=\"download-sekundaer\" class=\"download-nebenrangig\" href=\"${{ steps.release.outputs.exe }}\"#" \
+            -e "s#<span id=\"release-version\">siehe Releases</span>#<span id=\"release-version\">$VERSION</span>#" \
+            -e "s#id=\"download-primaer\" class=\"download-primaer\" href=\"[^\"]*\"#id=\"download-primaer\" class=\"download-primaer\" href=\"$DMG_URL\"#" \
+            -e "s#id=\"download-sekundaer\" class=\"download-nebenrangig\" href=\"[^\"]*\"#id=\"download-sekundaer\" class=\"download-nebenrangig\" href=\"$EXE_URL\"#" \
             website/index.html
           # Die MSI-URL (steps.release.outputs.msi) wird hier bewusst nicht
           # als eigener dritter Download-Button eingesetzt — die Seite hat
