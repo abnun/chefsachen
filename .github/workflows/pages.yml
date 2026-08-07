@@ -39,7 +39,7 @@ jobs:
           # siehe Datenschutzerklärung) und wird bei jedem Deploy aufgefrischt.
           # Schlägt der Abruf fehl, bleibt der eingecheckte Snapshot bestehen.
           curl -fsSL -o website/ci-badge.svg \
-            "https://github.com/abnun/kleinunternehmer-verwaltung/actions/workflows/ci.yml/badge.svg" \
+            "https://github.com/abnun/chefsachen/actions/workflows/ci.yml/badge.svg" \
             || echo "Badge-Abruf fehlgeschlagen — eingecheckter Snapshot wird verwendet."
 
       - name: Neuestes Release abfragen
@@ -47,7 +47,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          json=$(gh api repos/abnun/kleinunternehmer-verwaltung/releases/latest)
+          json=$(gh api repos/abnun/chefsachen/releases/latest)
           version=$(echo "$json" | jq -r '.tag_name' | sed 's/^v//')
           dmg=$(echo "$json" | jq -r '.assets[] | select(.name | endswith(".dmg")) | .browser_download_url')
           exe=$(echo "$json" | jq -r '.assets[] | select(.name | endswith("-setup.exe")) | .browser_download_url')
@@ -61,7 +61,7 @@ jobs:
             echo "Unerwartete Version: $version" >&2
             exit 1
           fi
-          basis='https://github\.com/abnun/kleinunternehmer-verwaltung/releases/download'
+          basis='https://github\.com/abnun/chefsachen/releases/download'
           for u in "$dmg" "$exe"; do
             if [ -z "$u" ] || ! printf '%s' "$u" | grep -qE "^$basis/[0-9A-Za-z._%~+-]+/[0-9A-Za-z._%~+-]+$"; then
               echo "Fehlende oder unerwartete Asset-URL: '$u' — Release-Assets prüfen." >&2
@@ -89,7 +89,7 @@ jobs:
           import html, os, pathlib
           pfad = pathlib.Path("website/index.html")
           text = pfad.read_text(encoding="utf-8")
-          latest = "https://github.com/abnun/kleinunternehmer-verwaltung/releases/latest"
+          latest = "https://github.com/abnun/chefsachen/releases/latest"
           ersetzungen = [
               ('<span id="release-version">siehe Releases</span>',
                '<span id="release-version">{}</span>'.format(html.escape(os.environ["VERSION"]))),

@@ -54,6 +54,16 @@ export default tseslint.config(
     },
   },
   {
+    // Die Landingpage ist reines Browser-JavaScript ohne Modulsystem.
+    files: ["website/**/*.js"],
+    languageOptions: {
+      globals: {
+        document: "readonly",
+        navigator: "readonly",
+      },
+    },
+  },
+  {
     // Der Durchstich läuft in Node und im Browser zugleich: `wdio.conf.js` ist
     // ein Node-Modul, die Testfälle laufen im Fenster der Anwendung und nutzen
     // die Globals von WebdriverIO und Mocha.

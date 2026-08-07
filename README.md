@@ -1,6 +1,6 @@
 # Chefsachen
 
-[Website](https://abnun.github.io/kleinunternehmer-verwaltung/)
+[Website](https://abnun.github.io/chefsachen/)
 
 Eine Desktop-Anwendung für die Rechnungsstellung von Kleinunternehmern nach
 § 19 UStG. Alle Daten bleiben lokal auf dem eigenen Rechner — kein Server,

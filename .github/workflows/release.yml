@@ -19,7 +19,7 @@ name: Release
 # latest.json, und kein Bestandsnutzer erfährt je von der neuen Version.
 #
 # WICHTIG: Der Updater fragt
-#   https://github.com/abnun/kleinunternehmer-verwaltung/releases/latest/download/latest.json
+#   https://github.com/abnun/chefsachen/releases/latest/download/latest.json
 # ab. Diese Adresse zeigt nur auf *veröffentlichte* Releases. Der Workflow legt
 # unten bewusst einen Entwurf an — er muss auf GitHub also noch veröffentlicht
 # werden, sonst sieht niemand die Aktualisierung.
