@@ -12,6 +12,7 @@ import {
 } from "../api";
 import { formularFehler } from "../formularFehler";
 import { Fehler } from "../components/Fehler";
+import { PflichtLegende, PflichtMarker } from "../components/PflichtMarker";
 import { useErfolgsHinweis } from "../hooks/useErfolgsHinweis";
 import { useBestaetigung } from "../hooks/useBestaetigung";
 import { useUngespeichert } from "../hooks/useUngespeichert";
@@ -250,6 +251,7 @@ function FirmendatenAbschnitt() {
         <div className="feld">
           <label>
             Name
+            <PflichtMarker art="pflicht" />
             <input required value={firma.name} onChange={(e) => setFirma({ ...firma, name: e.currentTarget.value })} />
           </label>
           {feldFehler("name") && <div role="alert" className="feld-fehler">{feldFehler("name")}</div>}
@@ -257,6 +259,7 @@ function FirmendatenAbschnitt() {
         <div className="feld">
           <label>
             Straße
+            <PflichtMarker art="pflicht" />
             <input
               value={firma.strasse}
               onChange={(e) => setFirma({ ...firma, strasse: e.currentTarget.value })}
@@ -267,6 +270,7 @@ function FirmendatenAbschnitt() {
         <div className="feld">
           <label>
             PLZ
+            <PflichtMarker art="pflicht" />
             <input value={firma.plz} onChange={(e) => setFirma({ ...firma, plz: e.currentTarget.value })} />
           </label>
           {feldFehler("plz") && <div role="alert" className="feld-fehler">{feldFehler("plz")}</div>}
@@ -274,6 +278,7 @@ function FirmendatenAbschnitt() {
         <div className="feld">
           <label>
             Ort
+            <PflichtMarker art="pflicht" />
             <input value={firma.ort} onChange={(e) => setFirma({ ...firma, ort: e.currentTarget.value })} />
           </label>
           {feldFehler("ort") && <div role="alert" className="feld-fehler">{feldFehler("ort")}</div>}
@@ -281,6 +286,7 @@ function FirmendatenAbschnitt() {
         <div className="feld">
           <label>
             Land
+            <PflichtMarker art="pflicht" />
             <input value={firma.land} onChange={(e) => setFirma({ ...firma, land: e.currentTarget.value })} />
           </label>
           {feldFehler("land") && <div role="alert" className="feld-fehler">{feldFehler("land")}</div>}
@@ -288,6 +294,7 @@ function FirmendatenAbschnitt() {
         <div className="feld">
           <label>
             Steuernummer
+            <PflichtMarker art="pflicht" />
             <input
               value={firma.steuernummer}
               onChange={(e) => setFirma({ ...firma, steuernummer: e.currentTarget.value })}
@@ -298,6 +305,7 @@ function FirmendatenAbschnitt() {
         <div className="feld">
           <label>
             USt-IdNr.
+            <PflichtMarker art="pflicht" />
             <input
               value={firma.ust_idnr}
               onChange={(e) => setFirma({ ...firma, ust_idnr: e.currentTarget.value })}
@@ -322,6 +330,7 @@ function FirmendatenAbschnitt() {
         <div className="feld">
           <label>
             E-Mail
+            <PflichtMarker art="xrechnung" />
             <input
               type="email"
               value={firma.email}
@@ -334,6 +343,7 @@ function FirmendatenAbschnitt() {
         <div className="feld">
           <label>
             Telefon
+            <PflichtMarker art="xrechnung" />
             <input
               value={firma.telefon}
               onChange={(e) => setFirma({ ...firma, telefon: e.currentTarget.value })}
@@ -423,6 +433,7 @@ function FirmendatenAbschnitt() {
           (Satz je Artikel, Preise bleiben brutto). Bereits festgeschriebene Belege
           behalten ihren damaligen Steuermodus.
         </p>
+        <PflichtLegende zeigtXrechnung />
         <div className="aktionen aktionen-formular">
           <button type="submit" className="btn btn-primaer">Speichern</button>
         </div>

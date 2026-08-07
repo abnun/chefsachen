@@ -4,6 +4,7 @@ import { readFile } from "@tauri-apps/plugin-fs";
 import { api, istValidierungsfehler, type AppFehler, type Firma } from "../api";
 import { formularFehler } from "../formularFehler";
 import { Fehler } from "../components/Fehler";
+import { PflichtLegende, PflichtMarker } from "../components/PflichtMarker";
 
 interface EinrichtungProps {
   onFertig: (zielSeite?: "kunden" | "artikel") => void;
@@ -44,7 +45,13 @@ export function Einrichtung({ onFertig }: EinrichtungProps) {
     );
   }
 
-  const { feldFehler, bannerFehler } = formularFehler(fehler, ["name", "steuernummer"]);
+  const { feldFehler, bannerFehler } = formularFehler(fehler, [
+    "name",
+    "strasse",
+    "plz",
+    "ort",
+    "steuernummer",
+  ]);
 
   /**
    * Übernimmt eine Feldänderung und räumt eine stehengebliebene Meldung weg.
@@ -118,6 +125,7 @@ export function Einrichtung({ onFertig }: EinrichtungProps) {
           <div className="feld">
             <label>
               Name
+              <PflichtMarker art="pflicht" />
               <input required value={firma.name} onChange={(e) => feldAendern({ name: e.currentTarget.value })} />
             </label>
             {feldFehler("name") && <div className="feld-fehler" role="alert">{feldFehler("name")}</div>}
@@ -125,27 +133,34 @@ export function Einrichtung({ onFertig }: EinrichtungProps) {
           <div className="feld">
             <label>
               Straße
+              <PflichtMarker art="pflicht" />
               <input
                 value={firma.strasse}
                 onChange={(e) => feldAendern({ strasse: e.currentTarget.value })}
               />
             </label>
+            {feldFehler("strasse") && <div className="feld-fehler" role="alert">{feldFehler("strasse")}</div>}
           </div>
           <div className="feld">
             <label>
               PLZ
+              <PflichtMarker art="pflicht" />
               <input value={firma.plz} onChange={(e) => feldAendern({ plz: e.currentTarget.value })} />
             </label>
+            {feldFehler("plz") && <div className="feld-fehler" role="alert">{feldFehler("plz")}</div>}
           </div>
           <div className="feld">
             <label>
               Ort
+              <PflichtMarker art="pflicht" />
               <input value={firma.ort} onChange={(e) => feldAendern({ ort: e.currentTarget.value })} />
             </label>
+            {feldFehler("ort") && <div className="feld-fehler" role="alert">{feldFehler("ort")}</div>}
           </div>
           <div className="feld">
             <label>
               Steuernummer
+              <PflichtMarker art="pflicht" />
               <input
                 value={firma.steuernummer}
                 onChange={(e) => feldAendern({ steuernummer: e.currentTarget.value })}
@@ -156,6 +171,7 @@ export function Einrichtung({ onFertig }: EinrichtungProps) {
           <div className="feld">
             <label>
               USt-IdNr.
+              <PflichtMarker art="pflicht" />
               <input
                 value={firma.ust_idnr}
                 onChange={(e) => feldAendern({ ust_idnr: e.currentTarget.value })}
@@ -180,6 +196,7 @@ export function Einrichtung({ onFertig }: EinrichtungProps) {
           <div className="feld">
             <label>
               E-Mail
+              <PflichtMarker art="xrechnung" />
               <input
                 type="email"
                 value={firma.email}
@@ -192,6 +209,7 @@ export function Einrichtung({ onFertig }: EinrichtungProps) {
           <div className="feld">
             <label>
               Telefon
+              <PflichtMarker art="xrechnung" />
               <input
                 value={firma.telefon}
                 onChange={(e) => feldAendern({ telefon: e.currentTarget.value })}
@@ -245,6 +263,7 @@ export function Einrichtung({ onFertig }: EinrichtungProps) {
               Im Gründungsjahr gilt für die Kleinunternehmergrenze bereits das laufende Jahr.
             </p>
           </div>
+          <PflichtLegende zeigtXrechnung />
           <div className="aktionen aktionen-formular">
             <button
               type="button"
