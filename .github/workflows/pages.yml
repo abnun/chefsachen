@@ -17,10 +17,7 @@ on:
     types: [released]
   workflow_dispatch: {}
 
-permissions:
-  contents: read
-  pages: write
-  id-token: write
+permissions: {}
 
 concurrency:
   group: "pages"
@@ -29,8 +26,21 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - name: CI-Badge aktualisieren
+        run: |
+          # Das Badge liegt lokal (keine Drittanbieter-Anfrage beim Seitenaufruf,
+          # siehe Datenschutzerklärung) und wird bei jedem Deploy aufgefrischt.
+          # Schlägt der Abruf fehl, bleibt der eingecheckte Snapshot bestehen.
+          curl -fsSL -o website/ci-badge.svg \
+            "https://github.com/abnun/kleinunternehmer-verwaltung/actions/workflows/ci.yml/badge.svg" \
+            || echo "Badge-Abruf fehlgeschlagen — eingecheckter Snapshot wird verwendet."
 
       - name: Neuestes Release abfragen
         id: release
@@ -48,10 +58,18 @@ jobs:
           # leere href="" einsetzen — der spätere Platzhalter-Check unten
           # sähe "releases/latest" nicht mehr und würde fälschlich grün
           # durchlaufen, obwohl der Download-Link kaputt ist.
-          for name_wert in "version:$version" "dmg:$dmg" "exe:$exe"; do
-            wert="${name_wert#*:}"
-            if [ -z "$wert" ]; then
-              echo "Leerer Wert für '${name_wert%%:*}' — Release-Assets prüfen." >&2
+          # Allowlist: Alles, was nicht exakt wie eine Version bzw. eine
+          # Asset-URL dieses Repos aussieht, wird abgewiesen — statt es
+          # ungeprüft in die veröffentlichte Seite zu schreiben. Ein Tag-Name
+          # ist ein frei wählbarer Git-Ref und darf HTML-Metazeichen enthalten.
+          if ! printf '%s' "$version" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+([-+][0-9A-Za-z.]+)?$'; then
+            echo "Unerwartete Version: $version" >&2
+            exit 1
+          fi
+          basis='https://github\.com/abnun/kleinunternehmer-verwaltung/releases/download'
+          for u in "$dmg" "$exe"; do
+            if [ -z "$u" ] || ! printf '%s' "$u" | grep -qE "^$basis/[0-9A-Za-z._%~+-]+/[0-9A-Za-z._%~+-]+$"; then
+              echo "Fehlende oder unerwartete Asset-URL: '$u' — Release-Assets prüfen." >&2
               exit 1
             fi
           done
@@ -63,52 +81,57 @@ jobs:
 
       - name: Download-Links in index.html einsetzen
         env:
-          # Als Umgebungsvariablen statt direkter ${{ }}-Interpolation in
-          # das Shell-Skript: GitHub Actions setzt ${{ }}-Ausdrücke als
-          # rohen Text in den Skripttext ein, BEVOR die Shell ihn liest —
-          # ein Tag-Name mit Anführungszeichen/Backticks/`$(...)` könnte so
-          # aus dem sed-Argument ausbrechen. Über `env:` + `"$VAR"` liest
-          # die Shell den Wert stattdessen sicher als einzelnes Argument.
+          # Werte kommen ausschließlich über die Umgebung in das Skript —
+          # nie als ${{ }}-Interpolation in den Skripttext. Zusätzlich
+          # escapet html.escape() jeden Wert, bevor er ins HTML gelangt:
+          # Die Allowlist oben ist die erste Verteidigungslinie, das
+          # Escaping die zweite.
           VERSION: ${{ steps.release.outputs.version }}
           DMG_URL: ${{ steps.release.outputs.dmg }}
           EXE_URL: ${{ steps.release.outputs.exe }}
         run: |
-          sed -i \
-            -e "s#<span id=\"release-version\">siehe Releases</span>#<span id=\"release-version\">$VERSION</span>#" \
-            -e "s#id=\"download-primaer\" class=\"download-primaer\" href=\"[^\"]*\"#id=\"download-primaer\" class=\"download-primaer\" href=\"$DMG_URL\"#" \
-            -e "s#id=\"download-sekundaer\" class=\"download-nebenrangig\" href=\"[^\"]*\"#id=\"download-sekundaer\" class=\"download-nebenrangig\" href=\"$EXE_URL\"#" \
-            website/index.html
+          python3 - <<'PY'
+          import html, os, pathlib
+          pfad = pathlib.Path("website/index.html")
+          text = pfad.read_text(encoding="utf-8")
+          latest = "https://github.com/abnun/kleinunternehmer-verwaltung/releases/latest"
+          ersetzungen = [
+              ('<span id="release-version">siehe Releases</span>',
+               '<span id="release-version">{}</span>'.format(html.escape(os.environ["VERSION"]))),
+              ('<a id="download-primaer" class="download-primaer" href="{}">'.format(latest),
+               '<a id="download-primaer" class="download-primaer" href="{}">'.format(html.escape(os.environ["DMG_URL"], quote=True))),
+              ('<a id="download-sekundaer" class="download-nebenrangig" href="{}">'.format(latest),
+               '<a id="download-sekundaer" class="download-nebenrangig" href="{}">'.format(html.escape(os.environ["EXE_URL"], quote=True))),
+          ]
+          for alt, neu in ersetzungen:
+              if text.count(alt) != 1:
+                  raise SystemExit("Platzhalter nicht genau einmal gefunden: " + alt)
+              text = text.replace(alt, neu)
+          pfad.write_text(text, encoding="utf-8")
+          PY
           # Die MSI-URL (steps.release.outputs.msi) wird hier bewusst nicht
           # als eigener dritter Download-Button eingesetzt — die Seite hat
           # genau zwei Download-Links (siehe Task 1), die MSI-Variante
           # bleibt über die allgemeine Release-Seite erreichbar.
 
-      - name: Prüfen, dass alle Platzhalter ersetzt wurden
-        run: |
-          if grep -q "siehe Releases" website/index.html; then
-            echo "Versionsplatzhalter wurde nicht ersetzt." >&2
-            exit 1
-          fi
-          if grep -q "releases/latest\"" website/index.html; then
-            echo "Mindestens ein Download-Link zeigt noch auf die allgemeine Release-Seite statt auf ein Asset." >&2
-            exit 1
-          fi
-
       - name: Pages einrichten
-        uses: actions/configure-pages@v5
+        uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5
 
       - name: Artefakt hochladen
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3
         with:
           path: website/
 
   deploy:
     needs: build
     runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - name: Nach GitHub Pages veröffentlichen
         id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4
