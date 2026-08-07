@@ -5,7 +5,9 @@ import { Dialog } from "./Dialog";
 /** Fälligkeitszeitpunkt der nächsten Erinnerung, als ISO-Datum. */
 const SCHLUESSEL_NAECHSTE_ERINNERUNG = "spende.naechste_erinnerung";
 
-export const PAYPAL_LINK = "https://paypal.me/markusmueller1981";
+// "/5" ist nur ein Vorschlag: paypal.me füllt den Betrag damit vor, der
+// Zahlende kann ihn vor dem Absenden trotzdem ändern.
+export const PAYPAL_LINK = "https://paypal.me/markusmueller1981/5";
 
 /** Vier bis sechs Wochen ab jetzt, als ISO-Datum. */
 function neuerTermin(): string {
