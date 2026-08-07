@@ -15,7 +15,7 @@ nur **einmalig** zu bestätigen.
    werden — das ist der erwartete Schritt, nicht das Ende.
 4. Öffne **Systemeinstellungen → Datenschutz & Sicherheit** und scrolle nach
    unten. Dort steht jetzt ein Hinweis auf die blockierte App mit dem Button
-   **„Trotzdem öffnen"**. Klicke ihn an und bestätige den folgenden Dialog.
+   **„Dennoch öffnen"**. Klicke ihn an und bestätige den folgenden Dialog.
 5. Ab jetzt startet die App ganz normal per Doppelklick.
 
 > Ältere Anleitungen im Netz empfehlen stattdessen einen **Rechtsklick →
