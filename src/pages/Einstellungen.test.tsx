@@ -171,11 +171,14 @@ describe("Einstellungen", () => {
   it("zeigt nach dem Anlegen einer neuen Einheit einen Erfolgs-Hinweis", async () => {
     render(<EinstellungenMitAnbieter />);
     await waitFor(() => expect(screen.getByText("Std")).toBeTruthy());
-    // Firmendaten hat ebenfalls ein "Name"-Feld, beide tragen jetzt den
-    // Pflichtfeld-Marker ("Name *"). Index 1: Firmendaten steht im DOM davor.
-    fireEvent.change(screen.getAllByLabelText("Name *")[1], { target: { value: "Pauschale" } });
-    fireEvent.change(screen.getByLabelText("Kürzel"), { target: { value: "Pausch" } });
-    fireEvent.click(screen.getByRole("button", { name: "Hinzufügen" }));
+    // Firmendaten hat ebenfalls ein "Name"-Feld — auf den Einheiten-Abschnitt
+    // eingeschränkt, damit diese Abfrage unabhängig davon bleibt, wie viele
+    // andere Formulare auf der Seite ebenfalls ein "Name"-Feld haben oder wie
+    // sie beschriftet sind.
+    const einheitenAbschnitt = screen.getByRole("heading", { name: "Einheiten" }).closest("section")!;
+    fireEvent.change(within(einheitenAbschnitt).getByLabelText("Name *"), { target: { value: "Pauschale" } });
+    fireEvent.change(within(einheitenAbschnitt).getByLabelText("Kürzel"), { target: { value: "Pausch" } });
+    fireEvent.click(within(einheitenAbschnitt).getByRole("button", { name: "Hinzufügen" }));
     await waitFor(() => expect(screen.getByText('Einheit „Pauschale" angelegt')).toBeTruthy());
   });
 
