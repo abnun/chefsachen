@@ -7,7 +7,7 @@ auf GitHub ändert daran nichts mehr.
 
 Deshalb hier in der Sprache der Anwender, nicht in der der Commits.
 
-## 0.10.3
+## 0.11.0
 
 **Neuer Name**
 - Die App heißt jetzt **Chefsachen** statt „Kleinunternehmer-Verwaltung" —
