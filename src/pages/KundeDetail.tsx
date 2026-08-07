@@ -11,6 +11,7 @@ import {
 } from "../api";
 import { formularFehler } from "../formularFehler";
 import { Fehler } from "../components/Fehler";
+import { PflichtLegende, PflichtMarker } from "../components/PflichtMarker";
 import { Laden } from "../components/Laden";
 import { useErfolgsHinweis } from "../hooks/useErfolgsHinweis";
 import { useBestaetigung } from "../hooks/useBestaetigung";
@@ -342,6 +343,7 @@ function StammdatenReiter({ kunde, onGespeichert, onGeloescht }: StammdatenReite
         <div className="feld">
           <label>
             Name
+            <PflichtMarker art="pflicht" />
             <input value={form.name} onChange={(e) => setForm({ ...form, name: e.currentTarget.value })} />
           </label>
           {feldFehler("name") && (
@@ -397,6 +399,7 @@ function StammdatenReiter({ kunde, onGespeichert, onGeloescht }: StammdatenReite
         <div className="feld">
           <label>
             Leitweg-ID
+            <PflichtMarker art="xrechnung" />
             <input
               value={form.leitweg_id}
               onChange={(e) => setForm({ ...form, leitweg_id: e.currentTarget.value })}
@@ -406,12 +409,14 @@ function StammdatenReiter({ kunde, onGespeichert, onGeloescht }: StammdatenReite
         <div className="feld">
           <label>
             Käuferreferenz
+            <PflichtMarker art="xrechnung" />
             <input
               value={form.kaeuferreferenz}
               onChange={(e) => setForm({ ...form, kaeuferreferenz: e.currentTarget.value })}
             />
           </label>
         </div>
+        <PflichtLegende zeigtXrechnung />
         <div className="aktionen aktionen-formular">
           <button type="submit" className="btn btn-primaer">
             Speichern
@@ -449,6 +454,7 @@ const ADRESSE_NEU = (kundeId: string): Omit<Adresse, "id"> => ({
 function AdressenReiter({ kundeId, adressen, onGeaendert }: AdressenReiterProps) {
   const [form, setForm] = useState<Omit<Adresse, "id"> & { id?: string }>(ADRESSE_NEU(kundeId));
   const [fehler, setFehler] = useState<AppFehler | null>(null);
+  const { feldFehler, bannerFehler } = formularFehler(fehler, ["strasse", "plz", "ort", "land"]);
   const { zeigen, hinweis } = useErfolgsHinweis();
   const { bestaetigen, dialog } = useBestaetigung();
 
@@ -479,7 +485,7 @@ function AdressenReiter({ kundeId, adressen, onGeaendert }: AdressenReiterProps)
 
   return (
     <section>
-      {fehler && <Fehler fehler={fehler} />}
+      <Fehler fehler={bannerFehler} />
       {hinweis}
       {dialog}
       <table className="tabelle">
@@ -536,22 +542,38 @@ function AdressenReiter({ kundeId, adressen, onGeaendert }: AdressenReiterProps)
             <option value="lieferung">Lieferung</option>
           </select>
         </label>
-        <label className="feld">
-          Straße
-          <input value={form.strasse} onChange={(e) => setForm({ ...form, strasse: e.currentTarget.value })} />
-        </label>
-        <label className="feld">
-          PLZ
-          <input value={form.plz} onChange={(e) => setForm({ ...form, plz: e.currentTarget.value })} />
-        </label>
-        <label className="feld">
-          Ort
-          <input value={form.ort} onChange={(e) => setForm({ ...form, ort: e.currentTarget.value })} />
-        </label>
-        <label className="feld">
-          Land
-          <input value={form.land} onChange={(e) => setForm({ ...form, land: e.currentTarget.value })} />
-        </label>
+        <div className="feld">
+          <label>
+            Straße
+            <PflichtMarker art="pflicht" />
+            <input value={form.strasse} onChange={(e) => setForm({ ...form, strasse: e.currentTarget.value })} />
+          </label>
+          {feldFehler("strasse") && <div className="feld-fehler" role="alert">{feldFehler("strasse")}</div>}
+        </div>
+        <div className="feld">
+          <label>
+            PLZ
+            <PflichtMarker art="pflicht" />
+            <input value={form.plz} onChange={(e) => setForm({ ...form, plz: e.currentTarget.value })} />
+          </label>
+          {feldFehler("plz") && <div className="feld-fehler" role="alert">{feldFehler("plz")}</div>}
+        </div>
+        <div className="feld">
+          <label>
+            Ort
+            <PflichtMarker art="pflicht" />
+            <input value={form.ort} onChange={(e) => setForm({ ...form, ort: e.currentTarget.value })} />
+          </label>
+          {feldFehler("ort") && <div className="feld-fehler" role="alert">{feldFehler("ort")}</div>}
+        </div>
+        <div className="feld">
+          <label>
+            Land
+            <PflichtMarker art="pflicht" />
+            <input value={form.land} onChange={(e) => setForm({ ...form, land: e.currentTarget.value })} />
+          </label>
+          {feldFehler("land") && <div className="feld-fehler" role="alert">{feldFehler("land")}</div>}
+        </div>
         <label className="feld-checkbox">
           <input
             type="checkbox"
@@ -560,6 +582,7 @@ function AdressenReiter({ kundeId, adressen, onGeaendert }: AdressenReiterProps)
           />
           Standardadresse
         </label>
+        <PflichtLegende />
         <div className="aktionen aktionen-formular">
           <button type="submit" className="btn btn-primaer">
             {form.id ? "Aktualisieren" : "Hinzufügen"}

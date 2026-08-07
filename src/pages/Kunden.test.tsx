@@ -71,7 +71,7 @@ describe("Kunden", () => {
     render(<Kunden onOeffnen={onOeffnen} />);
     await waitFor(() => expect(screen.getByText("ACME GmbH")).toBeTruthy());
     fireEvent.click(screen.getByRole("button", { name: "Neuer Kunde" }));
-    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Neu GmbH" } });
+    fireEvent.change(screen.getByLabelText("Name", { exact: false }), { target: { value: "Neu GmbH" } });
     fireEvent.click(screen.getByRole("button", { name: "Speichern" }));
     await waitFor(() =>
       expect(screen.getByRole("button", { name: /jetzt Adresse und Ansprechpartner ergänzen/ })).toBeTruthy(),
@@ -87,7 +87,7 @@ describe("Kunden", () => {
     render(<Kunden onOeffnen={() => {}} onZuArtikelWechseln={onZuArtikelWechseln} />);
     await waitFor(() => expect(screen.getByText("ACME GmbH")).toBeTruthy());
     fireEvent.click(screen.getByRole("button", { name: "Neuer Kunde" }));
-    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Neu GmbH" } });
+    fireEvent.change(screen.getByLabelText("Name", { exact: false }), { target: { value: "Neu GmbH" } });
     fireEvent.click(screen.getByRole("button", { name: "Speichern" }));
     await waitFor(() =>
       expect(screen.getByRole("button", { name: /jetzt auch einen Artikel anlegen/ })).toBeTruthy(),

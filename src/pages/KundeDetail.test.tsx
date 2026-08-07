@@ -98,7 +98,10 @@ vi.mock("../api", () => ({
       ]),
     },
   },
-  istValidierungsfehler: () => false,
+  // Echte Logik statt eines pauschalen false — sonst kann in Tests grundsätzlich
+  // kein Feldfehler sichtbar werden und genau die Regression bliebe unentdeckt.
+  istValidierungsfehler: (e: unknown) =>
+    typeof e === "object" && e !== null && (e as { typ?: string }).typ === "validation",
 }));
 import { KundeDetail } from "./KundeDetail";
 
@@ -144,9 +147,29 @@ describe("KundeDetail", () => {
     });
     render(<KundeDetail id="1" startReiter="adressen" onReiterUebernommen={() => {}} />);
     await waitFor(() => expect(screen.getByRole("button", { name: "Adressen" })).toBeTruthy());
-    fireEvent.change(screen.getByLabelText("Straße"), { target: { value: "Neue Str. 5" } });
+    fireEvent.change(screen.getByLabelText("Straße", { exact: false }), { target: { value: "Neue Str. 5" } });
     fireEvent.click(screen.getByRole("button", { name: "Hinzufügen" }));
     await waitFor(() => expect(screen.getByText("Adresse angelegt")).toBeTruthy());
+  });
+
+  /*
+   * Straße/PLZ/Ort/Land sind seit Task 1 im Backend Pflichtfelder. Der
+   * Adressen-Reiter zeigte einen solchen Validierungsfehler bisher nur als
+   * Banner — hier muss er am betroffenen Feld selbst erscheinen.
+   */
+  it("weist eine fehlende Straße am Feld aus, nicht nur im Banner", async () => {
+    const { api } = await import("../api");
+    vi.mocked(api.kunden.adresseSave).mockRejectedValueOnce({
+      typ: "validation", feld: "strasse", meldung: "Straße darf nicht leer sein",
+    });
+    render(<KundeDetail id="1" startReiter="adressen" onReiterUebernommen={() => {}} />);
+    await waitFor(() => expect(screen.getByRole("button", { name: "Adressen" })).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Hinzufügen" }));
+
+    const meldung = await screen.findByText("Straße darf nicht leer sein");
+    const feldContainer = screen.getByLabelText("Straße", { exact: false }).closest(".feld");
+    expect(feldContainer).not.toBeNull();
+    expect(within(feldContainer as HTMLElement).getByText("Straße darf nicht leer sein")).toBe(meldung);
   });
 
   it("löscht eine Adresse nicht, wenn im Dialog abgebrochen wird", async () => {
@@ -315,7 +338,7 @@ describe("KundeDetail", () => {
 
     gewechselt.mockClear();
     // Über die Beschriftung, nicht über den Wert — siehe unten.
-    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "ACME AG" } });
+    fireEvent.change(screen.getByLabelText("Name", { exact: false }), { target: { value: "ACME AG" } });
     await userEvent.click(screen.getByRole("button", { name: "Zu den Rechnungen" }));
     await waitFor(() => expect(screen.getByRole("dialog")).toBeTruthy());
     expect(gewechselt).not.toHaveBeenCalled();
@@ -344,7 +367,7 @@ describe("KundeDetail", () => {
     // Über die Beschriftung suchen, nicht über den Wert im Feld: Ein Zugriff
     // per `getByDisplayValue` hängt daran, was gerade darin steht — und wirft,
     // sobald irgendetwas dazwischen den Stand ändert. Die Beschriftung bleibt.
-    const name = await screen.findByLabelText("Name");
+    const name = await screen.findByLabelText("Name", { exact: false });
     expect(name).toHaveValue("ACME GmbH");
 
     fireEvent.change(name, { target: { value: "ACME AG" } });

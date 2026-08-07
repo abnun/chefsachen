@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { api, type AppFehler, type Kunde, type KundeNeu } from "../api";
 import { formularFehler } from "../formularFehler";
 import { Fehler } from "../components/Fehler";
+import { PflichtLegende, PflichtMarker } from "../components/PflichtMarker";
 import { ZeilenKnopf } from "../components/ZeilenKnopf";
 import { SortierKopf } from "../components/SortierKopf";
 import { Werkzeugleiste } from "../components/Werkzeugleiste";
@@ -258,6 +259,7 @@ export function Kunden({
           <div className="feld">
             <label>
               Name
+              <PflichtMarker art="pflicht" />
               <input
                 required
                 value={neuerKunde.name}
@@ -311,6 +313,7 @@ export function Kunden({
           <div className="feld">
             <label>
               Leitweg-ID
+              <PflichtMarker art="xrechnung" />
               <input
                 value={neuerKunde.leitweg_id}
                 onChange={(e) => setNeuerKunde({ ...neuerKunde, leitweg_id: e.currentTarget.value })}
@@ -320,6 +323,7 @@ export function Kunden({
           <div className="feld">
             <label>
               Käuferreferenz
+              <PflichtMarker art="xrechnung" />
               <input
                 value={neuerKunde.kaeuferreferenz}
                 onChange={(e) =>
@@ -328,6 +332,7 @@ export function Kunden({
               />
             </label>
           </div>
+          <PflichtLegende zeigtXrechnung />
           <div className="aktionen aktionen-formular">
             <button type="submit" className="btn btn-primaer">Speichern</button>
             <button type="button" className="btn" onClick={() => setZeigeFormular(false)}>
