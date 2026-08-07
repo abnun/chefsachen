@@ -1,7 +1,59 @@
-# TODO — Weg zum auslieferbaren MVP
+# TODO
 
-Priorisierte Arbeitsliste, abgeleitet aus [MVP-Review vom 2026-08-02](2026-08-02-mvp-review.md).
-Reihenfolge = Empfehlung. Jeder Punkt trägt die Referenz aus dem Review.
+**Das MVP-Ziel ist erreicht:** Version 1.0.0 wurde am 2026-08-07 veröffentlicht —
+umbenannt zu „Chefsachen", mit öffentlicher Website
+(https://abnun.github.io/chefsachen/), nach rechtlicher und
+sicherheitstechnischer Prüfung. Diese Datei führt oben nur noch, was offen
+ist; alles Abgeschlossene steht darunter im Archiv (samt Begründungen — die
+sind oft wertvoller als der Haken).
+
+## Offen
+
+- **Offline-Sicherung des minisign-Schlüsselpaars** (`~/.tauri/kleinunternehmer-verwaltung.key`,
+  liegt bewusst außerhalb des Repos). Geht der Schlüssel verloren, lassen sich
+  für bestehende Installationen **nie wieder Updates** ausliefern — wichtigster
+  offener Punkt, nur vom Betreiber selbst erledigbar.
+- **Girocode mit echter Banking-App scannen.** Die EPC069-12-Nutzlast ist per
+  Rundtrip-Test geprüft, aber noch nie von einer echten Smartphone-Kamera
+  gelesen worden. Einmal eine Rechnung mit Girocode drucken/anzeigen und mit
+  einer Banking-App testen.
+- **Sporadischer Testausfall in `KundeDetail`** („fragt nicht, wenn eine
+  Änderung wieder zurückgenommen wurde") ist weiter unerklärt. Nicht
+  reproduzierbar in 25 Läufen; entschärft (Suche über Beschriftung statt
+  `getByDisplayValue`), nicht behoben. Tritt es wieder auf: sofort untersuchen.
+- **P5.6 — Signierung mit Plattform-Zertifikaten**, bewusst zurückgestellt
+  (kostenloses Projekt, Zertifikate kosten ~100 €/Jahr je Plattform). Folge:
+  Beim ersten Installieren blockiert das Betriebssystem die App einmalig
+  (siehe [installation.md](installation.md)). Beim Aktualisieren nicht — der
+  Updater tauscht die App ohne Quarantäne-Merkmal aus.
+- **P0 — iCloud Drive: bewusste Entscheidung (2026-08-03), es bleibt dabei.**
+  Bekannte Folgen: `npm ci` kann an Dubletten wie `node_modules/esbuild 2/`
+  scheitern (Abhilfe: `npm install`), Werkzeuge stolpern über ausgelagerte
+  Dateien („Resource deadlock avoided", der Container-Durchstich umgeht das
+  mit `--ignore-failed-read`), `npm test` braucht zeitweise 112 s statt ~5 s.
+  Wer auf Merkwürdigkeiten stößt — fehlende Dateien, doppelte Ordner mit
+  Leerzeichen im Namen, unerklärlich langsame Läufe —, prüft diese Ursache
+  zuerst.
+
+### Ideen / bei Bedarf
+
+- **Eigene Domain für die Website** (z. B. chefsachen.de): nur `CNAME`-Datei
+  plus DNS-Eintrag, GitHub stellt das TLS-Zertifikat; die Seite ist darauf
+  vorbereitet.
+- **Passkey/Hardware-Key als 2FA** fürs GitHub-Konto (phishing-resistent;
+  das Konto ist der Single Point of Failure inkl. Update-Signaturschlüssel
+  als Repository-Secret).
+- **PayPal-AGB im Blick behalten**, falls regelmäßig Zuwendungen eingehen
+  (Empfangsbeschränkungen bei Privatkonten).
+
+---
+
+# Archiv — abgeschlossene Arbeit
+
+Ursprünglich: priorisierte Arbeitsliste, abgeleitet aus dem
+[MVP-Review vom 2026-08-02](2026-08-02-mvp-review.md). Reihenfolge war
+Empfehlung; jeder Punkt trägt die Referenz aus dem Review. Alle Punkte sind
+erledigt oder oben unter „Offen" überführt.
 
 ## Stand (2026-08-06, Beleg-Layout, Girocode, Abschlagsrechnung)
 
@@ -204,25 +256,6 @@ Behebung hinausweisen:
   eine neuere Fassung veröffentlicht war. Dafür gibt es jetzt zwei Tests gegen
   den echten Endpunkt (`--ignored`, sie brauchen Netz), und das Protokoll hält
   das Ergebnis jeder Suche fest.
-
-### Offen
-
-- **P0 — iCloud Drive: bewusste Entscheidung (2026-08-03), es bleibt dabei.**
-  Bekannte Folgen: `npm ci` kann an Dubletten wie `node_modules/esbuild 2/` scheitern
-  (Abhilfe: `npm install` statt `npm ci`), und Werkzeuge, die den Ordner durchlaufen, stolpern
-  über ausgelagerte Dateien („Resource deadlock avoided"). Der Container-Lauf des Durchstichs
-  umgeht das bereits mit `--ignore-failed-read`.
-- **P5.6** — Signierung, bewusst zurückgestellt (Family & Friends). Folge: Beim
-  ersten Installieren aus der DMG blockiert macOS die App (Rechtsklick →
-  Öffnen). Beim Aktualisieren nicht — der Updater tauscht die App aus, ohne das
-  Quarantäne-Merkmal zu setzen.
-- **Der sporadische Ausfall in `KundeDetail`** („fragt nicht, wenn eine Änderung
-  wieder zurückgenommen wurde") ist weiter unerklärt. Nicht reproduzierbar in
-  25 Läufen der Datei; die ursprüngliche Meldung ist nicht erhalten. Entschärft,
-  nicht behoben: Der Test suchte das Eingabefeld über seinen *aktuellen Wert*
-  (`getByDisplayValue`) und warf damit, sobald irgendetwas dazwischen den Stand
-  änderte. Er sucht jetzt über die Beschriftung. Ob das die Ursache war, ist
-  offen — tritt es wieder auf, sofort untersuchen.
 
 ## Entwicklungsumgebung einrichten
 
@@ -753,15 +786,3 @@ Ohne diese Punkte ist die App für die Zielgruppe nicht wertvoll.
 
 ---
 
-## Umgebung
-
-- [–] **P0 — Repo von iCloud Drive auf lokale Platte verschieben** `[B30]` — **bewusste
-  Entscheidung (2026-08-03): Es bleibt bei iCloud.**
-  Der Befund bleibt bestehen: `npm test` braucht zeitweise 112 s statt ~5 s, und der
-  Git-Index kann durch Auslagern beschädigt werden.
-  Zweimal konkret aufgeschlagen: `npm ci` scheiterte an der Dublette
-  `node_modules/esbuild 2/` (Abhilfe: `npm install` statt `npm ci`), und `tar` an Dateien,
-  deren Inhalt iCloud ausgelagert hatte („Resource deadlock avoided"). Der Container-Lauf des
-  Durchstichs umgeht Letzteres mit `--ignore-failed-read`.
-  Wer hier künftig auf Merkwürdigkeiten stößt — fehlende Dateien, doppelte Ordner mit
-  Leerzeichen im Namen, unerklärlich langsame Läufe —, sollte diese Ursache zuerst prüfen.
