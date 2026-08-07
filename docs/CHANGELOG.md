@@ -7,6 +7,19 @@ auf GitHub ändert daran nichts mehr.
 
 Deshalb hier in der Sprache der Anwender, nicht in der der Commits.
 
+## 0.11.1
+
+**Beleg-Layout**
+- Der Fuß auf jeder Seite (Anschrift, Steuerangaben, Bankverbindung) klebte
+  bei längeren Kontaktangaben fast am unteren Papierrand. Er sitzt jetzt
+  mit deutlich mehr Abstand.
+
+**Belegvorlage-Vorschau**
+- Die Vorschau in den Einstellungen zeigt jetzt alle Seiten eines längeren
+  Musterbelegs, mit „Vor"/„Zurück" darunter — vorher war nur die erste
+  Seite zu sehen, und Fließtext, der auf eine zweite Seite rutschte, wirkte
+  wie verschwunden.
+
 ## 0.11.0
 
 **Neuer Name**
