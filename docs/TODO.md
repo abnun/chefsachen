@@ -16,6 +16,22 @@ Ursprünglich: priorisierte Arbeitsliste, abgeleitet aus dem
 [MVP-Review vom 2026-08-02](2026-08-02-mvp-review.md). Reihenfolge war
 Empfehlung; jeder Punkt trägt die Referenz aus dem Review.
 
+## Stand (2026-08-08, Pflichtfeld-Markierung)
+
+**Pflichtfelder app-weit gekennzeichnet** (für 1.1.0):
+
+- Alle Formulare mit Pflichtfeldern zeigen jetzt `*` (Backend verlangt das
+  Feld beim Speichern) oder `†` (nur für den XRechnung-Export nötig), mit
+  einer Legende am Formularende.
+- Die eigene Firmenadresse und Kundenadressen sind jetzt auch
+  backend-seitig Pflicht — vorher ließen sich leere Adressen speichern.
+- Bugfix dabei entdeckt: `pruefe_exportierbarkeit` verlangte für den
+  XRechnung-Export immer eine Käuferreferenz, obwohl eine Leitweg-ID beim
+  BuyerReference-Feld längst Vorrang hat. Jetzt reicht eins von beiden,
+  mit erklärendem Hinweistext an den Feldern.
+- Nebenbei gefunden und behoben: das Zahlungsbetrag-Feld bei erfassten
+  Zahlungen ist ebenfalls backend-Pflicht, war aber nie markiert.
+
 ## Stand (2026-08-06, Beleg-Layout, Girocode, Abschlagsrechnung)
 
 **Kopf-Tabelle, fester Fuß, Girocode und Gesamt-Auftragswert implementiert**

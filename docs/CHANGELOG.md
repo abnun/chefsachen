@@ -7,6 +7,26 @@ auf GitHub ändert daran nichts mehr.
 
 Deshalb hier in der Sprache der Anwender, nicht in der der Commits.
 
+## 1.1.0
+
+**Pflichtfelder sind jetzt gekennzeichnet**
+- In allen Formularen zeigt ein `*` an Pflichtfeldern, ob ein Feld beim
+  Speichern wirklich verlangt wird, und ein `†`, ob es nur für den
+  XRechnung-Export benötigt wird. Eine kurze Legende am Ende jedes
+  Formulars erklärt die Zeichen.
+- Die eigene Firmenadresse (Straße, PLZ, Ort, Land) und eine
+  Kundenadresse müssen jetzt beim Speichern ausgefüllt sein — vorher
+  ließen sich leere Adressen speichern, die dann etwa beim PDF- oder
+  XRechnung-Export fehlten.
+- Für den XRechnung-Export reicht jetzt eine Leitweg-ID oder eine
+  Käuferreferenz beim Kunden — vorher verlangte die Prüfung fälschlich
+  immer eine Käuferreferenz, selbst wenn schon eine Leitweg-ID
+  hinterlegt war.
+
+**Einrichtung**
+- Fax ist als optionales Feld ergänzt — fehlte bisher in der
+  Einrichtungs-Maske, obwohl es in den Einstellungen schon vorhanden war.
+
 ## 1.0.0
 
 **Chefsachen 1.0**
