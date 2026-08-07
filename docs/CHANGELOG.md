@@ -7,6 +7,20 @@ auf GitHub ändert daran nichts mehr.
 
 Deshalb hier in der Sprache der Anwender, nicht in der der Commits.
 
+## 1.0.0
+
+**Chefsachen 1.0**
+- Die erste stabile Version. An der App selbst ändert sich gegenüber 0.11.1
+  nichts — die 1.0 markiert den Stand nach der Umbenennung zu Chefsachen,
+  einer gründlichen rechtlichen und sicherheitstechnischen Prüfung und dem
+  Start der offiziellen Website mit Download-Möglichkeit.
+
+**Neu rund um die App**
+- Offizielle Website mit Beschreibung, Download für macOS und Windows,
+  Impressum und Datenschutzerklärung.
+- Jedes Release enthält ab jetzt eine Datei `SHA256SUMS.txt`, mit der sich
+  die Unversehrtheit der heruntergeladenen Installationspakete prüfen lässt.
+
 ## 0.11.1
 
 **Beleg-Layout**

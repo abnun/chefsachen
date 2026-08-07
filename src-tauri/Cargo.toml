@@ -1,6 +1,6 @@
 [package]
 name = "chefsachen"
-version = "0.11.1"
+version = "1.0.0"
 description = "Rechnungen, Angebote und E-Rechnungen für Kleinunternehmer nach § 19 UStG"
 authors = ["Markus Müller <abnun@gmx.de>"]
 license = "MIT"
