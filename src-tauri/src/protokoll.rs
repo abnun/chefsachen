@@ -55,7 +55,7 @@ pub fn plugin<R: tauri::Runtime>() -> tauri::plugin::TauriPlugin<R> {
 /// Deshalb: eigene Meldungen immer, fremde erst ab Warnung. Ein Problem in
 /// einer Abhängigkeit bleibt so sichtbar, ihr Alltagsgeplauder nicht.
 fn soll_protokollieren(ziel: &str, stufe: log::Level) -> bool {
-    ziel.starts_with("chefsachen_lib")
+    ziel.starts_with("chefsachen")
         // Meldungen aus der Oberfläche zählen wie eigene. Ohne diesen Zweig
         // fielen sie unterhalb von „Warnung" durch — und damit gerade die
         // Aufzeichnung der Aktualisierungssuche, die im Webview stattfindet.
