@@ -35,7 +35,7 @@ pub fn einbetten(pdf_bytes: Vec<u8>, xml: &str) -> AppResult<Vec<u8>> {
 
     // XMP-Metadaten
     let mut xmp = XmpWriter::new();
-    xmp.creator(["Kleinunternehmer-Verwaltung"]);
+    xmp.creator(["Chefsachen"]);
 
     // PDF/A-Identifikation (echtes, in xmp-writer eingebautes `pdfa`-Feature,
     // Namespace `pdfaid` = http://www.aiim.org/pdfa/ns/id/).

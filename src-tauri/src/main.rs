@@ -2,5 +2,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    kleinunternehmer_verwaltung_lib::run()
+    chefsachen_lib::run()
 }

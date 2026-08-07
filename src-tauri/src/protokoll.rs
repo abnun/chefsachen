@@ -14,7 +14,7 @@
 use tauri_plugin_log::{Target, TargetKind, TimezoneStrategy};
 
 /// Name der Protokolldatei (ohne Endung). Der Plugin hängt `.log` an.
-pub const DATEINAME: &str = "kleinunternehmer-verwaltung";
+pub const DATEINAME: &str = "chefsachen";
 
 /// Größe, ab der die Datei umgebrochen wird — 2 MiB.
 ///
@@ -55,7 +55,7 @@ pub fn plugin<R: tauri::Runtime>() -> tauri::plugin::TauriPlugin<R> {
 /// Deshalb: eigene Meldungen immer, fremde erst ab Warnung. Ein Problem in
 /// einer Abhängigkeit bleibt so sichtbar, ihr Alltagsgeplauder nicht.
 fn soll_protokollieren(ziel: &str, stufe: log::Level) -> bool {
-    ziel.starts_with("kleinunternehmer_verwaltung")
+    ziel.starts_with("chefsachen_lib")
         // Meldungen aus der Oberfläche zählen wie eigene. Ohne diesen Zweig
         // fielen sie unterhalb von „Warnung" durch — und damit gerade die
         // Aufzeichnung der Aktualisierungssuche, die im Webview stattfindet.
@@ -112,8 +112,8 @@ mod tests {
 
     #[test]
     fn eigene_meldungen_werden_aufgezeichnet() {
-        assert!(soll_protokollieren("kleinunternehmer_verwaltung_lib", Level::Info));
-        assert!(soll_protokollieren("kleinunternehmer_verwaltung_lib::protokoll", Level::Debug));
+        assert!(soll_protokollieren("chefsachen_lib", Level::Info));
+        assert!(soll_protokollieren("chefsachen_lib::protokoll", Level::Debug));
     }
 
     #[test]

@@ -68,7 +68,7 @@ fn zeige_startfehler(app: &tauri::App, meldung: &str) {
     use tauri_plugin_dialog::{DialogExt, MessageDialogKind};
     app.dialog()
         .message(meldung)
-        .title("Kleinunternehmer-Verwaltung kann nicht starten")
+        .title("Chefsachen kann nicht starten")
         .kind(MessageDialogKind::Error)
         .blocking_show();
 }
