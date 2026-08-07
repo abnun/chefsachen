@@ -1,7 +1,7 @@
 {
   "name": "chefsachen",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Rechnungen, Angebote und E-Rechnungen für Kleinunternehmer nach § 19 UStG",
   "author": "Markus Müller <abnun@gmx.de>",
   "license": "MIT",
