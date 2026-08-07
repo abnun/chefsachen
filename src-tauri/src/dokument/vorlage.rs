@@ -69,6 +69,10 @@ pub struct Vorlage {
     /// hier standardmäßig aktiv — ausdrücklicher Nutzerwunsch, kein
     /// Bewahren des bisherigen Aussehens.
     pub zeigt_girocode: bool,
+    /// Kantenlänge des Girocodes. Wer viel im Fließtext vor dem Girocode
+    /// stehen hat, kann ihn verkleinern, um mehr Platz auf der Seite zu
+    /// behalten.
+    pub girocode_groesse_mm: f64,
     pub rand_oben_mm: f64,
     pub rand_unten_mm: f64,
     pub rand_seitlich_mm: f64,
@@ -89,6 +93,7 @@ impl Default for Vorlage {
             spalte_einzelpreis: true,
             tabelle_gitterlinien: false,
             zeigt_girocode: true,
+            girocode_groesse_mm: 28.0,
             rand_oben_mm: 25.0,
             rand_unten_mm: 25.0,
             rand_seitlich_mm: 25.0,
@@ -171,6 +176,12 @@ impl Vorlage {
                 standard.tabelle_gitterlinien,
             ),
             zeigt_girocode: ja(hole("vorlage.zeigt_girocode"), standard.zeigt_girocode),
+            girocode_groesse_mm: mm(
+                hole("vorlage.girocode_groesse_mm"),
+                standard.girocode_groesse_mm,
+                20.0,
+                32.0,
+            ),
             // Der obere Rand geht nicht unter 20 mm: Darunter überschnitte der
             // Briefkopf das Anschriftfeld, das bei 45 mm beginnt.
             rand_oben_mm: mm(hole("vorlage.rand_oben_mm"), standard.rand_oben_mm, 20.0, 40.0),
@@ -199,6 +210,7 @@ impl Vorlage {
             ("v_spalte_einzelpreis", ja_nein(self.spalte_einzelpreis)),
             ("v_tabelle_gitterlinien", ja_nein(self.tabelle_gitterlinien)),
             ("v_zeigt_girocode", ja_nein(self.zeigt_girocode)),
+            ("v_girocode_groesse_mm", self.girocode_groesse_mm.to_string()),
             ("v_rand_oben_mm", self.rand_oben_mm.to_string()),
             ("v_rand_unten_mm", self.rand_unten_mm.to_string()),
             ("v_rand_seitlich_mm", self.rand_seitlich_mm.to_string()),
@@ -287,6 +299,26 @@ mod tests {
         let pool = crate::db::init_db(&dir.path().join("t.db")).await.unwrap();
         let v = Vorlage::laden(&pool).await.unwrap();
         assert!(v.zeigt_girocode);
+    }
+
+    #[tokio::test]
+    async fn girocode_groesse_bleibt_im_zulaessigen_bereich() {
+        let dir = tempfile::tempdir().unwrap();
+        let pool = crate::db::init_db(&dir.path().join("t.db")).await.unwrap();
+
+        // Ohne gespeicherte Einstellung gilt das bisherige Aussehen.
+        assert_eq!(Vorlage::laden(&pool).await.unwrap().girocode_groesse_mm, 28.0);
+
+        crate::commands::einstellungen::set(&pool, "vorlage.girocode_groesse_mm".into(), "22".into())
+            .await
+            .unwrap();
+        assert_eq!(Vorlage::laden(&pool).await.unwrap().girocode_groesse_mm, 22.0);
+
+        // Eine vertippte Null darf den Girocode nicht unlesbar klein machen.
+        crate::commands::einstellungen::set(&pool, "vorlage.girocode_groesse_mm".into(), "0".into())
+            .await
+            .unwrap();
+        assert_eq!(Vorlage::laden(&pool).await.unwrap().girocode_groesse_mm, 20.0);
     }
 
     #[tokio::test]

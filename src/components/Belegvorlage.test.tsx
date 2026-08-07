@@ -103,8 +103,22 @@ describe("Belegvorlage", () => {
 
   it("startet mit aktivem Girocode, wie die Rust-Vorgabe", async () => {
     render(<Belegvorlage />);
-    await waitFor(() => expect(screen.getByLabelText(/Girocode/)).toBeTruthy());
-    expect(screen.getByLabelText(/Girocode/)).toBeChecked();
+    await waitFor(() => expect(screen.getByLabelText(/Girocode.*Rechnungen anzeigen/)).toBeTruthy());
+    expect(screen.getByLabelText(/Girocode.*Rechnungen anzeigen/)).toBeChecked();
+  });
+
+  it("stellt die Girocode-Größe ein und zeichnet die Vorschau damit neu", async () => {
+    render(<Belegvorlage />);
+    await waitFor(() => expect(api.vorlage.vorschau).toHaveBeenCalled());
+    vi.mocked(api.vorlage.vorschau).mockClear();
+
+    fireEvent.change(screen.getByLabelText("Girocode-Größe"), { target: { value: "22" } });
+
+    await waitFor(() =>
+      expect(api.vorlage.vorschau).toHaveBeenCalledWith(
+        expect.arrayContaining([["vorlage.girocode_groesse_mm", "22"]]),
+      ),
+    );
   });
 
   it("zeigt bei mehrseitiger Vorschau eine Blätterleiste", async () => {

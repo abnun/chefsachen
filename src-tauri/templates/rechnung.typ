@@ -3,11 +3,16 @@
 #let ist_gesetzt(wert) = wert != none and wert != ""
 #let ja(wert) = wert == "ja"
 
+// Vorgezogen, damit die Girocode-Größe direkt darunter darauf zugreifen
+// kann — Typst bindet Variablen lexikalisch an ihrer Quelltextstelle, ein
+// erst weiter unten stehendes `#let mass` wäre hier noch nicht bekannt.
+#let mass(name) = float(name) * 1mm
+
 // Girocode (SEPA-QR-Zahlungscode, EPC069-12): Der Empfänger zahlt per
 // Smartphone-Kamera, ohne IBAN abzutippen. Rust liefert nur die
 // Hell/Dunkel-Matrix (wie die Positionstabelle nur Zahlen liefert) — hier
 // entstehen daraus Vektor-Rechtecke, kein Bild.
-#let girocode_groesse = 28mm
+#let girocode_groesse = mass(sys.inputs.v_girocode_groesse_mm)
 #let girocode_block(matrix_json) = {
   let reihen = json(bytes(matrix_json))
   if reihen.len() > 0 {
