@@ -5,52 +5,444 @@
   font-display: swap;
 }
 
-* {
+/* ---------------------------------------------------------------
+   Gestaltungs-Token
+   Helles, warmes Papier, tiefschwarze Tinte, ein einziger frischer
+   Akzent (Petrolgrün) für Links, Marken- und Fokus-Details.
+   --------------------------------------------------------------- */
+
+:root {
+  color-scheme: light dark;
+
+  --papier: #fbfaf8;
+  --papier-tief: #f3f1ec;
+  --tinte: #16181c;
+  --tinte-weich: #55585f;
+  --linie: #e4dfd6;
+  --akzent: #0e6b52;
+  --akzent-hell: #0a5540;
+  --auf-akzent: #ffffff;
+  --schatten-farbe: 22 24 28;
+
+  --masz-1: 0.5rem;
+  --masz-2: 0.75rem;
+  --masz-3: 1rem;
+  --masz-4: 1.5rem;
+  --masz-5: 2rem;
+  --masz-6: 3rem;
+
+  --radius: 12px;
+  --schwung: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --papier: #121316;
+    --papier-tief: #191b1f;
+    --tinte: #f1f0ed;
+    --tinte-weich: #a4a8b0;
+    --linie: #2b2e34;
+    --akzent: #52c9a1;
+    --akzent-hell: #7bdcbb;
+    --auf-akzent: #0d1512;
+    --schatten-farbe: 0 0 0;
+  }
+}
+
+*,
+*::before,
+*::after {
   box-sizing: border-box;
+}
+
+html {
+  scrollbar-color: var(--linie) transparent;
 }
 
 body {
   font-family: "Inter", system-ui, sans-serif;
+  font-size: 1.0625rem;
+  line-height: 1.65;
   margin: 0;
-  color: #1a1a1a;
-  line-height: 1.5;
+  color: var(--tinte);
+  background-color: var(--papier);
+  background-image: linear-gradient(180deg, var(--papier-tief) 0%, transparent 100%);
+  background-repeat: no-repeat;
+  background-size: 100% 560px;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  font-variant-numeric: tabular-nums lining-nums;
 }
+
+::selection {
+  background: var(--akzent);
+  color: var(--auf-akzent);
+}
+
+:focus-visible {
+  outline: 2px solid var(--akzent);
+  outline-offset: 3px;
+}
+
+img {
+  max-width: 100%;
+  height: auto;
+}
+
+/* --- Grundtypografie ------------------------------------------- */
+
+h1,
+h2 {
+  line-height: 1.15;
+  text-wrap: balance;
+  font-weight: 650;
+  letter-spacing: -0.025em;
+  margin: 0;
+}
+
+p {
+  margin: 0 0 var(--masz-3);
+}
+
+a {
+  color: var(--akzent);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.18em;
+  transition: color 0.2s ease, text-decoration-color 0.2s ease;
+}
+
+a:hover {
+  color: var(--akzent-hell);
+  text-decoration-thickness: 2px;
+}
+
+strong {
+  font-weight: 650;
+}
+
+small {
+  font-size: 0.875rem;
+}
+
+/* --- Grundgerüst ----------------------------------------------- */
 
 .container {
-  max-width: 960px;
+  max-width: 62rem;
   margin: 0 auto;
-  padding: 0 1.5rem;
+  padding: 0 var(--masz-4);
 }
 
-header, main, footer {
-  padding: 2rem 0;
+/* Spezifität muss `.container` schlagen, daher Element + Klasse. */
+header.container {
+  padding-block: clamp(3rem, 9vw, 6rem) clamp(3rem, 8vw, 5rem);
 }
 
-.kachel-liste {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 1.5rem;
+main.container {
+  padding-block: 0 var(--masz-6);
+}
+
+footer.container {
+  padding-block: var(--masz-5) var(--masz-6);
+}
+
+/* --- Kopfbereich ----------------------------------------------- */
+
+header h1 {
+  font-size: clamp(2.75rem, 8vw, 4.25rem);
+  letter-spacing: -0.038em;
+  line-height: 1.02;
+  margin-bottom: var(--masz-4);
+}
+
+header h1::before {
+  content: "";
+  display: block;
+  width: clamp(56px, 9vw, 72px);
+  height: clamp(56px, 9vw, 72px);
+  margin-bottom: var(--masz-4);
+  background: url("app-icon.png") center / contain no-repeat;
+  border-radius: 22%;
+  box-shadow: 0 1px 2px rgb(var(--schatten-farbe) / 0.14),
+    0 10px 24px -12px rgb(var(--schatten-farbe) / 0.35);
+}
+
+header > p:first-of-type {
+  font-size: clamp(1.125rem, 2.2vw, 1.4rem);
+  line-height: 1.45;
+  color: var(--tinte-weich);
+  max-width: 34ch;
+  text-wrap: balance;
+  margin-bottom: clamp(2rem, 4vw, 2.75rem);
+}
+
+/* Die beiden Download-Absätze bilden optisch eine Knopfreihe. */
+header p:has(> .download-primaer),
+header p:has(> .download-nebenrangig) {
+  display: inline-block;
+  margin: 0 var(--masz-2) var(--masz-2) 0;
+}
+
+.download-primaer,
+.download-nebenrangig {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 3rem;
+  padding: 0.85rem 1.6rem;
+  border-radius: var(--radius);
+  font-size: 1.0625rem;
+  font-weight: 600;
+  letter-spacing: -0.011em;
+  text-decoration: none;
+  transition: transform 0.35s var(--schwung), box-shadow 0.35s var(--schwung),
+    background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
 }
 
 .download-primaer {
-  display: inline-block;
-  background: #1a1a1a;
-  color: #fff;
-  padding: 0.75rem 1.5rem;
-  border-radius: 6px;
-  text-decoration: none;
-  font-weight: 600;
+  background: var(--tinte);
+  color: var(--papier);
+  border: 1px solid var(--tinte);
+  box-shadow: 0 1px 2px rgb(var(--schatten-farbe) / 0.18),
+    0 10px 22px -10px rgb(var(--schatten-farbe) / 0.4);
+}
+
+.download-primaer:hover {
+  color: var(--papier);
+  transform: translateY(-2px);
+  box-shadow: 0 2px 4px rgb(var(--schatten-farbe) / 0.2),
+    0 18px 32px -12px rgb(var(--schatten-farbe) / 0.45);
 }
 
 .download-nebenrangig {
-  display: block;
-  margin-top: 0.5rem;
-  color: #1a1a1a;
+  background: transparent;
+  color: var(--tinte);
+  border: 1px solid var(--linie);
 }
 
+.download-nebenrangig:hover {
+  color: var(--tinte);
+  background: var(--papier-tief);
+  border-color: var(--tinte-weich);
+  transform: translateY(-2px);
+}
+
+.download-primaer:active,
+.download-nebenrangig:active {
+  transform: translateY(0);
+}
+
+header > p:last-of-type {
+  margin: var(--masz-4) 0 0;
+  color: var(--tinte-weich);
+}
+
+header > p:last-of-type a {
+  color: inherit;
+  text-decoration-color: var(--linie);
+}
+
+header > p:last-of-type a:hover {
+  color: var(--akzent);
+}
+
+#release-version {
+  font-weight: 600;
+  color: var(--tinte);
+}
+
+/* --- Abschnitte ------------------------------------------------ */
+
+main > section + section {
+  margin-top: clamp(3.5rem, 8vw, 6rem);
+}
+
+section > h2 {
+  font-size: clamp(1.5rem, 3vw, 2.05rem);
+  margin-bottom: var(--masz-4);
+}
+
+section > p {
+  max-width: 66ch;
+}
+
+/* --- Funktionsliste (keine Kacheln, sondern gesetzte Spalten) --- */
+
+.kachel-liste {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
+  gap: clamp(2rem, 4vw, 2.75rem);
+}
+
+.kachel-liste article {
+  position: relative;
+  padding-top: var(--masz-3);
+  border-top: 1px solid var(--linie);
+}
+
+.kachel-liste article::before {
+  content: "";
+  position: absolute;
+  top: -1px;
+  left: 0;
+  width: 2rem;
+  height: 2px;
+  background: var(--akzent);
+}
+
+.kachel-liste h2 {
+  font-size: 1.0625rem;
+  letter-spacing: -0.014em;
+  margin-bottom: var(--masz-1);
+}
+
+.kachel-liste p {
+  margin: 0;
+  font-size: 0.9688rem;
+  line-height: 1.6;
+  color: var(--tinte-weich);
+}
+
+/* --- Hinweis --------------------------------------------------- */
+
 .hinweis-box {
-  border: 1px solid #ccc;
-  border-radius: 6px;
-  padding: 1rem 1.5rem;
-  background: #f7f7f7;
+  max-width: 48rem;
+  padding: clamp(1.25rem, 3vw, 1.75rem);
+  border: 1px solid var(--linie);
+  border-radius: var(--radius);
+  background: var(--papier-tief);
+}
+
+.hinweis-box p {
+  margin: 0;
+  font-size: 0.9688rem;
+  line-height: 1.6;
+  color: var(--tinte-weich);
+}
+
+.hinweis-box strong {
+  color: var(--tinte);
+}
+
+/* --- Open Source ----------------------------------------------- */
+
+section[aria-label="Open Source"] img {
+  height: 20px;
+  width: auto;
+  display: block;
+}
+
+/* --- Häufige Fragen -------------------------------------------- */
+
+dl {
+  margin: 0;
+  max-width: 70ch;
+}
+
+dt {
+  margin-top: var(--masz-4);
+  padding-top: var(--masz-4);
+  border-top: 1px solid var(--linie);
+  font-weight: 650;
+  letter-spacing: -0.012em;
+}
+
+dl > dt:first-of-type {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
+}
+
+dd {
+  margin: var(--masz-1) 0 0;
+  color: var(--tinte-weich);
+}
+
+/* --- Fußzeile -------------------------------------------------- */
+
+footer {
+  border-top: 1px solid var(--linie);
+  margin-top: clamp(3rem, 7vw, 5rem);
+  font-size: 0.9375rem;
+  color: var(--tinte-weich);
+}
+
+footer p {
+  margin: 0;
+}
+
+/* --- Rechtsseiten (Impressum, Datenschutz) ---------------------- */
+/* Greift nur dort: auf der Startseite hat <main> keine direkten
+   Überschriften oder Absätze als Kinder.                           */
+
+main.container > h1 {
+  font-size: clamp(2rem, 5vw, 2.75rem);
+  letter-spacing: -0.03em;
+  margin: clamp(2.5rem, 7vw, 4rem) 0 var(--masz-5);
+}
+
+main.container > h2 {
+  font-size: 1.125rem;
+  margin: var(--masz-5) 0 var(--masz-1);
+  color: var(--tinte);
+}
+
+main.container > p {
+  max-width: 68ch;
+  color: var(--tinte-weich);
+}
+
+main.container > p:last-child {
+  margin-top: var(--masz-5);
+  padding-top: var(--masz-4);
+  border-top: 1px solid var(--linie);
+}
+
+/* --- Enge Fenster ---------------------------------------------- */
+
+@media (max-width: 30rem) {
+  header p:has(> .download-primaer),
+  header p:has(> .download-nebenrangig) {
+    display: block;
+    margin-right: 0;
+  }
+
+  .download-primaer,
+  .download-nebenrangig {
+    width: 100%;
+  }
+}
+
+/* --- Ein einziger Bewegungsmoment beim Eintreffen --------------- */
+
+@media (prefers-reduced-motion: no-preference) {
+  header > * {
+    animation: eintreffen 0.6s var(--schwung) backwards;
+  }
+
+  header > *:nth-child(1) {
+    animation-delay: 0.02s;
+  }
+  header > *:nth-child(2) {
+    animation-delay: 0.08s;
+  }
+  header > *:nth-child(3) {
+    animation-delay: 0.14s;
+  }
+  header > *:nth-child(4) {
+    animation-delay: 0.18s;
+  }
+  header > *:nth-child(5) {
+    animation-delay: 0.22s;
+  }
+}
+
+@keyframes eintreffen {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
