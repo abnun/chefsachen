@@ -42,7 +42,10 @@ vi.mock("../api", () => ({
     },
     artikel: { list: vi.fn().mockResolvedValue([{ id: "a1" }]) },
   },
-  istValidierungsfehler: () => false,
+  // Echte Logik statt eines pauschalen false — sonst kann in Tests grundsätzlich
+  // kein Feldfehler sichtbar werden und genau die Regression bliebe unentdeckt.
+  istValidierungsfehler: (e: unknown) =>
+    typeof e === "object" && e !== null && (e as { typ?: string }).typ === "validation",
 }));
 import { Kunden } from "./Kunden";
 
