@@ -8,7 +8,7 @@ name: Release
 # Signing/Notarization ist bewusst nicht eingerichtet: Die App geht vorerst nur
 # an Family & Friends, dafür lohnen sich Apple-Developer- und Windows-Zertifikat
 # nicht. Nutzer bestätigen die Sicherheitswarnung beim ersten Start einmalig
-# (siehe docs/installation-freunde.md). Sobald Zertifikate vorliegen, genügt es,
+# (siehe docs/installation.md). Sobald Zertifikate vorliegen, genügt es,
 # die auskommentierten Secrets unten zu setzen — tauri-action nutzt sie dann
 # automatisch, ohne dass dieser Workflow geändert werden muss.
 #

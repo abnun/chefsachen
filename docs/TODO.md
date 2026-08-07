@@ -607,14 +607,14 @@ Ohne diese Punkte ist die App für die Zielgruppe nicht wertvoll.
   Aufbau und Datenablage statt des Tauri-Templates. Bundle-Metadaten in `tauri.conf.json`
   (publisher, copyright, license, category, short-/longDescription) sowie `Cargo.toml`
   und `package.json` gesetzt — geprüft am gebauten `.app`-Bundle, nicht nur an der Konfiguration.
-  `docs/installation-freunde.md` um Erste Schritte, Datenablage, Sicherung und Updates erweitert;
+  `docs/installation.md` um Erste Schritte, Datenablage, Sicherung und Updates erweitert;
   der macOS-Weg führt jetzt über die Systemeinstellungen (Rechtsklick → Öffnen wirkt auf
   aktuellen macOS-Versionen nicht mehr).
 
 - [–] **P5.6 — Code-Signing und Notarisierung** `[B1]` — **bewusst zurückgestellt (2026-08-02)**
   Die App geht vorerst nur an Family & Friends; Apple-Developer-Zertifikat (99 $/Jahr) und
   Windows-Zertifikat lohnen sich dafür nicht. Stattdessen ist der ungesignierte Erststart in
-  `docs/installation-freunde.md` dokumentiert. Secrets sind in `release.yml` vorbereitet,
+  `docs/installation.md` dokumentiert. Secrets sind in `release.yml` vorbereitet,
   falls die Entscheidung später anders ausfällt.
 
 - [x] **P5.7 — CSP setzen** `[B13]`

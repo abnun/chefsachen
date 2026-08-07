@@ -78,11 +78,11 @@ im Programm sagt das an jeder Stelle ausdrücklich („Verschickt wird nichts").
 
 Fertige Installationspakete werden über die Releases verteilt. Die Anleitung
 inklusive der Sicherheitswarnung beim ersten Start steht in
-[docs/installation-freunde.md](docs/installation-freunde.md).
+[docs/installation.md](docs/installation.md).
 
 Die App ist bewusst **nicht** mit einem Plattform-Zertifikat signiert: Eine
 Apple Developer ID kostet 99 $/Jahr, ein Windows-Zertifikat ähnlich viel. Für
-die Weitergabe im kleinen Kreis lohnt sich das nicht — die Warnung ist dafür
+ein kostenloses Projekt lohnt sich das nicht — die Warnung ist dafür
 einmalig zu bestätigen.
 
 Die **Update-Pakete** sind davon unabhängig sehr wohl signiert, mit einem

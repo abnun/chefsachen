@@ -35,8 +35,8 @@ nur **einmalig** zu bestätigen.
 ## Warum diese Warnung erscheint
 
 Apple und Microsoft verlangen für eine warnungsfreie Installation ein
-kostenpflichtiges Entwickler-Zertifikat je Plattform. Diese App wird im
-kleinen Kreis weitergegeben, dafür lohnt sich der Aufwand nicht. An der
+kostenpflichtiges Entwickler-Zertifikat je Plattform. Für ein kostenloses
+Projekt lohnt sich dieser Aufwand nicht. An der
 Sicherheit der App ändert das nichts: Die Warnung prüft nur, ob der
 Herausgeber bei Apple bzw. Microsoft hinterlegt ist — nicht, was die App tut.
 
