@@ -216,7 +216,7 @@ header p:has(> .download-nebenrangig) {
 .download-nebenrangig {
   background: transparent;
   color: var(--tinte);
-  border: 1px solid var(--linie);
+  border: 1px solid var(--tinte-weich);
 }
 
 .download-nebenrangig:hover {
@@ -237,8 +237,8 @@ header > p:last-of-type {
 }
 
 header > p:last-of-type a {
-  color: inherit;
-  text-decoration-color: var(--linie);
+  color: var(--akzent);
+  text-decoration-color: currentColor;
 }
 
 header > p:last-of-type a:hover {
