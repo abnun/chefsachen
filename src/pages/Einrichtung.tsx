@@ -202,6 +202,17 @@ export function Einrichtung({ onFertig }: EinrichtungProps) {
           </div>
           <div className="feld">
             <label>
+              Fax
+              <input
+                value={firma.fax}
+                onChange={(e) => feldAendern({ fax: e.currentTarget.value })}
+              />
+            </label>
+            <p className="feld-hinweis">Optional — nicht vorgeschrieben, manche Kunden verlangen sie trotzdem.</p>
+            {feldFehler("fax") && <div className="feld-fehler" role="alert">{feldFehler("fax")}</div>}
+          </div>
+          <div className="feld">
+            <label>
               Ansprechpartner
               <input
                 value={firma.kontakt_name}
