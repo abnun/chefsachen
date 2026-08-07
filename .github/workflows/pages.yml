@@ -53,11 +53,6 @@ jobs:
           exe=$(echo "$json" | jq -r '.assets[] | select(.name | endswith("-setup.exe")) | .browser_download_url')
           msi=$(echo "$json" | jq -r '.assets[] | select(.name | endswith(".msi")) | .browser_download_url')
 
-          # Ohne diese Prüfung würde ein Release mit unerwarteter
-          # Asset-Benennung (z. B. weil release.yml sich mal ändert) eine
-          # leere href="" einsetzen — der spätere Platzhalter-Check unten
-          # sähe "releases/latest" nicht mehr und würde fälschlich grün
-          # durchlaufen, obwohl der Download-Link kaputt ist.
           # Allowlist: Alles, was nicht exakt wie eine Version bzw. eine
           # Asset-URL dieses Repos aussieht, wird abgewiesen — statt es
           # ungeprüft in die veröffentlichte Seite zu schreiben. Ein Tag-Name
