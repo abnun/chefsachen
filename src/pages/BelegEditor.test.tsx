@@ -324,7 +324,7 @@ describe("BelegEditor – Herkunft des Preises", () => {
     render(<BelegEditor id="b1" />);
     await waitFor(() => expect(screen.getByLabelText("Artikel")).toBeTruthy());
     fireEvent.change(screen.getByLabelText("Artikel"), { target: { value: "Beratung" } });
-    fireEvent.change(screen.getByLabelText("Menge"), { target: { value: "4" } });
+    fireEvent.change(screen.getByLabelText("Menge", { exact: false }), { target: { value: "4" } });
 
     await waitFor(() => expect(screen.getByText("Positionssumme: 260,00 €")).toBeTruthy());
   });
@@ -1033,9 +1033,11 @@ describe("BelegEditor – Positionen bearbeiten und sortieren", () => {
 
     fireEvent.click(screen.getAllByRole("button", { name: "Bearbeiten" })[0]);
     expect(screen.getByText("Position ändern")).toBeTruthy();
-    expect((screen.getByLabelText("Bezeichnung") as HTMLInputElement).value).toBe("Konzept");
+    expect((screen.getByLabelText("Bezeichnung", { exact: false }) as HTMLInputElement).value).toBe(
+      "Konzept",
+    );
 
-    fireEvent.change(screen.getByLabelText("Menge"), { target: { value: "3" } });
+    fireEvent.change(screen.getByLabelText("Menge", { exact: false }), { target: { value: "3" } });
     fireEvent.click(screen.getByRole("button", { name: "Änderung speichern" }));
 
     await waitFor(() =>
@@ -1064,8 +1066,10 @@ describe("BelegEditor – Positionen bearbeiten und sortieren", () => {
     await waitFor(() => expect(screen.getByText("Konzept")).toBeTruthy());
 
     fireEvent.click(screen.getByLabelText("Freitextposition"));
-    fireEvent.change(screen.getByLabelText("Einzelpreis"), { target: { value: "95,50" } });
-    fireEvent.change(screen.getByLabelText("Menge"), { target: { value: "3" } });
+    fireEvent.change(screen.getByLabelText("Einzelpreis", { exact: false }), {
+      target: { value: "95,50" },
+    });
+    fireEvent.change(screen.getByLabelText("Menge", { exact: false }), { target: { value: "3" } });
 
     await waitFor(() => expect(screen.getByText(/Positionssumme: 286,50/)).toBeTruthy());
   });
@@ -1085,7 +1089,7 @@ describe("BelegEditor – Positionen bearbeiten und sortieren", () => {
     render(<BelegEditor id="b1" />);
     await waitFor(() => expect(screen.getByText("Konzept")).toBeTruthy());
 
-    fireEvent.change(screen.getByLabelText("Menge"), { target: { value: "drei" } });
+    fireEvent.change(screen.getByLabelText("Menge", { exact: false }), { target: { value: "drei" } });
     await waitFor(() => expect(screen.getByText(/Menge unklar/)).toBeTruthy());
   });
 
@@ -1095,8 +1099,12 @@ describe("BelegEditor – Positionen bearbeiten und sortieren", () => {
     await waitFor(() => expect(screen.getByText("Konzept")).toBeTruthy());
 
     fireEvent.click(screen.getByLabelText("Freitextposition"));
-    fireEvent.change(screen.getByLabelText("Bezeichnung"), { target: { value: "Fachbuch" } });
-    fireEvent.change(screen.getByLabelText("Einzelpreis"), { target: { value: "10,70" } });
+    fireEvent.change(screen.getByLabelText("Bezeichnung", { exact: false }), {
+      target: { value: "Fachbuch" },
+    });
+    fireEvent.change(screen.getByLabelText("Einzelpreis", { exact: false }), {
+      target: { value: "10,70" },
+    });
     fireEvent.change(screen.getByLabelText("Umsatzsteuersatz"), { target: { value: "7" } });
     fireEvent.click(screen.getByRole("button", { name: "Position hinzufügen" }));
 

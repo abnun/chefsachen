@@ -1,5 +1,6 @@
 import { type AppFehler, type Kunde } from "../api";
 import { Fehler } from "./Fehler";
+import { PflichtLegende, PflichtMarker } from "./PflichtMarker";
 
 /**
  * Formular zum Anlegen eines Belegs: Kunde und Datum, sonst nichts.
@@ -38,6 +39,7 @@ export function BelegAnlegen({
       {fehler && <Fehler fehler={fehler} />}
       <label className="feld">
         Kunde
+        <PflichtMarker art="pflicht" />
         <select value={kundeId} onChange={(e) => onKundeId(e.currentTarget.value)}>
           <option value="">– wählen –</option>
           {kunden.map((k) => (
@@ -51,6 +53,7 @@ export function BelegAnlegen({
         Datum
         <input type="date" value={datum} onChange={(e) => onDatum(e.currentTarget.value)} />
       </label>
+      <PflichtLegende />
       <button type="submit" className="btn btn-primaer">
         Anlegen
       </button>

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { api, type AppFehler, type Artikel, type Belegposition } from "../api";
 import { ArtikelAuswahl } from "./ArtikelAuswahl";
 import { Fehler } from "./Fehler";
+import { PflichtLegende, PflichtMarker } from "./PflichtMarker";
 import { useErfolgsHinweis } from "../hooks/useErfolgsHinweis";
 import { useBestaetigung } from "../hooks/useBestaetigung";
 import { formatCent, formatMenge, parseEuro, parseMenge } from "../geld";
@@ -263,6 +264,7 @@ export function PositionenAbschnitt({
             <>
               <label className="feld">
                 Bezeichnung
+                <PflichtMarker art="pflicht" />
                 <input value={bezeichnung} onChange={(e) => setBezeichnung(e.currentTarget.value)} />
               </label>
               <label className="feld">
@@ -271,6 +273,7 @@ export function PositionenAbschnitt({
               </label>
               <label className="feld">
                 Einzelpreis
+                <PflichtMarker art="pflicht" />
                 <input value={einzelpreis} onChange={(e) => setEinzelpreis(e.currentTarget.value)} placeholder="95,00" />
               </label>
               <label className="feld">
@@ -313,6 +316,7 @@ export function PositionenAbschnitt({
           )}
           <label className="feld">
             Menge
+            <PflichtMarker art="pflicht" />
             <input value={menge} onChange={(e) => setMenge(e.currentTarget.value)} />
           </label>
 
@@ -320,6 +324,7 @@ export function PositionenAbschnitt({
             {vorschau.betrag === null ? vorschau.text : `Positionssumme: ${formatCent(vorschau.betrag)}`}
           </p>
 
+          <PflichtLegende />
           <div className="aktionen aktionen-formular">
             <button type="submit" className="btn btn-primaer">
               {bearbeiteId ? "Änderung speichern" : "Position hinzufügen"}
