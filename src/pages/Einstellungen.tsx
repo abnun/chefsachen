@@ -17,6 +17,7 @@ import { useBestaetigung } from "../hooks/useBestaetigung";
 import { useUngespeichert } from "../hooks/useUngespeichert";
 import { Aktualisierung } from "../components/Aktualisierung";
 import { Belegvorlage } from "../components/Belegvorlage";
+import { PAYPAL_LINK } from "../components/SpendenHinweis";
 import { zeitpunktDeutsch } from "../datum";
 import { type FuehrungsSchritt } from "../components/Fuehrung";
 import { SeitenkopfMitRundgang } from "../components/SeitenkopfMitRundgang";
@@ -84,7 +85,21 @@ export function Einstellungen() {
           Aussehen. */}
       <Belegvorlage />
       <Aktualisierung />
+      <SpendenAbschnitt />
     </div>
+  );
+}
+
+function SpendenAbschnitt() {
+  return (
+    <section>
+      <div className="hinweis-karte">
+        <p>Gefällt dir Chefsachen? Über eine kleine Spende würde ich mich freuen — muss aber nicht.</p>
+        <a href={PAYPAL_LINK} target="_blank" rel="noopener noreferrer" className="btn">
+          Über PayPal unterstützen
+        </a>
+      </div>
+    </section>
   );
 }
 

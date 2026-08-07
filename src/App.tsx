@@ -4,6 +4,7 @@ import { api, type AppFehler, type Firma } from "./api";
 import { Layout, type Seite } from "./components/Layout";
 import { Fehler } from "./components/Fehler";
 import { VersionsHinweis } from "./components/VersionsHinweis";
+import { SpendenHinweis } from "./components/SpendenHinweis";
 import { useVerlassenPruefen } from "./hooks/useUngespeichert";
 import { Laden } from "./components/Laden";
 import { Dashboard } from "./pages/Dashboard";
@@ -105,6 +106,7 @@ function App() {
   return (
     <Layout aktiveSeite={seite} onNavigiere={navigiere}>
       <VersionsHinweis />
+      <SpendenHinweis />
       {seite === "uebersicht" && (
         <Dashboard
           onRechnungOeffnen={(id) => {
