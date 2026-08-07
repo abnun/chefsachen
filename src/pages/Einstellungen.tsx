@@ -92,9 +92,13 @@ export function Einstellungen() {
 
 function SpendenAbschnitt() {
   return (
-    <section>
+    <section className="abschnitt-abstand">
       <div className="hinweis-karte">
-        <p>Gefällt dir Chefsachen? Über eine kleine Spende würde ich mich freuen — muss aber nicht.</p>
+        <p>Gefällt dir Chefsachen? Über eine kleine Unterstützung würde ich mich freuen — muss aber nicht.</p>
+        <p className="feld-hinweis">
+          Eine freiwillige Zuwendung ohne Gegenleistung — keine Spende im steuerlichen Sinn, nicht
+          absetzbar, und ohne Einfluss auf den Funktionsumfang.
+        </p>
         <a href={PAYPAL_LINK} target="_blank" rel="noopener noreferrer" className="btn">
           Über PayPal unterstützen
         </a>

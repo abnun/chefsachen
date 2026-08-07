@@ -83,9 +83,10 @@ export function SpendenHinweis() {
         </>
       }
     >
+      <p>Über eine kleine Unterstützung würde ich mich freuen — muss aber nicht.</p>
       <p>
-        Über eine kleine Spende würde ich mich freuen — muss aber nicht.
-        Nutzung und Funktionsumfang bleiben davon unabhängig.
+        Eine freiwillige Zuwendung ohne Gegenleistung — keine Spende im steuerlichen Sinn, nicht
+        absetzbar, und ohne Einfluss auf den Funktionsumfang.
       </p>
     </Dialog>
   );

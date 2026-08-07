@@ -564,6 +564,13 @@ label.feld textarea {
 .grenze-kritisch { color: #b4530a; }
 .grenze-ueberschritten { color: var(--fehler-text); }
 
+/* Abstand zum Vorherigen für Abschnitte ohne eigene Überschrift — sonst
+   fehlt der `h2`-Rand (margin-top), der sonst für Luft zwischen den
+   Abschnitten der Einstellungsseite sorgt. */
+.abschnitt-abstand {
+  margin-top: var(--abstand-xl);
+}
+
 .hinweis-karte {
   border: 1px solid currentColor;
   border-left-width: 4px;
