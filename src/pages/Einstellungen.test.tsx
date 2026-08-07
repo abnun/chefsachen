@@ -88,7 +88,8 @@ vi.mock("../api", () => ({
       set: vi.fn().mockResolvedValue(undefined),
     },
   },
-  istValidierungsfehler: () => false,
+  istValidierungsfehler: (e: unknown) =>
+    typeof e === "object" && e !== null && (e as { typ?: string }).typ === "validation",
 }));
 import { api } from "../api";
 import { AktualisierungProvider } from "../hooks/useAktualisierung";
@@ -147,6 +148,26 @@ describe("Einstellungen", () => {
     // "Speichern"-Button ist damit im DOM immer der erste unter diesem Namen.
     fireEvent.click(screen.getAllByRole("button", { name: "Speichern" })[0]);
     await waitFor(() => expect(screen.getByText("Firmendaten gespeichert")).toBeTruthy());
+  });
+
+  /*
+   * Straße/PLZ/Ort/Land sind seit Task 1 im Backend Pflichtfelder der Firma.
+   * Ein solcher Validierungsfehler muss am betroffenen Feld selbst
+   * erscheinen, nicht nur im Banner.
+   */
+  it("weist eine fehlende Straße der Firma am Feld aus, nicht nur im Banner", async () => {
+    const { api } = await import("../api");
+    vi.mocked(api.firma.save).mockRejectedValueOnce({
+      typ: "validation", feld: "strasse", meldung: "Straße darf nicht leer sein",
+    });
+    render(<EinstellungenMitAnbieter />);
+    await waitFor(() => expect(screen.getByDisplayValue("Musterfirma")).toBeTruthy());
+    fireEvent.click(screen.getAllByRole("button", { name: "Speichern" })[0]);
+
+    const meldung = await screen.findByText("Straße darf nicht leer sein");
+    const feldContainer = screen.getByLabelText("Straße", { exact: false }).closest(".feld");
+    expect(feldContainer).not.toBeNull();
+    expect(within(feldContainer as HTMLElement).getByText("Straße darf nicht leer sein")).toBe(meldung);
   });
 
   it("speichert eine geänderte Fax-Nummer mit", async () => {

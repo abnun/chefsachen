@@ -491,7 +491,7 @@ describe("BelegEditor – Zahlungen", () => {
     render(<BelegEditor id="b1" />);
     await waitFor(() => expect(screen.getByText("Gestellt", { selector: ".status" })).toBeTruthy());
 
-    fireEvent.change(screen.getByLabelText("Betrag"), { target: { value: "50,00" } });
+    fireEvent.change(screen.getByLabelText("Betrag *"), { target: { value: "50,00" } });
     fireEvent.click(screen.getByLabelText("Erstattung (negativer Betrag)"));
     fireEvent.click(screen.getByRole("button", { name: "Zahlung erfassen" }));
 
@@ -518,7 +518,7 @@ describe("BelegEditor – Zahlungen", () => {
     });
     render(<BelegEditor id="b1" />);
     await waitFor(() => expect(screen.getByText("Gestellt", { selector: ".status" })).toBeTruthy());
-    fireEvent.change(screen.getByLabelText("Betrag"), { target: { value: "50,00" } });
+    fireEvent.change(screen.getByLabelText("Betrag *"), { target: { value: "50,00" } });
     fireEvent.click(screen.getByRole("button", { name: "Zahlung erfassen" }));
     await waitFor(() => expect(screen.getByText("Zahlung erfasst")).toBeTruthy());
   });
@@ -892,7 +892,7 @@ describe("BelegEditor – Erfolgs-Hinweis", () => {
     vi.mocked(api.belege.get).mockResolvedValue(rechnungGestellt());
     render(<BelegEditor id="b1" />);
     await waitFor(() => expect(screen.getByRole("button", { name: "Zahlung erfassen" })).toBeTruthy());
-    fireEvent.change(screen.getByLabelText("Betrag"), { target: { value: "95,50" } });
+    fireEvent.change(screen.getByLabelText("Betrag *"), { target: { value: "95,50" } });
     const knopf = screen.getByRole("button", { name: "Zahlung erfassen" });
     fireEvent.click(knopf);
     fireEvent.click(knopf);

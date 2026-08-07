@@ -520,10 +520,10 @@ pub fn pruefe_exportierbarkeit(kontext: &BelegKontext) -> AppResult<()> {
             meldung: "Für den XRechnung-Export ist eine Steuernummer oder USt-IdNr. erforderlich".into(),
         });
     }
-    if kontext.kunde_kaeuferreferenz.trim().is_empty() {
+    if kontext.kunde_kaeuferreferenz.trim().is_empty() && kontext.kunde_leitweg_id.trim().is_empty() {
         return Err(AppError::Validation {
             feld: "kaeuferreferenz".into(),
-            meldung: "Für den XRechnung-Export ist eine Käuferreferenz beim Kunden erforderlich".into(),
+            meldung: "Für den XRechnung-Export ist eine Käuferreferenz oder Leitweg-ID beim Kunden erforderlich".into(),
         });
     }
     Ok(())
@@ -856,11 +856,19 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn pruefe_exportierbarkeit_verlangt_kaeuferreferenz() {
+    fn pruefe_exportierbarkeit_verlangt_kaeuferreferenz_oder_leitweg_id() {
         let mut kontext = test_kontext(None, 9500);
         kontext.kunde_kaeuferreferenz = "".into();
+        kontext.kunde_leitweg_id = "".into();
         let err = pruefe_exportierbarkeit(&kontext).unwrap_err();
         assert!(matches!(err, crate::error::AppError::Validation { feld, .. } if feld == "kaeuferreferenz"));
+    }
+
+    #[test]
+    fn pruefe_exportierbarkeit_akzeptiert_nur_leitweg_id() {
+        let mut kontext = test_kontext(None, 9500);
+        kontext.kunde_kaeuferreferenz = "".into();
+        assert!(pruefe_exportierbarkeit(&kontext).is_ok());
     }
 
     #[test]

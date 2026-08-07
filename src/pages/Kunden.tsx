@@ -331,6 +331,7 @@ export function Kunden({
                 }
               />
             </label>
+            <p className="feld-hinweis">Leitweg-ID oder Käuferreferenz reicht für den XRechnung-Export.</p>
           </div>
           <PflichtLegende zeigtXrechnung />
           <div className="aktionen aktionen-formular">

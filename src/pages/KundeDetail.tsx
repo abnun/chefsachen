@@ -415,6 +415,7 @@ function StammdatenReiter({ kunde, onGespeichert, onGeloescht }: StammdatenReite
               onChange={(e) => setForm({ ...form, kaeuferreferenz: e.currentTarget.value })}
             />
           </label>
+          <p className="feld-hinweis">Leitweg-ID oder Käuferreferenz reicht für den XRechnung-Export.</p>
         </div>
         <PflichtLegende zeigtXrechnung />
         <div className="aktionen aktionen-formular">

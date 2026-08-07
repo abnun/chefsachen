@@ -5,6 +5,7 @@ import { useErfolgsHinweis } from "../hooks/useErfolgsHinweis";
 import { useBestaetigung } from "../hooks/useBestaetigung";
 import { formatCent, parseEuro } from "../geld";
 import { heuteIso } from "../datum";
+import { PflichtLegende, PflichtMarker } from "./PflichtMarker";
 
 interface ZahlungenAbschnittProps {
   rechnungId: string;
@@ -114,6 +115,7 @@ export function ZahlungenAbschnitt({ rechnungId, zahlungen, offenerBetragCent, o
         </label>
         <label className="feld">
           Betrag
+          <PflichtMarker art="pflicht" />
           <input value={betrag} onChange={(e) => setBetrag(e.currentTarget.value)} placeholder="95,00" />
         </label>
         <label className="feld-checkbox">
@@ -124,6 +126,7 @@ export function ZahlungenAbschnitt({ rechnungId, zahlungen, offenerBetragCent, o
           Notiz
           <input value={notiz} onChange={(e) => setNotiz(e.currentTarget.value)} />
         </label>
+        <PflichtLegende />
         <div className="aktionen aktionen-formular">
           <button type="submit" className="btn btn-primaer" disabled={laeuft}>
             Zahlung erfassen
