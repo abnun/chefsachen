@@ -76,8 +76,12 @@
   #sys.inputs.firma_name \
   #sys.inputs.firma_strasse \
   #sys.inputs.firma_plz #sys.inputs.firma_ort
-  #if kontaktzeilen.len() > 0 [
-    \ #kontaktzeilen.join(" · ")
+  // Eine eigene Zeile je Kontaktangabe statt mit " · " zu einem Fließtext
+  // verbunden: Bei allen drei Angaben (Telefon, Fax, E-Mail) brach die
+  // verbundene Zeile in der schmalen Fuß-Spalte um, mit einem verwaisten
+  // "·" vor der letzten Angabe.
+  #for zeile in kontaktzeilen [
+    \ #zeile
   ]
 ]
 
