@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Kleinunternehmer-Verwaltung",
+  "productName": "Chefsachen",
   "version": "0.10.2",
-  "identifier": "de.kleinunternehmer.verwaltung",
+  "identifier": "de.chefsachen.app",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "Kleinunternehmer-Verwaltung",
+        "title": "Chefsachen",
         "width": 800,
         "height": 600
       }
@@ -30,7 +30,7 @@
     "license": "MIT",
     "category": "Business",
     "shortDescription": "Rechnungen, Angebote und E-Rechnungen für Kleinunternehmer nach § 19 UStG",
-    "longDescription": "Kleinunternehmer-Verwaltung erstellt Rechnungen und Angebote mit allen Pflichtangaben nach § 14 UStG, gibt sie als PDF/A-3b sowie als XRechnung und ZUGFeRD aus und archiviert eingehende E-Rechnungen unveränderlich. Die Umsatzgrenzen der Kleinunternehmerregelung nach § 19 UStG werden laufend überwacht und ihre finanziellen Folgen erläutert. Alle Daten bleiben lokal auf dem eigenen Rechner.",
+    "longDescription": "Chefsachen erstellt Rechnungen und Angebote mit allen Pflichtangaben nach § 14 UStG, gibt sie als PDF/A-3b sowie als XRechnung und ZUGFeRD aus und archiviert eingehende E-Rechnungen unveränderlich. Die Umsatzgrenzen der Kleinunternehmerregelung nach § 19 UStG werden laufend überwacht und ihre finanziellen Folgen erläutert. Alle Daten bleiben lokal auf dem eigenen Rechner.",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
