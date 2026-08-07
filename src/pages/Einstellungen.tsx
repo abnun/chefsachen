@@ -766,12 +766,14 @@ function EinheitenAbschnitt() {
       >
         <label className="feld">
           Name
+          <PflichtMarker art="pflicht" />
           <input value={name} onChange={(e) => setName(e.currentTarget.value)} />
         </label>
         <label className="feld">
           Kürzel
           <input value={kuerzel} onChange={(e) => setKuerzel(e.currentTarget.value)} />
         </label>
+        <PflichtLegende />
         <div className="aktionen aktionen-formular">
           <button type="submit" className="btn btn-primaer">
             {bearbeiteId ? "Aktualisieren" : "Hinzufügen"}

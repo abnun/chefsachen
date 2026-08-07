@@ -20,6 +20,7 @@ import { KundenpreiseDialog } from "../components/KundenpreiseDialog";
 import { type FuehrungsSchritt } from "../components/Fuehrung";
 import { SeitenkopfMitRundgang } from "../components/SeitenkopfMitRundgang";
 import { formatCent, parseEuro } from "../geld";
+import { PflichtLegende, PflichtMarker } from "../components/PflichtMarker";
 
 /**
  * Statisch außerhalb der Komponente, wie auf der Übersicht: Ein je Rendern
@@ -293,6 +294,7 @@ export function Artikel({ zeigeFormularBeimStart, onFormularUebernommen, onZuKun
           <div className="feld">
             <label>
               Bezeichnung
+              <PflichtMarker art="pflicht" />
               {/* Kein `required`: Die eingebaute Blase des Browsers steht in
                   der Sprache des Systems, sieht anders aus als jede andere
                   Meldung der Anwendung und verschwindet beim nächsten Klick.
@@ -317,6 +319,7 @@ export function Artikel({ zeigeFormularBeimStart, onFormularUebernommen, onZuKun
           <div className="feld">
             <label>
               Einheit
+              <PflichtMarker art="pflicht" />
               <select
                 value={form.einheit_id}
                 onChange={(e) => setForm({ ...form, einheit_id: e.currentTarget.value })}
@@ -367,6 +370,7 @@ export function Artikel({ zeigeFormularBeimStart, onFormularUebernommen, onZuKun
               (Einstellungen) weisen Belege keine Umsatzsteuer aus.
             </p>
           </div>
+          <PflichtLegende />
           <div className="aktionen aktionen-formular">
             <button type="submit" className="btn btn-primaer">Speichern</button>
             <button type="button" className="btn" onClick={() => setZeigeFormular(false)}>

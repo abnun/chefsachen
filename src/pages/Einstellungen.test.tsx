@@ -171,9 +171,9 @@ describe("Einstellungen", () => {
   it("zeigt nach dem Anlegen einer neuen Einheit einen Erfolgs-Hinweis", async () => {
     render(<EinstellungenMitAnbieter />);
     await waitFor(() => expect(screen.getByText("Std")).toBeTruthy());
-    // Firmendaten hat ebenfalls ein "Name"-Feld, aber dessen Label lautet wegen
-    // des Pflichtfeld-Markers "Name *" — exakt "Name" bleibt hier eindeutig.
-    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Pauschale" } });
+    // Firmendaten hat ebenfalls ein "Name"-Feld, beide tragen jetzt den
+    // Pflichtfeld-Marker ("Name *"). Index 1: Firmendaten steht im DOM davor.
+    fireEvent.change(screen.getAllByLabelText("Name *")[1], { target: { value: "Pauschale" } });
     fireEvent.change(screen.getByLabelText("Kürzel"), { target: { value: "Pausch" } });
     fireEvent.click(screen.getByRole("button", { name: "Hinzufügen" }));
     await waitFor(() => expect(screen.getByText('Einheit „Pauschale" angelegt')).toBeTruthy());

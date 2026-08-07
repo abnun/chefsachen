@@ -78,8 +78,8 @@ describe("Artikel", () => {
     render(<Artikel onZuKundenWechseln={onZuKundenWechseln} />);
     await waitFor(() => expect(screen.getByRole("button", { name: "Neuer Artikel" })).toBeTruthy());
     fireEvent.click(screen.getByRole("button", { name: "Neuer Artikel" }));
-    fireEvent.change(screen.getByLabelText("Bezeichnung"), { target: { value: "Beratung" } });
-    fireEvent.change(screen.getByLabelText("Einheit"), { target: { value: "e1" } });
+    fireEvent.change(screen.getByLabelText("Bezeichnung *"), { target: { value: "Beratung" } });
+    fireEvent.change(screen.getByLabelText("Einheit *"), { target: { value: "e1" } });
     fireEvent.change(screen.getByLabelText("Standardpreis (€, brutto)"), { target: { value: "50,00" } });
     fireEvent.click(screen.getByRole("button", { name: "Speichern" }));
     await waitFor(() =>
@@ -143,10 +143,10 @@ describe("Artikel", () => {
     render(<Artikel />);
     await waitFor(() => expect(screen.getByText("Beratung")).toBeTruthy());
     fireEvent.click(screen.getByRole("button", { name: "Neuer Artikel" }));
-    fireEvent.change(screen.getByLabelText("Bezeichnung"), { target: { value: "Konzeption" } });
+    fireEvent.change(screen.getByLabelText("Bezeichnung *"), { target: { value: "Konzeption" } });
     // Die Einheit ist im Formular Pflicht; ohne Auswahl blockiert der Browser
     // das Abschicken und der Backend-Fehler entstünde gar nicht erst.
-    fireEvent.change(screen.getByLabelText("Einheit"), { target: { value: "e1" } });
+    fireEvent.change(screen.getByLabelText("Einheit *"), { target: { value: "e1" } });
     fireEvent.change(screen.getByLabelText("Standardpreis (€, brutto)"), { target: { value: "50,00" } });
     fireEvent.click(screen.getByRole("button", { name: "Speichern" }));
     await waitFor(() => expect(screen.getByText('Artikel „Konzeption" angelegt')).toBeTruthy());
@@ -165,10 +165,10 @@ describe("Artikel", () => {
     render(<Artikel />);
     await waitFor(() => expect(screen.getByRole("button", { name: "Neuer Artikel" })).toBeTruthy());
     fireEvent.click(screen.getByRole("button", { name: "Neuer Artikel" }));
-    fireEvent.change(screen.getByLabelText("Bezeichnung"), { target: { value: "Konzeption" } });
+    fireEvent.change(screen.getByLabelText("Bezeichnung *"), { target: { value: "Konzeption" } });
     // Die Einheit ist im Formular Pflicht; ohne Auswahl blockiert der Browser
     // das Abschicken und der Backend-Fehler entstünde gar nicht erst.
-    fireEvent.change(screen.getByLabelText("Einheit"), { target: { value: "e1" } });
+    fireEvent.change(screen.getByLabelText("Einheit *"), { target: { value: "e1" } });
     fireEvent.change(screen.getByLabelText("Standardpreis (€, brutto)"), { target: { value: "50,00" } });
     fireEvent.click(screen.getByRole("button", { name: "Speichern" }));
     await waitFor(() => expect(screen.getByText(meldung)).toBeTruthy());
@@ -179,8 +179,8 @@ describe("Artikel", () => {
     render(<Artikel />);
     await waitFor(() => expect(screen.getByText("Beratung")).toBeTruthy());
     fireEvent.click(screen.getByRole("button", { name: "Neuer Artikel" }));
-    fireEvent.change(screen.getByLabelText("Bezeichnung"), { target: { value: "Fachbuch" } });
-    fireEvent.change(screen.getByLabelText("Einheit"), { target: { value: "e1" } });
+    fireEvent.change(screen.getByLabelText("Bezeichnung *"), { target: { value: "Fachbuch" } });
+    fireEvent.change(screen.getByLabelText("Einheit *"), { target: { value: "e1" } });
     fireEvent.change(screen.getByLabelText("Standardpreis (€, brutto)"), { target: { value: "10,70" } });
     fireEvent.change(screen.getByLabelText("Umsatzsteuersatz"), { target: { value: "7" } });
     fireEvent.click(screen.getByRole("button", { name: "Speichern" }));
@@ -260,7 +260,7 @@ describe("Artikel", () => {
     render(<Artikel />);
     await waitFor(() => expect(screen.getByRole("button", { name: "Neuer Artikel" })).toBeTruthy());
     fireEvent.click(screen.getByRole("button", { name: "Neuer Artikel" }));
-    fireEvent.change(screen.getByLabelText("Bezeichnung"), { target: { value: "Konzeption" } });
+    fireEvent.change(screen.getByLabelText("Bezeichnung *"), { target: { value: "Konzeption" } });
     fireEvent.change(screen.getByLabelText("Standardpreis (€, brutto)"), { target: { value: "50,00" } });
     fireEvent.click(screen.getByRole("button", { name: "Speichern" }));
 
@@ -277,7 +277,7 @@ describe("Artikel", () => {
     render(<Artikel />);
     await waitFor(() => expect(screen.getByRole("button", { name: "Neuer Artikel" })).toBeTruthy());
     fireEvent.click(screen.getByRole("button", { name: "Neuer Artikel" }));
-    fireEvent.change(screen.getByLabelText("Einheit"), { target: { value: "e1" } });
+    fireEvent.change(screen.getByLabelText("Einheit *"), { target: { value: "e1" } });
     fireEvent.change(screen.getByLabelText("Standardpreis (€, brutto)"), { target: { value: "50,00" } });
     fireEvent.click(screen.getByRole("button", { name: "Speichern" }));
 
@@ -297,11 +297,11 @@ describe("Artikel", () => {
     render(<Artikel />);
     await waitFor(() => expect(screen.getByRole("button", { name: "Neuer Artikel" })).toBeTruthy());
     fireEvent.click(screen.getByRole("button", { name: "Neuer Artikel" }));
-    fireEvent.change(screen.getByLabelText("Bezeichnung"), { target: { value: "Halb getippt" } });
+    fireEvent.change(screen.getByLabelText("Bezeichnung *"), { target: { value: "Halb getippt" } });
 
     fireEvent.keyDown(window, { key: "n", metaKey: true });
 
-    expect(screen.getByLabelText("Bezeichnung")).toHaveValue("Halb getippt");
+    expect(screen.getByLabelText("Bezeichnung *")).toHaveValue("Halb getippt");
   });
 
   it("startet den Rundgang über den Knopf im Seitenkopf", async () => {
