@@ -103,6 +103,12 @@
 // Seite — auf einer einseitigen Rechnung wäre sie nur Ballast.
 #set page(
   margin: (top: rand_oben, bottom: rand_unten, x: rand_seitlich),
+  // Ohne diese Angabe senkt Typst den Footer standardmäßig um 30 % des
+  // unteren Randes in die Marge ab (`footer-descent`) — bei drei
+  // Adresszeilen plus einer umgebrochenen Kontaktzeile reichte der
+  // verbleibende Platz nicht mehr aus, der Footer klebte am Papierrand.
+  // 10 % lassen bei 25 mm Rand noch 22,5 mm Platz statt 17,5 mm.
+  footer-descent: 10%,
   footer: context {
     let seiten = counter(page).final().first()
     text(size: 8pt)[
