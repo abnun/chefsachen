@@ -105,10 +105,10 @@ describe("KundenpreiseDialog", () => {
     // Eingabeformular vorbeiscrollen — es war vorher größer als die Liste.
     zeige([preis()]);
     await waitFor(() => expect(screen.getByText("ACME GmbH")).toBeTruthy());
-    expect(screen.queryByLabelText("Preis (€)")).toBeNull();
+    expect(screen.queryByLabelText("Preis (€)", { exact: false })).toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: "Preis hinzufügen" }));
-    expect(screen.getByLabelText("Preis (€)")).toBeTruthy();
+    expect(screen.getByLabelText("Preis (€)", { exact: false })).toBeTruthy();
   });
 
   it("legt einen Preis an und meldet die Änderung nach außen", async () => {
@@ -117,8 +117,8 @@ describe("KundenpreiseDialog", () => {
     await waitFor(() => expect(screen.getByRole("button", { name: "Preis hinzufügen" })).toBeTruthy());
 
     fireEvent.click(screen.getByRole("button", { name: "Preis hinzufügen" }));
-    fireEvent.change(screen.getByLabelText("Kunde"), { target: { value: "k1" } });
-    fireEvent.change(screen.getByLabelText("Preis (€)"), { target: { value: "65,00" } });
+    fireEvent.change(screen.getByLabelText(/^Kunde( |$)/), { target: { value: "k1" } });
+    fireEvent.change(screen.getByLabelText("Preis (€)", { exact: false }), { target: { value: "65,00" } });
     fireEvent.click(screen.getByRole("button", { name: "Speichern" }));
 
     await waitFor(() =>
@@ -130,15 +130,15 @@ describe("KundenpreiseDialog", () => {
     await waitFor(() => expect(onAenderung).toHaveBeenCalled());
     // Nach dem Speichern schließt sich das Formular wieder — der neue Eintrag
     // in der Liste ist die Rückmeldung.
-    await waitFor(() => expect(screen.queryByLabelText("Preis (€)")).toBeNull());
+    await waitFor(() => expect(screen.queryByLabelText("Preis (€)", { exact: false })).toBeNull());
   });
 
   it("weist einen unlesbaren Preis am Feld aus, statt still nichts zu tun", async () => {
     zeige([]);
     await waitFor(() => expect(screen.getByRole("button", { name: "Preis hinzufügen" })).toBeTruthy());
     fireEvent.click(screen.getByRole("button", { name: "Preis hinzufügen" }));
-    fireEvent.change(screen.getByLabelText("Kunde"), { target: { value: "k1" } });
-    fireEvent.change(screen.getByLabelText("Preis (€)"), { target: { value: "sechs Euro" } });
+    fireEvent.change(screen.getByLabelText(/^Kunde( |$)/), { target: { value: "k1" } });
+    fireEvent.change(screen.getByLabelText("Preis (€)", { exact: false }), { target: { value: "sechs Euro" } });
     fireEvent.click(screen.getByRole("button", { name: "Speichern" }));
 
     await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("gültigen Preis"));

@@ -4,6 +4,7 @@ import { Dialog } from "./Dialog";
 import { Fehler } from "./Fehler";
 import { formatCent, parseEuro } from "../geld";
 import { datumDeutsch } from "../datum";
+import { PflichtLegende, PflichtMarker } from "./PflichtMarker";
 
 interface KundenpreiseDialogProps {
   artikelId: string;
@@ -225,6 +226,7 @@ export function KundenpreiseDialog({
         >
           <label className="feld">
             Kunde
+            <PflichtMarker art="pflicht" />
             <select
               required
               value={kundeId}
@@ -240,6 +242,7 @@ export function KundenpreiseDialog({
           </label>
           <label className="feld">
             Preis (€)
+            <PflichtMarker art="pflicht" />
             <input required value={preisText} onChange={(e) => setPreisText(e.currentTarget.value)} />
           </label>
           {preisFehlerText && (
@@ -256,6 +259,7 @@ export function KundenpreiseDialog({
               was es bedeutet, nichts einzutragen. */}
           <p className="feld-hinweis">Leer lassen heißt: gilt ab sofort.</p>
 
+          <PflichtLegende />
           <div className="aktionen aktionen-formular">
             <button type="submit" className="btn btn-primaer">
               Speichern
