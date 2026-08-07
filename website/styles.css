@@ -1,0 +1,56 @@
+@font-face {
+  font-family: "Inter";
+  src: url("fonts/Inter.ttf") format("truetype");
+  font-weight: 100 900;
+  font-display: swap;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: "Inter", system-ui, sans-serif;
+  margin: 0;
+  color: #1a1a1a;
+  line-height: 1.5;
+}
+
+.container {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 0 1.5rem;
+}
+
+header, main, footer {
+  padding: 2rem 0;
+}
+
+.kachel-liste {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1.5rem;
+}
+
+.download-primaer {
+  display: inline-block;
+  background: #1a1a1a;
+  color: #fff;
+  padding: 0.75rem 1.5rem;
+  border-radius: 6px;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.download-nebenrangig {
+  display: block;
+  margin-top: 0.5rem;
+  color: #1a1a1a;
+}
+
+.hinweis-box {
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  padding: 1rem 1.5rem;
+  background: #f7f7f7;
+}
