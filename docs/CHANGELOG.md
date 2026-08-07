@@ -7,6 +7,17 @@ auf GitHub ändert daran nichts mehr.
 
 Deshalb hier in der Sprache der Anwender, nicht in der der Commits.
 
+## 0.10.3
+
+**Neuer Name**
+- Die App heißt jetzt **Chefsachen** statt „Kleinunternehmer-Verwaltung" —
+  reine Umbenennung, an der Funktionsweise ändert sich nichts. Wer die App
+  bereits installiert hat, findet nach dem Update ein neues
+  Datenverzeichnis vor (macOS: `~/Library/Application Support/de.chefsachen.app`,
+  Windows: `%APPDATA%\de.chefsachen.app`); der bisherige Datenordner unter
+  `de.kleinunternehmer.verwaltung` bleibt unangetastet erhalten und lässt
+  sich bei Bedarf von Hand in den neuen Ordner kopieren.
+
 ## 0.10.2
 
 **Artikel & Leistungen, Eingangsrechnungen**

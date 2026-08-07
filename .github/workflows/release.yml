@@ -112,7 +112,7 @@ jobs:
           # WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
         with:
           tagName: ${{ github.ref_name }}
-          releaseName: "Kleinunternehmer-Verwaltung ${{ github.ref_name }}"
+          releaseName: "Chefsachen ${{ github.ref_name }}"
           releaseBody: ${{ steps.notizen.outputs.text }}
           includeUpdaterJson: true
           releaseDraft: true

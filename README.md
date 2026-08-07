@@ -1,4 +1,4 @@
-# Kleinunternehmer-Verwaltung
+# Chefsachen
 
 Eine Desktop-Anwendung für die Rechnungsstellung von Kleinunternehmern nach
 § 19 UStG. Alle Daten bleiben lokal auf dem eigenen Rechner — kein Server,
@@ -193,9 +193,9 @@ Die Datenbank liegt im Anwendungsdatenordner des Betriebssystems:
 
 | System | Pfad |
 |---|---|
-| macOS | `~/Library/Application Support/de.kleinunternehmer.verwaltung/daten.db` |
-| Windows | `%APPDATA%\de.kleinunternehmer.verwaltung\daten.db` |
-| Linux | `~/.local/share/de.kleinunternehmer.verwaltung/daten.db` |
+| macOS | `~/Library/Application Support/de.chefsachen.app/daten.db` |
+| Windows | `%APPDATA%\de.chefsachen.app\daten.db` |
+| Linux | `~/.local/share/de.chefsachen.app/daten.db` |
 
 Daneben liegt der Ordner `Sicherungen` mit den automatischen Kopien.
 

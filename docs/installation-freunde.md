@@ -7,7 +7,7 @@ nur **einmalig** zu bestätigen.
 
 ## macOS
 
-1. Lade die Datei `Kleinunternehmer-Verwaltung_x.y.z_universal.dmg` herunter und
+1. Lade die Datei `Chefsachen_x.y.z_universal.dmg` herunter und
    öffne sie. Sie passt auf beide Mac-Sorten, mit Apple- wie mit Intel-Prozessor —
    du musst nichts unterscheiden.
 2. Ziehe die App in den `Programme`-Ordner, wie bei jeder Mac-App.
@@ -24,7 +24,7 @@ nur **einmalig** zu bestätigen.
 
 ## Windows
 
-1. Lade die Datei `Kleinunternehmer-Verwaltung_x.y.z_x64-setup.exe` (oder die
+1. Lade die Datei `Chefsachen_x.y.z_x64-setup.exe` (oder die
    `.msi`-Datei) herunter und führe sie aus.
 2. Windows zeigt einen blauen Bildschirm **„Der Computer wurde durch Windows
    geschützt"**.
@@ -72,8 +72,8 @@ Wo diese Datei liegt:
 
 | System | Ordner |
 |---|---|
-| macOS | `~/Library/Application Support/de.kleinunternehmer.verwaltung` |
-| Windows | `%APPDATA%\de.kleinunternehmer.verwaltung` |
+| macOS | `~/Library/Application Support/de.chefsachen.app` |
+| Windows | `%APPDATA%\de.chefsachen.app` |
 
 Darin liegt `daten.db` und daneben der Ordner `Sicherungen`. Die App legt bei
 jedem Start automatisch eine Kopie dort ab und behält die letzten zehn.
