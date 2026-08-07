@@ -91,7 +91,12 @@ fn muster_beleg(firma: crate::commands::firma::Firma) -> BelegKontext {
     }
 }
 
-/// Erzeugt die Vorschau als SVG.
+/// Erzeugt die Vorschau als SVG — eines je Seite.
+///
+/// Alle Seiten statt nur der ersten: Wer den unteren Rand vergrößert, muss
+/// sehen, dass der Fließtext nicht verschwunden, sondern nur auf eine zweite
+/// Seite gerutscht ist — mit nur einer Seite in der Vorschau wirkte das wie
+/// Datenverlust.
 ///
 /// `einstellungen` sind die Werte, die gerade im Formular stehen — auch die
 /// noch nicht gespeicherten. Sonst müsste man erst speichern, um zu sehen, was
@@ -100,18 +105,17 @@ fn muster_beleg(firma: crate::commands::firma::Firma) -> BelegKontext {
 pub async fn vorlage_vorschau(
     pool: tauri::State<'_, SqlitePool>,
     einstellungen: Vec<(String, String)>,
-) -> AppResult<String> {
+) -> AppResult<Vec<String>> {
     let firma = crate::commands::firma::get(&pool).await?;
     let logo = crate::dokument::export::firma_logo(&pool).await?;
     let vorlage = Vorlage::aus_paaren(&einstellungen);
     let kontext = muster_beleg(firma);
 
     let dokument = crate::dokument::pdf::dokument_bauen(&kontext, logo.as_deref(), &vorlage)?;
-    let seite = dokument
-        .pages
-        .first()
-        .ok_or_else(|| AppError::Technisch("Die Vorschau hat keine Seite".into()))?;
-    Ok(typst_svg::svg(seite))
+    if dokument.pages.is_empty() {
+        return Err(AppError::Technisch("Die Vorschau hat keine Seite".into()));
+    }
+    Ok(dokument.pages.iter().map(typst_svg::svg).collect())
 }
 
 #[cfg(test)]
@@ -181,5 +185,36 @@ mod tests {
         // einen Widerspruch, den es im echten Beleg nicht gibt.
         let summe: i64 = kontext.positionen.iter().map(|p| p.positionssumme_cent).sum();
         assert_eq!(kontext.beleg.summe_cent, summe);
+    }
+
+    /// Bei einem mehrseitigen Beleg muss ein SVG je Seite herauskommen — sonst
+    /// wirkt ein per Rand auf Seite 2 gerutschter Fließtext wie Datenverlust.
+    #[test]
+    fn liefert_ein_svg_je_seite() {
+        use crate::commands::belege::Belegposition;
+
+        let firma = crate::commands::firma::Firma {
+            id: "f1".into(), name: "F".into(), strasse: "W 1".into(), plz: "1".into(),
+            ort: "B".into(), land: "DE".into(), steuernummer: "1".into(), ust_idnr: String::new(),
+            iban: String::new(), bic: String::new(), email: String::new(), telefon: String::new(),
+            fax: String::new(),
+            kontakt_name: String::new(), gruendungsjahr: None, kleinunternehmer: true,
+            eingerichtet: true,
+        };
+        let mut kontext = muster_beleg(firma);
+        let vorlage_pos = kontext.positionen[0].clone();
+        kontext.positionen = (0..60)
+            .map(|i| Belegposition { id: format!("p{i}"), bezeichnung: format!("Leistung {i}"), ..vorlage_pos.clone() })
+            .collect();
+
+        let vorlage = Vorlage::default();
+        let dokument = crate::dokument::pdf::dokument_bauen(&kontext, None, &vorlage).unwrap();
+        assert!(dokument.pages.len() > 1, "60 Positionen sollten mehr als eine Seite ergeben");
+
+        let svgs: Vec<String> = dokument.pages.iter().map(typst_svg::svg).collect();
+        assert_eq!(svgs.len(), dokument.pages.len(), "Anzahl SVGs muss zur Seitenzahl passen");
+        for s in &svgs {
+            assert!(s.starts_with("<svg"), "kein SVG: {}", &s[..60.min(s.len())]);
+        }
     }
 }

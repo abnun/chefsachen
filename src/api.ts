@@ -489,14 +489,14 @@ export const api = {
   },
   vorlage: {
     /**
-     * Vorschau der Belegvorlage als SVG.
+     * Vorschau der Belegvorlage als SVG — eines je Seite.
      *
      * Bekommt die Einstellungen mit, auch die noch nicht gespeicherten — sonst
      * müsste man erst speichern, um zu sehen, was man einstellt, und jeder
      * Versuch änderte die laufende Geschäftspost.
      */
     vorschau: (einstellungen: [string, string][]) =>
-      invoke<string>("vorlage_vorschau", { einstellungen }),
+      invoke<string[]>("vorlage_vorschau", { einstellungen }),
   },
   kunden: {
     list: (suche?: string) => invoke<Kunde[]>("kunde_list", { suche: suche ?? null }),

@@ -18,7 +18,7 @@ afterEach(() => {
 
 beforeEach(() => {
   vi.mocked(api.einstellungen.list).mockResolvedValue([]);
-  vi.mocked(api.vorlage.vorschau).mockResolvedValue("<svg>eins</svg>");
+  vi.mocked(api.vorlage.vorschau).mockResolvedValue(["<svg>eins</svg>"]);
 });
 
 describe("Belegvorlage", () => {
@@ -27,7 +27,7 @@ describe("Belegvorlage", () => {
     // jeder Versuch änderte die laufende Geschäftspost.
     render(<Belegvorlage />);
     await waitFor(() =>
-      expect(screen.getByAltText("Vorschau der Belegvorlage")).toBeTruthy(),
+      expect(screen.getByAltText(/Vorschau der Belegvorlage/)).toBeTruthy(),
     );
     expect(api.einstellungen.set).not.toHaveBeenCalled();
   });
@@ -105,6 +105,27 @@ describe("Belegvorlage", () => {
     render(<Belegvorlage />);
     await waitFor(() => expect(screen.getByLabelText(/Girocode/)).toBeTruthy());
     expect(screen.getByLabelText(/Girocode/)).toBeChecked();
+  });
+
+  it("zeigt bei mehrseitiger Vorschau eine Blätterleiste", async () => {
+    vi.mocked(api.vorlage.vorschau).mockResolvedValue(["<svg>eins</svg>", "<svg>zwei</svg>"]);
+    render(<Belegvorlage />);
+
+    await waitFor(() => expect(screen.getByText("Seite 1 von 2")).toBeTruthy());
+    expect(screen.getByRole("button", { name: "← Zurück" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Vor →" })).not.toBeDisabled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Vor →" }));
+
+    await waitFor(() => expect(screen.getByText("Seite 2 von 2")).toBeTruthy());
+    expect(screen.getByRole("button", { name: "Vor →" })).toBeDisabled();
+    expect(screen.getByAltText(/Seite 2 von 2/)).toBeTruthy();
+  });
+
+  it("zeigt keine Blätterleiste bei einer einseitigen Vorschau", async () => {
+    render(<Belegvorlage />);
+    await waitFor(() => expect(screen.getByAltText(/Vorschau der Belegvorlage/)).toBeTruthy());
+    expect(screen.queryByRole("button", { name: "Vor →" })).not.toBeInTheDocument();
   });
 
   it("meldet einen Fehler der Vorschau, statt ein leeres Feld zu zeigen", async () => {

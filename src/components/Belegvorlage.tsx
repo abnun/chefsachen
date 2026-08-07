@@ -84,7 +84,8 @@ const SCHLUESSEL = SCHALTER.map((s) => s.schluessel);
 export function Belegvorlage() {
   const [werte, setWerte] = useState<Record<string, string>>({});
   const [geladen, setGeladen] = useState(false);
-  const [svg, setSvg] = useState<string | null>(null);
+  const [svgs, setSvgs] = useState<string[] | null>(null);
+  const [seite, setSeite] = useState(0);
   const [fehler, setFehler] = useState<AppFehler | null>(null);
   const { zeigen, hinweis } = useErfolgsHinweis();
 
@@ -109,7 +110,12 @@ export function Belegvorlage() {
     api.vorlage
       .vorschau(Object.entries(werte))
       .then((s) => {
-        if (!abgebaut) setSvg(s);
+        if (abgebaut) return;
+        setSvgs(s);
+        // Eine geänderte Einstellung kann die Seitenzahl verkleinern — ohne
+        // diese Zeile zeigte ein Blättern-Index, der die neue Vorschau gar
+        // nicht mehr hat, eine leere Seite.
+        setSeite((bisher) => Math.min(bisher, s.length - 1));
       })
       .catch((e) => {
         if (!abgebaut) setFehler(e as AppFehler);
@@ -226,17 +232,42 @@ export function Belegvorlage() {
 
         <div className="vorlage-vorschau">
           <p className="feld-hinweis">Vorschau mit erfundenen Beleg­daten:</p>
-          {svg === null ? (
+          {svgs === null ? (
             <p className="feld-hinweis">Wird erstellt …</p>
           ) : (
-            <img
-              /* Als Bild und nicht als eingebettetes Dokument: Die
-                 Inhaltsrichtlinie verbietet `object`/`embed` und fremde
-                 Rahmenquellen, erlaubt aber `data:`-Bilder. Skripte in einem
-                 SVG laufen in einem <img> ohnehin nicht. */
-              src={`data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(svg)))}`}
-              alt="Vorschau der Belegvorlage"
-            />
+            <>
+              <img
+                /* Als Bild und nicht als eingebettetes Dokument: Die
+                   Inhaltsrichtlinie verbietet `object`/`embed` und fremde
+                   Rahmenquellen, erlaubt aber `data:`-Bilder. Skripte in einem
+                   SVG laufen in einem <img> ohnehin nicht. */
+                src={`data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(svgs[seite])))}`}
+                alt={`Vorschau der Belegvorlage, Seite ${seite + 1} von ${svgs.length}`}
+              />
+              {svgs.length > 1 && (
+                <div className="vorlage-vorschau-blaettern">
+                  <button
+                    type="button"
+                    className="btn"
+                    onClick={() => setSeite((s) => s - 1)}
+                    disabled={seite === 0}
+                  >
+                    ← Zurück
+                  </button>
+                  <span>
+                    Seite {seite + 1} von {svgs.length}
+                  </span>
+                  <button
+                    type="button"
+                    className="btn"
+                    onClick={() => setSeite((s) => s + 1)}
+                    disabled={seite === svgs.length - 1}
+                  >
+                    Vor →
+                  </button>
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>

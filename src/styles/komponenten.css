@@ -974,6 +974,14 @@ label.feld textarea {
   box-shadow: var(--schatten);
 }
 
+.vorlage-vorschau-blaettern {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--abstand-m);
+  margin-top: var(--abstand-s);
+}
+
 /* ── Rundgang (Fuehrung.tsx) ─────────────────────────────────────────────── */
 
 /* Deckt das ganze Fenster ab und fängt Klicks außerhalb von Ring und Tooltip
