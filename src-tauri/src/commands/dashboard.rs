@@ -323,6 +323,9 @@ mod tests {
         let (_dir, pool) = test_pool().await;
         let mut firma = crate::commands::firma::get(&pool).await.unwrap();
         firma.name = "Meine Firma".into();
+        firma.strasse = "Weg 1".into();
+        firma.plz = "10115".into();
+        firma.ort = "Berlin".into();
         firma.steuernummer = "12/345/67890".into();
         firma.kleinunternehmer = false;
         crate::commands::firma::save(&pool, firma).await.unwrap();
@@ -338,6 +341,9 @@ mod tests {
         let (_dir, pool) = test_pool().await;
         let mut firma = crate::commands::firma::get(&pool).await.unwrap();
         firma.name = "Meine Firma".into();
+        firma.strasse = "Weg 1".into();
+        firma.plz = "10115".into();
+        firma.ort = "Berlin".into();
         firma.steuernummer = "12/345/67890".into();
         firma.kleinunternehmer = true;
         crate::commands::firma::save(&pool, firma).await.unwrap();

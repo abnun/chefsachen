@@ -41,6 +41,32 @@ fn pruefe_firma(firma: &Firma) -> AppResult<()> {
             meldung: "Name darf nicht leer sein".into(),
         });
     }
+    // Eine Rechnung ohne vollständige Absenderanschrift ist nach § 14 UStG
+    // nicht ordnungsgemäß — deshalb dieselbe Pflicht wie beim Namen.
+    if firma.strasse.trim().is_empty() {
+        return Err(AppError::Validation {
+            feld: "strasse".into(),
+            meldung: "Straße darf nicht leer sein".into(),
+        });
+    }
+    if firma.plz.trim().is_empty() {
+        return Err(AppError::Validation {
+            feld: "plz".into(),
+            meldung: "PLZ darf nicht leer sein".into(),
+        });
+    }
+    if firma.ort.trim().is_empty() {
+        return Err(AppError::Validation {
+            feld: "ort".into(),
+            meldung: "Ort darf nicht leer sein".into(),
+        });
+    }
+    if firma.land.trim().is_empty() {
+        return Err(AppError::Validation {
+            feld: "land".into(),
+            meldung: "Land darf nicht leer sein".into(),
+        });
+    }
     if firma.steuernummer.trim().is_empty() && firma.ust_idnr.trim().is_empty() {
         return Err(AppError::Validation {
             feld: "steuernummer".into(),
@@ -190,8 +216,47 @@ mod tests {
     async fn gueltige_firma(pool: &sqlx::SqlitePool) -> Firma {
         let mut f = get(pool).await.unwrap();
         f.name = "Testfirma".into();
+        f.strasse = "Teststr. 1".into();
+        f.plz = "12345".into();
+        f.ort = "Teststadt".into();
         f.steuernummer = "12/345/67890".into();
         f
+    }
+
+    #[tokio::test]
+    async fn firma_ohne_strasse_wird_abgelehnt() {
+        let (_dir, pool) = test_pool().await;
+        let mut f = gueltige_firma(&pool).await;
+        f.strasse = "".into();
+        let fehler = save(&pool, f).await;
+        assert!(matches!(fehler, Err(AppError::Validation { .. })), "{fehler:?}");
+    }
+
+    #[tokio::test]
+    async fn firma_ohne_plz_wird_abgelehnt() {
+        let (_dir, pool) = test_pool().await;
+        let mut f = gueltige_firma(&pool).await;
+        f.plz = "".into();
+        let fehler = save(&pool, f).await;
+        assert!(matches!(fehler, Err(AppError::Validation { .. })), "{fehler:?}");
+    }
+
+    #[tokio::test]
+    async fn firma_ohne_ort_wird_abgelehnt() {
+        let (_dir, pool) = test_pool().await;
+        let mut f = gueltige_firma(&pool).await;
+        f.ort = "".into();
+        let fehler = save(&pool, f).await;
+        assert!(matches!(fehler, Err(AppError::Validation { .. })), "{fehler:?}");
+    }
+
+    #[tokio::test]
+    async fn firma_ohne_land_wird_abgelehnt() {
+        let (_dir, pool) = test_pool().await;
+        let mut f = gueltige_firma(&pool).await;
+        f.land = "".into();
+        let fehler = save(&pool, f).await;
+        assert!(matches!(fehler, Err(AppError::Validation { .. })), "{fehler:?}");
     }
 
     #[tokio::test]
@@ -255,6 +320,9 @@ mod tests {
         let (_dir, pool) = test_pool().await;
         let mut f = get(&pool).await.unwrap();
         f.name = "Test GmbH".into();
+        f.strasse = "Teststr. 1".into();
+        f.plz = "12345".into();
+        f.ort = "Teststadt".into();
         // beides leer -> Validierungsfehler
         let err = save(&pool, f.clone()).await.unwrap_err();
         assert!(matches!(err, AppError::Validation { .. }));
@@ -268,6 +336,9 @@ mod tests {
         let (_dir, pool) = test_pool().await;
         let mut f = get(&pool).await.unwrap();
         f.name = "Test GmbH".into();
+        f.strasse = "Teststr. 1".into();
+        f.plz = "12345".into();
+        f.ort = "Teststadt".into();
         f.ust_idnr = "DE123456789".into();
         let gespeichert = save(&pool, f).await.unwrap();
         assert!(gespeichert.eingerichtet);

@@ -157,7 +157,26 @@ pub async fn delete(pool: &SqlitePool, id: String, kundenpreise_mitloeschen: boo
     Ok(())
 }
 
+/// Eine Rechnungsadresse ohne vollständige Anschrift ist nach § 14 UStG
+/// nicht ordnungsgemäß — dieselbe Pflicht wie bei der eigenen Firmenanschrift.
+fn pruefe_adresse(a: &Adresse) -> AppResult<()> {
+    if a.strasse.trim().is_empty() {
+        return Err(AppError::Validation { feld: "strasse".into(), meldung: "Straße darf nicht leer sein".into() });
+    }
+    if a.plz.trim().is_empty() {
+        return Err(AppError::Validation { feld: "plz".into(), meldung: "PLZ darf nicht leer sein".into() });
+    }
+    if a.ort.trim().is_empty() {
+        return Err(AppError::Validation { feld: "ort".into(), meldung: "Ort darf nicht leer sein".into() });
+    }
+    if a.land.trim().is_empty() {
+        return Err(AppError::Validation { feld: "land".into(), meldung: "Land darf nicht leer sein".into() });
+    }
+    Ok(())
+}
+
 pub async fn adresse_speichern(pool: &SqlitePool, mut a: Adresse) -> AppResult<Adresse> {
+    pruefe_adresse(&a)?;
     let mut tx = pool.begin().await?;
     if a.ist_standard {
         sqlx::query("UPDATE adresse SET ist_standard = 0, updated_at = ? WHERE kunde_id = ? AND typ = ? AND deleted_at IS NULL")
@@ -312,6 +331,18 @@ mod tests {
             .filter(|a| a.typ == "rechnung" && a.ist_standard).collect();
         assert_eq!(standards.len(), 1);
         assert_ne!(standards[0].id, a1.id);
+    }
+
+    #[tokio::test]
+    async fn adresse_ohne_strasse_wird_abgelehnt() {
+        let (_dir, pool) = test_pool().await;
+        let k = create(&pool, neu("Testkunde")).await.unwrap();
+        let fehler = adresse_speichern(&pool, Adresse {
+            id: "".into(), kunde_id: k.id, typ: "rechnung".into(),
+            strasse: "".into(), plz: "10115".into(), ort: "Berlin".into(),
+            land: "DE".into(), ist_standard: true,
+        }).await;
+        assert!(matches!(fehler, Err(AppError::Validation { .. })), "{fehler:?}");
     }
 
     #[tokio::test]
