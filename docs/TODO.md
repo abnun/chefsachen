@@ -29,6 +29,24 @@ Zu beachten:
   sonst ist die Änderung für sie unsichtbar.
 - Bewegung nur bei `prefers-reduced-motion: no-preference`.
 
+### Fenstergröße beim Start
+
+Das Fenster startet mit fest 800 × 600 (`app.windows` in `tauri.conf.json`) —
+für die Einstellungen mit ihrer Vorschau daneben und für die Belegliste
+deutlich zu klein. Gewünscht: beim Start maximiert.
+
+Zu klären: nur maximiert starten (`"maximized": true`) oder die zuletzt
+genutzte Größe und Position merken? Letzteres ist das übliche Verhalten von
+Schreibtischprogrammen und wäre freundlicher, braucht aber einen Ort für den
+gespeicherten Zustand — entweder eigene Einstellungsschlüssel oder das
+Plugin `tauri-plugin-window-state`. Bei einer eigenen Lösung daran denken,
+dass ein Bildschirm beim nächsten Start fehlen kann: Eine gemerkte Position
+auf einem abgezogenen zweiten Monitor darf das Fenster nicht unsichtbar
+machen.
+
+Außerdem eine sinnvolle Mindestgröße setzen (`minWidth`/`minHeight`); unter
+etwa 900 px Breite bricht das zweispaltige Layout der Belegvorlage um.
+
 ### Logo auch an der rechten Blattkante
 
 Heute gibt es drei Möglichkeiten: „Oben links", „Oben rechts, neben der
