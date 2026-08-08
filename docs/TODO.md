@@ -1,10 +1,48 @@
 # TODO
 
 Geplante Funktionen, offene Fehler und Sicherheitsthemen, die die
-Funktionsweise der App direkt betreffen. Version 1.0.0 wurde am 2026-08-07
-veröffentlicht; alles davor Abgeschlossene steht im Archiv weiter unten.
+Funktionsweise der App direkt betreffen. Zuletzt veröffentlicht: Version
+1.2.0 am 2026-08-08. Abgeschlossenes steht im Archiv weiter unten.
 
 ## Offen
+
+### Rückmeldung beim Speichern erscheint außer Sicht
+
+Der Erfolgshinweis (`useErfolgsHinweis`) wird am **Kopf** jedes Abschnitts
+gerendert, der „Speichern"-Knopf steht am **Fuß**. Bei den langen Formularen
+— Firmendaten, Belegvorlage — liegt die Bestätigung nach dem Klick außerhalb
+des sichtbaren Bereichs: Man drückt Speichern und sieht nichts passieren.
+Betrifft alle sieben Stellen mit `{hinweis}` in `Einstellungen.tsx` und
+`Belegvorlage.tsx`.
+
+Gewünscht: Rückmeldung direkt neben dem Knopf, für Erfolg **und** Fehlschlag,
+gern mit einer kurzen Bewegung am Knopf selbst.
+
+Zu beachten:
+
+- Der Knopf braucht dann auch einen Ladezustand, sonst ist zwischen Klick und
+  Rückmeldung nichts zu sehen — und Doppelklicks bleiben möglich.
+- Fehler laufen heute über `Fehler`/`bannerFehler` und stehen ebenfalls oben.
+  Beides gehört zusammen gelöst, sonst sitzt die Erfolgsmeldung unten und die
+  Fehlermeldung weiter oben.
+- Für Vorleseprogramme muss die Meldung angekündigt werden (`role="status"`),
+  sonst ist die Änderung für sie unsichtbar.
+- Bewegung nur bei `prefers-reduced-motion: no-preference`.
+
+### Logo auch an der rechten Blattkante
+
+Heute gibt es drei Möglichkeiten: „Oben links", „Oben rechts, neben der
+Anschrift" und „Kein Logo". Gewünscht ist eine vierte: Logo an der rechten
+Blattkante, mit der Anschrift links davon — also auf entgegengesetzten Ecken
+statt nebeneinander.
+
+Genau das war einmal das Verhalten von „rechts" und wurde bewusst geändert
+(siehe Kommentar in `rechnung.typ` bei `v_logo_position == "rechts"`). Es
+kommt daher als **zusätzliche** Möglichkeit zurück, nicht als Ersatz.
+
+Betrifft `LogoPosition` in `dokument/vorlage.rs`, die Verzweigung in
+`rechnung.typ` und den Auswahlpunkt in `Belegvorlage.tsx`. Vorgabe bleibt
+„links", damit sich an laufender Geschäftspost nichts ändert.
 
 ### Export für den Steuerberater
 
