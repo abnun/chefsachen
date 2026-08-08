@@ -342,8 +342,7 @@ function StammdatenReiter({ kunde, onGespeichert, onGeloescht }: StammdatenReite
         </div>
         <div className="feld">
           <label>
-            Name
-            <PflichtMarker art="pflicht" />
+            <PflichtMarker art="pflicht">Name</PflichtMarker>
             <input value={form.name} onChange={(e) => setForm({ ...form, name: e.currentTarget.value })} />
           </label>
           {feldFehler("name") && (
@@ -398,24 +397,28 @@ function StammdatenReiter({ kunde, onGespeichert, onGeloescht }: StammdatenReite
         </div>
         <div className="feld">
           <label>
-            Leitweg-ID
-            <PflichtMarker art="xrechnung" />
+            <PflichtMarker art="xrechnung">Leitweg-ID</PflichtMarker>
             <input
               value={form.leitweg_id}
               onChange={(e) => setForm({ ...form, leitweg_id: e.currentTarget.value })}
             />
           </label>
+          <p className="feld-hinweis">
+            Nur bei Rechnungen an Behörden — die Behörde gibt dir die Leitweg-ID vor.
+          </p>
         </div>
         <div className="feld">
           <label>
-            Käuferreferenz
-            <PflichtMarker art="xrechnung" />
+            <PflichtMarker art="xrechnung">Käuferreferenz</PflichtMarker>
             <input
               value={form.kaeuferreferenz}
               onChange={(e) => setForm({ ...form, kaeuferreferenz: e.currentTarget.value })}
             />
           </label>
-          <p className="feld-hinweis">Leitweg-ID oder Käuferreferenz reicht für den XRechnung-Export.</p>
+          <p className="feld-hinweis">
+            Referenz, die manche Firmenkunden verlangen, z. B. eine Bestellnummer. Leitweg-ID
+            oder Käuferreferenz reicht für den XRechnung-Export.
+          </p>
         </div>
         <PflichtLegende zeigtXrechnung />
         <div className="aktionen aktionen-formular">
@@ -545,32 +548,28 @@ function AdressenReiter({ kundeId, adressen, onGeaendert }: AdressenReiterProps)
         </label>
         <div className="feld">
           <label>
-            Straße
-            <PflichtMarker art="pflicht" />
+            <PflichtMarker art="pflicht">Straße</PflichtMarker>
             <input value={form.strasse} onChange={(e) => setForm({ ...form, strasse: e.currentTarget.value })} />
           </label>
           {feldFehler("strasse") && <div className="feld-fehler" role="alert">{feldFehler("strasse")}</div>}
         </div>
         <div className="feld">
           <label>
-            PLZ
-            <PflichtMarker art="pflicht" />
+            <PflichtMarker art="pflicht">PLZ</PflichtMarker>
             <input value={form.plz} onChange={(e) => setForm({ ...form, plz: e.currentTarget.value })} />
           </label>
           {feldFehler("plz") && <div className="feld-fehler" role="alert">{feldFehler("plz")}</div>}
         </div>
         <div className="feld">
           <label>
-            Ort
-            <PflichtMarker art="pflicht" />
+            <PflichtMarker art="pflicht">Ort</PflichtMarker>
             <input value={form.ort} onChange={(e) => setForm({ ...form, ort: e.currentTarget.value })} />
           </label>
           {feldFehler("ort") && <div className="feld-fehler" role="alert">{feldFehler("ort")}</div>}
         </div>
         <div className="feld">
           <label>
-            Land
-            <PflichtMarker art="pflicht" />
+            <PflichtMarker art="pflicht">Land</PflichtMarker>
             <input value={form.land} onChange={(e) => setForm({ ...form, land: e.currentTarget.value })} />
           </label>
           {feldFehler("land") && <div className="feld-fehler" role="alert">{feldFehler("land")}</div>}

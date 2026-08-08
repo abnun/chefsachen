@@ -124,16 +124,14 @@ export function Einrichtung({ onFertig }: EinrichtungProps) {
           <p>Diese Angaben erscheinen später auf deinen Angeboten und Rechnungen.</p>
           <div className="feld">
             <label>
-              Name
-              <PflichtMarker art="pflicht" />
+              <PflichtMarker art="pflicht">Name</PflichtMarker>
               <input required value={firma.name} onChange={(e) => feldAendern({ name: e.currentTarget.value })} />
             </label>
             {feldFehler("name") && <div className="feld-fehler" role="alert">{feldFehler("name")}</div>}
           </div>
           <div className="feld">
             <label>
-              Straße
-              <PflichtMarker art="pflicht" />
+              <PflichtMarker art="pflicht">Straße</PflichtMarker>
               <input
                 value={firma.strasse}
                 onChange={(e) => feldAendern({ strasse: e.currentTarget.value })}
@@ -143,24 +141,21 @@ export function Einrichtung({ onFertig }: EinrichtungProps) {
           </div>
           <div className="feld">
             <label>
-              PLZ
-              <PflichtMarker art="pflicht" />
+              <PflichtMarker art="pflicht">PLZ</PflichtMarker>
               <input value={firma.plz} onChange={(e) => feldAendern({ plz: e.currentTarget.value })} />
             </label>
             {feldFehler("plz") && <div className="feld-fehler" role="alert">{feldFehler("plz")}</div>}
           </div>
           <div className="feld">
             <label>
-              Ort
-              <PflichtMarker art="pflicht" />
+              <PflichtMarker art="pflicht">Ort</PflichtMarker>
               <input value={firma.ort} onChange={(e) => feldAendern({ ort: e.currentTarget.value })} />
             </label>
             {feldFehler("ort") && <div className="feld-fehler" role="alert">{feldFehler("ort")}</div>}
           </div>
           <div className="feld">
             <label>
-              Steuernummer
-              <PflichtMarker art="pflicht" />
+              <PflichtMarker art="pflicht">Steuernummer</PflichtMarker>
               <input
                 value={firma.steuernummer}
                 onChange={(e) => feldAendern({ steuernummer: e.currentTarget.value })}
@@ -170,8 +165,7 @@ export function Einrichtung({ onFertig }: EinrichtungProps) {
           </div>
           <div className="feld">
             <label>
-              USt-IdNr.
-              <PflichtMarker art="pflicht" />
+              <PflichtMarker art="pflicht">USt-IdNr.</PflichtMarker>
               <input
                 value={firma.ust_idnr}
                 onChange={(e) => feldAendern({ ust_idnr: e.currentTarget.value })}
@@ -195,8 +189,7 @@ export function Einrichtung({ onFertig }: EinrichtungProps) {
               XRechnung-Export ins Leere, ohne dass etwas darauf hinweist. */}
           <div className="feld">
             <label>
-              E-Mail
-              <PflichtMarker art="xrechnung" />
+              <PflichtMarker art="xrechnung">E-Mail</PflichtMarker>
               <input
                 type="email"
                 value={firma.email}
@@ -208,8 +201,7 @@ export function Einrichtung({ onFertig }: EinrichtungProps) {
           </div>
           <div className="feld">
             <label>
-              Telefon
-              <PflichtMarker art="xrechnung" />
+              <PflichtMarker art="xrechnung">Telefon</PflichtMarker>
               <input
                 value={firma.telefon}
                 onChange={(e) => feldAendern({ telefon: e.currentTarget.value })}

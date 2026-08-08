@@ -38,8 +38,7 @@ export function BelegAnlegen({
     >
       {fehler && <Fehler fehler={fehler} />}
       <label className="feld">
-        Kunde
-        <PflichtMarker art="pflicht" />
+        <PflichtMarker art="pflicht">Kunde</PflichtMarker>
         <select value={kundeId} onChange={(e) => onKundeId(e.currentTarget.value)}>
           <option value="">– wählen –</option>
           {kunden.map((k) => (

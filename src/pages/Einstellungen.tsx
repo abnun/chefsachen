@@ -250,16 +250,14 @@ function FirmendatenAbschnitt() {
       >
         <div className="feld">
           <label>
-            Name
-            <PflichtMarker art="pflicht" />
+            <PflichtMarker art="pflicht">Name</PflichtMarker>
             <input required value={firma.name} onChange={(e) => setFirma({ ...firma, name: e.currentTarget.value })} />
           </label>
           {feldFehler("name") && <div role="alert" className="feld-fehler">{feldFehler("name")}</div>}
         </div>
         <div className="feld">
           <label>
-            Straße
-            <PflichtMarker art="pflicht" />
+            <PflichtMarker art="pflicht">Straße</PflichtMarker>
             <input
               value={firma.strasse}
               onChange={(e) => setFirma({ ...firma, strasse: e.currentTarget.value })}
@@ -269,32 +267,28 @@ function FirmendatenAbschnitt() {
         </div>
         <div className="feld">
           <label>
-            PLZ
-            <PflichtMarker art="pflicht" />
+            <PflichtMarker art="pflicht">PLZ</PflichtMarker>
             <input value={firma.plz} onChange={(e) => setFirma({ ...firma, plz: e.currentTarget.value })} />
           </label>
           {feldFehler("plz") && <div role="alert" className="feld-fehler">{feldFehler("plz")}</div>}
         </div>
         <div className="feld">
           <label>
-            Ort
-            <PflichtMarker art="pflicht" />
+            <PflichtMarker art="pflicht">Ort</PflichtMarker>
             <input value={firma.ort} onChange={(e) => setFirma({ ...firma, ort: e.currentTarget.value })} />
           </label>
           {feldFehler("ort") && <div role="alert" className="feld-fehler">{feldFehler("ort")}</div>}
         </div>
         <div className="feld">
           <label>
-            Land
-            <PflichtMarker art="pflicht" />
+            <PflichtMarker art="pflicht">Land</PflichtMarker>
             <input value={firma.land} onChange={(e) => setFirma({ ...firma, land: e.currentTarget.value })} />
           </label>
           {feldFehler("land") && <div role="alert" className="feld-fehler">{feldFehler("land")}</div>}
         </div>
         <div className="feld">
           <label>
-            Steuernummer
-            <PflichtMarker art="pflicht" />
+            <PflichtMarker art="pflicht">Steuernummer</PflichtMarker>
             <input
               value={firma.steuernummer}
               onChange={(e) => setFirma({ ...firma, steuernummer: e.currentTarget.value })}
@@ -304,8 +298,7 @@ function FirmendatenAbschnitt() {
         </div>
         <div className="feld">
           <label>
-            USt-IdNr.
-            <PflichtMarker art="pflicht" />
+            <PflichtMarker art="pflicht">USt-IdNr.</PflichtMarker>
             <input
               value={firma.ust_idnr}
               onChange={(e) => setFirma({ ...firma, ust_idnr: e.currentTarget.value })}
@@ -329,8 +322,7 @@ function FirmendatenAbschnitt() {
         </div>
         <div className="feld">
           <label>
-            E-Mail
-            <PflichtMarker art="xrechnung" />
+            <PflichtMarker art="xrechnung">E-Mail</PflichtMarker>
             <input
               type="email"
               value={firma.email}
@@ -342,8 +334,7 @@ function FirmendatenAbschnitt() {
         </div>
         <div className="feld">
           <label>
-            Telefon
-            <PflichtMarker art="xrechnung" />
+            <PflichtMarker art="xrechnung">Telefon</PflichtMarker>
             <input
               value={firma.telefon}
               onChange={(e) => setFirma({ ...firma, telefon: e.currentTarget.value })}
@@ -765,8 +756,7 @@ function EinheitenAbschnitt() {
         }}
       >
         <label className="feld">
-          Name
-          <PflichtMarker art="pflicht" />
+          <PflichtMarker art="pflicht">Name</PflichtMarker>
           <input value={name} onChange={(e) => setName(e.currentTarget.value)} />
         </label>
         <label className="feld">

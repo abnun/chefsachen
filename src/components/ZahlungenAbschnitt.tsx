@@ -114,8 +114,7 @@ export function ZahlungenAbschnitt({ rechnungId, zahlungen, offenerBetragCent, o
           <input type="date" value={datum} onChange={(e) => setDatum(e.currentTarget.value)} />
         </label>
         <label className="feld">
-          Betrag
-          <PflichtMarker art="pflicht" />
+          <PflichtMarker art="pflicht">Betrag</PflichtMarker>
           <input value={betrag} onChange={(e) => setBetrag(e.currentTarget.value)} placeholder="95,00" />
         </label>
         <label className="feld-checkbox">

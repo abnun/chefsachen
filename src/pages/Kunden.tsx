@@ -258,8 +258,7 @@ export function Kunden({
           </div>
           <div className="feld">
             <label>
-              Name
-              <PflichtMarker art="pflicht" />
+              <PflichtMarker art="pflicht">Name</PflichtMarker>
               <input
                 required
                 value={neuerKunde.name}
@@ -312,18 +311,19 @@ export function Kunden({
           </div>
           <div className="feld">
             <label>
-              Leitweg-ID
-              <PflichtMarker art="xrechnung" />
+              <PflichtMarker art="xrechnung">Leitweg-ID</PflichtMarker>
               <input
                 value={neuerKunde.leitweg_id}
                 onChange={(e) => setNeuerKunde({ ...neuerKunde, leitweg_id: e.currentTarget.value })}
               />
             </label>
+            <p className="feld-hinweis">
+              Nur bei Rechnungen an Behörden — die Behörde gibt dir die Leitweg-ID vor.
+            </p>
           </div>
           <div className="feld">
             <label>
-              Käuferreferenz
-              <PflichtMarker art="xrechnung" />
+              <PflichtMarker art="xrechnung">Käuferreferenz</PflichtMarker>
               <input
                 value={neuerKunde.kaeuferreferenz}
                 onChange={(e) =>
@@ -331,7 +331,10 @@ export function Kunden({
                 }
               />
             </label>
-            <p className="feld-hinweis">Leitweg-ID oder Käuferreferenz reicht für den XRechnung-Export.</p>
+            <p className="feld-hinweis">
+              Referenz, die manche Firmenkunden verlangen, z. B. eine Bestellnummer. Leitweg-ID
+              oder Käuferreferenz reicht für den XRechnung-Export.
+            </p>
           </div>
           <PflichtLegende zeigtXrechnung />
           <div className="aktionen aktionen-formular">

@@ -263,8 +263,7 @@ export function PositionenAbschnitt({
           {freitext ? (
             <>
               <label className="feld">
-                Bezeichnung
-                <PflichtMarker art="pflicht" />
+                <PflichtMarker art="pflicht">Bezeichnung</PflichtMarker>
                 <input value={bezeichnung} onChange={(e) => setBezeichnung(e.currentTarget.value)} />
               </label>
               <label className="feld">
@@ -272,8 +271,7 @@ export function PositionenAbschnitt({
                 <input value={einheitKuerzel} onChange={(e) => setEinheitKuerzel(e.currentTarget.value)} />
               </label>
               <label className="feld">
-                Einzelpreis
-                <PflichtMarker art="pflicht" />
+                <PflichtMarker art="pflicht">Einzelpreis</PflichtMarker>
                 <input value={einzelpreis} onChange={(e) => setEinzelpreis(e.currentTarget.value)} placeholder="95,00" />
               </label>
               <label className="feld">
@@ -315,8 +313,7 @@ export function PositionenAbschnitt({
             </>
           )}
           <label className="feld">
-            Menge
-            <PflichtMarker art="pflicht" />
+            <PflichtMarker art="pflicht">Menge</PflichtMarker>
             <input value={menge} onChange={(e) => setMenge(e.currentTarget.value)} />
           </label>
 

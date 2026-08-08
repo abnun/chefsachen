@@ -225,8 +225,7 @@ export function KundenpreiseDialog({
           }}
         >
           <label className="feld">
-            Kunde
-            <PflichtMarker art="pflicht" />
+            <PflichtMarker art="pflicht">Kunde</PflichtMarker>
             <select
               required
               value={kundeId}
@@ -241,8 +240,7 @@ export function KundenpreiseDialog({
             </select>
           </label>
           <label className="feld">
-            Preis (€)
-            <PflichtMarker art="pflicht" />
+            <PflichtMarker art="pflicht">Preis (€)</PflichtMarker>
             <input required value={preisText} onChange={(e) => setPreisText(e.currentTarget.value)} />
           </label>
           {preisFehlerText && (

@@ -8,14 +8,15 @@ afterEach(() => {
 });
 
 describe("PflichtMarker", () => {
-  it("zeigt den Stern für ein Pflichtfeld", () => {
-    render(<PflichtMarker art="pflicht" />);
+  it("zeigt den Stern für ein Pflichtfeld, zusammen mit dem Labeltext", () => {
+    render(<PflichtMarker art="pflicht">Name</PflichtMarker>);
     expect(screen.getByTitle("Pflichtfeld")).toHaveTextContent("*");
+    expect(screen.getByText("Name")).toBeTruthy();
   });
 
-  it("zeigt das Kreuz für ein XRechnung-nötiges Feld", () => {
-    render(<PflichtMarker art="xrechnung" />);
-    expect(screen.getByTitle("Für den XRechnung-Export nötig")).toHaveTextContent("†");
+  it("zeigt zwei Sterne für ein XRechnung-nötiges Feld", () => {
+    render(<PflichtMarker art="xrechnung">Leitweg-ID</PflichtMarker>);
+    expect(screen.getByTitle("Für den XRechnung-Export nötig")).toHaveTextContent("**");
   });
 });
 
@@ -27,6 +28,6 @@ describe("PflichtLegende", () => {
 
   it("zeigt beide Kategorien, wenn zeigtXrechnung gesetzt ist", () => {
     render(<PflichtLegende zeigtXrechnung />);
-    expect(screen.getByText(/\* Pflichtfeld/)).toHaveTextContent("† Für den XRechnung-Export nötig");
+    expect(screen.getByText(/\* Pflichtfeld/)).toHaveTextContent("** Für den XRechnung-Export nötig");
   });
 });

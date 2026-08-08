@@ -293,8 +293,7 @@ export function Artikel({ zeigeFormularBeimStart, onFormularUebernommen, onZuKun
           <Fehler fehler={bannerFehler} />
           <div className="feld">
             <label>
-              Bezeichnung
-              <PflichtMarker art="pflicht" />
+              <PflichtMarker art="pflicht">Bezeichnung</PflichtMarker>
               {/* Kein `required`: Die eingebaute Blase des Browsers steht in
                   der Sprache des Systems, sieht anders aus als jede andere
                   Meldung der Anwendung und verschwindet beim nächsten Klick.
@@ -318,8 +317,7 @@ export function Artikel({ zeigeFormularBeimStart, onFormularUebernommen, onZuKun
           </div>
           <div className="feld">
             <label>
-              Einheit
-              <PflichtMarker art="pflicht" />
+              <PflichtMarker art="pflicht">Einheit</PflichtMarker>
               <select
                 value={form.einheit_id}
                 onChange={(e) => setForm({ ...form, einheit_id: e.currentTarget.value })}
