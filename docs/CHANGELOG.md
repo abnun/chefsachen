@@ -7,6 +7,25 @@ auf GitHub ändert daran nichts mehr.
 
 Deshalb hier in der Sprache der Anwender, nicht in der der Commits.
 
+## 1.2.0
+
+**Belegvorlage: Vorgaben sind jetzt ablesbar**
+- Bei Logohöhe, Girocode-Größe und den Rändern stand im leeren Feld nur der
+  erlaubte Bereich, nicht aber der Wert, der ohne eigene Eingabe gilt.
+  Jetzt steht die Vorgabe im Feld, der Bereich im Hinweis darunter.
+
+**Akzentfarbe: gezielt einsetzbar**
+- Neue Einstellung „Akzentfarbe verwenden für": nur Linien, nur die
+  Überschrift oder beides. Vorher färbte die Farbe immer beides — als
+  Farbe der Überschrift muss sie dunkel genug bleiben, als reine
+  Linienfarbe darf sie beliebig hell sein. Wer nichts umstellt, behält das
+  bisherige Aussehen.
+- Sechs Farbvorschläge, die auf Papier lesbar bleiben, direkt neben dem
+  Farbwähler. Wird die Farbe für die Überschrift benutzt und ist zu hell,
+  weist die App darauf hin, bevor die Rechnung beim Kunden blass ankommt.
+- Der Rahmen um den Girocode nimmt die Akzentfarbe jetzt ebenfalls an,
+  statt fest grau zu bleiben.
+
 ## 1.1.1
 
 **Pflichtfeld-Markierung korrigiert**

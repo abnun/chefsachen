@@ -16,6 +16,24 @@ Ursprünglich: priorisierte Arbeitsliste, abgeleitet aus dem
 [MVP-Review vom 2026-08-02](2026-08-02-mvp-review.md). Reihenfolge war
 Empfehlung; jeder Punkt trägt die Referenz aus dem Review.
 
+## Stand (2026-08-08, Belegvorlage-Feinschliff)
+
+**Vorgabewerte und Akzentfarbe** (1.2.0):
+
+- Die Zahlenfelder der Belegvorlage zeigten als Platzhalter den erlaubten
+  Bereich, aber nirgends den Wert, der bei leerem Feld tatsächlich gilt.
+  Vorgabe steht jetzt im Platzhalter, der Bereich im Hinweis.
+- Die Akzentfarbe machte zwei unvereinbare Dinge zugleich: Sie färbte den
+  Titel (also Text) und zwei von sechs Linien. Neue Einstellung
+  `vorlage.akzent_verwendung` mit Linien / Überschrift / beides, Vorgabe
+  „beides", damit sich an laufender Geschäftspost nichts ändert. Der
+  Girocode-Rahmen nimmt jetzt ebenfalls die Linienfarbe.
+- Kontrastwarnung nur, wenn die Farbe gerade Text färbt — bei „Nur Linien"
+  wäre sie falsch.
+- E2E-Durchstich füllte in der Ersteinrichtung nur Name und Steuernummer
+  und blieb deshalb seit der Pflichtfeld-Markierung auf Schritt 1 stehen.
+  CI stand fünf Läufe lang auf Rot.
+
 ## Stand (2026-08-08, Pflichtfeld-Markierung)
 
 **Pflichtfelder app-weit gekennzeichnet** (1.1.0, Korrekturen in 1.1.1):
