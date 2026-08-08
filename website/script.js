@@ -79,11 +79,16 @@ if (weiterHinweis) {
   // Abschnitt — der bleibt die Rückfallebene ohne JavaScript, taugt aber
   // nicht für den zweiten Klick: Dort ist man dann schon.
   weiterHinweis.addEventListener("click", (e) => {
-    const naechster = [...document.querySelectorAll("main > section, footer")].find(
-      // Ein paar Pixel Spielraum, damit der Abschnitt, an dessen Oberkante
-      // man gerade steht, nicht erneut angesteuert wird.
-      (el) => el.getBoundingClientRect().top > 8,
-    );
+    const naechster = [...document.querySelectorAll("main > section, footer")].find((el) => {
+      // Der Abschnitt, auf dem man gerade steht, zählt nicht mehr als
+      // „nächster". Nach dem Sprung liegt seine Oberkante nicht bei 0,
+      // sondern bei seinem `scroll-margin-top` — mit einer festen kleinen
+      // Schwelle fand der zweite Klick deshalb wieder denselben Abschnitt
+      // und es ging nicht weiter. Der Wert wird aus dem Stylesheet gelesen,
+      // damit er stimmt, auch wenn dort jemand etwas ändert.
+      const abstand = parseFloat(getComputedStyle(el).scrollMarginTop) || 0;
+      return el.getBoundingClientRect().top > abstand + 4;
+    });
     if (!naechster) return;
     e.preventDefault();
     const sanft = !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
