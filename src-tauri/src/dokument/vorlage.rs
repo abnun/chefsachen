@@ -46,6 +46,42 @@ impl LogoPosition {
     }
 }
 
+/// Worauf die Akzentfarbe wirkt.
+///
+/// Vorher wirkte sie fest auf beides. Das ist deshalb einstellbar, weil die
+/// zwei Einsätze gegenläufige Ansprüche an die Farbe stellen: Als Farbe der
+/// Überschrift muss sie dunkel genug bleiben, um auf Papier lesbar zu sein;
+/// als reine Linienfarbe darf sie beliebig hell sein. Wer sich für „nur
+/// Linien" entscheidet, bekommt eine tiefschwarze Überschrift und ist bei der
+/// Farbwahl frei.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AkzentVerwendung {
+    Linien,
+    Ueberschrift,
+    Beides,
+}
+
+impl AkzentVerwendung {
+    fn aus(wert: &str) -> Self {
+        match wert {
+            "linien" => Self::Linien,
+            "ueberschrift" => Self::Ueberschrift,
+            _ => Self::Beides,
+        }
+    }
+
+    /// Die Auswertung, was das konkret färbt, steht bewusst nur in
+    /// `rechnung.typ` und nicht zusätzlich hier: Zwei Stellen mit derselben
+    /// Regel liefen in diesem Projekt schon auseinander.
+    fn als_str(self) -> &'static str {
+        match self {
+            Self::Linien => "linien",
+            Self::Ueberschrift => "ueberschrift",
+            Self::Beides => "beides",
+        }
+    }
+}
+
 /// Alles, was sich am Aussehen einstellen lässt.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Vorlage {
@@ -54,6 +90,7 @@ pub struct Vorlage {
     /// Die kleingedruckte Rücksendeangabe über der Anschrift (DIN 5008).
     pub absenderzeile: bool,
     pub akzentfarbe: String,
+    pub akzent_verwendung: AkzentVerwendung,
     pub spalte_nummer: bool,
     /// Einheit als eigene Spalte statt hinter der Menge.
     pub einheit_eigene_spalte: bool,
@@ -88,6 +125,7 @@ impl Default for Vorlage {
             logo_hoehe_mm: 20.0,
             absenderzeile: true,
             akzentfarbe: "#1a1a1a".into(),
+            akzent_verwendung: AkzentVerwendung::Beides,
             spalte_nummer: true,
             einheit_eigene_spalte: false,
             spalte_einzelpreis: true,
@@ -165,6 +203,9 @@ impl Vorlage {
             logo_hoehe_mm: mm(hole("vorlage.logo_hoehe_mm"), standard.logo_hoehe_mm, 5.0, 50.0),
             absenderzeile: ja(hole("vorlage.absenderzeile"), standard.absenderzeile),
             akzentfarbe: farbe(hole("vorlage.akzentfarbe"), &standard.akzentfarbe),
+            akzent_verwendung: hole("vorlage.akzent_verwendung")
+                .map(|w| AkzentVerwendung::aus(&w))
+                .unwrap_or(standard.akzent_verwendung),
             spalte_nummer: ja(hole("vorlage.spalte_nummer"), standard.spalte_nummer),
             einheit_eigene_spalte: ja(
                 hole("vorlage.einheit_eigene_spalte"),
@@ -205,6 +246,7 @@ impl Vorlage {
             ("v_logo_hoehe_mm", self.logo_hoehe_mm.to_string()),
             ("v_absenderzeile", ja_nein(self.absenderzeile)),
             ("v_akzentfarbe", self.akzentfarbe.clone()),
+            ("v_akzent_verwendung", self.akzent_verwendung.als_str().to_string()),
             ("v_spalte_nummer", ja_nein(self.spalte_nummer)),
             ("v_einheit_eigene_spalte", ja_nein(self.einheit_eigene_spalte)),
             ("v_spalte_einzelpreis", ja_nein(self.spalte_einzelpreis)),
@@ -225,6 +267,42 @@ fn ja_nein(wert: bool) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn akzent_verwendung_kommt_aus_den_einstellungen() {
+        let v = Vorlage::aus_paaren(&[(
+            "vorlage.akzent_verwendung".into(),
+            "linien".into(),
+        )]);
+        assert_eq!(v.akzent_verwendung, AkzentVerwendung::Linien);
+    }
+
+    /// Wer nichts einstellt, muss denselben Beleg bekommen wie vor dieser
+    /// Einstellung — sonst änderte ein Update stillschweigend laufende Post.
+    #[test]
+    fn akzent_verwendung_faellt_auf_beides_zurueck() {
+        for paare in [vec![], vec![("vorlage.akzent_verwendung".into(), "quatsch".into())]] {
+            let v = Vorlage::aus_paaren(&paare);
+            assert_eq!(v.akzent_verwendung, AkzentVerwendung::Beides);
+        }
+    }
+
+    /// Die Typst-Vorlage liest den Wert als Zeichenkette und vergleicht ihn
+    /// gegen „linien"/„ueberschrift"/„beides". Weicht eine Schreibweise ab,
+    /// griffe stillschweigend nur noch der Vorgabezweig.
+    #[test]
+    fn akzent_verwendung_geht_als_eingabe_an_die_vorlage() {
+        let eingaben = Vorlage {
+            akzent_verwendung: AkzentVerwendung::Ueberschrift,
+            ..Default::default()
+        }
+        .als_eingaben();
+        let wert = eingaben
+            .iter()
+            .find(|(k, _)| *k == "v_akzent_verwendung")
+            .map(|(_, v)| v.as_str());
+        assert_eq!(wert, Some("ueberschrift"));
+    }
 
     #[test]
     fn unbrauchbare_masse_fallen_auf_die_vorgabe_zurueck() {

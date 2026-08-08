@@ -28,6 +28,13 @@ interface Schalter {
   einheit?: string;
   min?: number;
   max?: number;
+  /**
+   * Der Wert, den das Backend nimmt, wenn nichts gespeichert ist — muss mit
+   * `Default for Vorlage` in `dokument/vorlage.rs` übereinstimmen. Ein leeres
+   * Feld bedeutet hier nicht „nichts", sondern „Vorgabe"; ohne diese Angabe
+   * sah man nirgends, was das konkret heißt.
+   */
+  standard?: string;
 }
 
 const SCHALTER: Schalter[] = [
@@ -41,7 +48,7 @@ const SCHALTER: Schalter[] = [
       ["keins", "Kein Logo"],
     ],
   },
-  { schluessel: "vorlage.logo_hoehe_mm", label: "Logohöhe", art: "zahl", einheit: "mm", min: 5, max: 50 },
+  { schluessel: "vorlage.logo_hoehe_mm", label: "Logohöhe", art: "zahl", einheit: "mm", min: 5, max: 50, standard: "20" },
   {
     schluessel: "vorlage.absenderzeile",
     label: "Absenderzeile über der Anschrift",
@@ -49,7 +56,21 @@ const SCHALTER: Schalter[] = [
       "Kleingedruckt im Umschlagfenster, nach DIN 5008. Weist den Absender aus, wenn die Sendung nicht zustellbar ist.",
     art: "ja_nein",
   },
-  { schluessel: "vorlage.akzentfarbe", label: "Akzentfarbe", art: "farbe" },
+  { schluessel: "vorlage.akzentfarbe", label: "Akzentfarbe", art: "farbe", standard: "#1a1a1a" },
+  {
+    schluessel: "vorlage.akzent_verwendung",
+    label: "Akzentfarbe verwenden für",
+    hinweis:
+      "Nur für Linien gefärbt, darf die Farbe beliebig hell sein. Färbt sie die Überschrift mit, " +
+      "muss sie dunkel genug bleiben, um auf Papier lesbar zu sein.",
+    art: "auswahl",
+    optionen: [
+      ["beides", "Linien und Überschrift"],
+      ["linien", "Nur Linien"],
+      ["ueberschrift", "Nur Überschrift"],
+    ],
+    standard: "beides",
+  },
   { schluessel: "vorlage.spalte_nummer", label: "Spalte „Pos.“", art: "ja_nein" },
   {
     schluessel: "vorlage.einheit_eigene_spalte",
@@ -82,13 +103,103 @@ const SCHALTER: Schalter[] = [
     einheit: "mm",
     min: 20,
     max: 32,
+    standard: "28",
   },
-  { schluessel: "vorlage.rand_oben_mm", label: "Rand oben", art: "zahl", einheit: "mm", min: 20, max: 40 },
-  { schluessel: "vorlage.rand_unten_mm", label: "Rand unten", art: "zahl", einheit: "mm", min: 25, max: 40 },
-  { schluessel: "vorlage.rand_seitlich_mm", label: "Rand seitlich", art: "zahl", einheit: "mm", min: 15, max: 30 },
+  { schluessel: "vorlage.rand_oben_mm", label: "Rand oben", art: "zahl", einheit: "mm", min: 20, max: 40, standard: "25" },
+  { schluessel: "vorlage.rand_unten_mm", label: "Rand unten", art: "zahl", einheit: "mm", min: 25, max: 40, standard: "25" },
+  { schluessel: "vorlage.rand_seitlich_mm", label: "Rand seitlich", art: "zahl", einheit: "mm", min: 15, max: 30, standard: "25" },
 ];
 
 const SCHLUESSEL = SCHALTER.map((s) => s.schluessel);
+
+/**
+ * Vorschläge für die Akzentfarbe. Alle liegen auf weißem Papier über 8:1 und
+ * bleiben damit auch als Überschrift lesbar; ausgesucht sind sie als
+ * Geschäftspost-Töne, nicht als Bildschirmfarben.
+ */
+const FARB_VORSCHLAEGE: [string, string][] = [
+  ["#1a1a1a", "Anthrazit"],
+  ["#1f4e79", "Tiefblau"],
+  ["#1e5b3a", "Tannengrün"],
+  ["#7a2530", "Bordeaux"],
+  ["#5c4327", "Sepia"],
+  ["#41485a", "Schiefer"],
+];
+
+/** Relative Helligkeit nach WCAG 2.1. */
+function helligkeit(hex: string): number {
+  const h = hex.replace("#", "");
+  const kanal = (i: number) => {
+    const c = parseInt(h.slice(i, i + 2), 16) / 255;
+    return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+  };
+  return 0.2126 * kanal(0) + 0.7152 * kanal(2) + 0.0722 * kanal(4);
+}
+
+/**
+ * Kontrast der Farbe gegen weißes Papier. Weiß hat die Helligkeit 1, daher
+ * verkürzt sich die WCAG-Formel zu 1,05 geteilt durch den Rest.
+ */
+export function kontrastAufWeiss(hex: string): number {
+  if (!/^#[0-9a-fA-F]{6}$/.test(hex)) return 21;
+  return 1.05 / (helligkeit(hex) + 0.05);
+}
+
+/**
+ * Farbvorschläge, Vorgabe-Angabe und eine Warnung bei zu heller Wahl.
+ *
+ * Die Akzentfarbe färbt nicht nur die Linien der Positionstabelle, sondern
+ * auch die Überschrift des Belegs (`#show heading` in `rechnung.typ`). Ein
+ * helles Türkis kommt dort auf 1,6:1 und ist gedruckt kaum zu entziffern —
+ * am Bildschirm sieht man das der Vorschau nur an, wenn man weiß, worauf man
+ * achten muss. Der freie Farbwähler bleibt; er sagt jetzt nur dazu, wann die
+ * Wahl auf Papier nicht mehr trägt.
+ */
+function FarbHilfe({
+  wert,
+  standard,
+  faerbtText,
+  onWaehlen,
+}: {
+  wert: string;
+  standard: string;
+  /** Ob die Farbe gerade Text färbt — nur dann zählt der Kontrast. */
+  faerbtText: boolean;
+  onWaehlen: (farbe: string) => void;
+}) {
+  const kontrast = kontrastAufWeiss(wert);
+  return (
+    <>
+      <div className="farb-vorschlaege">
+        {FARB_VORSCHLAEGE.map(([farbe, name]) => {
+          const gewaehlt = farbe.toLowerCase() === wert.toLowerCase();
+          return (
+            <button
+              key={farbe}
+              type="button"
+              className={gewaehlt ? "farb-tupfer gewaehlt" : "farb-tupfer"}
+              style={{ backgroundColor: farbe }}
+              aria-label={`Akzentfarbe ${name}`}
+              aria-pressed={gewaehlt}
+              onClick={() => onWaehlen(farbe)}
+            />
+          );
+        })}
+      </div>
+      <p className="feld-hinweis">Vorgabe {standard} (Anthrazit).</p>
+      {/* Der Kontrast zählt nur, solange die Farbe Text färbt. Als reine
+          Linienfarbe darf sie beliebig hell sein — eine Warnung wäre dort
+          falsch und würde nach kurzer Zeit ohnehin überlesen. */}
+      {faerbtText && kontrast < 4.5 && (
+        <p className="feld-warnung" role="status">
+          Auf weißem Papier schwer zu lesen: Kontrast {kontrast.toFixed(1)}:1, empfohlen ab 4,5:1.
+          Die Überschrift des Belegs wird damit blass. Entweder eine dunklere Farbe wählen oder
+          unten „Nur Linien“ einstellen.
+        </p>
+      )}
+    </>
+  );
+}
 
 export function Belegvorlage() {
   const [werte, setWerte] = useState<Record<string, string>>({});
@@ -210,24 +321,43 @@ export function Belegvorlage() {
                     </select>
                   )}
                   {s.art === "zahl" && (
+                    /* Der Platzhalter zeigt die Vorgabe, nicht den erlaubten
+                       Bereich: Ein leeres Feld heißt „Vorgabe", und genau die
+                       stand vorher nirgends. Der Bereich steht im Hinweis. */
                     <input
                       type="number"
                       min={s.min}
                       max={s.max}
                       value={werte[s.schluessel] ?? ""}
-                      placeholder={`${s.min}–${s.max} ${s.einheit}`}
+                      placeholder={s.standard}
                       onChange={(e) => aendere(s.schluessel, e.currentTarget.value)}
                     />
                   )}
                   {s.art === "farbe" && (
                     <input
                       type="color"
-                      value={werte[s.schluessel] || "#1a1a1a"}
+                      value={werte[s.schluessel] || s.standard}
                       onChange={(e) => aendere(s.schluessel, e.currentTarget.value)}
                     />
                   )}
                 </label>
-                {s.hinweis && <p className="feld-hinweis">{s.hinweis}</p>}
+                {s.art === "farbe" && (
+                  <FarbHilfe
+                    wert={werte[s.schluessel] || s.standard!}
+                    standard={s.standard!}
+                    faerbtText={
+                      (werte["vorlage.akzent_verwendung"] ?? "beides") !== "linien"
+                    }
+                    onWaehlen={(farbe) => aendere(s.schluessel, farbe)}
+                  />
+                )}
+                {s.art === "zahl" && (
+                  <p className="feld-hinweis">
+                    Vorgabe {s.standard} {s.einheit}, möglich {s.min}–{s.max} {s.einheit}.
+                    {s.hinweis ? ` ${s.hinweis}` : ""}
+                  </p>
+                )}
+                {s.hinweis && s.art !== "zahl" && <p className="feld-hinweis">{s.hinweis}</p>}
               </div>
             ),
           )}

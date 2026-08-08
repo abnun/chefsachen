@@ -8,6 +8,16 @@
 // erst weiter unten stehendes `#let mass` wäre hier noch nicht bekannt.
 #let mass(name) = float(name) * 1mm
 
+// Aus demselben Grund hier oben: Der Girocode-Rahmen darunter nimmt die
+// Linienfarbe, und `girocode_block` sähe eine erst später gesetzte Variable
+// nicht.
+#let akzent = rgb(sys.inputs.v_akzentfarbe)
+#let akzent_ueberschrift = sys.inputs.v_akzent_verwendung in ("ueberschrift", "beides")
+#let akzent_linien = sys.inputs.v_akzent_verwendung in ("linien", "beides")
+// Wer den Akzent nur für die Überschrift will, bekommt die Linien in dem
+// zurückhaltenden Grau, das sie vor der einstellbaren Akzentfarbe hatten.
+#let linienfarbe = if akzent_linien { akzent } else { rgb("#999999") }
+
 // Girocode (SEPA-QR-Zahlungscode, EPC069-12): Der Empfänger zahlt per
 // Smartphone-Kamera, ohne IBAN abzutippen. Rust liefert nur die
 // Hell/Dunkel-Matrix (wie die Positionstabelle nur Zahlen liefert) — hier
@@ -18,7 +28,7 @@
   if reihen.len() > 0 {
     v(0.3cm)
     let n = reihen.len()
-    box(stroke: 0.5pt + rgb("#999999"), inset: 8pt)[
+    box(stroke: 0.5pt + linienfarbe, inset: 8pt)[
       #grid(
         columns: (auto, 1fr),
         column-gutter: 10pt,
@@ -44,12 +54,10 @@
 
 // Einstellbares aus `dokument::vorlage`. Die Vorgaben dort bilden das
 // ursprüngliche Aussehen ab; hier steht nur, wie die Werte wirken.
-#let mass(name) = float(name) * 1mm
+// (`mass` steht schon ganz oben, weil der Girocode es dort braucht.)
 #let rand_oben = mass(sys.inputs.v_rand_oben_mm)
 #let rand_unten = mass(sys.inputs.v_rand_unten_mm)
 #let rand_seitlich = mass(sys.inputs.v_rand_seitlich_mm)
-#let akzent = rgb(sys.inputs.v_akzentfarbe)
-
 // Geschäftsangaben für den Fuß jeder Seite — als `#let` hier oben, nicht
 // erst weiter unten im Fließtext, wo sie inhaltlich hingehören würden: Der
 // `footer`-Funktionswert von `#set page` unten bindet Variablen lexikalisch
@@ -137,7 +145,7 @@
 )
 
 #set heading(numbering: none)
-#show heading: it => text(fill: akzent, it)
+#show heading: it => text(fill: if akzent_ueberschrift { akzent } else { black }, it)
 
 // Logo und Absenderanschrift teilen sich die Kopfzeile. Steht das Logo rechts,
 // rückt die Anschrift nach links — sonst überlagerten sie einander.
@@ -349,7 +357,7 @@
     stroke: if mit_gitterlinien {
       0.4pt + rgb("#bbbbbb")
     } else {
-      (x, y) => if y == 0 { (bottom: 0.6pt + akzent) } else { (bottom: 0.4pt + rgb("#dddddd")) }
+      (x, y) => if y == 0 { (bottom: 0.6pt + linienfarbe) } else { (bottom: 0.4pt + rgb("#dddddd")) }
     },
     table.header(..kopfzeile),
     ..positionen.map(zeile).flatten(),
@@ -362,9 +370,9 @@
     table.cell(
       colspan: spalten.len() - 1,
       align: right,
-      stroke: (top: 0.6pt + akzent, bottom: none),
+      stroke: (top: 0.6pt + linienfarbe, bottom: none),
     )[*#gesamt_label*],
-    table.cell(stroke: (top: 0.6pt + akzent, bottom: none))[*#sys.inputs.summe*],
+    table.cell(stroke: (top: 0.6pt + linienfarbe, bottom: none))[*#sys.inputs.summe*],
   )
 
   #if ist_gesetzt(sys.inputs.gesamtauftragswert) [

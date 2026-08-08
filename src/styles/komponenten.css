@@ -967,6 +967,40 @@ label.feld textarea {
   margin-bottom: var(--abstand-s);
 }
 
+/* Vorschläge für die Akzentfarbe. Der freie Farbwähler bleibt daneben; diese
+   Tupfer sind die Abkürzung zu einer Farbe, die auf Papier trägt. */
+.farb-vorschlaege {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--abstand-xs);
+  margin: calc(-1 * var(--abstand-xs)) 0 var(--abstand-s);
+}
+
+.farb-tupfer {
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  border: 1px solid var(--rand);
+  border-radius: var(--radius-s);
+  cursor: pointer;
+}
+
+/* Der gewählte Tupfer bekommt einen Ring mit Abstand statt eines dickeren
+   Rahmens: Ein Rahmen auf der Farbe selbst verschwindet, sobald die Farbe
+   ihm ähnelt. */
+.farb-tupfer.gewaehlt {
+  box-shadow: 0 0 0 2px var(--flaeche), 0 0 0 4px var(--text);
+}
+
+/* Warnung an einem Feld, das nicht falsch ausgefüllt ist, aber zu einem
+   Ergebnis führt, das der Nutzer so kaum will. Zurückhaltender als
+   `.feld-fehler`: nichts ist kaputt, es sieht nur schlecht aus. */
+.feld-warnung {
+  margin: calc(-1 * var(--abstand-xs)) 0 var(--abstand-m);
+  font-size: var(--text-s);
+  color: var(--warnung-text);
+}
+
 .vorlage-vorschau {
   position: sticky;
   top: var(--abstand-l);

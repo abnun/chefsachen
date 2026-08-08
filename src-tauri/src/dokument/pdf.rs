@@ -685,6 +685,33 @@ pub(crate) mod tests {
         assert_ne!(ohne, mit, "vorlage.tabelle_gitterlinien wirkt sich nicht auf den Beleg aus");
     }
 
+    /// Jede der drei Einstellungen muss einen anderen Beleg ergeben. Ohne
+    /// diesen Test bliebe unbemerkt, wenn ein Zweig der Typst-Vorlage gar nicht
+    /// greift: Die Vorgabe „beides" allein lief schon vorher durch, und ein
+    /// Tippfehler in der Bedingung fiele erst dem Nutzer auf.
+    #[test]
+    fn akzent_verwendung_aendert_das_dokument() {
+        use crate::dokument::vorlage::{AkzentVerwendung, Vorlage};
+
+        // Eine deutlich sichtbare Farbe, damit sich die Varianten überhaupt
+        // unterscheiden können — mit dem vorgabemäßigen Fast-Schwarz wäre der
+        // Unterschied zwischen gefärbter und schwarzer Überschrift minimal.
+        let mit_farbe = |verwendung| Vorlage {
+            akzentfarbe: "#1f4e79".into(),
+            akzent_verwendung: verwendung,
+            ..Default::default()
+        };
+
+        let beides = rendern(&test_kontext(), None, &mit_farbe(AkzentVerwendung::Beides)).unwrap();
+        let linien = rendern(&test_kontext(), None, &mit_farbe(AkzentVerwendung::Linien)).unwrap();
+        let ueberschrift =
+            rendern(&test_kontext(), None, &mit_farbe(AkzentVerwendung::Ueberschrift)).unwrap();
+
+        assert_ne!(beides, linien, "„Nur Linien\" färbt die Überschrift weiterhin mit");
+        assert_ne!(beides, ueberschrift, "„Nur Überschrift\" färbt die Linien weiterhin mit");
+        assert_ne!(linien, ueberschrift, "beide Einzelfälle ergeben denselben Beleg");
+    }
+
     #[test]
     fn positionen_sind_durchnummeriert() {
         // Ohne Nummer lässt sich am Telefon nicht auf eine Zeile verweisen
