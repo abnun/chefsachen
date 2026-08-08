@@ -5,6 +5,7 @@ import { api, istValidierungsfehler, type AppFehler, type Firma } from "../api";
 import { formularFehler } from "../formularFehler";
 import { Fehler } from "../components/Fehler";
 import { PflichtLegende, PflichtMarker } from "../components/PflichtMarker";
+import { useXRechnungHilfe } from "../hooks/useXRechnungHilfe";
 
 interface EinrichtungProps {
   onFertig: (zielSeite?: "kunden" | "artikel") => void;
@@ -26,6 +27,7 @@ type Schritt = 1 | 2 | 3 | 4 | 5;
  * und die IBAN-Prüfsumme nachzubauen wäre ohnehin Unfug.
  */
 export function Einrichtung({ onFertig }: EinrichtungProps) {
+  const { zeigen: zeigeXRechnungHilfe } = useXRechnungHilfe();
   const [schritt, setSchritt] = useState<Schritt>(1);
   const [firma, setFirma] = useState<Firma | null>(null);
   const [logoBytes, setLogoBytes] = useState<number[] | null>(null);
@@ -256,6 +258,9 @@ export function Einrichtung({ onFertig }: EinrichtungProps) {
             </p>
           </div>
           <PflichtLegende zeigtXrechnung />
+          <button type="button" className="feld-hinweis-link" onClick={zeigeXRechnungHilfe}>
+            Was ist die XRechnung?
+          </button>
           <div className="aktionen aktionen-formular">
             <button
               type="button"

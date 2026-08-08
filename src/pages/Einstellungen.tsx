@@ -13,6 +13,7 @@ import {
 import { formularFehler } from "../formularFehler";
 import { Fehler } from "../components/Fehler";
 import { PflichtLegende, PflichtMarker } from "../components/PflichtMarker";
+import { useXRechnungHilfe } from "../hooks/useXRechnungHilfe";
 import { useErfolgsHinweis } from "../hooks/useErfolgsHinweis";
 import { useBestaetigung } from "../hooks/useBestaetigung";
 import { useUngespeichert } from "../hooks/useUngespeichert";
@@ -133,6 +134,7 @@ function bytesZuBase64(bytes: number[]): string {
 }
 
 function FirmendatenAbschnitt() {
+  const { zeigen: zeigeXRechnungHilfe } = useXRechnungHilfe();
   const [firma, setFirma] = useState<Firma | null>(null);
   /** Der zuletzt gespeicherte Stand, um Änderungen zu erkennen. */
   const [gespeichert, setGespeichert] = useState<Firma | null>(null);
@@ -425,6 +427,9 @@ function FirmendatenAbschnitt() {
           behalten ihren damaligen Steuermodus.
         </p>
         <PflichtLegende zeigtXrechnung />
+        <button type="button" className="feld-hinweis-link" onClick={zeigeXRechnungHilfe}>
+          Was ist die XRechnung?
+        </button>
         <div className="aktionen aktionen-formular">
           <button type="submit" className="btn btn-primaer">Speichern</button>
         </div>

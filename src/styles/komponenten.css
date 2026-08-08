@@ -1050,3 +1050,27 @@ label.feld textarea {
 .pflicht-legende {
   margin-top: var(--abstand-s);
 }
+
+/* Unauffälliger Textlink innerhalb eines Formulars, etwa zur
+   XRechnung-Hilfeseite — kein eigener Knopf-Rahmen, damit er neben dem
+   Feld-Hinweis nicht wie eine weitere Aktion wirkt. */
+.feld-hinweis-link {
+  background: none;
+  border: none;
+  padding: 0;
+  margin-top: var(--abstand-s);
+  color: var(--text-leise);
+  font-size: var(--text-s);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.xrechnung-hilfe-liste dt {
+  font-weight: 600;
+  margin-top: var(--abstand-m);
+}
+
+.xrechnung-hilfe-liste dd {
+  margin: var(--abstand-xs) 0 0;
+  color: var(--text-leise);
+}

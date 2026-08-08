@@ -4,6 +4,7 @@ import App from "./App";
 import { fehlerAufzeichnungEinrichten } from "./protokoll";
 import { UngespeichertProvider } from "./hooks/useUngespeichert";
 import { AktualisierungProvider } from "./hooks/useAktualisierung";
+import { XRechnungHilfeProvider } from "./hooks/useXRechnungHilfe";
 import { AktualisierungsBenachrichtigung } from "./components/AktualisierungsBenachrichtigung";
 
 // Vor dem Rendern: Auch ein Fehler beim ersten Aufbau soll aufgezeichnet werden.
@@ -17,7 +18,9 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
     <AktualisierungProvider>
       <AktualisierungsBenachrichtigung />
       <UngespeichertProvider>
-        <App />
+        <XRechnungHilfeProvider>
+          <App />
+        </XRechnungHilfeProvider>
       </UngespeichertProvider>
     </AktualisierungProvider>
   </React.StrictMode>,

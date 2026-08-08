@@ -3,6 +3,7 @@ import { api, type AppFehler, type Kunde, type KundeNeu } from "../api";
 import { formularFehler } from "../formularFehler";
 import { Fehler } from "../components/Fehler";
 import { PflichtLegende, PflichtMarker } from "../components/PflichtMarker";
+import { useXRechnungHilfe } from "../hooks/useXRechnungHilfe";
 import { ZeilenKnopf } from "../components/ZeilenKnopf";
 import { SortierKopf } from "../components/SortierKopf";
 import { Werkzeugleiste } from "../components/Werkzeugleiste";
@@ -85,6 +86,7 @@ export function Kunden({
   onFormularUebernommen,
   onZuArtikelWechseln,
 }: KundenProps) {
+  const { zeigen: zeigeXRechnungHilfe } = useXRechnungHilfe();
   const [kunden, setKunden] = useState<Kunde[]>([]);
   const [suche, setSuche] = useState("");
   const [leerHinweisVersteckt, setLeerHinweisVersteckt] = useState(false);
@@ -337,6 +339,9 @@ export function Kunden({
             </p>
           </div>
           <PflichtLegende zeigtXrechnung />
+          <button type="button" className="feld-hinweis-link" onClick={zeigeXRechnungHilfe}>
+            Was ist die XRechnung?
+          </button>
           <div className="aktionen aktionen-formular">
             <button type="submit" className="btn btn-primaer">Speichern</button>
             <button type="button" className="btn" onClick={() => setZeigeFormular(false)}>

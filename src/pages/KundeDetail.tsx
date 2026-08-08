@@ -12,6 +12,7 @@ import {
 import { formularFehler } from "../formularFehler";
 import { Fehler } from "../components/Fehler";
 import { PflichtLegende, PflichtMarker } from "../components/PflichtMarker";
+import { useXRechnungHilfe } from "../hooks/useXRechnungHilfe";
 import { Laden } from "../components/Laden";
 import { useErfolgsHinweis } from "../hooks/useErfolgsHinweis";
 import { useBestaetigung } from "../hooks/useBestaetigung";
@@ -279,6 +280,7 @@ function StammdatenReiter({ kunde, onGespeichert, onGeloescht }: StammdatenReite
   const [fehler, setFehler] = useState<AppFehler | null>(null);
   const { zeigen, hinweis } = useErfolgsHinweis();
   const { bestaetigen, dialog } = useBestaetigung();
+  const { zeigen: zeigeXRechnungHilfe } = useXRechnungHilfe();
 
   useEffect(() => {
     setForm(kunde);
@@ -421,6 +423,9 @@ function StammdatenReiter({ kunde, onGespeichert, onGeloescht }: StammdatenReite
           </p>
         </div>
         <PflichtLegende zeigtXrechnung />
+        <button type="button" className="feld-hinweis-link" onClick={zeigeXRechnungHilfe}>
+          Was ist die XRechnung?
+        </button>
         <div className="aktionen aktionen-formular">
           <button type="submit" className="btn btn-primaer">
             Speichern
