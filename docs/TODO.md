@@ -4,80 +4,16 @@ Geplante Funktionen, offene Fehler und Sicherheitsthemen, die die
 Funktionsweise der App direkt betreffen. Abgeschlossenes steht im Archiv
 weiter unten.
 
-Zuletzt veröffentlicht: **1.2.0** am 2026-08-08. Seitdem liegt Behobenes
-unveröffentlicht auf `main` — unter anderem der Formularverlust beim Aufruf
-der XRechnung-Hilfe, der Nutzer tatsächlich trifft (siehe Archiv, Stand
-2026-08-08). Ein Release steht also aus.
+Zuletzt veröffentlicht: **1.3.0** am 2026-08-08.
 
 ## Offen
 
 | Nr. | Punkt | Art | Aufwand |
 |-----|-------|-----|---------|
-| 1 | [Rundgang bei Artikeln erwähnt Kundenpreise nicht](#1-rundgang-bei-artikeln-erwähnt-kundenpreise-nicht) | Verständlichkeit | klein |
-| 2 | [„Nach Updates suchen" ins Programmmenü](#2-nach-updates-suchen-ins-programmmenü) | Funktion | klein |
-| 3 | [Fenstergröße beim Start](#3-fenstergröße-beim-start) | Funktion | klein bis mittel |
-| 4 | [Logo auch an der rechten Blattkante](#4-logo-auch-an-der-rechten-blattkante) | Funktion | mittel |
-| 5 | [Export für den Steuerberater](#5-export-für-den-steuerberater) | Funktion | groß, Klärung offen |
+| 1 | [Logo auch an der rechten Blattkante](#1-logo-auch-an-der-rechten-blattkante) | Funktion | mittel |
+| 2 | [Export für den Steuerberater](#2-export-für-den-steuerberater) | Funktion | groß, Klärung offen |
 
-### 1. Rundgang bei Artikeln erwähnt Kundenpreise nicht
-
-Der Rundgang auf der Artikelseite erklärt die Spalte „Kundenpreise" nur
-anhand der Tabelle. Wer noch keinen Artikel angelegt hat, sieht diese Spalte
-gar nicht mit Inhalt und erfährt deshalb nie, dass sich je Kunde abweichende
-Preise hinterlegen lassen — dabei ist genau das der Grund, überhaupt Artikel
-anzulegen statt jede Position frei zu tippen.
-
-Der Rundgang sollte das auch bei leerer Liste erklären. Zu prüfen, ob ein
-zusätzlicher Schritt reicht oder ob der Text des bestehenden Schritts nur
-unabhängig von vorhandenen Daten formuliert werden muss.
-
-### 2. „Nach Updates suchen" ins Programmmenü
-
-Das Programmmenü hat „Über Chefsachen" und „Einstellungen …", aber keinen
-Weg zur Aktualisierung. Wer nach einer neuen Version sucht, muss erst die
-Einstellungen öffnen und dorthin scrollen — unter macOS erwartet man das im
-Programmmenü.
-
-Der Weg ist vorgezeichnet: `menue.rs` legt einen `MenuItem::with_id` an und
-sendet ein Ereignis, die Oberfläche hört darauf (wie
-`EREIGNIS_EINSTELLUNGEN` → `menue:einstellungen` in `App.tsx`). Gesucht wird
-über `suchen(true)` aus `useAktualisierung`; der Anbieter sitzt bereits in
-`main.tsx`, der Aufruf ist also von überall möglich, und
-`AktualisierungsBenachrichtigung` zeigt das Ergebnis schon heute
-fensterweit an.
-
-Zu klären:
-
-- Menüpunkt während einer laufenden Suche abschalten, sonst startet ein
-  zweiter Klick eine zweite Suche. Dafür gibt es mit `MenueZustand` schon
-  das Muster, mit dem „Einstellungen …" während der Ersteinrichtung
-  abgeblendet wird.
-- Soll er während der Ersteinrichtung überhaupt anwählbar sein? Ein Update
-  mitten im Einrichten ist unschön, aber ein abgeblendeter Punkt ohne
-  Begründung auch.
-- Was passiert, wenn keine neue Version da ist? Beim Suchen über das Menü
-  muss eine Rückmeldung kommen („Du hast bereits die neueste Version"),
-  sonst sieht es wie ein wirkungsloser Menüpunkt aus.
-
-### 3. Fenstergröße beim Start
-
-Das Fenster startet mit fest 800 × 600 (`app.windows` in `tauri.conf.json`) —
-für die Einstellungen mit ihrer Vorschau daneben und für die Belegliste
-deutlich zu klein. Gewünscht: beim Start maximiert.
-
-Zu klären: nur maximiert starten (`"maximized": true`) oder die zuletzt
-genutzte Größe und Position merken? Letzteres ist das übliche Verhalten von
-Schreibtischprogrammen und wäre freundlicher, braucht aber einen Ort für den
-gespeicherten Zustand — entweder eigene Einstellungsschlüssel oder das
-Plugin `tauri-plugin-window-state`. Bei einer eigenen Lösung daran denken,
-dass ein Bildschirm beim nächsten Start fehlen kann: Eine gemerkte Position
-auf einem abgezogenen zweiten Monitor darf das Fenster nicht unsichtbar
-machen.
-
-Außerdem eine sinnvolle Mindestgröße setzen (`minWidth`/`minHeight`); unter
-etwa 900 px Breite bricht das zweispaltige Layout der Belegvorlage um.
-
-### 4. Logo auch an der rechten Blattkante
+### 1. Logo auch an der rechten Blattkante
 
 Heute gibt es drei Möglichkeiten: „Oben links", „Oben rechts, neben der
 Anschrift" und „Kein Logo". Gewünscht ist eine vierte: Logo an der rechten
@@ -92,7 +28,7 @@ Betrifft `LogoPosition` in `dokument/vorlage.rs`, die Verzweigung in
 `rechnung.typ` und den Auswahlpunkt in `Belegvorlage.tsx`. Vorgabe bleibt
 „links", damit sich an laufender Geschäftspost nichts ändert.
 
-### 5. Export für den Steuerberater
+### 2. Export für den Steuerberater
 
 Ein Ausgabeformat, das sich beim Steuerberater direkt einlesen lässt, statt
 dass er die Belege einzeln abtippt. Heute gibt es nur den Beleg-Export als
@@ -123,6 +59,26 @@ einliest, wäre der teuerste Weg.
 Ursprünglich: priorisierte Arbeitsliste, abgeleitet aus dem
 [MVP-Review vom 2026-08-02](2026-08-02-mvp-review.md). Reihenfolge war
 Empfehlung; jeder Punkt trägt die Referenz aus dem Review.
+
+## Stand (2026-08-08, Bedienbarkeit)
+
+- **Fenstergröße:** Startete fest mit 800×600. Beim ersten Start jetzt
+  maximiert, danach kommt das Fenster so wieder, wie man es verlassen hat
+  (`tauri-plugin-window-state`, ohne `VISIBLE` — ein ausgeblendet beendetes
+  Fenster bliebe sonst beim Start unsichtbar). Ein abgezogener zweiter
+  Bildschirm ist unkritisch: Das Plugin stellt die Position nur wieder her,
+  wenn ein vorhandener Bildschirm das Fenster schneidet. Mindestgröße
+  900×600, darunter bricht die Belegvorlage um.
+- **„Nach Updates suchen …" im Programmmenü**, direkt unter „Über …", auch
+  während der Ersteinrichtung anwählbar. Dabei fiel auf: Die globale
+  Benachrichtigung schweigt bei „alles aktuell" bewusst — der Menüpunkt hätte
+  also wirkungslos ausgesehen. `suchen` bekommt deshalb die Quelle (Start,
+  Einstellungen, Menü) statt eines `manuell`-Schalters; nur bei „Menü" wird
+  auch ein ergebnisloser oder gescheiterter Lauf gemeldet.
+- **Rundgang bei Artikeln:** Der Anker des letzten Schritts saß in einer
+  Tabellenzeile. Ohne Artikel fiel der Schritt aus und der Rundgang endete
+  wortlos — ausgerechnet wer noch nichts angelegt hatte, erfuhr nie von den
+  Kundenpreisen. Anker jetzt am Spaltenkopf.
 
 ## Stand (2026-08-08, Rückmeldung beim Speichern)
 
