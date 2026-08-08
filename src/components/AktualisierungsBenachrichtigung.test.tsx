@@ -3,6 +3,18 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@tauri-apps/api/app", () => ({ getVersion: vi.fn().mockResolvedValue("0.1.0") }));
+/*
+ * Die Menü-Ereignisse merken sich ihre Empfänger, damit ein Test sie auslösen
+ * kann. Ohne diese Attrappe liefe `listen` in den `.catch`-Zweig und der
+ * Menüpunkt bliebe ungetestet.
+ */
+const empfaenger = new Map<string, () => void>();
+vi.mock("@tauri-apps/api/event", () => ({
+  listen: (name: string, rueckruf: () => void) => {
+    empfaenger.set(name, rueckruf);
+    return Promise.resolve(() => empfaenger.delete(name));
+  },
+}));
 vi.mock("@tauri-apps/plugin-updater", () => ({ check: vi.fn() }));
 vi.mock("@tauri-apps/plugin-process", () => ({ relaunch: vi.fn().mockResolvedValue(undefined) }));
 vi.mock("@tauri-apps/plugin-log", () => ({
@@ -98,5 +110,36 @@ describe("AktualisierungsBenachrichtigung", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Jetzt neu starten" }));
     expect(relaunch).toHaveBeenCalled();
+  });
+
+  /*
+   * Ohne diese beiden Zweige sähe „Nach Updates suchen …" im Programmmenü aus,
+   * als täte es nichts: Die Benachrichtigung schweigt bei „aktuell" bewusst,
+   * damit der Start niemanden behelligt.
+   */
+  it("antwortet auf die Suche aus dem Programmmenü, auch wenn nichts Neues da ist", async () => {
+    vi.mocked(check).mockResolvedValue(null as any);
+    render(<Seite />);
+
+    // Die Suche beim Start findet ebenfalls nichts — und bleibt still.
+    await waitFor(() => expect(check).toHaveBeenCalledTimes(1));
+    expect(screen.queryByText("Alles aktuell")).toBeNull();
+
+    empfaenger.get("menue:aktualisierung")!();
+    await waitFor(() => expect(screen.getByText("Alles aktuell")).toBeTruthy());
+    expect(screen.getByText("Du hast bereits die neueste Version.")).toBeTruthy();
+  });
+
+  it("meldet eine fehlgeschlagene Suche aus dem Programmmenü", async () => {
+    vi.mocked(check).mockRejectedValue(new Error("Netzwerk nicht erreichbar"));
+    render(<Seite />);
+
+    // Beim Start bleibt ein Fehlschlag ohne Meldung.
+    await waitFor(() => expect(check).toHaveBeenCalledTimes(1));
+    expect(screen.queryByText("Die Suche ist fehlgeschlagen")).toBeNull();
+
+    empfaenger.get("menue:aktualisierung")!();
+    await waitFor(() => expect(screen.getByText("Die Suche ist fehlgeschlagen")).toBeTruthy());
+    expect(screen.getByText(/Netzwerk nicht erreichbar/)).toBeTruthy();
   });
 });

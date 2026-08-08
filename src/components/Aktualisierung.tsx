@@ -90,7 +90,7 @@ export function Aktualisierung() {
       </p>
 
       {stand.art !== "sucht" && stand.art !== "laedt" && (
-        <button type="button" className="btn" onClick={() => suchen(true)}>
+        <button type="button" className="btn" onClick={() => suchen("einstellungen")}>
           Nach Aktualisierung suchen
         </button>
       )}

@@ -31,7 +31,14 @@ interface AktualisierungApi {
   /** Ob beim Start von selbst gesucht wird. `null`, solange unbekannt. */
   autoSuche: boolean | null;
   stand: AktualisierungStand;
-  suchen: (manuell: boolean) => Promise<void>;
+  suchen: (quelle: Suchquelle) => Promise<void>;
+  /**
+   * Woher die letzte Suche kam. Die Benachrichtigung schweigt bei „aktuell"
+   * und „fehler" — beim Programmstart soll niemand behelligt werden. Kam die
+   * Suche aber aus dem Programmmenü, muss eine Antwort kommen, sonst wirkt
+   * der Menüpunkt wirkungslos.
+   */
+  letzteQuelle: Suchquelle;
   installieren: (update: Update) => Promise<void>;
   autoSucheUmschalten: (an: boolean) => Promise<void>;
 }
@@ -39,6 +46,13 @@ interface AktualisierungApi {
 const Kontext = createContext<AktualisierungApi | null>(null);
 
 /** Einstellungsschlüssel für die Suche beim Start. */
+/**
+ * Wer die Suche ausgelöst hat. Entscheidet, wo und ob das Ergebnis erscheint:
+ * `start` still im Hintergrund, `einstellungen` im dortigen Abschnitt,
+ * `menue` als Meldung über der Anwendung.
+ */
+export type Suchquelle = "start" | "einstellungen" | "menue";
+
 const SCHLUESSEL_AUTOSUCHE = "aktualisierung.beim_start_suchen";
 
 function fehlertext(e: unknown): string {
@@ -69,8 +83,11 @@ export function AktualisierungProvider({ children }: { children: ReactNode }) {
       .catch(() => setAutoSuche(true));
   }, []);
 
-  const suchen = useCallback(async (manuell: boolean) => {
+  const [letzteQuelle, setLetzteQuelle] = useState<Suchquelle>("start");
+
+  const suchen = useCallback(async (quelle: Suchquelle) => {
     startsucheErledigt.current = true;
+    setLetzteQuelle(quelle);
     setStand({ art: "sucht" });
     try {
       const update = await check();
@@ -93,7 +110,9 @@ export function AktualisierungProvider({ children }: { children: ReactNode }) {
       warn(`Aktualisierungssuche fehlgeschlagen: ${fehlertext(e)}`).catch(() => {});
       // Ohne Netz schlägt die Suche fehl. Beim Programmstart ist das kein
       // Ereignis, über das der Nutzer etwas erfahren müsste.
-      setStand(manuell ? { art: "fehler", meldung: fehlertext(e) } : { art: "unbekannt" });
+      setStand(
+        quelle === "start" ? { art: "unbekannt" } : { art: "fehler", meldung: fehlertext(e) },
+      );
     }
   }, []);
 
@@ -101,7 +120,7 @@ export function AktualisierungProvider({ children }: { children: ReactNode }) {
     // Erst suchen, wenn feststeht, ob überhaupt gesucht werden soll — sonst
     // liefe beim ersten Rendern eine Abfrage los, die der Nutzer abbestellt hat.
     // Und nur, solange nicht schon gesucht wurde: Ein Klick des Nutzers geht vor.
-    if (autoSuche && !startsucheErledigt.current) suchen(false);
+    if (autoSuche && !startsucheErledigt.current) suchen("start");
   }, [autoSuche, suchen]);
 
   async function autoSucheUmschalten(an: boolean) {
@@ -140,7 +159,7 @@ export function AktualisierungProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <Kontext.Provider value={{ version, autoSuche, stand, suchen, installieren, autoSucheUmschalten }}>
+    <Kontext.Provider value={{ version, autoSuche, stand, suchen, letzteQuelle, installieren, autoSucheUmschalten }}>
       {children}
     </Kontext.Provider>
   );

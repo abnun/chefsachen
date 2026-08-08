@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { listen } from "@tauri-apps/api/event";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { useAktualisierung } from "../hooks/useAktualisierung";
 import { Dialog } from "./Dialog";
@@ -19,8 +20,22 @@ import { Aenderungstext } from "./Aenderungstext";
  * Einstellungen). Sichtbar wird sie erst, wenn tatsächlich etwas zu tun ist.
  */
 export function AktualisierungsBenachrichtigung() {
-  const { stand, installieren } = useAktualisierung();
+  const { stand, letzteQuelle, suchen, installieren } = useAktualisierung();
   const [ausgeblendet, setAusgeblendet] = useState(false);
+
+  useEffect(() => {
+    // „Nach Updates suchen …" aus dem Programmmenü. Der Anbieter sitzt in
+    // main.tsx, die Suche ist also von hier aus möglich, egal welche Seite
+    // gerade offen ist — und auch während der Ersteinrichtung.
+    let abmelden: (() => void) | undefined;
+    listen("menue:aktualisierung", () => suchen("menue"))
+      .then((f) => {
+        abmelden = f;
+      })
+      // In einer Testumgebung ohne Tauri gibt es kein Ereignissystem.
+      .catch(() => {});
+    return () => abmelden?.();
+  }, [suchen]);
 
   // Eine neue Suche (z. B. der manuelle Knopf in den Einstellungen) soll den
   // Hinweis wieder zeigen dürfen, auch wenn er zuvor weggeklickt wurde.
@@ -69,6 +84,45 @@ export function AktualisierungsBenachrichtigung() {
             ? "Aktualisierung wird geladen …"
             : `Aktualisierung wird geladen … ${stand.anteil} %`}
         </p>
+      </Dialog>
+    );
+  }
+
+  /*
+   * Ergebnis einer Suche aus dem Programmmenü. Beim Programmstart und beim
+   * Knopf in den Einstellungen bleibt es hier still: Dort stört es
+   * beziehungsweise steht die Antwort schon an Ort und Stelle. Ohne diese
+   * beiden Zweige sähe der Menüpunkt aus, als täte er nichts.
+   */
+  if (letzteQuelle === "menue" && stand.art === "aktuell") {
+    return (
+      <Dialog
+        titel="Alles aktuell"
+        onSchliessen={() => setAusgeblendet(true)}
+        aktionen={
+          <button type="button" className="btn btn-primaer" onClick={() => setAusgeblendet(true)}>
+            Alles klar
+          </button>
+        }
+      >
+        <p>Du hast bereits die neueste Version.</p>
+      </Dialog>
+    );
+  }
+
+  if (letzteQuelle === "menue" && stand.art === "fehler") {
+    return (
+      <Dialog
+        titel="Die Suche ist fehlgeschlagen"
+        onSchliessen={() => setAusgeblendet(true)}
+        aktionen={
+          <button type="button" className="btn btn-primaer" onClick={() => setAusgeblendet(true)}>
+            Schließen
+          </button>
+        }
+      >
+        <p>{stand.meldung}</p>
+        <p>Meist liegt es an fehlender Netzverbindung. Versuch es später noch einmal.</p>
       </Dialog>
     );
   }

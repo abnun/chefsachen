@@ -17,6 +17,9 @@ use tauri::{Emitter, Manager, Runtime};
 /// Kennung des Menüeintrags für die Einstellungen.
 const EINSTELLUNGEN: &str = "einstellungen";
 
+/// Kennung des Menüeintrags für die Aktualisierungssuche.
+const AKTUALISIERUNG: &str = "aktualisierung";
+
 /// Merkt sich den Menüeintrag, damit er sich später ein- und ausschalten lässt.
 ///
 /// Während der Ersteinrichtung zeigt die Anwendung ausschließlich den
@@ -29,6 +32,14 @@ pub struct MenueZustand<R: Runtime> {
 
 /// Ereignis, mit dem die Oberfläche zum Einstellungsbereich wechselt.
 pub const EREIGNIS_EINSTELLUNGEN: &str = "menue:einstellungen";
+
+/// Ereignis, mit dem die Oberfläche nach einer neuen Version sucht.
+///
+/// Bewusst nicht abschaltbar wie „Einstellungen …": Die Suche funktioniert
+/// auch während der Ersteinrichtung, denn sie hängt an keiner Seite. Und ein
+/// abgeblendeter Punkt ohne Begründung wirft mehr Fragen auf, als er
+/// beantwortet.
+pub const EREIGNIS_AKTUALISIERUNG: &str = "menue:aktualisierung";
 
 /// Baut das Programmmenü und hängt es an die Anwendung.
 pub fn einrichten<R: Runtime>(app: &tauri::App<R>) -> tauri::Result<()> {
@@ -44,12 +55,25 @@ pub fn einrichten<R: Runtime>(app: &tauri::App<R>) -> tauri::Result<()> {
         Some("CmdOrCtrl+,"),
     )?;
 
+    // Ohne Kürzel: Unter macOS hat „Nach Updates suchen" keines, das man
+    // erwartete, und ein erfundenes stünde jedem anderen im Weg.
+    let aktualisierung = MenuItem::with_id(
+        app,
+        AKTUALISIERUNG,
+        "Nach Updates suchen …",
+        true,
+        None::<&str>,
+    )?;
+
     let programm = Submenu::with_items(
         app,
         &name,
         true,
         &[
             &PredefinedMenuItem::about(app, Some(&format!("Über {name}")), None)?,
+            &PredefinedMenuItem::separator(app)?,
+            // Direkt unter „Über …", wie in den meisten Programmen unter macOS.
+            &aktualisierung,
             &PredefinedMenuItem::separator(app)?,
             &einstellungen,
             &PredefinedMenuItem::separator(app)?,
@@ -98,10 +122,12 @@ pub fn einrichten<R: Runtime>(app: &tauri::App<R>) -> tauri::Result<()> {
     });
 
     app.on_menu_event(|app, ereignis| {
+        // Fehlschlag heißt nur, dass kein Fenster horcht — dann gibt es auch
+        // nichts umzuschalten beziehungsweise zu suchen.
         if ereignis.id() == EINSTELLUNGEN {
-            // Fehlschlag heißt nur, dass kein Fenster horcht — dann gibt es
-            // auch nichts umzuschalten.
             let _ = app.emit(EREIGNIS_EINSTELLUNGEN, ());
+        } else if ereignis.id() == AKTUALISIERUNG {
+            let _ = app.emit(EREIGNIS_AKTUALISIERUNG, ());
         }
     });
 
