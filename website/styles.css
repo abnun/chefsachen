@@ -190,6 +190,14 @@ header p:has(> .download-nebenrangig) {
   margin: 0 var(--masz-2) var(--masz-2) 0;
 }
 
+/* Steht direkt unter den Download-Knöpfen: der Hinweis soll im Moment der
+   Entscheidung sichtbar sein, ohne den Weg dorthin zu verstellen. */
+.download-eigengefahr {
+  margin: var(--masz-3) 0 0;
+  font-size: 0.9375rem;
+  color: var(--tinte-weich);
+}
+
 .download-primaer,
 .download-nebenrangig {
   display: inline-flex;
@@ -379,6 +387,12 @@ section > p {
   color: var(--warnung-text);
 }
 
+/* Ohne das klebten die Absätze aneinander: `margin: 0` oben gilt für alle,
+   und „Keine Steuerberatung" ging optisch in „Haftung" über. */
+.hinweis-box p + p {
+  margin-top: var(--masz-3);
+}
+
 .hinweis-box strong {
   color: var(--tinte);
 }
@@ -493,6 +507,9 @@ main.container > p:last-child {
   }
   header > *:nth-child(5) {
     animation-delay: 0.22s;
+  }
+  header > *:nth-child(6) {
+    animation-delay: 0.26s;
   }
 }
 
