@@ -7,6 +7,15 @@ auf GitHub ändert daran nichts mehr.
 
 Deshalb hier in der Sprache der Anwender, nicht in der der Commits.
 
+## 1.1.1
+
+**Pflichtfeld-Markierung korrigiert**
+- Das Zeichen für „nur für den XRechnung-Export nötig" ist jetzt `**` statt
+  `†` und steht in der Zeile des Feldnamens, statt darunter umzubrechen.
+- Neue Hilfeseite „Was ist die XRechnung?", verlinkt von Leitweg-ID,
+  Käuferreferenz, E-Mail und Telefon — erklärt kurz, wofür diese Angaben
+  gut sind.
+
 ## 1.1.0
 
 **Pflichtfelder sind jetzt gekennzeichnet**

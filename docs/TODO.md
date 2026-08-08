@@ -18,11 +18,13 @@ Empfehlung; jeder Punkt trägt die Referenz aus dem Review.
 
 ## Stand (2026-08-08, Pflichtfeld-Markierung)
 
-**Pflichtfelder app-weit gekennzeichnet** (für 1.1.0):
+**Pflichtfelder app-weit gekennzeichnet** (1.1.0, Korrekturen in 1.1.1):
 
 - Alle Formulare mit Pflichtfeldern zeigen jetzt `*` (Backend verlangt das
-  Feld beim Speichern) oder `†` (nur für den XRechnung-Export nötig), mit
-  einer Legende am Formularende.
+  Feld beim Speichern) oder `**` (nur für den XRechnung-Export nötig), mit
+  einer Legende am Formularende. Das Zeichen steht in der Zeile des
+  Feldnamens statt darunter umzubrechen (Layout-Fix in 1.1.1; ursprünglich
+  war das Zeichen ein `†`).
 - Die eigene Firmenadresse und Kundenadressen sind jetzt auch
   backend-seitig Pflicht — vorher ließen sich leere Adressen speichern.
 - Bugfix dabei entdeckt: `pruefe_exportierbarkeit` verlangte für den
@@ -31,6 +33,9 @@ Empfehlung; jeder Punkt trägt die Referenz aus dem Review.
   mit erklärendem Hinweistext an den Feldern.
 - Nebenbei gefunden und behoben: das Zahlungsbetrag-Feld bei erfassten
   Zahlungen ist ebenfalls backend-Pflicht, war aber nie markiert.
+- 1.1.1: neue Hilfeseite „Was ist die XRechnung?", verlinkt von Leitweg-ID,
+  Käuferreferenz, E-Mail und Telefon — erklärt kurz, wofür diese Angaben
+  gut sind, für Solo-Unternehmer, die dem Standard zum ersten Mal begegnen.
 
 ## Stand (2026-08-06, Beleg-Layout, Girocode, Abschlagsrechnung)
 
