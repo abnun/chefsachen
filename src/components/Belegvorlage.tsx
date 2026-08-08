@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { api, type AppFehler } from "../api";
 import { Fehler } from "./Fehler";
-import { useErfolgsHinweis } from "../hooks/useErfolgsHinweis";
+import { useSpeichern } from "../hooks/useSpeichern";
 
 /**
  * Aussehen von Angebot und Rechnung einstellen, mit Vorschau daneben.
@@ -207,7 +207,7 @@ export function Belegvorlage() {
   const [svgs, setSvgs] = useState<string[] | null>(null);
   const [seite, setSeite] = useState(0);
   const [fehler, setFehler] = useState<AppFehler | null>(null);
-  const { zeigen, hinweis } = useErfolgsHinweis();
+  const { laeuft, rueckmeldung, ausfuehren } = useSpeichern();
 
   useEffect(() => {
     api.einstellungen
@@ -252,10 +252,10 @@ export function Belegvorlage() {
   async function speichern() {
     setFehler(null);
     try {
-      await Promise.all(
-        SCHLUESSEL.map((k) => api.einstellungen.set(k, werte[k] ?? "")),
+      await ausfuehren(
+        () => Promise.all(SCHLUESSEL.map((k) => api.einstellungen.set(k, werte[k] ?? ""))),
+        "Belegvorlage gespeichert",
       );
-      zeigen("Belegvorlage gespeichert");
     } catch (e) {
       setFehler(e as AppFehler);
     }
@@ -275,7 +275,6 @@ export function Belegvorlage() {
   return (
     <section className="karte" data-tour="belegvorlage">
       <h2>Belegvorlage</h2>
-      {hinweis}
       <Fehler fehler={fehler} />
       <p className="feld-hinweis hinweis-absatz">
         Gilt für Angebote und Rechnungen. Nicht einstellbar sind die Lage des Anschriftfelds
@@ -363,9 +362,10 @@ export function Belegvorlage() {
           )}
 
           <div className="aktionen aktionen-formular">
-            <button type="submit" className="btn btn-primaer">
-              Speichern
+            <button type="submit" className="btn btn-primaer" disabled={laeuft}>
+              {laeuft ? "Speichert …" : "Speichern"}
             </button>
+            {rueckmeldung}
           </div>
         </form>
 

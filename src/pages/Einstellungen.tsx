@@ -14,7 +14,13 @@ import { formularFehler } from "../formularFehler";
 import { Fehler } from "../components/Fehler";
 import { PflichtLegende, PflichtMarker } from "../components/PflichtMarker";
 import { useXRechnungHilfe } from "../hooks/useXRechnungHilfe";
+// Beide nebeneinander mit Absicht: `useSpeichern` meldet neben dem Knopf und
+// passt dort, wo ein Abschnitt eine klare Hauptaktion hat. Wo mehrere Knöpfe
+// sich einen Abschnitt teilen (Sicherungen, Einheiten, Nummernkreise,
+// Textbausteine), bleibt der Banner am Kopf richtig — er gehört dort zu
+// keinem einzelnen Knopf.
 import { useErfolgsHinweis } from "../hooks/useErfolgsHinweis";
+import { useSpeichern } from "../hooks/useSpeichern";
 import { useBestaetigung } from "../hooks/useBestaetigung";
 import { useUngespeichert } from "../hooks/useUngespeichert";
 import { Aktualisierung } from "../components/Aktualisierung";
@@ -145,7 +151,12 @@ function FirmendatenAbschnitt() {
    * (oder ein falscher Screenshot), ließ sich erst auf dem fertigen Beleg sehen.
    */
   const [logoBytes, setLogoBytes] = useState<number[] | null>(null);
-  const { zeigen, hinweis } = useErfolgsHinweis();
+  // Zwei getrennte Stände, weil dieser Abschnitt Aktionen an zwei Stellen hat:
+  // die Logo-Knöpfe mitten im Formular und den Speichern-Knopf am Fuß. Jede
+  // Aktion meldet an ihrem eigenen Knopf — eine Meldung am Kopf des
+  // Abschnitts wäre bei diesem langen Formular außerhalb des Bildes.
+  const logo = useSpeichern();
+  const { laeuft, rueckmeldung, ausfuehren } = useSpeichern();
 
   useUngespeichert(
     firma !== null && gespeichert !== null && JSON.stringify(firma) !== JSON.stringify(gespeichert),
@@ -179,9 +190,10 @@ function FirmendatenAbschnitt() {
       });
       if (!pfad || typeof pfad !== "string") return;
       const bytes = Array.from(await readFile(pfad));
-      await api.firma.logoSet(bytes);
-      setLogoBytes(bytes);
-      zeigen("Logo gespeichert");
+      await logo.ausfuehren(async () => {
+        await api.firma.logoSet(bytes);
+        setLogoBytes(bytes);
+      }, "Logo gespeichert");
     } catch (e) {
       setFehler(e as AppFehler);
     }
@@ -191,9 +203,10 @@ function FirmendatenAbschnitt() {
     setFehler(null);
     try {
       // Ein leeres Feld entfernt das Logo — das Backend kennt keinen eigenen Befehl dafür.
-      await api.firma.logoSet([]);
-      setLogoBytes(null);
-      zeigen("Logo entfernt");
+      await logo.ausfuehren(async () => {
+        await api.firma.logoSet([]);
+        setLogoBytes(null);
+      }, "Logo entfernt");
     } catch (e) {
       setFehler(e as AppFehler);
     }
@@ -203,10 +216,11 @@ function FirmendatenAbschnitt() {
     if (!firma) return;
     setFehler(null);
     try {
-      const gespeicherteFirma = await api.firma.save(firma);
-      setFirma(gespeicherteFirma);
-      setGespeichert(gespeicherteFirma);
-      zeigen("Firmendaten gespeichert");
+      await ausfuehren(async () => {
+        const gespeicherteFirma = await api.firma.save(firma);
+        setFirma(gespeicherteFirma);
+        setGespeichert(gespeicherteFirma);
+      }, "Firmendaten gespeichert");
     } catch (e) {
       setFehler(e as AppFehler);
     }
@@ -242,7 +256,6 @@ function FirmendatenAbschnitt() {
     <section data-tour="firmendaten">
       <h2>Firmendaten</h2>
       <Fehler fehler={bannerFehler} />
-      {hinweis}
       <form
         className="karte"
         onSubmit={(e) => {
@@ -389,6 +402,7 @@ function FirmendatenAbschnitt() {
                 Logo entfernen
               </button>
             )}
+            {logo.rueckmeldung}
           </div>
         </div>
         <div className="feld">
@@ -431,7 +445,10 @@ function FirmendatenAbschnitt() {
           Was ist die XRechnung?
         </button>
         <div className="aktionen aktionen-formular">
-          <button type="submit" className="btn btn-primaer">Speichern</button>
+          <button type="submit" className="btn btn-primaer" disabled={laeuft}>
+            {laeuft ? "Speichert …" : "Speichern"}
+          </button>
+          {rueckmeldung}
         </div>
       </form>
     </section>
@@ -884,7 +901,7 @@ const SCHLUESSEL_ANGEBOT_GUELTIGKEIT = "vorlage.angebot_gueltigkeit_tage";
 function AngeboteAbschnitt() {
   const [tage, setTage] = useState("");
   const [fehler, setFehler] = useState<AppFehler | null>(null);
-  const { zeigen, hinweis } = useErfolgsHinweis();
+  const { laeuft, rueckmeldung, ausfuehren } = useSpeichern();
 
   useEffect(() => {
     api.einstellungen
@@ -896,8 +913,10 @@ function AngeboteAbschnitt() {
   async function speichern() {
     setFehler(null);
     try {
-      await api.einstellungen.set(SCHLUESSEL_ANGEBOT_GUELTIGKEIT, tage);
-      zeigen("Angebotsgültigkeit gespeichert");
+      await ausfuehren(
+        () => api.einstellungen.set(SCHLUESSEL_ANGEBOT_GUELTIGKEIT, tage),
+        "Angebotsgültigkeit gespeichert",
+      );
     } catch (e) {
       setFehler(e as AppFehler);
     }
@@ -907,7 +926,6 @@ function AngeboteAbschnitt() {
     <section>
       <h2>Angebote</h2>
       <Fehler fehler={fehler} />
-      {hinweis}
       <form
         className="karte"
         onSubmit={(e) => {
@@ -929,7 +947,10 @@ function AngeboteAbschnitt() {
           einzelnen Angebot lässt es sich jederzeit ändern.
         </p>
         <div className="aktionen aktionen-formular">
-          <button type="submit" className="btn btn-primaer">Speichern</button>
+          <button type="submit" className="btn btn-primaer" disabled={laeuft}>
+            {laeuft ? "Speichert …" : "Speichern"}
+          </button>
+          {rueckmeldung}
         </div>
       </form>
     </section>

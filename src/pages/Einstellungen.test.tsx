@@ -151,6 +151,51 @@ describe("Einstellungen", () => {
   });
 
   /*
+   * Die Rückmeldung muss beim Knopf stehen, nicht am Kopf des Abschnitts: Bei
+   * diesem langen Formular ist der Kopf beim Drücken längst aus dem Bild
+   * gescrollt, man drückte Speichern und sah nichts geschehen.
+   */
+  it("zeigt die Rückmeldung in derselben Knopfreihe wie „Speichern“", async () => {
+    const { api } = await import("../api");
+    vi.mocked(api.firma.save).mockResolvedValueOnce({
+      id: "1", name: "Musterfirma", strasse: "Musterstr. 1", plz: "12345", ort: "Musterstadt",
+      land: "DE", steuernummer: "123/456/789", ust_idnr: "", iban: "", bic: "",
+      email: "", telefon: "", fax: "", kontakt_name: "", gruendungsjahr: null,
+      kleinunternehmer: true, eingerichtet: true,
+    });
+    render(<EinstellungenMitAnbieter />);
+    await waitFor(() => expect(screen.getByDisplayValue("Musterfirma")).toBeTruthy());
+    const knopf = screen.getAllByRole("button", { name: "Speichern" })[0];
+    fireEvent.click(knopf);
+
+    const meldung = await screen.findByText("Firmendaten gespeichert");
+    const knopfreihe = knopf.closest(".aktionen");
+    expect(knopfreihe).not.toBeNull();
+    // Knotengleichheit statt bloßer Textsuche: Sonst genügte es, dass der Text
+    // irgendwo auf der Seite steht — genau das war ja der Fehler.
+    expect(within(knopfreihe as HTMLElement).getByText("Firmendaten gespeichert")).toBe(meldung);
+  });
+
+  /*
+   * Ein Fehlschlag muss am Knopf ebenso sichtbar werden wie ein Erfolg. Ohne
+   * das bliebe nach einem gescheiterten Speichern alles stumm, wenn die
+   * Begründung weiter oben im Banner steht.
+   */
+  it("meldet am Knopf auch, wenn das Speichern fehlschlägt", async () => {
+    const { api } = await import("../api");
+    vi.mocked(api.firma.save).mockRejectedValueOnce({
+      typ: "validation", feld: "strasse", meldung: "Straße darf nicht leer sein",
+    });
+    render(<EinstellungenMitAnbieter />);
+    await waitFor(() => expect(screen.getByDisplayValue("Musterfirma")).toBeTruthy());
+    const knopf = screen.getAllByRole("button", { name: "Speichern" })[0];
+    fireEvent.click(knopf);
+
+    const meldung = await screen.findByText("Nicht gespeichert");
+    expect(within(knopf.closest(".aktionen") as HTMLElement).getByText("Nicht gespeichert")).toBe(meldung);
+  });
+
+  /*
    * Straße/PLZ/Ort/Land sind seit Task 1 im Backend Pflichtfelder der Firma.
    * Ein solcher Validierungsfehler muss am betroffenen Feld selbst
    * erscheinen, nicht nur im Banner.

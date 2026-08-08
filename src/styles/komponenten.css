@@ -996,6 +996,44 @@ label.feld textarea {
   box-shadow: 0 0 0 2px var(--flaeche), 0 0 0 4px var(--text);
 }
 
+/* Rückmeldung neben dem Speichern-Knopf. Sitzt im `.aktionen`-Flexrahmen und
+   steht damit von selbst neben dem Knopf statt am Kopf des Abschnitts, wo man
+   sie am Fuß eines langen Formulars nicht sieht. */
+.speicher-rueckmeldung {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--abstand-xs);
+  font-size: var(--text-s);
+}
+
+.speicher-rueckmeldung.gelungen {
+  color: var(--erfolg-text);
+}
+
+.speicher-rueckmeldung.fehlgeschlagen {
+  color: var(--fehler-text);
+}
+
+/* Eine kurze Bewegung, damit die Meldung auffällt, wenn zweimal
+   hintereinander dasselbe Ergebnis kommt — sonst stünde einfach unverändert
+   derselbe Text da und man wüsste nicht, ob überhaupt etwas passiert ist. */
+@media (prefers-reduced-motion: no-preference) {
+  .speicher-rueckmeldung {
+    animation: rueckmeldung-ein 0.25s ease-out;
+  }
+}
+
+@keyframes rueckmeldung-ein {
+  from {
+    opacity: 0;
+    transform: translateX(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
 /* Warnung an einem Feld, das nicht falsch ausgefüllt ist, aber zu einem
    Ergebnis führt, das der Nutzer so kaum will. Zurückhaltender als
    `.feld-fehler`: nichts ist kaputt, es sieht nur schlecht aus. */

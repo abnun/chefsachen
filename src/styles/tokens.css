@@ -32,6 +32,7 @@
   /* Nichts ist kaputt, das Ergebnis wird nur schlecht — zwischen Hinweis
      und Fehler angesiedelt, deshalb ein gedämpftes Bernstein statt Rot. */
   --warnung-text: #8a5200;
+  --erfolg-text: #1f7a52;
 
   --hinweis-bg: #eaf1f7;
   --hinweis-text: #2c5a7c;
@@ -94,6 +95,7 @@
     --fehler-rand: #4a2c2a;
 
     --warnung-text: #e8b464;
+    --erfolg-text: #6ed3a0;
 
     --hinweis-bg: #1a2733;
     --hinweis-text: #8fc1e8;
