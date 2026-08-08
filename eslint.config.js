@@ -59,6 +59,7 @@ export default tseslint.config(
     languageOptions: {
       globals: {
         document: "readonly",
+        getComputedStyle: "readonly",
         navigator: "readonly",
         window: "readonly",
       },
