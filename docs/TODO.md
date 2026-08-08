@@ -6,7 +6,29 @@ veröffentlicht; alles davor Abgeschlossene steht im Archiv weiter unten.
 
 ## Offen
 
-_Derzeit keine offenen Punkte._
+### Export für den Steuerberater
+
+Ein Ausgabeformat, das sich beim Steuerberater direkt einlesen lässt, statt
+dass er die Belege einzeln abtippt. Heute gibt es nur den Beleg-Export als
+PDF und XRechnung — beides je Beleg, nichts über einen Zeitraum hinweg.
+
+Noch zu klären, bevor daraus ein Plan wird:
+
+- **Welches Format?** DATEV ist im deutschen Markt der Regelfall (EXTF-CSV
+  für Buchungsstapel), verlangt aber Sachkonten und einen Kontenrahmen
+  (SKR03/SKR04) — Angaben, die die App bisher nirgends führt. Eine schlichte
+  CSV mit Datum, Nummer, Kunde, Netto, USt, Brutto wäre sofort machbar und
+  für viele Kanzleien schon brauchbar.
+- **Welcher Zeitraum?** Wahrscheinlich Quartal und Jahr, passend zu den
+  bestehenden Auswertungen.
+- **Nur Ausgangsrechnungen oder auch Eingangsrechnungen?** Letztere liegen
+  bereits als Archiv vor und wären für die EÜR eigentlich das Interessantere.
+- **Gehören die PDFs mit ins Paket?** Ein ZIP aus CSV plus Belegdateien wäre
+  für die Kanzlei bequemer als eine reine Tabelle.
+
+Vor der Umsetzung mit einem echten Steuerberater klären, was der wirklich
+haben will — hier auf Verdacht ein DATEV-Format zu bauen, das dann niemand
+einliest, wäre der teuerste Weg.
 
 ---
 
