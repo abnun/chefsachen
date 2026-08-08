@@ -490,31 +490,18 @@ section > p {
    60. Vorher war beides halb falsch: schmaler als die Kacheln und mit
    90 Zeichen trotzdem zu breit zum Lesen. */
 .hinweis-box {
-  position: relative;
   padding: clamp(1.25rem, 3vw, 1.75rem);
-  padding-left: clamp(3rem, 6vw, 3.75rem);
   border: 1px solid var(--warnung-linie);
   border-radius: var(--radius);
   background: var(--warnung-flaeche);
-  /* `column-width` statt fester Spaltenzahl: Der Browser nimmt zwei Spalten,
-     solange sie je 22rem breit werden können, und sonst von selbst eine. */
-  column-width: 22rem;
-  column-count: 2;
-  column-gap: clamp(1.5rem, 4vw, 2.5rem);
-}
-
-.hinweis-icon {
-  position: absolute;
-  top: clamp(1.25rem, 3vw, 1.75rem);
-  left: clamp(1.25rem, 3vw, 1.75rem);
-  width: 1.375rem;
-  height: 1.375rem;
-  color: var(--warnung);
-}
-
-.hinweis-icon svg {
-  width: 100%;
-  height: 100%;
+  /* Dasselbe Raster wie die Kachelliste darüber, eine Spalte je Thema. Vorher
+     standen hier Zeitungsspalten: Weil jeder Absatz zusammenbleiben muss,
+     konnte der Browser die Spaltenhöhen nicht ausgleichen, und unter der
+     kürzeren Spalte klaffte ein Loch. Als Raster ist jeder Absatz eine eigene
+     Zelle, die drei Überschriften stehen nebeneinander und sind vergleichbar. */
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
+  gap: clamp(1.5rem, 3vw, 2.25rem);
 }
 
 .ueberschrift-icon {
@@ -534,19 +521,12 @@ section > p {
 }
 
 .hinweis-box p {
-  /* Abstand unten statt oben: Mit `margin-top` bekäme der erste Absatz der
-     zweiten Spalte ihn ebenfalls, und die Spaltenköpfe stünden versetzt. */
-  margin: 0 0 var(--masz-3);
+  /* Kein eigener Abstand: Die Zellen des Rasters stehen ohnehin nebeneinander,
+     den Zwischenraum regelt `gap`. */
+  margin: 0;
   font-size: 0.9688rem;
   line-height: 1.6;
   color: var(--warnung-text);
-  /* Jeder Absatz bleibt als Ganzes zusammen: über die Spaltengrenze
-     zerrissen, verlöre der fette Anfang („Haftung.") den Bezug zum Text. */
-  break-inside: avoid;
-}
-
-.hinweis-box p:last-child {
-  margin-bottom: 0;
 }
 
 .hinweis-box strong {
