@@ -1,12 +1,25 @@
 # TODO
 
 Geplante Funktionen, offene Fehler und Sicherheitsthemen, die die
-Funktionsweise der App direkt betreffen. Zuletzt veröffentlicht: Version
-1.2.0 am 2026-08-08. Abgeschlossenes steht im Archiv weiter unten.
+Funktionsweise der App direkt betreffen. Abgeschlossenes steht im Archiv
+weiter unten.
+
+Zuletzt veröffentlicht: **1.2.0** am 2026-08-08. Seitdem liegt Behobenes
+unveröffentlicht auf `main` — unter anderem der Formularverlust beim Aufruf
+der XRechnung-Hilfe, der Nutzer tatsächlich trifft (siehe Archiv, Stand
+2026-08-08). Ein Release steht also aus.
 
 ## Offen
 
-### Rundgang bei Artikeln erwähnt Kundenpreise nicht
+| Nr. | Punkt | Art | Aufwand |
+|-----|-------|-----|---------|
+| 1 | [Rundgang bei Artikeln erwähnt Kundenpreise nicht](#1-rundgang-bei-artikeln-erwähnt-kundenpreise-nicht) | Verständlichkeit | klein |
+| 2 | [„Nach Updates suchen" ins Programmmenü](#2-nach-updates-suchen-ins-programmmenü) | Funktion | klein |
+| 3 | [Fenstergröße beim Start](#3-fenstergröße-beim-start) | Funktion | klein bis mittel |
+| 4 | [Logo auch an der rechten Blattkante](#4-logo-auch-an-der-rechten-blattkante) | Funktion | mittel |
+| 5 | [Export für den Steuerberater](#5-export-für-den-steuerberater) | Funktion | groß, Klärung offen |
+
+### 1. Rundgang bei Artikeln erwähnt Kundenpreise nicht
 
 Der Rundgang auf der Artikelseite erklärt die Spalte „Kundenpreise" nur
 anhand der Tabelle. Wer noch keinen Artikel angelegt hat, sieht diese Spalte
@@ -18,7 +31,7 @@ Der Rundgang sollte das auch bei leerer Liste erklären. Zu prüfen, ob ein
 zusätzlicher Schritt reicht oder ob der Text des bestehenden Schritts nur
 unabhängig von vorhandenen Daten formuliert werden muss.
 
-### „Nach Updates suchen" ins Programmmenü
+### 2. „Nach Updates suchen" ins Programmmenü
 
 Das Programmmenü hat „Über Chefsachen" und „Einstellungen …", aber keinen
 Weg zur Aktualisierung. Wer nach einer neuen Version sucht, muss erst die
@@ -46,7 +59,7 @@ Zu klären:
   muss eine Rückmeldung kommen („Du hast bereits die neueste Version"),
   sonst sieht es wie ein wirkungsloser Menüpunkt aus.
 
-### Fenstergröße beim Start
+### 3. Fenstergröße beim Start
 
 Das Fenster startet mit fest 800 × 600 (`app.windows` in `tauri.conf.json`) —
 für die Einstellungen mit ihrer Vorschau daneben und für die Belegliste
@@ -64,7 +77,7 @@ machen.
 Außerdem eine sinnvolle Mindestgröße setzen (`minWidth`/`minHeight`); unter
 etwa 900 px Breite bricht das zweispaltige Layout der Belegvorlage um.
 
-### Logo auch an der rechten Blattkante
+### 4. Logo auch an der rechten Blattkante
 
 Heute gibt es drei Möglichkeiten: „Oben links", „Oben rechts, neben der
 Anschrift" und „Kein Logo". Gewünscht ist eine vierte: Logo an der rechten
@@ -79,7 +92,7 @@ Betrifft `LogoPosition` in `dokument/vorlage.rs`, die Verzweigung in
 `rechnung.typ` und den Auswahlpunkt in `Belegvorlage.tsx`. Vorgabe bleibt
 „links", damit sich an laufender Geschäftspost nichts ändert.
 
-### Export für den Steuerberater
+### 5. Export für den Steuerberater
 
 Ein Ausgabeformat, das sich beim Steuerberater direkt einlesen lässt, statt
 dass er die Belege einzeln abtippt. Heute gibt es nur den Beleg-Export als
