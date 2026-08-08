@@ -7,6 +7,7 @@ import { EingangsrechnungZusatzfelder } from "../components/EingangsrechnungZusa
 import { Fehler } from "../components/Fehler";
 import { useListenTastenkuerzel } from "../hooks/useListenTastenkuerzel";
 import { ZeilenKnopf } from "../components/ZeilenKnopf";
+import { Hinweis } from "../components/Hinweis";
 import { Laden } from "../components/Laden";
 import { SortierKopf } from "../components/SortierKopf";
 import { Werkzeugleiste } from "../components/Werkzeugleiste";
@@ -55,6 +56,8 @@ interface EingangsrechnungenProps {
 
 export function Eingangsrechnungen({ onOeffnen }: EingangsrechnungenProps) {
   const [liste, setListe] = useState<Eingangsrechnung[]>([]);
+  /** Der Hinweis für den leeren Anfang lässt sich wegklicken. */
+  const [leerHinweisVersteckt, setLeerHinweisVersteckt] = useState(false);
   const [fehler, setFehler] = useState<AppFehler | null>(null);
   // Eine leere Liste und eine noch ausstehende Antwort sehen sonst gleich aus.
   const [geladen, setGeladen] = useState(false);
@@ -315,8 +318,10 @@ export function Eingangsrechnungen({ onOeffnen }: EingangsrechnungenProps) {
 
       {!geladen && <Laden was="Eingangsrechnungen" />}
 
-      {geladen && liste.length === 0 && suche === "" && (
-        <p>Noch keine Eingangsrechnungen — importiere oben eine E-Rechnung oder ein PDF.</p>
+      {geladen && liste.length === 0 && suche === "" && !leerHinweisVersteckt && (
+        <Hinweis onSchliessen={() => setLeerHinweisVersteckt(true)}>
+          Noch keine Eingangsrechnungen — importiere oben eine E-Rechnung oder ein PDF.
+        </Hinweis>
       )}
 
       {geladen && liste.length === 0 && suche !== "" && (

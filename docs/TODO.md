@@ -6,6 +6,18 @@ Funktionsweise der App direkt betreffen. Zuletzt veröffentlicht: Version
 
 ## Offen
 
+### Rundgang bei Artikeln erwähnt Kundenpreise nicht
+
+Der Rundgang auf der Artikelseite erklärt die Spalte „Kundenpreise" nur
+anhand der Tabelle. Wer noch keinen Artikel angelegt hat, sieht diese Spalte
+gar nicht mit Inhalt und erfährt deshalb nie, dass sich je Kunde abweichende
+Preise hinterlegen lassen — dabei ist genau das der Grund, überhaupt Artikel
+anzulegen statt jede Position frei zu tippen.
+
+Der Rundgang sollte das auch bei leerer Liste erklären. Zu prüfen, ob ein
+zusätzlicher Schritt reicht oder ob der Text des bestehenden Schritts nur
+unabhängig von vorhandenen Daten formuliert werden muss.
+
 ### „Nach Updates suchen" ins Programmmenü
 
 Das Programmmenü hat „Über Chefsachen" und „Einstellungen …", aber keinen
@@ -109,6 +121,11 @@ Empfehlung; jeder Punkt trägt die Referenz aus dem Review.
   die Abschnitte mit einer klaren Hauptaktion (Firmendaten, Angebote,
   Belegvorlage); wo mehrere Knöpfe sich einen Abschnitt teilen, bleibt der
   Banner am Kopf richtig.
+- **Behoben:** Der leere Anfang sah auf jeder Liste anders aus — bei Kunden
+  und Artikeln als blaue, wegklickbare Hinweisbox, bei Angeboten, Rechnungen
+  und Eingangsrechnungen als nackter Absatz. Jetzt überall die Box. Ein
+  leeres Such- oder Filterergebnis bleibt bewusst schlichter Text: Das ist
+  eine Auskunft, keine Einladung zum Loslegen, und nichts zum Wegklicken.
 - **Behoben:** Ein Klick auf „Was ist die XRechnung?" und zurück leerte das
   ganze Formular. Der Hilfe-Anbieter gab beim Öffnen früh zurück, ohne seine
   `children` zu zeichnen — React baute damit den gesamten Baum ab und mit ihm

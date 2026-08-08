@@ -1,8 +1,9 @@
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { BelegAnlegen } from "../components/BelegAnlegen";
 import { Fehler } from "../components/Fehler";
 import { ZeilenKnopf } from "../components/ZeilenKnopf";
 import { Blaettern } from "../components/Blaettern";
+import { Hinweis } from "../components/Hinweis";
 import { Laden } from "../components/Laden";
 import { SortierKopf } from "../components/SortierKopf";
 import { StatusMarke } from "../components/StatusMarke";
@@ -53,6 +54,8 @@ interface AngeboteProps {
 
 export function Angebote({ onOeffnen }: AngeboteProps) {
   const liste = useBelegListe("angebot", onOeffnen);
+  /** Der Hinweis für den leeren Anfang lässt sich wegklicken. */
+  const [leerHinweisVersteckt, setLeerHinweisVersteckt] = useState(false);
   const sucheRef = useRef<HTMLInputElement>(null);
 
   useListenTastenkuerzel({
@@ -123,13 +126,22 @@ export function Angebote({ onOeffnen }: AngeboteProps) {
         <>
           {!liste.geladen && <Laden was="Angebote" />}
 
-          {liste.geladen && liste.belege.length === 0 && (
+          {/* Der leere Anfang bekommt die blaue Box wie bei Kunden und
+              Artikeln: Er ist eine Einladung und darf sich wegklicken lassen.
+              Ein leeres Such- oder Filterergebnis bleibt schlichter Text — das
+              ist eine Auskunft, kein Hinweis zum Loslegen. */}
+          {liste.geladen && liste.belege.length === 0 &&
+            !liste.suche && !liste.statusFilter && !leerHinweisVersteckt && (
+              <Hinweis onSchliessen={() => setLeerHinweisVersteckt(true)}>
+                Noch keine Angebote — leg oben eines an.
+              </Hinweis>
+            )}
+
+          {liste.geladen && liste.belege.length === 0 && (liste.suche || liste.statusFilter) && (
             <p>
               {liste.suche
                 ? `Keine Angebote gefunden für „${liste.suche}".`
-                : liste.statusFilter
-                  ? "Keine Angebote mit diesem Status."
-                  : "Noch keine Angebote — leg oben eines an."}
+                : "Keine Angebote mit diesem Status."}
             </p>
           )}
 

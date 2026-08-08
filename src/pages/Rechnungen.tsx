@@ -1,8 +1,9 @@
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { BelegAnlegen } from "../components/BelegAnlegen";
 import { Fehler } from "../components/Fehler";
 import { ZeilenKnopf } from "../components/ZeilenKnopf";
 import { Blaettern } from "../components/Blaettern";
+import { Hinweis } from "../components/Hinweis";
 import { Laden } from "../components/Laden";
 import { SortierKopf } from "../components/SortierKopf";
 import { StatusMarke } from "../components/StatusMarke";
@@ -91,6 +92,8 @@ function faelligkeit(faellig_am: string | null | undefined, stand: Zahlungsstand
 
 export function Rechnungen({ onOeffnen }: RechnungenProps) {
   const liste = useBelegListe("rechnung", onOeffnen);
+  /** Der Hinweis für den leeren Anfang lässt sich wegklicken. */
+  const [leerHinweisVersteckt, setLeerHinweisVersteckt] = useState(false);
   const sucheRef = useRef<HTMLInputElement>(null);
 
   useListenTastenkuerzel({
@@ -161,13 +164,18 @@ export function Rechnungen({ onOeffnen }: RechnungenProps) {
         <>
           {!liste.geladen && <Laden was="Rechnungen" />}
 
-          {liste.geladen && liste.belege.length === 0 && (
+          {liste.geladen && liste.belege.length === 0 &&
+            !liste.suche && !liste.statusFilter && !leerHinweisVersteckt && (
+              <Hinweis onSchliessen={() => setLeerHinweisVersteckt(true)}>
+                Noch keine Rechnungen — leg oben eine an.
+              </Hinweis>
+            )}
+
+          {liste.geladen && liste.belege.length === 0 && (liste.suche || liste.statusFilter) && (
             <p>
               {liste.suche
                 ? `Keine Rechnungen gefunden für „${liste.suche}".`
-                : liste.statusFilter
-                  ? "Keine Rechnungen mit diesem Status."
-                  : "Noch keine Rechnungen — leg oben eine an."}
+                : "Keine Rechnungen mit diesem Status."}
             </p>
           )}
 

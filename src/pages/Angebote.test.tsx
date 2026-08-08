@@ -54,6 +54,40 @@ describe("Angebote", () => {
     await waitFor(() => expect(screen.getByText(/Noch keine Angebote/)).toBeTruthy());
   });
 
+  /*
+   * Der leere Anfang war hier ein nackter Absatz, bei Kunden und Artikeln
+   * dagegen die blaue Hinweisbox. Dieselbe Lage soll überall gleich aussehen
+   * und sich überall wegklicken lassen.
+   */
+  it("zeigt den leeren Anfang als wegklickbaren Hinweis", async () => {
+    vi.mocked(api.belege.list).mockResolvedValueOnce([]);
+    render(<Angebote onOeffnen={() => {}} />);
+
+    const meldung = await screen.findByText(/Noch keine Angebote/);
+    expect(meldung.closest(".hinweis-box")).not.toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Hinweis schließen" }));
+    expect(screen.queryByText(/Noch keine Angebote/)).toBeNull();
+  });
+
+  /*
+   * Ein leeres Suchergebnis ist eine Auskunft, keine Einladung zum Loslegen —
+   * es gehört nicht in die blaue Box und darf auch nicht wegklickbar sein.
+   */
+  it("zeigt ein leeres Suchergebnis als schlichten Text", async () => {
+    render(<Angebote onOeffnen={() => {}} />);
+    await waitFor(() => expect(screen.getByText("AN-2026-0001")).toBeTruthy());
+
+    // Gesucht wird im Backend, nicht in der geladenen Liste: Der nächste
+    // Aufruf muss also leer antworten. Dazu kommen 300 ms Verzögerung, damit
+    // nicht jeder Tastendruck eine Abfrage auslöst — daher die längere Frist.
+    vi.mocked(api.belege.list).mockResolvedValueOnce([]);
+    fireEvent.change(screen.getByLabelText("Suche"), { target: { value: "gibtsnicht" } });
+
+    const meldung = await screen.findByText(/Keine Angebote gefunden/, {}, { timeout: 2000 });
+    expect(meldung.closest(".hinweis-box")).toBeNull();
+  });
+
   it("zeigt das Datum deutsch, nicht in ISO-Schreibweise", async () => {
     // Die Rechnungsliste tat das längst; hier war es nie umgestellt worden.
     // „2026-07-10" liest sich für deutsche Nutzer leicht als Tag-Monat-Dreher.
