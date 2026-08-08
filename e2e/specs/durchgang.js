@@ -72,6 +72,12 @@ describe("Ein Durchgang durch die Anwendung", () => {
   });
 
   it("geht mit vollständigen Angaben weiter", async () => {
+    // Straße/PLZ/Ort sind seit der Pflichtfeld-Markierung auch backend-seitig
+    // Pflicht (siehe pruefe_firma) — vorher ließ sich Schritt 1 mit Name und
+    // Steuernummer allein abschließen.
+    await (await feld("Straße")).setValue("Musterstraße 1");
+    await (await feld("PLZ")).setValue("12345");
+    await (await feld("Ort")).setValue("Musterstadt");
     await (await feld("Steuernummer")).setValue("12/345/67890");
     await klick("Weiter");
     await expect(await $(".schritt-fortschritt")).toHaveText(
