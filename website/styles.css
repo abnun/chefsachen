@@ -481,14 +481,24 @@ section > p {
 
 /* --- Hinweis --------------------------------------------------- */
 
+/* Läuft über die volle Breite, damit die Kanten mit den Kacheln darüber
+   fluchten — der Kasten hat einen sichtbaren Rahmen, an dem ein Rücksprung
+   sofort auffällt. Der Text darin steht dafür in Spalten: über die ganzen
+   62rem wären es rund 128 Zeichen je Zeile, in zwei Spalten sind es knapp
+   60. Vorher war beides halb falsch: schmaler als die Kacheln und mit
+   90 Zeichen trotzdem zu breit zum Lesen. */
 .hinweis-box {
   position: relative;
-  max-width: 48rem;
   padding: clamp(1.25rem, 3vw, 1.75rem);
   padding-left: clamp(3rem, 6vw, 3.75rem);
   border: 1px solid var(--warnung-linie);
   border-radius: var(--radius);
   background: var(--warnung-flaeche);
+  /* `column-width` statt fester Spaltenzahl: Der Browser nimmt zwei Spalten,
+     solange sie je 22rem breit werden können, und sonst von selbst eine. */
+  column-width: 22rem;
+  column-count: 2;
+  column-gap: clamp(1.5rem, 4vw, 2.5rem);
 }
 
 .hinweis-icon {
@@ -522,16 +532,19 @@ section > p {
 }
 
 .hinweis-box p {
-  margin: 0;
+  /* Abstand unten statt oben: Mit `margin-top` bekäme der erste Absatz der
+     zweiten Spalte ihn ebenfalls, und die Spaltenköpfe stünden versetzt. */
+  margin: 0 0 var(--masz-3);
   font-size: 0.9688rem;
   line-height: 1.6;
   color: var(--warnung-text);
+  /* Jeder Absatz bleibt als Ganzes zusammen: über die Spaltengrenze
+     zerrissen, verlöre der fette Anfang („Haftung.") den Bezug zum Text. */
+  break-inside: avoid;
 }
 
-/* Ohne das klebten die Absätze aneinander: `margin: 0` oben gilt für alle,
-   und „Keine Steuerberatung" ging optisch in „Haftung" über. */
-.hinweis-box p + p {
-  margin-top: var(--masz-3);
+.hinweis-box p:last-child {
+  margin-bottom: 0;
 }
 
 .hinweis-box strong {
