@@ -60,6 +60,7 @@ export default tseslint.config(
       globals: {
         document: "readonly",
         navigator: "readonly",
+        window: "readonly",
       },
     },
   },

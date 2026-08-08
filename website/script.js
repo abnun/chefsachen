@@ -26,27 +26,35 @@ function hervorheben(os) {
 
 hervorheben(erkanntesBetriebssystem());
 
-// Der Weiter-unten-Pfeil hat seinen Zweck erfüllt, sobald jemand gescrollt
-// hat — danach ist er nur noch ein Kreis, der über dem Text klebt. Ohne
-// JavaScript bleibt er sichtbar; das ist harmlos, er verdeckt nichts
-// Bedienbares und der Link führt trotzdem zum ersten Abschnitt.
+// Der Weiter-unten-Pfeil bleibt sichtbar, solange es tatsächlich noch
+// weitergeht, und verschwindet erst am Seitenende. Ohne JavaScript bleibt er
+// stehen; das ist harmlos, er verdeckt nichts Bedienbares und der Link führt
+// trotzdem zum ersten Abschnitt.
 const weiterHinweis = document.getElementById("weiter-hinweis");
 
 if (weiterHinweis) {
-  const SCHWELLE = 40;
+  // Ein paar Pixel Spielraum: Auf manchen Geräten bleibt beim Scrollen bis
+  // ganz nach unten ein Rest von unter einem Pixel stehen, und der Pfeil
+  // flackerte dann am Ende.
+  const RESTHOEHE = 24;
   // Der zuletzt gesetzte Zustand, damit nicht bei jedem Scroll-Ereignis
   // dieselbe Klasse erneut geschrieben wird.
   let versteckt = null;
 
   function hinweisAktualisieren() {
-    const sollVerstecken = window.scrollY > SCHWELLE;
+    const rest =
+      document.documentElement.scrollHeight - window.scrollY - window.innerHeight;
+    const sollVerstecken = rest <= RESTHOEHE;
     if (sollVerstecken === versteckt) return;
     versteckt = sollVerstecken;
     weiterHinweis.classList.toggle("versteckt", sollVerstecken);
   }
 
   window.addEventListener("scroll", hinweisAktualisieren, { passive: true });
-  // Beim Laden schon gescrollt (Anker in der Adresse, wiederhergestellte
-  // Position nach dem Zurückgehen): dann darf er gar nicht erst erscheinen.
+  // Ein schmaleres Fenster ändert die Höhe des Inhalts und damit, ob überhaupt
+  // noch etwas kommt.
+  window.addEventListener("resize", hinweisAktualisieren, { passive: true });
+  // Beim Laden: Passt alles ohne Scrollen auf den Schirm, wäre der Pfeil von
+  // Anfang an eine Lüge.
   hinweisAktualisieren();
 }
