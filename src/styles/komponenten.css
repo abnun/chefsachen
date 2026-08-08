@@ -571,9 +571,13 @@ label.feld textarea {
   margin-top: var(--abstand-xl);
 }
 
+/* Rundum gleich starker Rahmen. Vorher trug die linke Kante 4 px — ein
+   Muster, das in erzeugten Oberflächen so oft auftaucht, dass es inzwischen
+   wie eine Signatur wirkt. Die Warnstufe geht dadurch nicht verloren: Sie
+   steckt über `currentColor` weiterhin in der Rahmenfarbe und in der
+   Überschrift. */
 .hinweis-karte {
   border: 1px solid currentColor;
-  border-left-width: 4px;
   border-radius: var(--radius-m);
   padding: var(--abstand-l);
   margin-bottom: var(--abstand-l);
