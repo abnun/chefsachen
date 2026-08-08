@@ -2,14 +2,56 @@
 <html lang="de">
 <head>
   <meta charset="UTF-8" />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none'" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-6IbVAnu0ovP5LtYLU+u9BR8/oY+obVXk0wlHBOlP008='; style-src 'self'; font-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none'" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Chefsachen: Rechnungen und Angebote für Kleinunternehmer</title>
   <meta name="description" content="Chefsachen erstellt Rechnungen und Angebote für Kleinunternehmer nach § 19 UStG und darüber hinaus mit Umsatzsteuer, mit allen Pflichtangaben nach § 14 UStG, als XRechnung und ZUGFeRD, lokal, ohne Cloud, kostenlos." />
   <meta name="theme-color" content="#fbfaf8" media="(prefers-color-scheme: light)" />
   <meta name="theme-color" content="#121316" media="(prefers-color-scheme: dark)" />
+  <link rel="canonical" href="https://abnun.github.io/chefsachen/" />
+
+  <!-- Vorschau beim Teilen in Messengern, sozialen Netzen und Chats. Ohne
+       diese Angaben erscheint dort nur die nackte Adresse. -->
+  <meta property="og:type" content="website" />
+  <meta property="og:locale" content="de_DE" />
+  <meta property="og:site_name" content="Chefsachen" />
+  <meta property="og:url" content="https://abnun.github.io/chefsachen/" />
+  <meta property="og:title" content="Chefsachen: Rechnungen und Angebote für Kleinunternehmer" />
+  <meta property="og:description" content="Rechnungen und Angebote nach § 19 UStG und darüber hinaus mit Umsatzsteuer. Alle Pflichtangaben, XRechnung und ZUGFeRD, deine Daten bleiben auf deinem Rechner. Kostenlos und Open Source." />
+  <meta property="og:image" content="https://abnun.github.io/chefsachen/og-bild.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="Chefsachen — Rechnungen und Angebote für Kleinunternehmer" />
+  <meta name="twitter:card" content="summary_large_image" />
+
   <link rel="icon" type="image/png" href="app-icon.png" />
   <link rel="stylesheet" href="styles.css" />
+
+  <!-- Strukturierte Daten: sagt Suchmaschinen, dass hier Software steht, für
+       welches System und zu welchem Preis. Weil die Inhaltsrichtlinie oben
+       keine eingebetteten Skripte erlaubt, trägt sie den Hash genau dieses
+       Blocks. Ändert sich hier ein Zeichen, muss der Hash neu berechnet
+       werden — sonst verwirft der Browser den Block stillschweigend. -->
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "Chefsachen",
+  "applicationCategory": "BusinessApplication",
+  "applicationSubCategory": "Rechnungsprogramm",
+  "operatingSystem": "macOS, Windows",
+  "inLanguage": "de",
+  "description": "Rechnungen und Angebote für Kleinunternehmer nach § 19 UStG und darüber hinaus mit Umsatzsteuer. Alle Pflichtangaben nach § 14 UStG, XRechnung und ZUGFeRD, lokal ohne Cloud.",
+  "url": "https://abnun.github.io/chefsachen/",
+  "license": "https://opensource.org/licenses/MIT",
+  "isAccessibleForFree": true,
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "EUR"
+  }
+}
+  </script>
 </head>
 <body>
   <header class="container">
