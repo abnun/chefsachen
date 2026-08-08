@@ -6,29 +6,6 @@ Funktionsweise der App direkt betreffen. Zuletzt veröffentlicht: Version
 
 ## Offen
 
-### Rückmeldung beim Speichern erscheint außer Sicht
-
-Der Erfolgshinweis (`useErfolgsHinweis`) wird am **Kopf** jedes Abschnitts
-gerendert, der „Speichern"-Knopf steht am **Fuß**. Bei den langen Formularen
-— Firmendaten, Belegvorlage — liegt die Bestätigung nach dem Klick außerhalb
-des sichtbaren Bereichs: Man drückt Speichern und sieht nichts passieren.
-Betrifft alle sieben Stellen mit `{hinweis}` in `Einstellungen.tsx` und
-`Belegvorlage.tsx`.
-
-Gewünscht: Rückmeldung direkt neben dem Knopf, für Erfolg **und** Fehlschlag,
-gern mit einer kurzen Bewegung am Knopf selbst.
-
-Zu beachten:
-
-- Der Knopf braucht dann auch einen Ladezustand, sonst ist zwischen Klick und
-  Rückmeldung nichts zu sehen — und Doppelklicks bleiben möglich.
-- Fehler laufen heute über `Fehler`/`bannerFehler` und stehen ebenfalls oben.
-  Beides gehört zusammen gelöst, sonst sitzt die Erfolgsmeldung unten und die
-  Fehlermeldung weiter oben.
-- Für Vorleseprogramme muss die Meldung angekündigt werden (`role="status"`),
-  sonst ist die Änderung für sie unsichtbar.
-- Bewegung nur bei `prefers-reduced-motion: no-preference`.
-
 ### „Nach Updates suchen" ins Programmmenü
 
 Das Programmmenü hat „Über Chefsachen" und „Einstellungen …", aber keinen
@@ -121,6 +98,22 @@ einliest, wäre der teuerste Weg.
 Ursprünglich: priorisierte Arbeitsliste, abgeleitet aus dem
 [MVP-Review vom 2026-08-02](2026-08-02-mvp-review.md). Reihenfolge war
 Empfehlung; jeder Punkt trägt die Referenz aus dem Review.
+
+## Stand (2026-08-08, Rückmeldung beim Speichern)
+
+- Der Erfolgshinweis stand am Kopf des Abschnitts, der Speichern-Knopf am
+  Fuß — bei den Firmendaten mit fast 200 Zeilen Formular dazwischen. Neu sind
+  `useSpeichern` und `SpeicherRueckmeldung`: Die Meldung sitzt in der
+  `.aktionen`-Reihe und damit neben dem Knopf, für Erfolg wie Fehlschlag. Der
+  Knopf zeigt währenddessen „Speichert …" und ist gesperrt. Umgestellt sind
+  die Abschnitte mit einer klaren Hauptaktion (Firmendaten, Angebote,
+  Belegvorlage); wo mehrere Knöpfe sich einen Abschnitt teilen, bleibt der
+  Banner am Kopf richtig.
+- **Behoben:** Ein Klick auf „Was ist die XRechnung?" und zurück leerte das
+  ganze Formular. Der Hilfe-Anbieter gab beim Öffnen früh zurück, ohne seine
+  `children` zu zeichnen — React baute damit den gesamten Baum ab und mit ihm
+  jeden ungespeicherten Zustand. Die Anwendung wird jetzt verborgen statt
+  abgehängt. Zwei Tests decken es ab.
 
 ## Stand (2026-08-08, Belegvorlage-Feinschliff)
 
