@@ -567,6 +567,27 @@ dd {
   color: var(--tinte-weich);
 }
 
+dd p:last-child {
+  margin-bottom: 0;
+}
+
+/* Der eine Satz in den häufigen Fragen, der eine Handlung verlangt statt nur
+   zu informieren. Getönt wie der rechtliche Hinweis weiter oben, damit die
+   Seite für „wichtig" durchgehend dieselbe Sprache spricht — nur kleiner,
+   denn hier steht ein Satz und kein Abschnitt. */
+.faq-warnung {
+  margin-top: var(--masz-3);
+  padding: var(--masz-2) var(--masz-3);
+  border: 1px solid var(--warnung-linie);
+  border-radius: var(--radius);
+  background: var(--warnung-flaeche);
+  color: var(--warnung-text);
+}
+
+.faq-warnung strong {
+  color: var(--warnung);
+}
+
 /* --- Fußzeile -------------------------------------------------- */
 
 footer {
