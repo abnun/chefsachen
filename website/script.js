@@ -25,3 +25,28 @@ function hervorheben(os) {
 }
 
 hervorheben(erkanntesBetriebssystem());
+
+// Der Weiter-unten-Pfeil hat seinen Zweck erfüllt, sobald jemand gescrollt
+// hat — danach ist er nur noch ein Kreis, der über dem Text klebt. Ohne
+// JavaScript bleibt er sichtbar; das ist harmlos, er verdeckt nichts
+// Bedienbares und der Link führt trotzdem zum ersten Abschnitt.
+const weiterHinweis = document.getElementById("weiter-hinweis");
+
+if (weiterHinweis) {
+  const SCHWELLE = 40;
+  // Der zuletzt gesetzte Zustand, damit nicht bei jedem Scroll-Ereignis
+  // dieselbe Klasse erneut geschrieben wird.
+  let versteckt = null;
+
+  function hinweisAktualisieren() {
+    const sollVerstecken = window.scrollY > SCHWELLE;
+    if (sollVerstecken === versteckt) return;
+    versteckt = sollVerstecken;
+    weiterHinweis.classList.toggle("versteckt", sollVerstecken);
+  }
+
+  window.addEventListener("scroll", hinweisAktualisieren, { passive: true });
+  // Beim Laden schon gescrollt (Anker in der Adresse, wiederhergestellte
+  // Position nach dem Zurückgehen): dann darf er gar nicht erst erscheinen.
+  hinweisAktualisieren();
+}
