@@ -48,9 +48,13 @@ const RUNDGANG_SCHRITTE: FuehrungsSchritt[] = [
     text: "Bearbeiten ändert den Artikel für künftige Belege — bereits festgeschriebene bleiben unverändert, sie haben den damaligen Stand eingefroren.",
   },
   {
+    // Anker am Spaltenkopf, nicht an einer Tabellenzeile: Ohne angelegten
+    // Artikel gäbe es keine Zeile, der Schritt fiele aus — und weil er der
+    // letzte ist, endete der Rundgang wortlos. Ausgerechnet wer noch nichts
+    // angelegt hat, erfuhr so nie, dass es Kundenpreise überhaupt gibt.
     ziel: "[data-tour='kundenpreise']",
     titel: "Kundenpreise",
-    text: "Ausnahmen vom Standardpreis für einzelne Kunden — etwa ein Treuerabatt. Beim Erfassen einer Position zieht automatisch der Preis, der für den Kunden des Belegs gilt.",
+    text: "Für einzelne Kunden lässt sich ein abweichender Preis hinterlegen — etwa ein Treuerabatt. Diese Spalte zeigt zu jedem Artikel, wie viele solcher Ausnahmen es gibt, und führt zum Bearbeiten. Beim Erfassen einer Position zieht dann automatisch der Preis, der für den Kunden des Belegs gilt. Genau dafür lohnt es sich, Artikel anzulegen, statt jede Position frei zu tippen.",
   },
 ];
 
@@ -412,7 +416,7 @@ export function Artikel({ zeigeFormularBeimStart, onFormularUebernommen, onZuKun
                 <SortierKopf spalte="ust" aktiv={sortierung.spalte} richtung={sortierung.richtung} onSortieren={sortieren}>
                   USt
                 </SortierKopf>
-                <SortierKopf spalte="kundenpreise" aktiv={sortierung.spalte} richtung={sortierung.richtung} onSortieren={sortieren}>
+                <SortierKopf spalte="kundenpreise" aktiv={sortierung.spalte} richtung={sortierung.richtung} onSortieren={sortieren} dataTour="kundenpreise">
                   Kundenpreise
                 </SortierKopf>
                 <th>Aktionen</th>
@@ -433,7 +437,6 @@ export function Artikel({ zeigeFormularBeimStart, onFormularUebernommen, onZuKun
                     <button
                       type="button"
                       className="btn btn-leise"
-                      data-tour="kundenpreise"
                       onClick={() => setPreiseFuer(a)}
                       aria-label={`Kundenpreise für ${a.bezeichnung}`}
                     >

@@ -62,6 +62,24 @@ describe("Artikel", () => {
     await waitFor(() => expect(screen.getByText(/Noch keine Artikel/)).toBeTruthy());
   });
 
+  /*
+   * Der Rundgang-Anker für die Kundenpreise saß an einem Knopf in einer
+   * Tabellenzeile. Ohne angelegten Artikel gab es keine Zeile, der Schritt
+   * fiel aus — und weil er der letzte ist, endete der Rundgang wortlos.
+   * Ausgerechnet wer noch nichts angelegt hat, erfuhr nie, dass es
+   * Kundenpreise gibt. Der Anker sitzt deshalb am Spaltenkopf.
+   */
+  it("hält den Rundgang-Anker für Kundenpreise auch ohne Artikel bereit", async () => {
+    const { api } = await import("../api");
+    vi.mocked(api.artikel.list).mockResolvedValueOnce([]);
+    const { container } = render(<Artikel />);
+    await waitFor(() => expect(screen.getByText(/Noch keine Artikel/)).toBeTruthy());
+
+    const anker = container.querySelector("[data-tour='kundenpreise']");
+    expect(anker).not.toBeNull();
+    expect(anker?.tagName).toBe("TH");
+  });
+
   it("zeigt einen Hinweis, wenn die Suche keine Treffer liefert", async () => {
     const { api } = await import("../api");
     render(<Artikel />);
