@@ -7,6 +7,35 @@ auf GitHub ändert daran nichts mehr.
 
 Deshalb hier in der Sprache der Anwender, nicht in der der Commits.
 
+## 1.3.0
+
+**Fenster**
+- Das Fenster startet jetzt maximiert und merkt sich danach Größe, Position
+  und ob es maximiert war. Vorher öffnete es immer mit 800 × 600 — für die
+  Einstellungen mit ihrer Vorschau und für die Beleglisten zu klein.
+
+**Aktualisierung**
+- Neuer Menüpunkt „Nach Updates suchen …" im Programmmenü, direkt unter
+  „Über Chefsachen". Bisher ging das nur über die Einstellungen. Wenn keine
+  neue Version vorliegt, sagt die App das jetzt auch.
+
+**Rückmeldung beim Speichern**
+- Nach „Speichern" erscheint die Bestätigung neben dem Knopf statt am Anfang
+  des Abschnitts. Bei den Firmendaten stand sie bisher so weit oben, dass man
+  sie nach dem Klick gar nicht zu sehen bekam. Schlägt das Speichern fehl,
+  steht das jetzt ebenfalls dort; der Knopf zeigt während des Speicherns, dass
+  etwas passiert.
+
+**Behobene Fehler**
+- Ein Klick auf „Was ist die XRechnung?" und zurück leerte das gesamte
+  Formular. Wer mitten in der Ersteinrichtung nachlas, musste von vorn
+  anfangen.
+- Der Rundgang bei „Artikel & Leistungen" endete ohne den Schritt zu den
+  Kundenpreisen, solange noch kein Artikel angelegt war — also genau dann,
+  wenn er am nötigsten war.
+- „Noch keine …"-Hinweise sahen auf jeder Liste anders aus. Jetzt überall
+  gleich und überall wegklickbar.
+
 ## 1.2.0
 
 **Belegvorlage: Vorgaben sind jetzt ablesbar**
