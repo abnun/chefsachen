@@ -50,6 +50,7 @@ zip = { version = "2", default-features = false, features = ["deflate"] }
 # Für den optionalen SEPA-Girocode auf Rechnungen. Ohne image/svg-Feature —
 # nur die Modul-Matrix wird gebraucht, Typst zeichnet sie als Vektor-Rechtecke.
 qrcode = { version = "0.14", default-features = false }
+tauri-plugin-window-state = "2.4.1"
 
 [dev-dependencies]
 # "test" liefert mock_builder/get_ipc_response — damit lassen sich Befehle über

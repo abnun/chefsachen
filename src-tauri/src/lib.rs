@@ -99,7 +99,28 @@ fn mit_plugins<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri::Builder<
         // Der Updater lädt und prüft in Rust, nicht im Webview — die
         // Inhaltsrichtlinie der Oberfläche muss GitHub deshalb nicht kennen.
         .plugin(tauri_plugin_updater::Builder::new().build())
-        .plugin(tauri_plugin_process::init());
+        .plugin(tauri_plugin_process::init())
+        // Merkt sich Größe, Position und ob das Fenster maximiert war. Beim
+        // ersten Start gibt es nichts zu merken — dann greift `maximized` aus
+        // `tauri.conf.json`.
+        //
+        // Bewusst ohne `VISIBLE`: Wer das Fenster beim Beenden ausgeblendet
+        // hatte, bekäme es sonst beim nächsten Start gar nicht zu sehen und
+        // hielte das Programm für kaputt.
+        //
+        // Ein abgezogener zweiter Bildschirm ist kein Problem: Das Plugin
+        // stellt die Position nur wieder her, wenn ein vorhandener Bildschirm
+        // das Fenster tatsächlich schneidet, sonst entscheidet das
+        // Betriebssystem.
+        .plugin(
+            tauri_plugin_window_state::Builder::default()
+                .with_state_flags(
+                    tauri_plugin_window_state::StateFlags::SIZE
+                        | tauri_plugin_window_state::StateFlags::POSITION
+                        | tauri_plugin_window_state::StateFlags::MAXIMIZED,
+                )
+                .build(),
+        );
 
     builder
 }

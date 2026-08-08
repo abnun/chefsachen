@@ -13,8 +13,11 @@
     "windows": [
       {
         "title": "Chefsachen",
-        "width": 800,
-        "height": 600
+        "maximized": true,
+        "width": 1280,
+        "height": 860,
+        "minWidth": 900,
+        "minHeight": 600
       }
     ],
     "security": {
