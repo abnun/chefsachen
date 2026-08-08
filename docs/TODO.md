@@ -29,6 +29,34 @@ Zu beachten:
   sonst ist die Änderung für sie unsichtbar.
 - Bewegung nur bei `prefers-reduced-motion: no-preference`.
 
+### „Nach Updates suchen" ins Programmmenü
+
+Das Programmmenü hat „Über Chefsachen" und „Einstellungen …", aber keinen
+Weg zur Aktualisierung. Wer nach einer neuen Version sucht, muss erst die
+Einstellungen öffnen und dorthin scrollen — unter macOS erwartet man das im
+Programmmenü.
+
+Der Weg ist vorgezeichnet: `menue.rs` legt einen `MenuItem::with_id` an und
+sendet ein Ereignis, die Oberfläche hört darauf (wie
+`EREIGNIS_EINSTELLUNGEN` → `menue:einstellungen` in `App.tsx`). Gesucht wird
+über `suchen(true)` aus `useAktualisierung`; der Anbieter sitzt bereits in
+`main.tsx`, der Aufruf ist also von überall möglich, und
+`AktualisierungsBenachrichtigung` zeigt das Ergebnis schon heute
+fensterweit an.
+
+Zu klären:
+
+- Menüpunkt während einer laufenden Suche abschalten, sonst startet ein
+  zweiter Klick eine zweite Suche. Dafür gibt es mit `MenueZustand` schon
+  das Muster, mit dem „Einstellungen …" während der Ersteinrichtung
+  abgeblendet wird.
+- Soll er während der Ersteinrichtung überhaupt anwählbar sein? Ein Update
+  mitten im Einrichten ist unschön, aber ein abgeblendeter Punkt ohne
+  Begründung auch.
+- Was passiert, wenn keine neue Version da ist? Beim Suchen über das Menü
+  muss eine Rückmeldung kommen („Du hast bereits die neueste Version"),
+  sonst sieht es wie ein wirkungsloser Menüpunkt aus.
+
 ### Fenstergröße beim Start
 
 Das Fenster startet mit fest 800 × 600 (`app.windows` in `tauri.conf.json`) —
