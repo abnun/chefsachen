@@ -26,6 +26,22 @@ function hervorheben(os) {
 
 hervorheben(erkanntesBetriebssystem());
 
+// Aus der zerlegten E-Mail-Adresse einen anklickbaren Link machen. Das @
+// selbst steht nur im Stylesheet (siehe `.mail-at`), damit ein Sammler im
+// Quelltext kein `etwas@etwas.de` findet. Ohne JavaScript bleibt die
+// Adresse trotzdem vollständig lesbar — sie ist dann nur nicht klickbar.
+for (const feld of document.querySelectorAll(".mail")) {
+  const benutzer = feld.querySelector(".mail-benutzer");
+  const anbieter = feld.querySelector(".mail-anbieter");
+  if (!benutzer || !anbieter) continue;
+
+  const adresse = `${benutzer.textContent.trim()}@${anbieter.textContent.trim()}`;
+  const link = document.createElement("a");
+  link.href = `mailto:${adresse}`;
+  link.textContent = adresse;
+  feld.replaceChildren(link);
+}
+
 // Der Weiter-unten-Pfeil bleibt sichtbar, solange es tatsächlich noch
 // weitergeht, und verschwindet erst am Seitenende. Ohne JavaScript bleibt er
 // stehen; das ist harmlos, er verdeckt nichts Bedienbares und der Link führt
@@ -57,4 +73,20 @@ if (weiterHinweis) {
   // Beim Laden: Passt alles ohne Scrollen auf den Schirm, wäre der Pfeil von
   // Anfang an eine Lüge.
   hinweisAktualisieren();
+
+  // Der Pfeil führt jeweils zum nächsten Abschnitt unterhalb des Fensters,
+  // nicht immer zu demselben. Im HTML steht ein fester Anker auf den ersten
+  // Abschnitt — der bleibt die Rückfallebene ohne JavaScript, taugt aber
+  // nicht für den zweiten Klick: Dort ist man dann schon.
+  weiterHinweis.addEventListener("click", (e) => {
+    const naechster = [...document.querySelectorAll("main > section, footer")].find(
+      // Ein paar Pixel Spielraum, damit der Abschnitt, an dessen Oberkante
+      // man gerade steht, nicht erneut angesteuert wird.
+      (el) => el.getBoundingClientRect().top > 8,
+    );
+    if (!naechster) return;
+    e.preventDefault();
+    const sanft = !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    naechster.scrollIntoView({ behavior: sanft ? "smooth" : "auto", block: "start" });
+  });
 }

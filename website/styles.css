@@ -403,9 +403,11 @@ header > p:last-of-type a:hover {
 
 /* --- Abschnitte ------------------------------------------------ */
 
-/* Luft über dem Sprungziel des Weiter-Pfeils: ohne das klebt der Abschnitt
-   nach dem Sprung direkt am oberen Fensterrand. */
-#funktionen {
+/* Luft über jedem Sprungziel des Weiter-Pfeils: ohne das klebt der Abschnitt
+   nach dem Sprung direkt am oberen Fensterrand. Gilt für alle Abschnitte,
+   nicht nur den ersten — der Pfeil führt reihum durch die ganze Seite. */
+main > section,
+footer {
   scroll-margin-top: var(--masz-5);
 }
 
@@ -598,6 +600,21 @@ footer p {
   margin: 0;
 }
 
+/* --- E-Mail-Adresse gegen Sammler ------------------------------ */
+
+/* Das @ steht nicht im Quelltext, sondern kommt aus dem Stylesheet. Damit
+   findet ein Sammler, der die Seite nach dem Muster `etwas@etwas.de`
+   durchsucht, nichts — für den Menschen steht die Adresse trotzdem
+   vollständig und ohne JavaScript da.
+
+   Bewusst nicht per JavaScript zusammengesetzt: Ein Impressum nach § 5 DDG
+   muss die Adresse unmittelbar zugänglich zeigen. Wäre sie ohne aktives
+   JavaScript unsichtbar, wäre das angreifbar. `script.js` macht daraus
+   zusätzlich einen anklickbaren Link, aber eben nur als Zugabe. */
+.mail-at::before {
+  content: "@";
+}
+
 /* --- Rechtsseiten (Impressum, Datenschutz) ---------------------- */
 /* Greift nur dort: auf der Startseite hat <main> keine direkten
    Überschriften oder Absätze als Kinder.                           */
@@ -619,11 +636,11 @@ main.container > p {
   color: var(--tinte-weich);
 }
 
-main.container > p:last-child {
-  margin-top: var(--masz-5);
-  padding-top: var(--masz-4);
-  border-top: 1px solid var(--linie);
-}
+/* Hier stand eine Trennlinie über dem letzten Absatz, gedacht als Absatz vor
+   einer Fußnote. Inzwischen hat der letzte Absatz auf beiden Rechtsseiten
+   eine eigene Überschrift über sich — die Linie lief also zwischen der
+   Überschrift und ihrem eigenen Text hindurch. Die Überschrift trennt
+   bereits deutlich genug. */
 
 /* --- Enge Fenster ---------------------------------------------- */
 
