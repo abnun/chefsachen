@@ -176,7 +176,11 @@ pub async fn logo_get(pool: &SqlitePool) -> AppResult<Option<Vec<u8>>> {
     let row: (Option<Vec<u8>>,) = sqlx::query_as("SELECT logo FROM firma WHERE deleted_at IS NULL LIMIT 1")
         .fetch_one(pool)
         .await?;
-    Ok(row.0)
+    // `logo_set` kennt kein eigenes „entfernen" und speichert ein leeres BLOB
+    // statt NULL (siehe Einstellungen.tsx: logoEntfernen). Ohne diesen Filter
+    // hält jeder Beleg-Export ein leeres Bild für vorhanden und Typst scheitert
+    // beim Dekodieren mit „unexpected end of file".
+    Ok(row.0.filter(|b| !b.is_empty()))
 }
 
 // Dünne Tauri-Wrapper
@@ -374,5 +378,17 @@ mod tests {
         let bytes = vec![1u8, 2, 3, 4, 5];
         logo_set(&pool, bytes.clone()).await.unwrap();
         assert_eq!(logo_get(&pool).await.unwrap(), Some(bytes));
+    }
+
+    /// „Logo entfernen" im Frontend speichert ein leeres BLOB statt NULL
+    /// (Backend kennt keinen eigenen „entfernen"-Befehl). `logo_get` muss das
+    /// wie „kein Logo" behandeln, sonst hält jeder Beleg-Export ein leeres
+    /// Bild für vorhanden und Typst scheitert beim Dekodieren.
+    #[tokio::test]
+    async fn leeres_logo_gilt_als_kein_logo() {
+        let (_dir, pool) = test_pool().await;
+        logo_set(&pool, vec![1u8, 2, 3]).await.unwrap();
+        logo_set(&pool, vec![]).await.unwrap();
+        assert_eq!(logo_get(&pool).await.unwrap(), None);
     }
 }
