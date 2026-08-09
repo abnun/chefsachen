@@ -25,6 +25,10 @@ use sqlx::SqlitePool;
 pub enum LogoPosition {
     Links,
     Rechts,
+    /// Logo rechts, Firmenanschrift unverändert rechtsbündig darunter —
+    /// Spiegelbild von `Links`. Anders als `Rechts` stehen Logo und
+    /// Anschrift nicht nebeneinander, sondern übereinander.
+    RechtsOben,
     Keins,
 }
 
@@ -32,6 +36,7 @@ impl LogoPosition {
     fn aus(wert: &str) -> Self {
         match wert {
             "rechts" => Self::Rechts,
+            "rechts_oben" => Self::RechtsOben,
             "keins" => Self::Keins,
             _ => Self::Links,
         }
@@ -41,6 +46,7 @@ impl LogoPosition {
         match self {
             Self::Links => "links",
             Self::Rechts => "rechts",
+            Self::RechtsOben => "rechts_oben",
             Self::Keins => "keins",
         }
     }
@@ -302,6 +308,17 @@ mod tests {
             .find(|(k, _)| *k == "v_akzent_verwendung")
             .map(|(_, v)| v.as_str());
         assert_eq!(wert, Some("ueberschrift"));
+    }
+
+    /// Vierte Logo-Option: Logo rechts, Firmenanschrift unverändert rechtsbündig
+    /// darunter — Spiegelbild von „links". `LogoPosition::RechtsOben` existiert
+    /// noch nicht, dieser Test schlägt daher zunächst nicht am Assert, sondern
+    /// schon beim Kompilieren fehl.
+    #[test]
+    fn logo_position_rechts_oben_wird_gelesen() {
+        let v = Vorlage::aus_paaren(&[("vorlage.logo_position".into(), "rechts_oben".into())]);
+        assert_eq!(v.logo_position, LogoPosition::RechtsOben);
+        assert_eq!(v.logo_position.als_str(), "rechts_oben");
     }
 
     #[test]
