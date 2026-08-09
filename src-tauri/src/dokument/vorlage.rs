@@ -311,9 +311,7 @@ mod tests {
     }
 
     /// Vierte Logo-Option: Logo rechts, Firmenanschrift unverändert rechtsbündig
-    /// darunter — Spiegelbild von „links". `LogoPosition::RechtsOben` existiert
-    /// noch nicht, dieser Test schlägt daher zunächst nicht am Assert, sondern
-    /// schon beim Kompilieren fehl.
+    /// darunter — Spiegelbild von „links".
     #[test]
     fn logo_position_rechts_oben_wird_gelesen() {
         let v = Vorlage::aus_paaren(&[("vorlage.logo_position".into(), "rechts_oben".into())]);
