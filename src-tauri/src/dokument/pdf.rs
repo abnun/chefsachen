@@ -584,6 +584,52 @@ pub(crate) mod tests {
         );
     }
 
+    /// Ohne `column-gutter` stieß die Anschrift direkt an das Logo — im PDF
+    /// sichtbar, aber von keinem Test bemerkt (die vorhandenen Tests prüfen nur,
+    /// dass beide in der rechten Hälfte stehen, nicht ihren Abstand
+    /// zueinander).
+    #[test]
+    fn abstand_zwischen_anschrift_und_logo_bei_rechts_neben_der_anschrift() {
+        const MM: f32 = 72.0 / 25.4;
+        const SEITENHOEHE: f32 = 297.0 * MM;
+        const LOGO: &[u8] = include_bytes!("../../resources/test/logo_1x1.png");
+
+        let vorlage = crate::dokument::vorlage::Vorlage {
+            logo_position: crate::dokument::vorlage::LogoPosition::Rechts,
+            ..Default::default()
+        };
+        let bytes = rendern(&test_kontext(), Some(LOGO), &vorlage).unwrap();
+
+        let kopf: Vec<_> = textpositionen(&bytes)
+            .into_iter()
+            .map(|(x, y)| (x, SEITENHOEHE - y))
+            .filter(|(_, y)| *y < 40.0 * MM)
+            .collect();
+        let anschrift_rechte_kante = kopf.iter().map(|(x, _)| *x).fold(f32::MIN, f32::max);
+
+        let bilder = bildpositionen(&bytes);
+        assert_eq!(bilder.len(), 1, "erwartet genau ein Bild (das Logo) auf der Seite");
+        let logo_linke_kante = bilder[0].0;
+
+        // Der Messwert ist nicht der reale Abstand: `textpositionen` liefert den
+        // Start (die linke Kante) jeder Zeile, nicht ihre rechte Kante. Bei
+        // rechtsbündigem Text mit unterschiedlich langen Zeilen liegt die
+        // kürzeste Zeile mit ihrem Start am weitesten rechts — genau die nimmt
+        // `fold(f32::MIN, f32::max)` — und unterschätzt die wahre rechte Kante
+        // systematisch um die eigene Breite dieser Zeile („Weg 1" in
+        // `test_kontext()`). Deshalb liegt die Schwelle nicht nahe 0, sondern
+        // zwischen den gemessenen Werten ohne (9,9 mm) und mit (14,2 mm) Gutter —
+        // beide Messwerte tragen denselben, durch die kurze Zeile verursachten
+        // Fehler; nur die Differenz von genau 12pt (4,23 mm) ist auf den Gutter
+        // zurückzuführen und real messbar.
+        assert!(
+            logo_linke_kante - anschrift_rechte_kante > 12.0 * MM,
+            "Anschrift endet bei {:.1} mm, Logo beginnt bei {:.1} mm — kein spürbarer Abstand",
+            anschrift_rechte_kante / MM,
+            logo_linke_kante / MM,
+        );
+    }
+
     /// DIN 5008 Form A legt das Anschriftfeld auf 20 mm von links und 45 mm von
     /// oben, 85 mm breit und 40 mm hoch. Nur dort steht die Anschrift im
     /// Sichtfenster eines gewöhnlichen Umschlags (DIN lang, C6/5).
