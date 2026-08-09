@@ -48,6 +48,20 @@ describe("Belegvorlage", () => {
     expect(api.einstellungen.set).not.toHaveBeenCalled();
   });
 
+  it("bietet die vierte Logo-Option 'Oben rechts' an", async () => {
+    render(<Belegvorlage />);
+    await waitFor(() => expect(api.vorlage.vorschau).toHaveBeenCalled());
+    vi.mocked(api.vorlage.vorschau).mockClear();
+
+    fireEvent.change(screen.getByLabelText("Logo"), { target: { value: "rechts_oben" } });
+
+    await waitFor(() =>
+      expect(api.vorlage.vorschau).toHaveBeenCalledWith(
+        expect.arrayContaining([["vorlage.logo_position", "rechts_oben"]]),
+      ),
+    );
+  });
+
   it("speichert erst auf Knopfdruck", async () => {
     render(<Belegvorlage />);
     await waitFor(() => expect(screen.getByLabelText("Logo")).toBeTruthy());

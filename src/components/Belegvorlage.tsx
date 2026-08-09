@@ -45,6 +45,7 @@ const SCHALTER: Schalter[] = [
     optionen: [
       ["links", "Oben links"],
       ["rechts", "Oben rechts, neben der Anschrift"],
+      ["rechts_oben", "Oben rechts"],
       ["keins", "Kein Logo"],
     ],
   },
