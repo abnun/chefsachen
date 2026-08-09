@@ -166,7 +166,12 @@
   // nicht auf entgegengesetzte Ecken. Die erste Spalte bleibt 1fr breit (sie
   // schluckt den Freiraum), aber ihr Inhalt wird an ihren rechten Rand
   // gerückt — direkt neben die Logo-Spalte, statt an den linken Seitenrand.
-  #grid(columns: (1fr, auto), align: (right + horizon, right + horizon), firma_block, logo)
+  #grid(columns: (1fr, auto), column-gutter: 12pt, align: (right + horizon, right + horizon), firma_block, logo)
+] else if sys.inputs.v_logo_position == "rechts_oben" [
+  // Spiegelbild von "links": nur das Logo wandert an den rechten Rand, die
+  // Firmenanschrift bleibt unverändert rechtsbündig darunter stehen.
+  #align(right)[#logo]
+  #firma_block
 ] else [
   #logo
   #firma_block

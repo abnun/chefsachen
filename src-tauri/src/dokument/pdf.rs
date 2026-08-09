@@ -515,6 +515,75 @@ pub(crate) mod tests {
         positionen
     }
 
+    /// Bildpositionen der ersten Seite in Punkten, gemessen wie `textpositionen`
+    /// von der linken unteren Ecke.
+    ///
+    /// PDF zeichnet ein Bild-XObject in das Einheitsquadrat, transformiert durch
+    /// die beim `Do`-Aufruf aktuelle Matrix — `ctm[4]/ctm[5]` ist deshalb die
+    /// linke untere Ecke des gezeichneten Bildes, unabhängig von dessen
+    /// tatsächlicher Pixelgröße.
+    fn bildpositionen(bytes: &[u8]) -> Vec<(f32, f32)> {
+        let doc = lopdf::Document::load_mem(bytes).unwrap();
+        let (_, seite) = doc.get_pages().into_iter().next().unwrap();
+        let inhalt = lopdf::content::Content::decode(&doc.get_page_content(seite).unwrap()).unwrap();
+
+        let mut ctm = EINHEIT;
+        let mut stapel: Vec<Matrix> = Vec::new();
+        let mut positionen = Vec::new();
+
+        for op in inhalt.operations {
+            let werte = || -> Matrix {
+                let mut m = EINHEIT;
+                for (i, o) in op.operands.iter().take(6).enumerate() {
+                    m[i] = o.as_float().unwrap_or(0.0);
+                }
+                m
+            };
+            match op.operator.as_str() {
+                "q" => stapel.push(ctm),
+                "Q" => ctm = stapel.pop().unwrap_or(EINHEIT),
+                "cm" if op.operands.len() == 6 => ctm = mal(werte(), ctm),
+                "Do" => positionen.push((ctm[4], ctm[5])),
+                _ => {}
+            }
+        }
+        positionen
+    }
+
+    /// „Oben rechts" spiegelt „Oben links": Nur das Logo wandert an den rechten
+    /// Rand der Kopfzeile. Ohne `bildpositionen` ließe sich das nicht von einem
+    /// Bug unterscheiden, der „rechts_oben" stillschweigend wie „links"
+    /// behandelt — die Firmenanschrift ist in beiden Fällen rechtsbündig, das
+    /// allein beweist also nichts über die Logo-Position.
+    #[test]
+    fn logo_steht_rechts_bei_rechts_oben_und_links_bei_links() {
+        const MM: f32 = 72.0 / 25.4;
+        const SEITENBREITE: f32 = 210.0 * MM;
+        const LOGO: &[u8] = include_bytes!("../../resources/test/logo_1x1.png");
+
+        let logo_x = |position: crate::dokument::vorlage::LogoPosition| {
+            let vorlage = crate::dokument::vorlage::Vorlage { logo_position: position, ..Default::default() };
+            let bytes = rendern(&test_kontext(), Some(LOGO), &vorlage).unwrap();
+            let bilder = bildpositionen(&bytes);
+            assert_eq!(bilder.len(), 1, "erwartet genau ein Bild (das Logo) auf der Seite");
+            bilder[0].0
+        };
+
+        let links = logo_x(crate::dokument::vorlage::LogoPosition::Links);
+        let rechts_oben = logo_x(crate::dokument::vorlage::LogoPosition::RechtsOben);
+
+        assert!(
+            links < SEITENBREITE / 2.0,
+            "Logo bei „Oben links\" steht bei {:.1} mm — nicht in der linken Hälfte",
+            links / MM,
+        );
+        assert!(
+            rechts_oben > SEITENBREITE / 2.0,
+            "Logo bei „Oben rechts\" steht bei {:.1} mm — nicht in der rechten Hälfte",
+            rechts_oben / MM,
+        );
+    }
+
     /// DIN 5008 Form A legt das Anschriftfeld auf 20 mm von links und 45 mm von
     /// oben, 85 mm breit und 40 mm hoch. Nur dort steht die Anschrift im
     /// Sichtfenster eines gewöhnlichen Umschlags (DIN lang, C6/5).
