@@ -48,7 +48,7 @@ describe("Belegvorlage", () => {
     expect(api.einstellungen.set).not.toHaveBeenCalled();
   });
 
-  it("bietet die vierte Logo-Option 'Oben rechts' an", async () => {
+  it('bietet die vierte Logo-Option „Oben rechts" an', async () => {
     render(<Belegvorlage />);
     await waitFor(() => expect(api.vorlage.vorschau).toHaveBeenCalled());
     vi.mocked(api.vorlage.vorschau).mockClear();

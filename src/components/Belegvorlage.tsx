@@ -41,6 +41,9 @@ const SCHALTER: Schalter[] = [
   {
     schluessel: "vorlage.logo_position",
     label: "Logo",
+    hinweis:
+      "„Oben rechts“ setzt das Logo über die Anschrift, spiegelbildlich zu „Oben links“. Bei " +
+      "„Oben rechts, neben der Anschrift“ stehen beide stattdessen nebeneinander in derselben Zeile.",
     art: "auswahl",
     optionen: [
       ["links", "Oben links"],
