@@ -562,7 +562,15 @@ pub(crate) mod tests {
         const LOGO: &[u8] = include_bytes!("../../resources/test/logo_1x1.png");
 
         let logo_x = |position: crate::dokument::vorlage::LogoPosition| {
-            let vorlage = crate::dokument::vorlage::Vorlage { logo_position: position, ..Default::default() };
+            // Feste Logohöhe statt `..Default::default()`: Das quadratische
+            // Testbild übernimmt Breite und Höhe von diesem Wert, und dieser
+            // Test misst die horizontale Logo-Position — der Wert muss also
+            // unabhängig von künftigen Änderungen an Vorlage::default() sein.
+            let vorlage = crate::dokument::vorlage::Vorlage {
+                logo_position: position,
+                logo_hoehe_mm: 20.0,
+                ..Default::default()
+            };
             let bytes = rendern(&test_kontext(), Some(LOGO), &vorlage).unwrap();
             let bilder = bildpositionen(&bytes);
             assert_eq!(bilder.len(), 1, "erwartet genau ein Bild (das Logo) auf der Seite");
@@ -594,8 +602,15 @@ pub(crate) mod tests {
         const SEITENHOEHE: f32 = 297.0 * MM;
         const LOGO: &[u8] = include_bytes!("../../resources/test/logo_1x1.png");
 
+        // Feste Logohöhe statt `..Default::default()` — aus demselben Grund
+        // wie in logo_steht_rechts_bei_rechts_oben_und_links_bei_links: der
+        // gemessene Abstand hängt an der Logobreite, die am quadratischen
+        // Testbild direkt von diesem Wert abhängt. 20.0 ist exakt der Wert,
+        // gegen den der Schwellenwert (12.0mm) unten ursprünglich hergeleitet
+        // und per Rot-Probe verifiziert wurde — unverändert übernommen.
         let vorlage = crate::dokument::vorlage::Vorlage {
             logo_position: crate::dokument::vorlage::LogoPosition::Rechts,
+            logo_hoehe_mm: 20.0,
             ..Default::default()
         };
         let bytes = rendern(&test_kontext(), Some(LOGO), &vorlage).unwrap();
