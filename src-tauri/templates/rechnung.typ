@@ -177,7 +177,7 @@
   #firma_block
 ]
 
-// Anschriftfeld nach DIN 5008 Form A: 20 mm von links, 45 mm von oben,
+// Anschriftfeld nach DIN 5008 Form B: 20 mm von links, 45 mm von oben,
 // 85 mm breit. Nur an dieser Stelle steht die Anschrift im Sichtfenster eines
 // gewöhnlichen Umschlags (DIN lang, C6/5). Lag sie im Fluss des Dokuments,
 // verschob sie ein Logo oder eine längere Firmenanschrift so weit, dass die

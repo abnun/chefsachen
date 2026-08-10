@@ -20,7 +20,7 @@
 use crate::error::AppResult;
 use sqlx::SqlitePool;
 
-/// Wo laut DIN 5008 Form A das Anschriftfenster beginnt — muss mit dem
+/// Wo laut DIN 5008 Form B das Anschriftfenster beginnt — muss mit dem
 /// Literal `45mm` in `templates/rechnung.typ` übereinstimmen.
 const ANSCHRIFTFENSTER_START_MM: f64 = 45.0;
 /// Mindestabstand zwischen Logo-Unterkante und Anschriftfenster bei „Oben

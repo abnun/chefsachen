@@ -41,8 +41,10 @@ einliest, wäre der teuerste Weg.
 ### 2. Falzlinien ergänzen
 
 Faltmarken am Seitenrand, damit sich der Ausdruck ohne Nachmessen in einen
-Fensterumschlag (DIN lang/C6/5) falten lässt — nach DIN 5008 bei 87 mm und
-192 mm von oben (Doppelfalz auf Drittel). Fehlen bisher komplett.
+Fensterumschlag (DIN lang/C6/5) falten lässt. Die App setzt das Anschriftfenster
+auf 45 mm von oben — das entspricht DIN 5008 **Form B** (45 mm Kopfzeile),
+nicht Form A (27 mm). Falzmarken für Form B liegen bei 105 mm und 210 mm von
+oben, nicht bei den für Form A üblichen 87 mm/192 mm. Fehlen bisher komplett.
 
 Sollte wie die übrigen Vorlage-Einstellungen in `Belegvorlage.tsx`
 konfigurierbar sein (mindestens an/aus; ob die Position wählbar sein muss,
@@ -516,7 +518,7 @@ Ohne diese Punkte erzeugt die App formell fehlerhafte Rechnungen.
   Seitenzahlen (erst ab Seite 2), Tabellenkopf-Wiederholung, Land nur bei Auslandsrechnung,
   deutsches Datumsformat, IBAN in Viererblöcken.
   Ergänzt 2026-08-03:
-  - **Anschriftfeld nach DIN 5008 Form A** — absolut gesetzt auf 20 mm von links, 45 mm von
+  - **Anschriftfeld nach DIN 5008 Form B** — absolut gesetzt auf 20 mm von links, 45 mm von
     oben, 85 mm breit. Nur dort steht die Anschrift im Sichtfenster eines gewöhnlichen
     Umschlags. Lag sie im Textfluss, verschob sie ein Logo oder eine längere Firmenanschrift
     so weit, dass von Hand kuvertiert werden musste. Darüber die Rücksendeangabe, wie in der

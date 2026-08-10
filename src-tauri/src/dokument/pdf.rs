@@ -680,7 +680,7 @@ pub(crate) mod tests {
         );
     }
 
-    /// DIN 5008 Form A legt das Anschriftfeld auf 20 mm von links und 45 mm von
+    /// DIN 5008 Form B legt das Anschriftfeld auf 20 mm von links und 45 mm von
     /// oben, 85 mm breit und 40 mm hoch. Nur dort steht die Anschrift im
     /// Sichtfenster eines gewöhnlichen Umschlags (DIN lang, C6/5).
     ///
