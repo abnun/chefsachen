@@ -11,6 +11,8 @@ Zuletzt veröffentlicht: **1.3.0** am 2026-08-08.
 | Nr. | Punkt | Art | Aufwand |
 |-----|-------|-----|---------|
 | 1 | [Export für den Steuerberater](#1-export-für-den-steuerberater) | Funktion | groß, Klärung offen |
+| 2 | [Briefkopf: Namen stehen bei aktiver Absenderzeile nicht auf gleicher Höhe](#2-briefkopf-namen-stehen-bei-aktiver-absenderzeile-nicht-auf-gleicher-höhe) | Fehler | klein |
+| 3 | [Festschreiben/Stellen soll auf ungespeicherte Änderungen prüfen](#3-festschreibenstellen-soll-auf-ungespeicherte-änderungen-prüfen) | Verbesserung | mittel, Klärung offen |
 
 ### 1. Export für den Steuerberater
 
@@ -35,6 +37,59 @@ Noch zu klären, bevor daraus ein Plan wird:
 Vor der Umsetzung mit einem echten Steuerberater klären, was der wirklich
 haben will — hier auf Verdacht ein DATEV-Format zu bauen, das dann niemand
 einliest, wäre der teuerste Weg.
+
+### 2. Briefkopf: Namen stehen bei aktiver Absenderzeile nicht auf gleicher Höhe
+
+Beim Briefkopf-Redesign (2026-08-10) sollten die eigene Anschrift (rechts)
+und die Empfängeranschrift (links, im Anschriftfenster) auf gleicher Höhe
+beginnen — beide sind im Code bei `dy: 45mm` verankert. Das stimmt nur,
+wenn die Absenderzeile (Rücksendeangabe im Anschriftfenster,
+`vorlage.absenderzeile`, **standardmäßig an**) ausgeschaltet ist: Sie steht
+als erste Zeile *innerhalb* des Empfänger-Blocks und schiebt den
+eigentlichen Empfängernamen um ihre eigene Höhe (eine Zeile bei 7pt +
+0,4 cm) nach unten. Der eigene Name rechts bleibt dabei bei 45 mm stehen —
+sichtbar höher als der Empfängername links. An einem echten Beleg
+gemessen: rund 10 mm Versatz.
+
+Gefunden anhand eines realen Belegs (Screenshot), bei dem die rote
+DIN-5008-Fenstermarkierung den Versatz sichtbar machte. War kein bewusster
+Kompromiss — die Spec hatte „Absenderzeile bleibt unverändert" nur unter
+dem Aspekt „keine Dopplung" entschieden, die Wechselwirkung mit der neuen
+45-mm-Ausrichtung war nicht bedacht.
+
+**Entschieden (2026-08-11):** Ist die Absenderzeile aktiv, soll sich die
+eigene Anschrift um genau die Höhe der Absenderzeile nach unten
+verschieben, damit beide Namenszeilen optisch gleich hoch stehen. Das
+Empfängerfenster selbst bleibt unverändert bei 45 mm (Normvorgabe).
+
+Ansatz (bereits als TDD-Test verifiziert, Umsetzung aber noch offen): Die
+Absenderzeile als eigene Typst-Variable extrahieren, ihre tatsächliche
+Höhe per `context { measure(...) }` bestimmen (kein geschätzter
+Millimeterwert — die Vorlage hat schon einmal Ärger mit
+Schriftmetrik-Artefakten gehabt, siehe `logo_hoehe_max_mm`-Historie) und
+auf den `dy`-Wert der eigenen Anschrift addieren, nur wenn
+`v_absenderzeile` aktiv ist.
+
+### 3. Festschreiben/Stellen soll auf ungespeicherte Änderungen prüfen
+
+Beobachtung aus der täglichen Nutzung: Ändert man im Beleg-Editor etwas
+weiter unten (z. B. eine Position) und klickt dann oben auf „Angebot
+festschreiben" bzw. „Rechnung stellen", geht die Änderung verloren, wenn
+vorher nicht manuell gespeichert wurde. Aktuell muss man dafür erst
+wieder nach unten scrollen, speichern, und dann zurück nach oben zum
+Festschreiben/Stellen-Knopf — umständlich.
+
+Idee: Der Festschreiben/Stellen-Vorgang prüft vorher, ob es ungespeicherte
+Änderungen gibt, und fragt in dem Fall nach, ob zuerst gespeichert werden
+soll (statt die Änderung stillschweigend zu verwerfen oder den Nutzer
+selbst suchen zu lassen, wo noch gespeichert werden muss).
+
+Noch zu klären, bevor daraus ein Plan wird:
+
+- Woran erkennt der Code zuverlässig „ungespeicherte Änderung" — gibt es
+  dafür schon einen zentralen Dirty-State, oder müsste der neu eingeführt
+  werden?
+- Soll automatisch gespeichert werden, oder immer erst nachfragen?
 
 ---
 
