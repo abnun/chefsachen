@@ -61,12 +61,16 @@
 
 // Falz- und Lochmarken nach DIN 5008 Form B: kurze Striche am linken
 // Blattrand für das manuelle Falten (Fensterumschlag DIN lang/C6/5) und
-// Lochen (Zwei-Loch-Ordner). Über `background` statt im Textfluss — anders
-// als das Anschriftfeld weiter unten braucht das keine Rand-Korrektur,
-// `background` sitzt schon absolut am Blattursprung, unabhängig vom
-// eingestellten Rand. Läuft wie `footer` auf jeder Seite, nicht nur der
-// ersten: Anders als Logo/Anschrift ist das keine Inhaltsangabe, sondern
-// eine Handhabungshilfe für den ganzen gedruckten Stapel.
+// Lochen (Zwei-Loch-Ordner). Normativ sind nur die drei Positionen
+// (105/148,5/210 mm von oben) — Strichlänge, -stärke und -farbe stehen
+// vermutlich nur im kostenpflichtigen Normtext und sind hier eine
+// unbelegte, bei Bedarf über die Vorschau anpassbare Designentscheidung.
+// Über `background` statt im Textfluss — anders als das Anschriftfeld
+// weiter unten braucht das keine Rand-Korrektur, `background` sitzt
+// schon absolut am Blattursprung, unabhängig vom eingestellten Rand.
+// Läuft wie `footer` auf jeder Seite, nicht nur der ersten: Anders als
+// Logo/Anschrift ist das keine Inhaltsangabe, sondern eine
+// Handhabungshilfe für den ganzen gedruckten Stapel.
 #let falzmarke(y_mm) = place(
   top + left,
   dx: 0mm,
