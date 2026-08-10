@@ -645,6 +645,41 @@ pub(crate) mod tests {
         );
     }
 
+    /// Beweist am tatsächlich erzeugten PDF, nicht nur an der isolierten
+    /// Arithmetik in vorlage.rs, dass das Logo bei „Oben links" mit den
+    /// App-Vorgaben (25 mm Rand, 15 mm Logo) den vorgesehenen 5-mm-Puffer zum
+    /// Anschriftfenster tatsächlich einhält. Die Tests in vorlage.rs prüfen
+    /// nur, dass `logo_hoehe_max_mm` die richtige Zahl liefert — dieser Test
+    /// prüft, dass `rechnung.typ` diese Zahl auch tatsächlich so umsetzt, wie
+    /// das Rust-Modell annimmt (Logo beginnt bei rand_oben_mm, Höhe exakt
+    /// logo_hoehe_mm, keine versteckte zusätzliche Verschiebung). Ohne ihn
+    /// könnte eine künftige Vorlagen-Änderung den Sicherheitsabstand
+    /// unbemerkt aushebeln, obwohl die Arithmetik-Tests weiterhin grün
+    /// blieben.
+    #[test]
+    fn logo_unterkante_haelt_sicherheitsabstand_zum_anschriftfenster_ein_im_echten_pdf() {
+        const MM: f32 = 72.0 / 25.4;
+        const SEITENHOEHE: f32 = 297.0 * MM;
+        const LOGO: &[u8] = include_bytes!("../../resources/test/logo_1x1.png");
+
+        let vorlage = crate::dokument::vorlage::Vorlage::default();
+        let bytes = rendern(&test_kontext(), Some(LOGO), &vorlage).unwrap();
+
+        let bilder = bildpositionen(&bytes);
+        assert_eq!(bilder.len(), 1, "erwartet genau ein Bild (das Logo) auf der Seite");
+        let logo_unterkante_von_oben_mm = (SEITENHOEHE - bilder[0].1) / MM;
+
+        // Anschriftfenster beginnt bei 45 mm (ANSCHRIFTFENSTER_START_MM in
+        // vorlage.rs); 4.5 statt 5.0 mm Toleranz für Rundung im PDF-Writer.
+        let puffer_mm = 45.0 - logo_unterkante_von_oben_mm;
+        assert!(
+            puffer_mm >= 4.5,
+            "Logo-Unterkante bei {:.1} mm — nur {:.1} mm Abstand zum Anschriftfenster (Vorgabe: 5 mm Puffer)",
+            logo_unterkante_von_oben_mm,
+            puffer_mm,
+        );
+    }
+
     /// DIN 5008 Form A legt das Anschriftfeld auf 20 mm von links und 45 mm von
     /// oben, 85 mm breit und 40 mm hoch. Nur dort steht die Anschrift im
     /// Sichtfenster eines gewöhnlichen Umschlags (DIN lang, C6/5).
