@@ -28,17 +28,22 @@ const ANSCHRIFTFENSTER_START_MM: f64 = 45.0;
 /// direkt über der Firmenanschrift, während das Fenster fest positioniert
 /// ist und nicht mitwandert.
 const LOGO_SICHERHEITSPUFFER_MM: f64 = 5.0;
+/// Technische Mindesthöhe des Logos — als Boden in [`logo_hoehe_max_mm`] und
+/// als `min` im `mm(...)`-Aufruf für `logo_hoehe_mm` verwendet. Eine
+/// gemeinsame Konstante statt zweier unabhängiger Literale, damit beide
+/// Stellen nicht auseinanderlaufen können.
+const LOGO_HOEHE_MIN_MM: f64 = 5.0;
 
 /// Größte Logohöhe, die beim gegebenen oberen Rand noch Sicherheitsabstand
 /// zum Anschriftfenster lässt.
 ///
-/// `.max(5.0)`: Bei sehr großem oberen Rand (nahe 40 mm) läge das
-/// rechnerische Maximum unter der technischen Mindesthöhe von 5 mm — ein
+/// `.max(LOGO_HOEHE_MIN_MM)`: Bei sehr großem oberen Rand (nahe 40 mm) läge
+/// das rechnerische Maximum unter der technischen Mindesthöhe — ein
 /// ungültiger Bereich für `mm()` (`min > max`), der dort abstürzen würde.
 /// Der Boden verhindert das; in diesem Extremfall bleibt kein Puffer mehr,
 /// aber die App bleibt funktionsfähig statt abzustürzen.
 fn logo_hoehe_max_mm(rand_oben_mm: f64) -> f64 {
-    (ANSCHRIFTFENSTER_START_MM - rand_oben_mm - LOGO_SICHERHEITSPUFFER_MM).max(5.0)
+    (ANSCHRIFTFENSTER_START_MM - rand_oben_mm - LOGO_SICHERHEITSPUFFER_MM).max(LOGO_HOEHE_MIN_MM)
 }
 
 /// Wo das Logo steht.
@@ -175,7 +180,7 @@ fn mm(wert: Option<String>, standard: f64, min: f64, max: f64) -> f64 {
     wert.and_then(|w| w.trim().replace(',', ".").parse::<f64>().ok())
         .filter(|z| z.is_finite())
         .map(|z| z.clamp(min, max))
-        .unwrap_or(standard)
+        .unwrap_or_else(|| standard.clamp(min, max))
 }
 
 /// Eine Farbe in der Form `#rrggbb`.
@@ -233,7 +238,7 @@ impl Vorlage {
             logo_hoehe_mm: mm(
                 hole("vorlage.logo_hoehe_mm"),
                 standard.logo_hoehe_mm,
-                5.0,
+                LOGO_HOEHE_MIN_MM,
                 logo_hoehe_max_mm(rand_oben_mm),
             ),
             absenderzeile: ja(hole("vorlage.absenderzeile"), standard.absenderzeile),
@@ -370,6 +375,25 @@ mod tests {
         ]);
         assert_eq!(v.rand_oben_mm, 35.0);
         // Bei 35 mm Rand sind nur noch 5 mm sicher (45 - 35 - 5 = 5).
+        assert_eq!(v.logo_hoehe_mm, 5.0);
+    }
+
+    /// Deckt genau die Lücke ab, die vorher bestand: Ein leeres oder nicht
+    /// gesetztes Logohöhe-Feld fiel im Fallback-Zweig von `mm()` auf den
+    /// unclamped Vorgabewert zurück — bei großem oberen Rand blieb die neue
+    /// Obergrenze so wirkungslos, obwohl der Wert nie explizit zu hoch
+    /// gesetzt wurde. Bildet exakt den Weg über die Oberfläche nach: ein
+    /// leeres Feld wird beim Speichern als leerer String persistiert, nicht
+    /// weggelassen (siehe Belegvorlage.tsx `speichern()`).
+    #[test]
+    fn logo_hoehe_faellt_bei_grossem_rand_nicht_auf_unsicheren_vorgabewert_zurueck() {
+        let v = Vorlage::aus_paaren(&[
+            ("vorlage.rand_oben_mm".into(), "38".into()),
+            ("vorlage.logo_hoehe_mm".into(), "".into()),
+        ]);
+        assert_eq!(v.rand_oben_mm, 38.0);
+        // Bei 38 mm Rand sind nur noch 2 mm rechnerisch sicher, die
+        // technische Mindesthöhe (5 mm) greift als Boden.
         assert_eq!(v.logo_hoehe_mm, 5.0);
     }
 
