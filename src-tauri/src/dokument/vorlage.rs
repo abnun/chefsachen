@@ -47,10 +47,12 @@ fn logo_hoehe_max_mm(rand_oben_mm: f64) -> f64 {
 }
 
 /// Wo das Logo steht. Reine Logo-Position ohne Bezug zur eigenen
-/// Anschrift — die steht seit dem Briefkopf-Redesign immer separat bei
-/// 45 mm, unabhängig davon, wo (oder ob) ein Logo erscheint. Bis 2026-08-10
-/// gab es eine vierte Variante `Rechts` mit Logo und Anschrift nebeneinander
-/// im selben Grid; die entfiel mit der Entkopplung ersatzlos.
+/// Anschrift — die soll künftig immer separat bei 45 mm stehen,
+/// unabhängig davon, wo (oder ob) ein Logo erscheint (Umbau in Arbeit,
+/// siehe Briefkopf-Redesign; `rechnung.typ` rendert `Rechts` bis dahin noch
+/// nach der alten Seite-an-Seite-Logik). Bis 2026-08-10 gab es eine vierte
+/// Variante `Rechts` mit Logo und Anschrift nebeneinander im selben Grid;
+/// die entfiel mit der Entkopplung ersatzlos.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LogoPosition {
     Links,
@@ -63,6 +65,11 @@ impl LogoPosition {
         match wert {
             "rechts" => Self::Rechts,
             "keins" => Self::Keins,
+            // Fängt auch einen gespeicherten alten Wert "rechts_oben" auf (bis
+            // Task 3 noch im Frontend-Dropdown wählbar) — der landet damit
+            // still bei Links statt beim gemeinten "Logo rechts", ohne
+            // Fehlermeldung. Anders als beim harmlosen "rechts"-Fall (siehe
+            // Commit 62c4411) ändert sich hier die Logo-Seite tatsächlich.
             _ => Self::Links,
         }
     }
