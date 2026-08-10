@@ -11,6 +11,7 @@ Zuletzt veröffentlicht: **1.3.0** am 2026-08-08.
 | Nr. | Punkt | Art | Aufwand |
 |-----|-------|-----|---------|
 | 1 | [Export für den Steuerberater](#1-export-für-den-steuerberater) | Funktion | groß, Klärung offen |
+| 2 | [Falzlinien ergänzen](#2-falzlinien-ergänzen) | Funktion | klein bis mittel |
 
 ### 1. Export für den Steuerberater
 
@@ -35,6 +36,17 @@ Noch zu klären, bevor daraus ein Plan wird:
 Vor der Umsetzung mit einem echten Steuerberater klären, was der wirklich
 haben will — hier auf Verdacht ein DATEV-Format zu bauen, das dann niemand
 einliest, wäre der teuerste Weg.
+
+### 2. Falzlinien ergänzen
+
+Faltmarken am Seitenrand, damit sich der Ausdruck ohne Nachmessen in einen
+Fensterumschlag (DIN lang/C6/5) falten lässt — nach DIN 5008 bei 87 mm und
+192 mm von oben (Doppelfalz auf Drittel). Fehlen bisher komplett.
+
+Sollte wie die übrigen Vorlage-Einstellungen in `Belegvorlage.tsx`
+konfigurierbar sein (mindestens an/aus; ob die Position wählbar sein muss,
+ist offen — die DIN-Werte sind fix und dürften für die allermeisten
+reichen).
 
 ---
 
