@@ -7,6 +7,26 @@ auf GitHub ändert daran nichts mehr.
 
 Deshalb hier in der Sprache der Anwender, nicht in der der Commits.
 
+## 1.3.2
+
+**Briefkopf**
+- Eigene Anschrift und Kontaktdaten (Telefon, Fax, E-Mail) stehen jetzt oben
+  auf Höhe der Empfängeranschrift, rechtsbündig und unabhängig vom Logo. Der
+  Fuß der Seite zeigt dadurch nur noch Bankverbindung und Steuerangaben,
+  nicht mehr doppelt die eigene Anschrift.
+- Die Logo-Position „Oben rechts, neben der Anschrift" entfällt dadurch —
+  Logo und Anschrift sind jetzt grundsätzlich getrennt. Es bleiben „Oben
+  links", „Oben rechts" und „Kein Logo".
+
+**Logohöhe**
+- Die maximal einstellbare Logohöhe richtet sich jetzt automatisch nach dem
+  oberen Rand, damit das Logo die Empfängeranschrift nicht mehr überlappen
+  kann.
+
+**Falz- und Lochmarken**
+- Neue Einstellung: Falz- und Lochmarken nach DIN 5008 Form B lassen sich
+  auf jeder Seite einblenden, zum Falten und Lochen für Fensterumschläge.
+
 ## 1.3.1
 
 **Belegvorlage**
