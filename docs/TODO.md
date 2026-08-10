@@ -12,6 +12,7 @@ Zuletzt veröffentlicht: **1.3.0** am 2026-08-08.
 |-----|-------|-----|---------|
 | 1 | [Export für den Steuerberater](#1-export-für-den-steuerberater) | Funktion | groß, Klärung offen |
 | 2 | [Falzlinien ergänzen](#2-falzlinien-ergänzen) | Funktion | klein bis mittel |
+| 3 | [Briefkopf: Anschrift und Kontaktdaten neu ordnen](#3-briefkopf-anschrift-und-kontaktdaten-neu-ordnen) | Funktion | mittel |
 
 ### 1. Export für den Steuerberater
 
@@ -47,6 +48,30 @@ Sollte wie die übrigen Vorlage-Einstellungen in `Belegvorlage.tsx`
 konfigurierbar sein (mindestens an/aus; ob die Position wählbar sein muss,
 ist offen — die DIN-Werte sind fix und dürften für die allermeisten
 reichen).
+
+### 3. Briefkopf: Anschrift und Kontaktdaten neu ordnen
+
+Angeregt durch einen Vergleich mit einer Lexware-Musterrechnung
+(2026-08-10). Drei zusammenhängende Ideen:
+
+- **Eigene Anschrift auf Höhe des Anschriftfensters (45 mm) statt im
+  Textfluss direkt unter dem Logo.** Aktuell landet `firma_block` dort,
+  wohin der Textfluss sie schiebt — nicht bewusst ausgerichtet. Eine
+  Ausrichtung auf dieselbe Höhe wie die Empfängeranschrift wäre
+  aufgeräumter und ist DIN-seitig nicht ausgeschlossen.
+- **Telefon/Fax/E-Mail direkt bei der eigenen Anschrift oben mit
+  auflisten**, statt nur im Fuß.
+- **Fuß dadurch schlanker**: nur noch Bankverbindung und Steuerangabe
+  nötig, wenn die Kontaktdaten oben stehen.
+
+Dabei zu klären, **nicht** einfach mitzuerledigen: Ob im Fuß weiterhin
+sowohl Steuernummer als auch USt-IdNr. gedruckt werden (aktuell bewusst
+beides, wenn beide hinterlegt sind — § 14 Abs. 4 Nr. 2 UStG verlangt nur
+eins von beiden, aber ein früheres Review hatte Gründe, beide zu zeigen,
+u. a. eine KoSIT-Prüfregel bei der XRechnung). Die kleingedruckte
+Absenderzeile *im* Anschriftfenster selbst (DIN-5008-Pflicht fürs
+Umschlagfenster) bleibt davon unberührt, unabhängig von einer zusätzlichen
+Anschrift weiter oben.
 
 ---
 
