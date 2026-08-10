@@ -1,5 +1,5 @@
 import "@testing-library/jest-dom/vitest";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../api", () => ({
@@ -46,6 +46,16 @@ describe("Belegvorlage", () => {
     );
     // Nicht gespeichert — nur gezeichnet.
     expect(api.einstellungen.set).not.toHaveBeenCalled();
+  });
+
+  it("zeigt genau drei Logo-Optionen", async () => {
+    // fireEvent.change auf dem <select> (wie in den Tests oben) validiert
+    // nicht gegen die tatsächlich gerenderten <option>-Elemente — dieser Test
+    // schlägt fehl, wenn versehentlich eine vierte Option hinzukommt oder
+    // eine der drei wegfällt.
+    render(<Belegvorlage />);
+    const auswahl = await screen.findByLabelText("Logo");
+    expect(within(auswahl).getAllByRole("option")).toHaveLength(3);
   });
 
   it('begrenzt die Logohöhe abhängig vom oberen Rand', async () => {

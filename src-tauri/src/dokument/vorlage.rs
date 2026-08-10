@@ -65,11 +65,12 @@ impl LogoPosition {
         match wert {
             "rechts" => Self::Rechts,
             "keins" => Self::Keins,
-            // Fängt auch einen gespeicherten alten Wert "rechts_oben" auf (bis
-            // Task 3 noch im Frontend-Dropdown wählbar) — der landet damit
-            // still bei Links statt beim gemeinten "Logo rechts", ohne
-            // Fehlermeldung. Anders als beim harmlosen "rechts"-Fall (siehe
-            // Commit 62c4411) ändert sich hier die Logo-Seite tatsächlich.
+            // Fängt auch einen gespeicherten alten Wert "rechts_oben" auf (war
+            // bis zu diesem Umbau noch im Frontend-Dropdown wählbar) — der
+            // landet damit still bei Links statt beim gemeinten "Logo
+            // rechts", ohne Fehlermeldung. Anders als beim harmlosen
+            // "rechts"-Fall (siehe Commit 62c4411) ändert sich hier die
+            // Logo-Seite tatsächlich.
             _ => Self::Links,
         }
     }
