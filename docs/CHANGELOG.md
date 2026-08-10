@@ -7,6 +7,20 @@ auf GitHub ändert daran nichts mehr.
 
 Deshalb hier in der Sprache der Anwender, nicht in der der Commits.
 
+## 1.3.1
+
+**Belegvorlage**
+- Vierte Logo-Position „Oben rechts": Das Logo steht jetzt auch spiegelbildlich
+  zu „Oben links" zur Verfügung — rechts oben, mit der Firmenanschrift
+  unverändert darunter statt daneben.
+- Bei „Oben rechts, neben der Anschrift" berührten sich Anschrift und Logo
+  bisher ohne Abstand. Jetzt liegt ein kleiner Zwischenraum dazwischen.
+
+**Behobene Fehler**
+- Nach „Logo entfernen" schlug jeder weitere Beleg-Export (PDF, XRechnung,
+  ZUGFeRD, Vorschau) mit einem technischen Fehler fehl. Die Einstellung
+  speicherte dafür fälschlich ein leeres statt gar kein Logo.
+
 ## 1.3.0
 
 **Fenster**

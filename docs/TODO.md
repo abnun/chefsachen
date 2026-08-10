@@ -10,25 +10,9 @@ Zuletzt veröffentlicht: **1.3.0** am 2026-08-08.
 
 | Nr. | Punkt | Art | Aufwand |
 |-----|-------|-----|---------|
-| 1 | [Logo auch an der rechten Blattkante](#1-logo-auch-an-der-rechten-blattkante) | Funktion | mittel |
-| 2 | [Export für den Steuerberater](#2-export-für-den-steuerberater) | Funktion | groß, Klärung offen |
+| 1 | [Export für den Steuerberater](#1-export-für-den-steuerberater) | Funktion | groß, Klärung offen |
 
-### 1. Logo auch an der rechten Blattkante
-
-Heute gibt es drei Möglichkeiten: „Oben links", „Oben rechts, neben der
-Anschrift" und „Kein Logo". Gewünscht ist eine vierte: Logo an der rechten
-Blattkante, mit der Anschrift links davon — also auf entgegengesetzten Ecken
-statt nebeneinander.
-
-Genau das war einmal das Verhalten von „rechts" und wurde bewusst geändert
-(siehe Kommentar in `rechnung.typ` bei `v_logo_position == "rechts"`). Es
-kommt daher als **zusätzliche** Möglichkeit zurück, nicht als Ersatz.
-
-Betrifft `LogoPosition` in `dokument/vorlage.rs`, die Verzweigung in
-`rechnung.typ` und den Auswahlpunkt in `Belegvorlage.tsx`. Vorgabe bleibt
-„links", damit sich an laufender Geschäftspost nichts ändert.
-
-### 2. Export für den Steuerberater
+### 1. Export für den Steuerberater
 
 Ein Ausgabeformat, das sich beim Steuerberater direkt einlesen lässt, statt
 dass er die Belege einzeln abtippt. Heute gibt es nur den Beleg-Export als
@@ -59,6 +43,17 @@ einliest, wäre der teuerste Weg.
 Ursprünglich: priorisierte Arbeitsliste, abgeleitet aus dem
 [MVP-Review vom 2026-08-02](2026-08-02-mvp-review.md). Reihenfolge war
 Empfehlung; jeder Punkt trägt die Referenz aus dem Review.
+
+## Stand (2026-08-09, Logo-Position, Firma-Logo-Bug)
+
+- **Vierte Logo-Position „Oben rechts".** Spiegelbild von „Oben links":
+  Logo rechts, Firmenanschrift unverändert rechtsbündig darunter statt
+  daneben. Nebenbei behoben: Bei „Oben rechts, neben der Anschrift" fehlte
+  ein Abstand zwischen Logo und Anschrift.
+- **Behoben:** „Logo entfernen" speicherte ein leeres statt eines
+  `NULL`-Blobs. Jeder weitere Beleg-Export (nicht nur die Vorschau)
+  scheiterte danach mit „failed to decode image (unexpected end of file)",
+  weil Vorschau und Export ein 0-Byte-Bild für vorhanden hielten.
 
 ## Stand (2026-08-08, Bedienbarkeit)
 
