@@ -134,11 +134,13 @@
   ]
 ]
 
-// Fester Geschäfts-Fuß auf jeder Seite: Anschrift/Kontakt, Steuerangaben und
-// Bankverbindung nebeneinander — statt bisher als loser Fließtext nach der
-// Positionstabelle, an unterschiedlichen, einstellbaren Stellen. Die
-// Seitenzahl ("Seite X von Y") bleibt zusätzlich, nur bei mehr als einer
-// Seite — auf einer einseitigen Rechnung wäre sie nur Ballast.
+// Fester Geschäfts-Fuß auf jeder Seite: Steuerangaben und Bankverbindung
+// nebeneinander — statt bisher als loser Fließtext nach der
+// Positionstabelle, an unterschiedlichen, einstellbaren Stellen.
+// Anschrift/Kontakt steht seit dem Briefkopf-Redesign nicht mehr hier,
+// sondern oben rechts bei 45 mm (siehe `#place(top + right, ...)` weiter
+// unten). Die Seitenzahl ("Seite X von Y") bleibt zusätzlich, nur bei mehr
+// als einer Seite — auf einer einseitigen Rechnung wäre sie nur Ballast.
 #set page(
   margin: (top: rand_oben, bottom: rand_unten, x: rand_seitlich),
   background: if ja(sys.inputs.v_falzmarken) [
