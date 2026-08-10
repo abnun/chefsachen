@@ -17,9 +17,9 @@ Deshalb hier in der Sprache der Anwender, nicht in der der Commits.
   bisher ohne Abstand. Jetzt liegt ein kleiner Zwischenraum dazwischen.
 
 **Behobene Fehler**
-- Nach „Logo entfernen" schlug jeder weitere Beleg-Export (PDF, XRechnung,
-  ZUGFeRD, Vorschau) mit einem technischen Fehler fehl. Die Einstellung
-  speicherte dafür fälschlich ein leeres statt gar kein Logo.
+- Nach „Logo entfernen" schlug jeder weitere Beleg-Export (PDF, ZUGFeRD,
+  Zahlungserinnerung, Vorschau) mit einem technischen Fehler fehl. Die
+  Einstellung speicherte dafür fälschlich ein leeres statt gar kein Logo.
 
 ## 1.3.0
 
