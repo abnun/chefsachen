@@ -52,7 +52,7 @@ const SCHALTER: Schalter[] = [
       ["keins", "Kein Logo"],
     ],
   },
-  { schluessel: "vorlage.logo_hoehe_mm", label: "Logohöhe", art: "zahl", einheit: "mm", min: 5, max: 50, standard: "20" },
+  { schluessel: "vorlage.logo_hoehe_mm", label: "Logohöhe", art: "zahl", einheit: "mm", min: 5, max: 50, standard: "15" },
   {
     schluessel: "vorlage.absenderzeile",
     label: "Absenderzeile über der Anschrift",
