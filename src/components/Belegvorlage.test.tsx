@@ -62,6 +62,17 @@ describe("Belegvorlage", () => {
     );
   });
 
+  it('begrenzt die Logohöhe abhängig vom oberen Rand', async () => {
+    vi.mocked(api.einstellungen.list).mockResolvedValue([
+      ["vorlage.rand_oben_mm", "35"],
+    ]);
+    render(<Belegvorlage />);
+
+    // Bei 35 mm Rand sind nur noch 5 mm sicher (45 - 35 - 5 = 5).
+    await waitFor(() => expect(screen.getByLabelText("Logohöhe")).toHaveAttribute("max", "5"));
+    expect(screen.getByText(/Vorgabe 5 mm, möglich 5–5 mm\./)).toBeTruthy();
+  });
+
   it("speichert erst auf Knopfdruck", async () => {
     render(<Belegvorlage />);
     await waitFor(() => expect(screen.getByLabelText("Logo")).toBeTruthy());

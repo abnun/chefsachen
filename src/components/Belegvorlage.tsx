@@ -207,6 +207,15 @@ function FarbHilfe({
 
 export function Belegvorlage() {
   const [werte, setWerte] = useState<Record<string, string>>({});
+
+  // Größte Logohöhe, die beim aktuellen oberen Rand noch Sicherheitsabstand
+  // zum DIN-5008-Anschriftfenster lässt (das bei „Oben links"/„Oben rechts"
+  // im Textfluss direkt über der Firmenanschrift steht) — muss mit
+  // logo_hoehe_max_mm in dokument/vorlage.rs übereinstimmen. Rein
+  // clientseitiges Feedback; die Begrenzung selbst erzwingt das Backend.
+  const randObenMm = Number(werte["vorlage.rand_oben_mm"] ?? "25") || 25;
+  const logoHoeheMaxMm = Math.max(45 - randObenMm - 5, 5);
+  const logoHoeheStandardMm = Math.min(15, logoHoeheMaxMm);
   const [geladen, setGeladen] = useState(false);
   const [svgs, setSvgs] = useState<string[] | null>(null);
   const [seite, setSeite] = useState(0);
@@ -294,8 +303,12 @@ export function Belegvorlage() {
             speichern();
           }}
         >
-          {SCHALTER.map((s) =>
-            s.art === "ja_nein" ? (
+          {SCHALTER.map((s) => {
+            const istLogoHoehe = s.schluessel === "vorlage.logo_hoehe_mm";
+            const effektiverMax = istLogoHoehe ? logoHoeheMaxMm : s.max;
+            const effektiverStandard = istLogoHoehe ? String(logoHoeheStandardMm) : s.standard;
+
+            return s.art === "ja_nein" ? (
               <div key={s.schluessel}>
                 <label className="feld-checkbox">
                   <input
@@ -330,9 +343,9 @@ export function Belegvorlage() {
                     <input
                       type="number"
                       min={s.min}
-                      max={s.max}
+                      max={effektiverMax}
                       value={werte[s.schluessel] ?? ""}
-                      placeholder={s.standard}
+                      placeholder={effektiverStandard}
                       onChange={(e) => aendere(s.schluessel, e.currentTarget.value)}
                     />
                   )}
@@ -356,14 +369,14 @@ export function Belegvorlage() {
                 )}
                 {s.art === "zahl" && (
                   <p className="feld-hinweis">
-                    Vorgabe {s.standard} {s.einheit}, möglich {s.min}–{s.max} {s.einheit}.
+                    Vorgabe {effektiverStandard} {s.einheit}, möglich {s.min}–{effektiverMax} {s.einheit}.
                     {s.hinweis ? ` ${s.hinweis}` : ""}
                   </p>
                 )}
                 {s.hinweis && s.art !== "zahl" && <p className="feld-hinweis">{s.hinweis}</p>}
               </div>
-            ),
-          )}
+            );
+          })}
 
           <div className="aktionen aktionen-formular">
             <button type="submit" className="btn btn-primaer" disabled={laeuft}>
