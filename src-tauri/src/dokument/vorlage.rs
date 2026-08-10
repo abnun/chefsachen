@@ -145,6 +145,11 @@ pub struct Vorlage {
     pub rand_oben_mm: f64,
     pub rand_unten_mm: f64,
     pub rand_seitlich_mm: f64,
+    /// Zwei Falzmarken und eine Lochmarke nach DIN 5008 Form B (105 mm,
+    /// 148,5 mm, 210 mm von oben) am linken Blattrand. Anders als die
+    /// übrigen Einstellungen hier standardmäßig aktiv — ausdrücklicher
+    /// Nutzerwunsch, kein Bewahren des bisherigen Aussehens.
+    pub falzmarken: bool,
 }
 
 impl Default for Vorlage {
@@ -167,6 +172,7 @@ impl Default for Vorlage {
             rand_oben_mm: 25.0,
             rand_unten_mm: 25.0,
             rand_seitlich_mm: 25.0,
+            falzmarken: true,
         }
     }
 }
@@ -276,6 +282,7 @@ impl Vorlage {
                 15.0,
                 30.0,
             ),
+            falzmarken: ja(hole("vorlage.falzmarken"), standard.falzmarken),
         }
     }
 
@@ -296,6 +303,7 @@ impl Vorlage {
             ("v_rand_oben_mm", self.rand_oben_mm.to_string()),
             ("v_rand_unten_mm", self.rand_unten_mm.to_string()),
             ("v_rand_seitlich_mm", self.rand_seitlich_mm.to_string()),
+            ("v_falzmarken", ja_nein(self.falzmarken)),
         ]
     }
 }
@@ -470,6 +478,28 @@ mod tests {
         let pool = crate::db::init_db(&dir.path().join("t.db")).await.unwrap();
         let v = Vorlage::laden(&pool).await.unwrap();
         assert!(v.zeigt_girocode);
+    }
+
+    #[tokio::test]
+    async fn ohne_einstellung_sind_falzmarken_aktiv() {
+        // Bewusste Ausnahme vom sonstigen "neue Einstellungen ändern nichts am
+        // bisherigen Aussehen"-Prinzip — ausdrücklicher Nutzerwunsch, wie beim
+        // Girocode.
+        let dir = tempfile::tempdir().unwrap();
+        let pool = crate::db::init_db(&dir.path().join("t.db")).await.unwrap();
+        let v = Vorlage::laden(&pool).await.unwrap();
+        assert!(v.falzmarken);
+    }
+
+    #[tokio::test]
+    async fn falzmarken_lassen_sich_abschalten() {
+        let dir = tempfile::tempdir().unwrap();
+        let pool = crate::db::init_db(&dir.path().join("t.db")).await.unwrap();
+        crate::commands::einstellungen::set(&pool, "vorlage.falzmarken".into(), "nein".into())
+            .await
+            .unwrap();
+        let v = Vorlage::laden(&pool).await.unwrap();
+        assert!(!v.falzmarken);
     }
 
     #[tokio::test]
