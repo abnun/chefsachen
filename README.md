@@ -3,7 +3,8 @@
 [Website](https://abnun.github.io/chefsachen/)
 
 Eine Desktop-Anwendung für die Rechnungsstellung von Kleinunternehmern nach
-§ 19 UStG. Alle Daten bleiben lokal auf dem eigenen Rechner — kein Server,
+§ 19 UStG ebenso wie von regelbesteuerten Selbstständigen und kleinen
+Unternehmen. Alle Daten bleiben lokal auf dem eigenen Rechner — kein Server,
 kein Konto, keine Cloud.
 
 > **Keine Steuerberatung.** Die Anwendung erstellt Belege und weist auf die
