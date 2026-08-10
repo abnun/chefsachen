@@ -637,6 +637,69 @@ pub(crate) mod tests {
         );
     }
 
+    /// Die eigene Anschrift+Kontakt ist vom Logo entkoppelt und steht bei
+    /// jeder Logo-Position auf derselben Höhe (45 mm, wie die
+    /// Empfängeranschrift) — die zentrale neue Eigenschaft des
+    /// Briefkopf-Redesigns. Der Girocode/die Tabelle stehen erst ab 85 mm,
+    /// die Anschrift ist also garantiert der oberste Text in der rechten
+    /// Seitenhälfte — kein Zufallstreffer.
+    #[test]
+    fn eigene_anschrift_steht_bei_45mm_unabhaengig_von_der_logo_position() {
+        const MM: f32 = 72.0 / 25.4;
+        const SEITENHOEHE: f32 = 297.0 * MM;
+        const SEITENBREITE: f32 = 210.0 * MM;
+
+        let oberste_zeile_rechts_mm = |position: crate::dokument::vorlage::LogoPosition| -> f32 {
+            let vorlage = crate::dokument::vorlage::Vorlage { logo_position: position, ..Default::default() };
+            let bytes = rendern(&test_kontext(), None, &vorlage).unwrap();
+            let rechts: Vec<f32> = textpositionen(&bytes)
+                .into_iter()
+                .filter(|(x, _)| *x > SEITENBREITE / 2.0)
+                .map(|(_, y)| (SEITENHOEHE - y) / MM)
+                .collect();
+            assert!(!rechts.is_empty(), "keine Texte in der rechten Seitenhälfte bei Logo-Position {position:?}");
+            rechts.iter().cloned().fold(f32::MAX, f32::min)
+        };
+
+        for position in [
+            crate::dokument::vorlage::LogoPosition::Links,
+            crate::dokument::vorlage::LogoPosition::Rechts,
+            crate::dokument::vorlage::LogoPosition::Keins,
+        ] {
+            let oberste = oberste_zeile_rechts_mm(position);
+            // Toleranz 3 mm statt 1 mm: `textpositionen` misst die
+            // Grundlinie (`Tm`) der ersten Zeile, nicht die Oberkante des
+            // `#place`-Blocks — bei 10pt Inter liegt die Grundlinie rund
+            // 2,6 mm unter der Blockoberkante (Schriftascent). Das ist ein
+            // Schriftmetrik-Versatz, keine Ungenauigkeit der Platzierung:
+            // Gemessen wurde exakt derselbe Wert (47,57 mm) bei allen drei
+            // Logo-Positionen — das eigentlich Interessante an diesem Test.
+            assert!(
+                (oberste - 45.0).abs() < 3.0,
+                "Anschrift bei Logo-Position {position:?} beginnt bei {oberste:.1} mm statt rund 45 mm",
+            );
+        }
+    }
+
+    /// Vor dem Umbau stand die eigene Anschrift zweimal auf dem Beleg (oben
+    /// neben dem Logo und unten im Fuß). Der ganze Witz des Umbaus ist, dass
+    /// sie jetzt nur noch einmal steht.
+    ///
+    /// Absenderzeile ausgeschaltet: Die Rücksendeangabe im Anschriftfenster
+    /// enthält ebenfalls "Weg 1" — das ist aber eine eigene, gewollte
+    /// DIN-5008-Angabe (unabhängig vom hier geprüften Anschrift+Kontakt-Block
+    /// oben rechts), keine Dopplung der eigenen Anschrift. Mit
+    /// eingeschalteter Absenderzeile stünde "Weg 1" immer zweimal, unabhängig
+    /// vom eigentlichen Umbau — der Test prüfte dann nichts Sinnvolles mehr.
+    #[test]
+    fn eigene_anschrift_steht_nur_noch_einmal_nicht_mehr_doppelt_im_fuss() {
+        let vorlage = crate::dokument::vorlage::Vorlage { absenderzeile: false, ..Default::default() };
+        let bytes = rendern(&test_kontext(), None, &vorlage).unwrap();
+        let t = pdf_extract::extract_text_from_mem(&bytes).unwrap();
+        let treffer = t.matches("Weg 1").count();
+        assert_eq!(treffer, 1, "Firmenstraße erscheint {treffer}x statt genau einmal:\n{t}");
+    }
+
     /// Beweist am tatsächlich erzeugten PDF, nicht nur an der isolierten
     /// Arithmetik in vorlage.rs, dass das Logo bei „Oben links" mit den
     /// App-Vorgaben (25 mm Rand, 15 mm Logo) den vorgesehenen 5-mm-Puffer zum
@@ -1348,9 +1411,9 @@ pub(crate) mod tests {
         assert!(!t.contains("E-Mail:"), "E-Mail-Zeile trotz leerem Feld:\n{t}");
     }
 
-    /// Die Zahlungserinnerung teilt sich den Fuß mit der Rechnung — die
-    /// Kontaktzeile muss also auch dort erscheinen, nicht nur beim Export der
-    /// eigentlichen Rechnung.
+    /// Die Zahlungserinnerung teilt sich Briefkopf und Anschriftfeld mit der
+    /// Rechnung — die Kontaktzeile muss also auch dort erscheinen, nicht nur
+    /// beim Export der eigentlichen Rechnung.
     #[test]
     fn zahlungserinnerung_enthaelt_telefon_fax_und_email() {
         let kontext = test_kontext();

@@ -77,11 +77,12 @@
   dy: y_mm * 1mm,
   line(length: 4mm, stroke: 0.3pt + rgb("#999999")),
 )
-// Geschäftsangaben für den Fuß jeder Seite — als `#let` hier oben, nicht
-// erst weiter unten im Fließtext, wo sie inhaltlich hingehören würden: Der
-// `footer`-Funktionswert von `#set page` unten bindet Variablen lexikalisch
-// an ihrer Quelltextstelle. Was erst später mit `#let` definiert würde,
-// sähe der Fuß nicht.
+// Geschäftsangaben, die sowohl im Fuß jeder Seite als auch oben bei der
+// eigenen Anschrift erscheinen — als `#let` hier oben, nicht erst weiter
+// unten im Fließtext, wo `bankverbindung`/`steuerangaben` inhaltlich
+// hingehören würden: Der `footer`-Funktionswert von `#set page` unten
+// bindet Variablen lexikalisch an ihrer Quelltextstelle. Was erst später
+// mit `#let` definiert würde, sähe der Fuß nicht.
 //
 // Bankverbindung: gesetzlich nicht vorgeschrieben, aber ohne sie kann der
 // Empfänger nicht zahlen — bei einer Erinnerung erst recht wichtig.
@@ -92,12 +93,13 @@
     \ BIC: #sys.inputs.firma_bic
   ]
 ] else { [] }
-// Leeres Content-Element statt `none`: Die drei Spalten unten übergeben
+// Leeres Content-Element statt `none`: Die zwei Spalten unten übergeben
 // `bankverbindung` direkt als Grid-Zelle, die dafür `content` erwartet.
 
 // Kontaktangaben: gesetzlich nicht vorgeschrieben — nur was gepflegt ist,
-// erscheint auch. Absichtlich nicht im Kopf neben Logo und Anschrift: Der
-// bleibt bewusst knapp, wie ein DIN-5008-Briefkopf es vorsieht.
+// erscheint auch. Stehen bei der eigenen Anschrift oben, nicht mehr
+// zusätzlich im Fuß — sonst stünden Name, Anschrift und Kontakt doppelt
+// auf dem Beleg.
 #let kontaktzeilen = (
   if ist_gesetzt(sys.inputs.firma_telefon) { "Telefon: " + sys.inputs.firma_telefon },
   if ist_gesetzt(sys.inputs.firma_fax) { "Fax: " + sys.inputs.firma_fax },
@@ -110,7 +112,7 @@
   #sys.inputs.firma_plz #sys.inputs.firma_ort
   // Eine eigene Zeile je Kontaktangabe statt mit " · " zu einem Fließtext
   // verbunden: Bei allen drei Angaben (Telefon, Fax, E-Mail) brach die
-  // verbundene Zeile in der schmalen Fuß-Spalte um, mit einem verwaisten
+  // verbundene Zeile in der schmalen Spalte um, mit einem verwaisten
   // "·" vor der letzten Angabe.
   #for zeile in kontaktzeilen [
     \ #zeile
@@ -145,18 +147,17 @@
     #falzmarke(210.0)
   ],
   // Ohne diese Angabe senkt Typst den Footer standardmäßig um 30 % des
-  // unteren Randes in die Marge ab (`footer-descent`) — bei drei
-  // Adresszeilen plus einer umgebrochenen Kontaktzeile reichte der
-  // verbleibende Platz nicht mehr aus, der Footer klebte am Papierrand.
-  // 10 % lassen bei 25 mm Rand noch 22,5 mm Platz statt 17,5 mm.
+  // unteren Randes in die Marge ab (`footer-descent`) — 10 % lassen bei
+  // 25 mm Rand ausreichend Platz für Steuerangaben und Bankverbindung
+  // (je bis zu zwei Zeilen).
   footer-descent: 10%,
   footer: context {
     let seiten = counter(page).final().first()
     text(size: 8pt)[
       #grid(
-        columns: (1fr, 1fr, 1fr),
+        columns: (1fr, 1fr),
         column-gutter: 12pt,
-        anschrift_und_kontakt, steuerangaben, bankverbindung,
+        steuerangaben, bankverbindung,
       )
       #if seiten > 1 [
         #v(0.15cm)
@@ -171,35 +172,31 @@
 #set heading(numbering: none)
 #show heading: it => text(fill: if akzent_ueberschrift { akzent } else { black }, it)
 
-// Logo und Absenderanschrift teilen sich die Kopfzeile. Steht das Logo rechts,
-// rückt die Anschrift nach links — sonst überlagerten sie einander.
+// Logo — steht für sich allein, ohne Bezug zur eigenen Anschrift: Die
+// steht unten fest bei 45 mm, unabhängig davon, wo (oder ob) ein Logo
+// erscheint.
 #let logo = if ist_gesetzt(sys.inputs.hat_logo) {
   image(sys.inputs.hat_logo, height: mass(sys.inputs.v_logo_hoehe_mm))
 } else { none }
 
-#let firma_block = align(right)[
-  #sys.inputs.firma_name \
-  #sys.inputs.firma_strasse \
-  #sys.inputs.firma_plz #sys.inputs.firma_ort
+#if logo != none [
+  #if sys.inputs.v_logo_position == "rechts" [
+    #align(right)[#logo]
+  ] else [
+    #logo
+  ]
 ]
 
-#if logo == none [
-  #firma_block
-] else if sys.inputs.v_logo_position == "rechts" [
-  // "Neben der Anschrift": Beides gehört auf dieselbe Seite der Kopfzeile,
-  // nicht auf entgegengesetzte Ecken. Die erste Spalte bleibt 1fr breit (sie
-  // schluckt den Freiraum), aber ihr Inhalt wird an ihren rechten Rand
-  // gerückt — direkt neben die Logo-Spalte, statt an den linken Seitenrand.
-  #grid(columns: (1fr, auto), column-gutter: 12pt, align: (right + horizon, right + horizon), firma_block, logo)
-] else if sys.inputs.v_logo_position == "rechts_oben" [
-  // Spiegelbild von "links": nur das Logo wandert an den rechten Rand, die
-  // Firmenanschrift bleibt unverändert rechtsbündig darunter stehen.
-  #align(right)[#logo]
-  #firma_block
-] else [
-  #logo
-  #firma_block
-]
+// Eigene Anschrift + Kontakt, rechtsbündig auf Höhe der Empfängeranschrift
+// (45 mm) — entkoppelt vom Logo, das oben allein steht. Reine
+// Flusspositionierung (kein `background`): Anders als die Falzmarken ist
+// das eine Inhaltsangabe, die nur auf Seite 1 gehört, dort wo auch das
+// Anschriftfeld der Empfängerin beginnt.
+#place(
+  top + right,
+  dy: 45mm - rand_oben,
+  anschrift_und_kontakt,
+)
 
 // Anschriftfeld nach DIN 5008 Form B: 20 mm von links, 45 mm von oben,
 // 85 mm breit. Nur an dieser Stelle steht die Anschrift im Sichtfenster eines
