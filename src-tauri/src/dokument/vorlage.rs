@@ -24,9 +24,9 @@ use sqlx::SqlitePool;
 /// Literal `45mm` in `templates/rechnung.typ` übereinstimmen.
 const ANSCHRIFTFENSTER_START_MM: f64 = 45.0;
 /// Mindestabstand zwischen Logo-Unterkante und Anschriftfenster bei „Oben
-/// links"/„Oben rechts" (gestapelt) — dort steht das Logo im Textfluss
-/// direkt über der Firmenanschrift, während das Fenster fest positioniert
-/// ist und nicht mitwandert.
+/// links"/„Oben rechts" — dort steht das Logo allein im Textfluss, dessen
+/// Unterkante ins Anschriftfenster hineinragen kann, während das Fenster
+/// fest positioniert ist und nicht mitwandert.
 const LOGO_SICHERHEITSPUFFER_MM: f64 = 5.0;
 /// Technische Mindesthöhe des Logos — als Boden in [`logo_hoehe_max_mm`] und
 /// als `min` im `mm(...)`-Aufruf für `logo_hoehe_mm` verwendet. Eine
@@ -46,15 +46,15 @@ fn logo_hoehe_max_mm(rand_oben_mm: f64) -> f64 {
     (ANSCHRIFTFENSTER_START_MM - rand_oben_mm - LOGO_SICHERHEITSPUFFER_MM).max(LOGO_HOEHE_MIN_MM)
 }
 
-/// Wo das Logo steht.
+/// Wo das Logo steht. Reine Logo-Position ohne Bezug zur eigenen
+/// Anschrift — die steht seit dem Briefkopf-Redesign immer separat bei
+/// 45 mm, unabhängig davon, wo (oder ob) ein Logo erscheint. Bis 2026-08-10
+/// gab es eine vierte Variante `Rechts` mit Logo und Anschrift nebeneinander
+/// im selben Grid; die entfiel mit der Entkopplung ersatzlos.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LogoPosition {
     Links,
     Rechts,
-    /// Logo rechts, Firmenanschrift unverändert rechtsbündig darunter —
-    /// Spiegelbild von `Links`. Anders als `Rechts` stehen Logo und
-    /// Anschrift nicht nebeneinander, sondern übereinander.
-    RechtsOben,
     Keins,
 }
 
@@ -62,7 +62,6 @@ impl LogoPosition {
     fn aus(wert: &str) -> Self {
         match wert {
             "rechts" => Self::Rechts,
-            "rechts_oben" => Self::RechtsOben,
             "keins" => Self::Keins,
             _ => Self::Links,
         }
@@ -72,7 +71,6 @@ impl LogoPosition {
         match self {
             Self::Links => "links",
             Self::Rechts => "rechts",
-            Self::RechtsOben => "rechts_oben",
             Self::Keins => "keins",
         }
     }
@@ -352,13 +350,13 @@ mod tests {
         assert_eq!(wert, Some("ueberschrift"));
     }
 
-    /// Vierte Logo-Option: Logo rechts, Firmenanschrift unverändert rechtsbündig
-    /// darunter — Spiegelbild von „links".
+    /// Logo rechts — reine Logo-Position, ohne Bezug zur eigenen Anschrift
+    /// (die steht seit dem Briefkopf-Redesign immer separat bei 45 mm).
     #[test]
-    fn logo_position_rechts_oben_wird_gelesen() {
-        let v = Vorlage::aus_paaren(&[("vorlage.logo_position".into(), "rechts_oben".into())]);
-        assert_eq!(v.logo_position, LogoPosition::RechtsOben);
-        assert_eq!(v.logo_position.als_str(), "rechts_oben");
+    fn logo_position_rechts_wird_gelesen() {
+        let v = Vorlage::aus_paaren(&[("vorlage.logo_position".into(), "rechts".into())]);
+        assert_eq!(v.logo_position, LogoPosition::Rechts);
+        assert_eq!(v.logo_position.als_str(), "rechts");
     }
 
     /// Bei den bisherigen Rand-Extremen darf die sichere Logohöhe nie unter die

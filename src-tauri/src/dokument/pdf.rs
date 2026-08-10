@@ -597,13 +597,11 @@ pub(crate) mod tests {
         linien
     }
 
-    /// „Oben rechts" spiegelt „Oben links": Nur das Logo wandert an den rechten
-    /// Rand der Kopfzeile. Ohne `bildpositionen` ließe sich das nicht von einem
-    /// Bug unterscheiden, der „rechts_oben" stillschweigend wie „links"
-    /// behandelt — die Firmenanschrift ist in beiden Fällen rechtsbündig, das
-    /// allein beweist also nichts über die Logo-Position.
+    /// „Oben rechts" und „Oben links" sind reine Logo-Positionen ohne Bezug
+    /// zur Anschrift (die steht seit dem Briefkopf-Redesign immer separat
+    /// bei 45 mm). Misst am echten PDF, nicht nur an der Einstellung selbst.
     #[test]
-    fn logo_steht_rechts_bei_rechts_oben_und_links_bei_links() {
+    fn logo_steht_rechts_bei_rechts_und_links_bei_links() {
         const MM: f32 = 72.0 / 25.4;
         const SEITENBREITE: f32 = 210.0 * MM;
         const LOGO: &[u8] = include_bytes!("../../resources/test/logo_1x1.png");
@@ -625,7 +623,7 @@ pub(crate) mod tests {
         };
 
         let links = logo_x(crate::dokument::vorlage::LogoPosition::Links);
-        let rechts_oben = logo_x(crate::dokument::vorlage::LogoPosition::RechtsOben);
+        let rechts = logo_x(crate::dokument::vorlage::LogoPosition::Rechts);
 
         assert!(
             links < SEITENBREITE / 2.0,
@@ -633,62 +631,9 @@ pub(crate) mod tests {
             links / MM,
         );
         assert!(
-            rechts_oben > SEITENBREITE / 2.0,
+            rechts > SEITENBREITE / 2.0,
             "Logo bei „Oben rechts\" steht bei {:.1} mm — nicht in der rechten Hälfte",
-            rechts_oben / MM,
-        );
-    }
-
-    /// Ohne `column-gutter` stieß die Anschrift direkt an das Logo — im PDF
-    /// sichtbar, aber von keinem Test bemerkt (die vorhandenen Tests prüfen nur,
-    /// dass beide in der rechten Hälfte stehen, nicht ihren Abstand
-    /// zueinander).
-    #[test]
-    fn abstand_zwischen_anschrift_und_logo_bei_rechts_neben_der_anschrift() {
-        const MM: f32 = 72.0 / 25.4;
-        const SEITENHOEHE: f32 = 297.0 * MM;
-        const LOGO: &[u8] = include_bytes!("../../resources/test/logo_1x1.png");
-
-        // Feste Logohöhe statt `..Default::default()` — aus demselben Grund
-        // wie in logo_steht_rechts_bei_rechts_oben_und_links_bei_links: der
-        // gemessene Abstand hängt an der Logobreite, die am quadratischen
-        // Testbild direkt von diesem Wert abhängt. 20.0 ist exakt der Wert,
-        // gegen den der Schwellenwert (12.0mm) unten ursprünglich hergeleitet
-        // und per Rot-Probe verifiziert wurde — unverändert übernommen.
-        let vorlage = crate::dokument::vorlage::Vorlage {
-            logo_position: crate::dokument::vorlage::LogoPosition::Rechts,
-            logo_hoehe_mm: 20.0,
-            ..Default::default()
-        };
-        let bytes = rendern(&test_kontext(), Some(LOGO), &vorlage).unwrap();
-
-        let kopf: Vec<_> = textpositionen(&bytes)
-            .into_iter()
-            .map(|(x, y)| (x, SEITENHOEHE - y))
-            .filter(|(_, y)| *y < 40.0 * MM)
-            .collect();
-        let anschrift_rechte_kante = kopf.iter().map(|(x, _)| *x).fold(f32::MIN, f32::max);
-
-        let bilder = bildpositionen(&bytes);
-        assert_eq!(bilder.len(), 1, "erwartet genau ein Bild (das Logo) auf der Seite");
-        let logo_linke_kante = bilder[0].0;
-
-        // Der Messwert ist nicht der reale Abstand: `textpositionen` liefert den
-        // Start (die linke Kante) jeder Zeile, nicht ihre rechte Kante. Bei
-        // rechtsbündigem Text mit unterschiedlich langen Zeilen liegt die
-        // kürzeste Zeile mit ihrem Start am weitesten rechts — genau die nimmt
-        // `fold(f32::MIN, f32::max)` — und unterschätzt die wahre rechte Kante
-        // systematisch um die eigene Breite dieser Zeile („Weg 1" in
-        // `test_kontext()`). Deshalb liegt die Schwelle nicht nahe 0, sondern
-        // zwischen den gemessenen Werten ohne (9,9 mm) und mit (14,2 mm) Gutter —
-        // beide Messwerte tragen denselben, durch die kurze Zeile verursachten
-        // Fehler; nur die Differenz von genau 12pt (4,23 mm) ist auf den Gutter
-        // zurückzuführen und real messbar.
-        assert!(
-            logo_linke_kante - anschrift_rechte_kante > 12.0 * MM,
-            "Anschrift endet bei {:.1} mm, Logo beginnt bei {:.1} mm — kein spürbarer Abstand",
-            anschrift_rechte_kante / MM,
-            logo_linke_kante / MM,
+            rechts / MM,
         );
     }
 
@@ -933,41 +878,6 @@ pub(crate) mod tests {
                 links / MM,
             );
         }
-    }
-
-    /// „Oben rechts, neben der Anschrift" verspricht, dass das Logo und die
-    /// eigene Firmenanschrift nebeneinander stehen — nicht auf entgegengesetzten
-    /// Seiten der Kopfzeile. Vorher stand die Anschrift am linken Seitenrand,
-    /// weit vom Logo entfernt, weil eine breite Gitterspalte ihren Inhalt an
-    /// deren linke statt rechte Kante rückte.
-    #[test]
-    fn firma_anschrift_steht_bei_logo_rechts_daneben_nicht_am_linken_rand() {
-        const MM: f32 = 72.0 / 25.4;
-        const SEITENHOEHE: f32 = 297.0 * MM;
-        const SEITENBREITE: f32 = 210.0 * MM;
-        const LOGO: &[u8] = include_bytes!("../../resources/test/logo_1x1.png");
-
-        let vorlage = crate::dokument::vorlage::Vorlage {
-            logo_position: crate::dokument::vorlage::LogoPosition::Rechts,
-            ..Default::default()
-        };
-        let bytes = rendern(&test_kontext(), Some(LOGO), &vorlage).unwrap();
-
-        // Die Kopfzeile steht oberhalb des Anschriftfensters, das laut Norm bei
-        // 45 mm von oben beginnt — mit Sicherheitsabstand nach unten gefiltert.
-        let kopf: Vec<_> = textpositionen(&bytes)
-            .into_iter()
-            .map(|(x, y)| (x, SEITENHOEHE - y))
-            .filter(|(_, y)| *y < 40.0 * MM)
-            .collect();
-        assert!(!kopf.is_empty(), "keine Texte oberhalb des Anschriftfensters gefunden");
-
-        let links = kopf.iter().map(|(x, _)| *x).fold(f32::MAX, f32::min);
-        assert!(
-            links > SEITENBREITE / 2.0,
-            "Firmenanschrift beginnt bei {:.1} mm — das ist die linke statt die rechte Seitenhälfte",
-            links / MM,
-        );
     }
 
     /// Was sich abschalten lässt, verschwindet — und was nicht, bleibt.
