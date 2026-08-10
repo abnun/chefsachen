@@ -132,6 +132,12 @@ describe("Belegvorlage", () => {
     expect(screen.getByLabelText(/Girocode.*Rechnungen anzeigen/)).toBeChecked();
   });
 
+  it("startet mit aktiven Falzmarken, wie die Rust-Vorgabe", async () => {
+    render(<Belegvorlage />);
+    await waitFor(() => expect(screen.getByLabelText(/Falz- und Lochmarken/)).toBeTruthy());
+    expect(screen.getByLabelText(/Falz- und Lochmarken/)).toBeChecked();
+  });
+
   it("stellt die Girocode-Größe ein und zeichnet die Vorschau damit neu", async () => {
     render(<Belegvorlage />);
     await waitFor(() => expect(api.vorlage.vorschau).toHaveBeenCalled());

@@ -112,6 +112,14 @@ const SCHALTER: Schalter[] = [
   { schluessel: "vorlage.rand_oben_mm", label: "Rand oben", art: "zahl", einheit: "mm", min: 20, max: 40, standard: "25" },
   { schluessel: "vorlage.rand_unten_mm", label: "Rand unten", art: "zahl", einheit: "mm", min: 25, max: 40, standard: "25" },
   { schluessel: "vorlage.rand_seitlich_mm", label: "Rand seitlich", art: "zahl", einheit: "mm", min: 15, max: 30, standard: "25" },
+  {
+    schluessel: "vorlage.falzmarken",
+    label: "Falz- und Lochmarken",
+    hinweis:
+      "Kurze Markierungen am linken Rand für das Falten in einen Fensterumschlag " +
+      "und das Lochen für den Ordner (DIN 5008). Erscheinen auf jeder Seite.",
+    art: "ja_nein",
+  },
 ];
 
 const SCHLUESSEL = SCHALTER.map((s) => s.schluessel);
