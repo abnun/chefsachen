@@ -557,14 +557,14 @@ pub(crate) mod tests {
         (m[0] * x + m[2] * y + m[4], m[1] * x + m[3] * y + m[5])
     }
 
-    /// Start- und Endpunkte gezeichneter Geradenstücke (`m`→`l`) der ersten
-    /// Seite, gemessen wie `textpositionen`/`bildpositionen` von der linken
-    /// unteren Ecke. Erfasst nur einfache Zweipunkt-Strecken — für die
+    /// Start- und Endpunkte gezeichneter Geradenstücke (`m`→`l`) einer
+    /// wählbaren Seite, gemessen wie `textpositionen`/`bildpositionen` von der
+    /// linken unteren Ecke. Erfasst nur einfache Zweipunkt-Strecken — für die
     /// Falz-/Lochmarken ausreichend, die als je ein `line()` gezeichnet
     /// werden.
-    fn linienpositionen(bytes: &[u8]) -> Vec<((f32, f32), (f32, f32))> {
+    fn linienpositionen_seite(bytes: &[u8], seite_index: usize) -> Vec<((f32, f32), (f32, f32))> {
         let doc = lopdf::Document::load_mem(bytes).unwrap();
-        let (_, seite) = doc.get_pages().into_iter().next().unwrap();
+        let (_, seite) = doc.get_pages().into_iter().nth(seite_index).unwrap();
         let inhalt = lopdf::content::Content::decode(&doc.get_page_content(seite).unwrap()).unwrap();
 
         let mut ctm = EINHEIT;
@@ -748,7 +748,7 @@ pub(crate) mod tests {
             // `line(length: 4mm)` zeichnet von x=0 bis x≈4mm, der Endpunkt
             // x2 liegt also bewusst nicht bei 0. Andere Linien im Beleg
             // (Tabelle, Girocode-Rahmen) beginnen deutlich weiter rechts.
-            let mut hoehen: Vec<f32> = linienpositionen(&bytes)
+            let mut hoehen: Vec<f32> = linienpositionen_seite(&bytes, 0)
                 .into_iter()
                 .filter(|((x1, _), _)| x1.abs() < 1.0)
                 .map(|((_, y1), _)| (SEITENHOEHE - y1) / MM)
@@ -784,11 +784,67 @@ pub(crate) mod tests {
     fn ohne_falzmarken_erscheint_keine_linie_am_blattrand() {
         let vorlage = crate::dokument::vorlage::Vorlage { falzmarken: false, ..Default::default() };
         let bytes = rendern(&test_kontext(), None, &vorlage).unwrap();
-        let am_rand: Vec<_> = linienpositionen(&bytes)
+        let am_rand: Vec<_> = linienpositionen_seite(&bytes, 0)
             .into_iter()
             .filter(|((x1, _), _)| x1.abs() < 1.0)
             .collect();
         assert!(am_rand.is_empty(), "Linie am Blattrand trotz deaktivierter Falzmarken: {am_rand:?}");
+    }
+
+    /// Falzmarken müssen wie der Geschäftsfuß auf jeder Seite erscheinen,
+    /// nicht nur auf der ersten — analog zu
+    /// `geschaeftsfuss_wiederholt_sich_auf_jeder_seite`. Ohne diesen Test
+    /// stützte sich die "läuft wie footer auf jeder Seite"-Behauptung im
+    /// Kommentar in rechnung.typ nur auf Analogie zum Mechanismus, nicht auf
+    /// eine tatsächliche Messung an Seite 2.
+    #[test]
+    fn falzmarken_erscheinen_auch_auf_seite_zwei() {
+        const MM: f32 = 72.0 / 25.4;
+        const SEITENHOEHE: f32 = 297.0 * MM;
+
+        let mut kontext = test_kontext();
+        let vorlage_pos = kontext.positionen[0].clone();
+        kontext.positionen = (0..60)
+            .map(|i| Belegposition { id: format!("p{i}"), bezeichnung: format!("Leistung {i}"), ..vorlage_pos.clone() })
+            .collect();
+
+        let bytes = rendern(&kontext, None, &crate::dokument::vorlage::Vorlage::default()).unwrap();
+        let doc = lopdf::Document::load_mem(&bytes).unwrap();
+        assert!(doc.get_pages().len() > 1, "Testfall braucht einen mehrseitigen Beleg");
+
+        let mut hoehen: Vec<f32> = linienpositionen_seite(&bytes, 1)
+            .into_iter()
+            .filter(|((x1, _), _)| x1.abs() < 1.0)
+            .map(|((_, y1), _)| (SEITENHOEHE - y1) / MM)
+            .collect();
+        hoehen.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        assert_eq!(hoehen.len(), 3, "erwartet drei Marken auf Seite 2, gefunden: {hoehen:?}");
+    }
+
+    /// Die Zahlungserinnerung teilt sich die Vorlage mit der Rechnung (siehe
+    /// `zahlungserinnerung_zeigt_den_girocode` für dasselbe Prinzip beim
+    /// Girocode) — die Falzmarken müssen also auch dort erscheinen.
+    #[test]
+    fn zahlungserinnerung_zeigt_ebenfalls_falzmarken() {
+        const MM: f32 = 72.0 / 25.4;
+        const SEITENHOEHE: f32 = 297.0 * MM;
+
+        let bytes = rendern_zahlungserinnerung(
+            &test_kontext(),
+            None,
+            &crate::dokument::vorlage::Vorlage::default(),
+            tag("2026-08-04"),
+            "Text",
+        )
+        .unwrap();
+
+        let mut hoehen: Vec<f32> = linienpositionen_seite(&bytes, 0)
+            .into_iter()
+            .filter(|((x1, _), _)| x1.abs() < 1.0)
+            .map(|((_, y1), _)| (SEITENHOEHE - y1) / MM)
+            .collect();
+        hoehen.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        assert_eq!(hoehen.len(), 3, "erwartet drei Falzmarken auf der Zahlungserinnerung, gefunden: {hoehen:?}");
     }
 
     /// DIN 5008 Form B legt das Anschriftfeld auf 20 mm von links und 45 mm von
