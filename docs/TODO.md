@@ -11,8 +11,6 @@ Zuletzt veröffentlicht: **1.3.0** am 2026-08-08.
 | Nr. | Punkt | Art | Aufwand |
 |-----|-------|-----|---------|
 | 1 | [Export für den Steuerberater](#1-export-für-den-steuerberater) | Funktion | groß, Klärung offen |
-| 2 | [Falzlinien ergänzen](#2-falzlinien-ergänzen) | Funktion | klein bis mittel |
-| 3 | [Briefkopf: Anschrift und Kontaktdaten neu ordnen](#3-briefkopf-anschrift-und-kontaktdaten-neu-ordnen) | Funktion | mittel |
 
 ### 1. Export für den Steuerberater
 
@@ -38,43 +36,6 @@ Vor der Umsetzung mit einem echten Steuerberater klären, was der wirklich
 haben will — hier auf Verdacht ein DATEV-Format zu bauen, das dann niemand
 einliest, wäre der teuerste Weg.
 
-### 2. Falzlinien ergänzen
-
-Faltmarken am Seitenrand, damit sich der Ausdruck ohne Nachmessen in einen
-Fensterumschlag (DIN lang/C6/5) falten lässt. Die App setzt das Anschriftfenster
-auf 45 mm von oben — das entspricht DIN 5008 **Form B** (45 mm Kopfzeile),
-nicht Form A (27 mm). Falzmarken für Form B liegen bei 105 mm und 210 mm von
-oben, nicht bei den für Form A üblichen 87 mm/192 mm. Fehlen bisher komplett.
-
-Sollte wie die übrigen Vorlage-Einstellungen in `Belegvorlage.tsx`
-konfigurierbar sein (mindestens an/aus; ob die Position wählbar sein muss,
-ist offen — die DIN-Werte sind fix und dürften für die allermeisten
-reichen).
-
-### 3. Briefkopf: Anschrift und Kontaktdaten neu ordnen
-
-Angeregt durch einen Vergleich mit einer Lexware-Musterrechnung
-(2026-08-10). Drei zusammenhängende Ideen:
-
-- **Eigene Anschrift auf Höhe des Anschriftfensters (45 mm) statt im
-  Textfluss direkt unter dem Logo.** Aktuell landet `firma_block` dort,
-  wohin der Textfluss sie schiebt — nicht bewusst ausgerichtet. Eine
-  Ausrichtung auf dieselbe Höhe wie die Empfängeranschrift wäre
-  aufgeräumter und ist DIN-seitig nicht ausgeschlossen.
-- **Telefon/Fax/E-Mail direkt bei der eigenen Anschrift oben mit
-  auflisten**, statt nur im Fuß.
-- **Fuß dadurch schlanker**: nur noch Bankverbindung und Steuerangabe
-  nötig, wenn die Kontaktdaten oben stehen.
-
-Dabei zu klären, **nicht** einfach mitzuerledigen: Ob im Fuß weiterhin
-sowohl Steuernummer als auch USt-IdNr. gedruckt werden (aktuell bewusst
-beides, wenn beide hinterlegt sind — § 14 Abs. 4 Nr. 2 UStG verlangt nur
-eins von beiden, aber ein früheres Review hatte Gründe, beide zu zeigen,
-u. a. eine KoSIT-Prüfregel bei der XRechnung). Die kleingedruckte
-Absenderzeile *im* Anschriftfenster selbst (DIN-5008-Pflicht fürs
-Umschlagfenster) bleibt davon unberührt, unabhängig von einer zusätzlichen
-Anschrift weiter oben.
-
 ---
 
 # Archiv — abgeschlossene Arbeit
@@ -82,6 +43,34 @@ Anschrift weiter oben.
 Ursprünglich: priorisierte Arbeitsliste, abgeleitet aus dem
 [MVP-Review vom 2026-08-02](2026-08-02-mvp-review.md). Reihenfolge war
 Empfehlung; jeder Punkt trägt die Referenz aus dem Review.
+
+## Stand (2026-08-10, Briefkopf-Redesign, Falzlinien, Logohöhe-Sicherheitsabstand)
+
+- **Briefkopf neu geordnet.** Die eigene Anschrift + Kontakt (Name,
+  Straße, PLZ/Ort, Telefon, Fax, E-Mail) steht jetzt als eigenständiger
+  Block rechtsbündig bei 45 mm — auf derselben Höhe wie die
+  Empfängeranschrift, unabhängig von der Logo-Position. Der Fuß zeigt
+  diese Angaben nicht mehr zusätzlich (keine Dopplung mehr), nur noch
+  Steuerangaben und Bankverbindung. Steuernummer und USt-IdNr. bleiben
+  wie bisher: beide werden gezeigt, wenn beide hinterlegt sind.
+  Nebeneffekt: Die Logo-Option „Oben rechts, neben der Anschrift" verlor
+  damit ihren ganzen Zweck (Logo und Anschrift im selben Grid) und wurde
+  ersatzlos entfernt — verbleibende Logo-Optionen sind „Oben links",
+  „Oben rechts", „Kein Logo".
+- **Falzlinien ergänzt.** Zwei Falzmarken (105 mm, 210 mm) und eine
+  Lochmarke (148,5 mm) nach DIN 5008 Form B, auf jeder Seite, über einen
+  gemeinsamen Schalter „Falz- und Lochmarken" (Vorgabe: an). Dabei
+  aufgefallen und korrigiert: Der Code beschriftete das Anschriftfenster
+  bislang durchgängig fälschlich als „Form A" statt „Form B" — reine
+  Kommentarkorrektur ohne Verhaltensänderung.
+- **Logohöhe automatisch begrenzt.** Bei „Oben links"/„Oben rechts" konnte
+  das Logo bei den bisherigen Vorgaben (25 mm Rand, 20 mm Logo) exakt bis
+  ins Anschriftfenster reichen — 0 mm Puffer. Vorgabe sinkt auf 15 mm, die
+  Obergrenze koppelt sich jetzt dynamisch an den oberen Rand. Dabei zwei
+  echte Bugs im Review gefunden und behoben: Der zentrale
+  Einstellungs-Fallback klemmte einen leer gelassenen Wert nicht auf die
+  neue Grenze; eine veraltete Vorgabe im Frontend-Array stimmte nicht mehr
+  mit dem neuen Rust-Vorgabewert überein.
 
 ## Stand (2026-08-09, Logo-Position, Firma-Logo-Bug)
 
