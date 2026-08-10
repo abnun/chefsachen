@@ -20,6 +20,27 @@
 use crate::error::AppResult;
 use sqlx::SqlitePool;
 
+/// Wo laut DIN 5008 Form A das Anschriftfenster beginnt — muss mit dem
+/// Literal `45mm` in `templates/rechnung.typ` übereinstimmen.
+const ANSCHRIFTFENSTER_START_MM: f64 = 45.0;
+/// Mindestabstand zwischen Logo-Unterkante und Anschriftfenster bei „Oben
+/// links"/„Oben rechts" (gestapelt) — dort steht das Logo im Textfluss
+/// direkt über der Firmenanschrift, während das Fenster fest positioniert
+/// ist und nicht mitwandert.
+const LOGO_SICHERHEITSPUFFER_MM: f64 = 5.0;
+
+/// Größte Logohöhe, die beim gegebenen oberen Rand noch Sicherheitsabstand
+/// zum Anschriftfenster lässt.
+///
+/// `.max(5.0)`: Bei sehr großem oberen Rand (nahe 40 mm) läge das
+/// rechnerische Maximum unter der technischen Mindesthöhe von 5 mm — ein
+/// ungültiger Bereich für `mm()` (`min > max`), der dort abstürzen würde.
+/// Der Boden verhindert das; in diesem Extremfall bleibt kein Puffer mehr,
+/// aber die App bleibt funktionsfähig statt abzustürzen.
+fn logo_hoehe_max_mm(rand_oben_mm: f64) -> f64 {
+    (ANSCHRIFTFENSTER_START_MM - rand_oben_mm - LOGO_SICHERHEITSPUFFER_MM).max(5.0)
+}
+
 /// Wo das Logo steht.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LogoPosition {
@@ -128,7 +149,7 @@ impl Default for Vorlage {
     fn default() -> Self {
         Self {
             logo_position: LogoPosition::Links,
-            logo_hoehe_mm: 20.0,
+            logo_hoehe_mm: 15.0,
             absenderzeile: true,
             akzentfarbe: "#1a1a1a".into(),
             akzent_verwendung: AkzentVerwendung::Beides,
@@ -202,11 +223,19 @@ impl Vorlage {
                 .map(|(_, v)| v.clone())
         };
         let standard = Self::default();
+        // Muss vor `logo_hoehe_mm` berechnet werden: dessen Obergrenze
+        // hängt vom oberen Rand ab (siehe logo_hoehe_max_mm).
+        let rand_oben_mm = mm(hole("vorlage.rand_oben_mm"), standard.rand_oben_mm, 20.0, 40.0);
         Self {
             logo_position: hole("vorlage.logo_position")
                 .map(|w| LogoPosition::aus(&w))
                 .unwrap_or(standard.logo_position),
-            logo_hoehe_mm: mm(hole("vorlage.logo_hoehe_mm"), standard.logo_hoehe_mm, 5.0, 50.0),
+            logo_hoehe_mm: mm(
+                hole("vorlage.logo_hoehe_mm"),
+                standard.logo_hoehe_mm,
+                5.0,
+                logo_hoehe_max_mm(rand_oben_mm),
+            ),
             absenderzeile: ja(hole("vorlage.absenderzeile"), standard.absenderzeile),
             akzentfarbe: farbe(hole("vorlage.akzentfarbe"), &standard.akzentfarbe),
             akzent_verwendung: hole("vorlage.akzent_verwendung")
@@ -231,7 +260,7 @@ impl Vorlage {
             ),
             // Der obere Rand geht nicht unter 20 mm: Darunter überschnitte der
             // Briefkopf das Anschriftfeld, das bei 45 mm beginnt.
-            rand_oben_mm: mm(hole("vorlage.rand_oben_mm"), standard.rand_oben_mm, 20.0, 40.0),
+            rand_oben_mm,
             rand_unten_mm: mm(hole("vorlage.rand_unten_mm"), standard.rand_unten_mm, 25.0, 40.0),
             // Seitlich höchstens 30 mm: Das Anschriftfeld beginnt nach DIN bei
             // 20 mm und ist 85 mm breit; ein breiterer Rand schöbe den Textblock
@@ -317,6 +346,31 @@ mod tests {
         let v = Vorlage::aus_paaren(&[("vorlage.logo_position".into(), "rechts_oben".into())]);
         assert_eq!(v.logo_position, LogoPosition::RechtsOben);
         assert_eq!(v.logo_position.als_str(), "rechts_oben");
+    }
+
+    /// Bei den bisherigen Rand-Extremen darf die sichere Logohöhe nie unter die
+    /// technische Mindesthöhe (5 mm) fallen — sonst wäre `min > max` in `mm()`
+    /// und die Clamp-Funktion würde bei jedem Aufruf mit diesem Rand abstürzen.
+    #[test]
+    fn logo_hoehe_max_mm_hat_sicherheitsabstand_zum_anschriftfenster() {
+        assert_eq!(logo_hoehe_max_mm(20.0), 20.0);
+        assert_eq!(logo_hoehe_max_mm(25.0), 15.0);
+        // Boden greift: 45 - 40 - 5 = 0, aber die Mindesthöhe ist 5.
+        assert_eq!(logo_hoehe_max_mm(40.0), 5.0);
+    }
+
+    /// Ein bei kleinem Rand noch gültiger Logohöhen-Wert wird ungültig, sobald
+    /// der Rand nachträglich vergrößert wird — die Begrenzung muss dynamisch
+    /// mitziehen, nicht nur beim ursprünglichen Speichern gelten.
+    #[test]
+    fn logo_hoehe_wird_dynamisch_auf_sicheren_bereich_begrenzt() {
+        let v = Vorlage::aus_paaren(&[
+            ("vorlage.rand_oben_mm".into(), "35".into()),
+            ("vorlage.logo_hoehe_mm".into(), "30".into()),
+        ]);
+        assert_eq!(v.rand_oben_mm, 35.0);
+        // Bei 35 mm Rand sind nur noch 5 mm sicher (45 - 35 - 5 = 5).
+        assert_eq!(v.logo_hoehe_mm, 5.0);
     }
 
     #[test]
