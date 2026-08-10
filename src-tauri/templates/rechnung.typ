@@ -58,6 +58,21 @@
 #let rand_oben = mass(sys.inputs.v_rand_oben_mm)
 #let rand_unten = mass(sys.inputs.v_rand_unten_mm)
 #let rand_seitlich = mass(sys.inputs.v_rand_seitlich_mm)
+
+// Falz- und Lochmarken nach DIN 5008 Form B: kurze Striche am linken
+// Blattrand für das manuelle Falten (Fensterumschlag DIN lang/C6/5) und
+// Lochen (Zwei-Loch-Ordner). Über `background` statt im Textfluss — anders
+// als das Anschriftfeld weiter unten braucht das keine Rand-Korrektur,
+// `background` sitzt schon absolut am Blattursprung, unabhängig vom
+// eingestellten Rand. Läuft wie `footer` auf jeder Seite, nicht nur der
+// ersten: Anders als Logo/Anschrift ist das keine Inhaltsangabe, sondern
+// eine Handhabungshilfe für den ganzen gedruckten Stapel.
+#let falzmarke(y_mm) = place(
+  top + left,
+  dx: 0mm,
+  dy: y_mm * 1mm,
+  line(length: 4mm, stroke: 0.3pt + rgb("#999999")),
+)
 // Geschäftsangaben für den Fuß jeder Seite — als `#let` hier oben, nicht
 // erst weiter unten im Fließtext, wo sie inhaltlich hingehören würden: Der
 // `footer`-Funktionswert von `#set page` unten bindet Variablen lexikalisch
@@ -120,6 +135,11 @@
 // Seite — auf einer einseitigen Rechnung wäre sie nur Ballast.
 #set page(
   margin: (top: rand_oben, bottom: rand_unten, x: rand_seitlich),
+  background: if ja(sys.inputs.v_falzmarken) [
+    #falzmarke(105.0)
+    #falzmarke(148.5)
+    #falzmarke(210.0)
+  ],
   // Ohne diese Angabe senkt Typst den Footer standardmäßig um 30 % des
   // unteren Randes in die Marge ab (`footer-descent`) — bei drei
   // Adresszeilen plus einer umgebrochenen Kontaktzeile reichte der

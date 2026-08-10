@@ -550,6 +550,53 @@ pub(crate) mod tests {
         positionen
     }
 
+    /// Transformiert einen Punkt mit einer Matrix — anders als `mal`, das
+    /// zwei Matrizen verkettet: Ein Punkt hat keine eigene
+    /// Rotation/Skalierung, nur eine Position.
+    fn punkt(m: Matrix, x: f32, y: f32) -> (f32, f32) {
+        (m[0] * x + m[2] * y + m[4], m[1] * x + m[3] * y + m[5])
+    }
+
+    /// Start- und Endpunkte gezeichneter Geradenstücke (`m`→`l`) der ersten
+    /// Seite, gemessen wie `textpositionen`/`bildpositionen` von der linken
+    /// unteren Ecke. Erfasst nur einfache Zweipunkt-Strecken — für die
+    /// Falz-/Lochmarken ausreichend, die als je ein `line()` gezeichnet
+    /// werden.
+    fn linienpositionen(bytes: &[u8]) -> Vec<((f32, f32), (f32, f32))> {
+        let doc = lopdf::Document::load_mem(bytes).unwrap();
+        let (_, seite) = doc.get_pages().into_iter().next().unwrap();
+        let inhalt = lopdf::content::Content::decode(&doc.get_page_content(seite).unwrap()).unwrap();
+
+        let mut ctm = EINHEIT;
+        let mut stapel: Vec<Matrix> = Vec::new();
+        let mut start: Option<(f32, f32)> = None;
+        let mut linien = Vec::new();
+
+        for op in inhalt.operations {
+            let werte = || -> Matrix {
+                let mut m = EINHEIT;
+                for (i, o) in op.operands.iter().take(6).enumerate() {
+                    m[i] = o.as_float().unwrap_or(0.0);
+                }
+                m
+            };
+            let zahl = |i: usize| op.operands.get(i).and_then(|o| o.as_float().ok()).unwrap_or(0.0);
+            match op.operator.as_str() {
+                "q" => stapel.push(ctm),
+                "Q" => ctm = stapel.pop().unwrap_or(EINHEIT),
+                "cm" if op.operands.len() == 6 => ctm = mal(werte(), ctm),
+                "m" if op.operands.len() == 2 => start = Some(punkt(ctm, zahl(0), zahl(1))),
+                "l" if op.operands.len() == 2 => {
+                    if let Some(s) = start.take() {
+                        linien.push((s, punkt(ctm, zahl(0), zahl(1))));
+                    }
+                }
+                _ => {}
+            }
+        }
+        linien
+    }
+
     /// „Oben rechts" spiegelt „Oben links": Nur das Logo wandert an den rechten
     /// Rand der Kopfzeile. Ohne `bildpositionen` ließe sich das nicht von einem
     /// Bug unterscheiden, der „rechts_oben" stillschweigend wie „links"
@@ -678,6 +725,70 @@ pub(crate) mod tests {
             logo_unterkante_von_oben_mm,
             puffer_mm,
         );
+    }
+
+    /// Beweist am tatsächlich erzeugten PDF, dass die drei Marken exakt bei
+    /// 105/148,5/210 mm vom Blattursprung stehen — und zwar unabhängig vom
+    /// eingestellten Rand. Das ist der eigentliche Witz von `background`
+    /// (siehe Kommentar in rechnung.typ): Anders als das Anschriftfeld, das
+    /// im Textfluss steht und die `- rand_oben`-Korrektur braucht, sitzt
+    /// `background` schon absolut am Blattursprung. Gefiltert wird nur auf
+    /// den Startpunkt (x1 ≈ 0) — `line(length: 4mm)` zeichnet von x=0 bis
+    /// x≈4mm, der Endpunkt liegt also bewusst nicht bei 0 —, damit andere
+    /// Linien im Beleg (z. B. Tabellenlinien, die deutlich weiter rechts
+    /// beginnen) das Ergebnis nicht verfälschen.
+    #[test]
+    fn falzmarken_stehen_an_den_richtigen_hoehen_unabhaengig_vom_rand() {
+        const MM: f32 = 72.0 / 25.4;
+        const SEITENHOEHE: f32 = 297.0 * MM;
+
+        let hoehen_am_linken_rand = |vorlage: &crate::dokument::vorlage::Vorlage| -> Vec<f32> {
+            let bytes = rendern(&test_kontext(), None, vorlage).unwrap();
+            // Nur der Startpunkt (x1) liegt bei den Falz-/Lochmarken nahe 0 —
+            // `line(length: 4mm)` zeichnet von x=0 bis x≈4mm, der Endpunkt
+            // x2 liegt also bewusst nicht bei 0. Andere Linien im Beleg
+            // (Tabelle, Girocode-Rahmen) beginnen deutlich weiter rechts.
+            let mut hoehen: Vec<f32> = linienpositionen(&bytes)
+                .into_iter()
+                .filter(|((x1, _), _)| x1.abs() < 1.0)
+                .map(|((_, y1), _)| (SEITENHOEHE - y1) / MM)
+                .collect();
+            hoehen.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            hoehen
+        };
+
+        for vorlage in [
+            crate::dokument::vorlage::Vorlage::default(),
+            crate::dokument::vorlage::Vorlage {
+                rand_oben_mm: 35.0,
+                rand_seitlich_mm: 15.0,
+                ..Default::default()
+            },
+        ] {
+            let hoehen = hoehen_am_linken_rand(&vorlage);
+            assert_eq!(hoehen.len(), 3, "erwartet drei Marken am linken Blattrand, gefunden: {hoehen:?}");
+            assert!((hoehen[0] - 105.0).abs() < 0.5, "Falzmarke 1 bei {:.1} mm statt 105 mm", hoehen[0]);
+            assert!((hoehen[1] - 148.5).abs() < 0.5, "Lochmarke bei {:.1} mm statt 148,5 mm", hoehen[1]);
+            assert!((hoehen[2] - 210.0).abs() < 0.5, "Falzmarke 2 bei {:.1} mm statt 210 mm", hoehen[2]);
+        }
+    }
+
+    /// Deaktivierte Falzmarken dürfen keine Linie am Blattrand hinterlassen.
+    /// Prüft gezielt nur auf den Startpunkt bei x ≈ 0 (dort, wo
+    /// ausschließlich die Falz-/Lochmarken zeichnen würden — ihr Endpunkt
+    /// liegt bei x≈4mm, siehe `falzmarken_stehen_an_den_richtigen_hoehen_…`),
+    /// nicht die gesamte Linienliste — der Beleg zeichnet an anderer Stelle
+    /// durchaus Linien (Tabelle, Girocode-Rahmen), die mit dieser
+    /// Einstellung nichts zu tun haben.
+    #[test]
+    fn ohne_falzmarken_erscheint_keine_linie_am_blattrand() {
+        let vorlage = crate::dokument::vorlage::Vorlage { falzmarken: false, ..Default::default() };
+        let bytes = rendern(&test_kontext(), None, &vorlage).unwrap();
+        let am_rand: Vec<_> = linienpositionen(&bytes)
+            .into_iter()
+            .filter(|((x1, _), _)| x1.abs() < 1.0)
+            .collect();
+        assert!(am_rand.is_empty(), "Linie am Blattrand trotz deaktivierter Falzmarken: {am_rand:?}");
     }
 
     /// DIN 5008 Form B legt das Anschriftfeld auf 20 mm von links und 45 mm von
