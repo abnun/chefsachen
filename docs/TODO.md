@@ -11,8 +11,7 @@ Zuletzt veröffentlicht: **1.3.0** am 2026-08-08.
 | Nr. | Punkt | Art | Aufwand |
 |-----|-------|-----|---------|
 | 1 | [Export für den Steuerberater](#1-export-für-den-steuerberater) | Funktion | groß, Klärung offen |
-| 2 | [Briefkopf: Namen stehen bei aktiver Absenderzeile nicht auf gleicher Höhe](#2-briefkopf-namen-stehen-bei-aktiver-absenderzeile-nicht-auf-gleicher-höhe) | Fehler | klein |
-| 3 | [Festschreiben/Stellen soll auf ungespeicherte Änderungen prüfen](#3-festschreibenstellen-soll-auf-ungespeicherte-änderungen-prüfen) | Verbesserung | mittel, Klärung offen |
+| 2 | [Festschreiben/Stellen soll auf ungespeicherte Änderungen prüfen](#2-festschreibenstellen-soll-auf-ungespeicherte-änderungen-prüfen) | Verbesserung | mittel, Klärung offen |
 
 ### 1. Export für den Steuerberater
 
@@ -38,39 +37,7 @@ Vor der Umsetzung mit einem echten Steuerberater klären, was der wirklich
 haben will — hier auf Verdacht ein DATEV-Format zu bauen, das dann niemand
 einliest, wäre der teuerste Weg.
 
-### 2. Briefkopf: Namen stehen bei aktiver Absenderzeile nicht auf gleicher Höhe
-
-Beim Briefkopf-Redesign (2026-08-10) sollten die eigene Anschrift (rechts)
-und die Empfängeranschrift (links, im Anschriftfenster) auf gleicher Höhe
-beginnen — beide sind im Code bei `dy: 45mm` verankert. Das stimmt nur,
-wenn die Absenderzeile (Rücksendeangabe im Anschriftfenster,
-`vorlage.absenderzeile`, **standardmäßig an**) ausgeschaltet ist: Sie steht
-als erste Zeile *innerhalb* des Empfänger-Blocks und schiebt den
-eigentlichen Empfängernamen um ihre eigene Höhe (eine Zeile bei 7pt +
-0,4 cm) nach unten. Der eigene Name rechts bleibt dabei bei 45 mm stehen —
-sichtbar höher als der Empfängername links. An einem echten Beleg
-gemessen: rund 10 mm Versatz.
-
-Gefunden anhand eines realen Belegs (Screenshot), bei dem die rote
-DIN-5008-Fenstermarkierung den Versatz sichtbar machte. War kein bewusster
-Kompromiss — die Spec hatte „Absenderzeile bleibt unverändert" nur unter
-dem Aspekt „keine Dopplung" entschieden, die Wechselwirkung mit der neuen
-45-mm-Ausrichtung war nicht bedacht.
-
-**Entschieden (2026-08-11):** Ist die Absenderzeile aktiv, soll sich die
-eigene Anschrift um genau die Höhe der Absenderzeile nach unten
-verschieben, damit beide Namenszeilen optisch gleich hoch stehen. Das
-Empfängerfenster selbst bleibt unverändert bei 45 mm (Normvorgabe).
-
-Ansatz (bereits als TDD-Test verifiziert, Umsetzung aber noch offen): Die
-Absenderzeile als eigene Typst-Variable extrahieren, ihre tatsächliche
-Höhe per `context { measure(...) }` bestimmen (kein geschätzter
-Millimeterwert — die Vorlage hat schon einmal Ärger mit
-Schriftmetrik-Artefakten gehabt, siehe `logo_hoehe_max_mm`-Historie) und
-auf den `dy`-Wert der eigenen Anschrift addieren, nur wenn
-`v_absenderzeile` aktiv ist.
-
-### 3. Festschreiben/Stellen soll auf ungespeicherte Änderungen prüfen
+### 2. Festschreiben/Stellen soll auf ungespeicherte Änderungen prüfen
 
 Beobachtung aus der täglichen Nutzung: Ändert man im Beleg-Editor etwas
 weiter unten (z. B. eine Position) und klickt dann oben auf „Angebot
@@ -98,6 +65,23 @@ Noch zu klären, bevor daraus ein Plan wird:
 Ursprünglich: priorisierte Arbeitsliste, abgeleitet aus dem
 [MVP-Review vom 2026-08-02](2026-08-02-mvp-review.md). Reihenfolge war
 Empfehlung; jeder Punkt trägt die Referenz aus dem Review.
+
+## Stand (2026-08-11, USt-IdNr.-Pflichtmarker, Briefkopf-Höhenausgleich)
+
+- **USt-IdNr. nicht mehr fälschlich als eigenständiges Pflichtfeld
+  markiert.** Backend verlangte schon immer nur „Steuernummer oder
+  USt-IdNr.", die Oberfläche zeigte aber an beiden Feldern dasselbe
+  Pflicht-Sternchen — betraf Ersteinrichtung und Firmendaten in den
+  Einstellungen identisch. USt-IdNr. hat jetzt keinen Pflicht-Marker mehr,
+  dafür einen kurzen Hinweistext dazu, wann sie gebraucht wird.
+- **Briefkopf: eigene Anschrift und Empfängername jetzt auch mit aktiver
+  Absenderzeile auf gleicher Höhe.** Die Absenderzeile (DIN-5008-Pflicht,
+  standardmäßig an) ist die erste Zeile im Empfänger-Anschriftfeld und
+  schob den Empfängernamen bisher unausgeglichen nach unten. Die eigene
+  Anschrift rechts verschiebt sich jetzt um exakt dieselbe, per `measure()`
+  bestimmte Höhe mit — kein geschätzter Millimeterwert, bleibt also auch
+  bei künftigen Änderungen an Schriftgröße oder Zeilenabstand der
+  Absenderzeile richtig.
 
 ## Stand (2026-08-10, Briefkopf-Redesign, Falzlinien, Logohöhe-Sicherheitsabstand)
 

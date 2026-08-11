@@ -650,7 +650,19 @@ pub(crate) mod tests {
         const SEITENBREITE: f32 = 210.0 * MM;
 
         let oberste_zeile_rechts_mm = |position: crate::dokument::vorlage::LogoPosition| -> f32 {
-            let vorlage = crate::dokument::vorlage::Vorlage { logo_position: position, ..Default::default() };
+            // Absenderzeile aus: Ist sie an (Standard), verschiebt sich die
+            // eigene Anschrift bewusst nach unten, um mit dem dadurch
+            // ebenfalls verschobenen Empfängernamen auf einer Höhe zu
+            // bleiben (siehe
+            // `eigene_anschrift_und_empfaengername_stehen_auf_gleicher_hoehe_bei_aktiver_absenderzeile`).
+            // Dieser Test hier prüft die unverschobene 45-mm-Grundposition,
+            // unabhängig von der Logo-Position — die Absenderzeile ist dafür
+            // eine fremde Variable.
+            let vorlage = crate::dokument::vorlage::Vorlage {
+                logo_position: position,
+                absenderzeile: false,
+                ..Default::default()
+            };
             let bytes = rendern(&test_kontext(), None, &vorlage).unwrap();
             let rechts: Vec<f32> = textpositionen(&bytes)
                 .into_iter()
@@ -679,6 +691,54 @@ pub(crate) mod tests {
                 "Anschrift bei Logo-Position {position:?} beginnt bei {oberste:.1} mm statt rund 45 mm",
             );
         }
+    }
+
+    /// Die Absenderzeile (Rücksendeangabe im Anschriftfenster, DIN-5008-
+    /// Pflicht) ist standardmäßig aktiv und steht als erste Zeile *im*
+    /// Empfänger-Block — sie schiebt den eigentlichen Empfängernamen um ihre
+    /// eigene Höhe nach unten. Ohne Ausgleich stünde der eigene Name (rechts)
+    /// dann sichtbar höher als der Empfängername (links), obwohl beide
+    /// „auf Fensterhöhe" wirken sollen — das war der ursprüngliche Sinn des
+    /// Briefkopf-Redesigns.
+    #[test]
+    fn eigene_anschrift_und_empfaengername_stehen_auf_gleicher_hoehe_bei_aktiver_absenderzeile() {
+        const MM: f32 = 72.0 / 25.4;
+        const SEITENHOEHE: f32 = 297.0 * MM;
+        const SEITENBREITE: f32 = 210.0 * MM;
+
+        let vorlage = crate::dokument::vorlage::Vorlage { absenderzeile: true, ..Default::default() };
+        let bytes = rendern(&test_kontext(), None, &vorlage).unwrap();
+        let positionen = textpositionen(&bytes);
+
+        let sender_oben_mm = positionen
+            .iter()
+            .filter(|(x, _)| *x > SEITENBREITE / 2.0)
+            .map(|(_, y)| (SEITENHOEHE - y) / MM)
+            .fold(f32::MAX, f32::min);
+
+        // Auf 75 mm begrenzt: das Anschriftfeld selbst reicht nur bis rund
+        // 70 mm (Absenderzeile + bis zu vier Adresszeilen), die
+        // „Rechnung"-Überschrift beginnt erst bei 85 mm (siehe `#v(85mm -
+        // rand_oben)` in der Vorlage) — ohne die Grenze würde sie mitgezählt.
+        let mut empfaenger_werte: Vec<f32> = positionen
+            .iter()
+            .filter(|(x, _)| *x < SEITENBREITE / 2.0)
+            .map(|(_, y)| (SEITENHOEHE - y) / MM)
+            .filter(|y| *y < 75.0)
+            .collect();
+        empfaenger_werte.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        empfaenger_werte.dedup_by(|a, b| (*a - *b).abs() < 0.5);
+
+        assert!(
+            empfaenger_werte.len() >= 2,
+            "erwarte Absenderzeile und Empfängername als zwei getrennte Höhen, gefunden: {empfaenger_werte:?}",
+        );
+        let empfaenger_name_oben_mm = empfaenger_werte[1];
+
+        assert!(
+            (sender_oben_mm - empfaenger_name_oben_mm).abs() < 1.0,
+            "Eigener Name bei {sender_oben_mm:.1} mm, Empfängername bei {empfaenger_name_oben_mm:.1} mm — nicht auf gleicher Höhe",
+        );
     }
 
     /// Vor dem Umbau stand die eigene Anschrift zweimal auf dem Beleg (oben

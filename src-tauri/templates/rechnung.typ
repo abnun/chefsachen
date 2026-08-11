@@ -189,14 +189,41 @@
   ]
 ]
 
-// Eigene Anschrift + Kontakt, rechtsbündig auf Höhe der Empfängeranschrift
-// (45 mm) — entkoppelt vom Logo, das oben allein steht. Reine
-// Flusspositionierung (kein `background`): Anders als die Falzmarken ist
-// das eine Inhaltsangabe, die nur auf Seite 1 gehört, dort wo auch das
-// Anschriftfeld der Empfängerin beginnt.
-#place(
+// Rücksendeangabe: kleingedruckt über der Empfängeranschrift, wie in der
+// Norm vorgesehen. Sie steht im Anschriftfenster und weist den Absender aus,
+// falls die Sendung nicht zustellbar ist. Eigene Variable statt inline im
+// Anschriftfeld unten: Ihre tatsächliche Höhe bestimmt gleich auch, wie weit
+// die eigene Anschrift (siehe unten) nach unten rutscht.
+//
+// `above: 0pt, below: 0pt`: Ohne das setzt Typst automatisch rund 1,2em
+// Abstand zum jeweils nächsten Geschwisterelement — unsichtbar für
+// `measure()` (das nur die reine Blockhöhe liefert), aber real im
+// Anschriftfeld unten vorhanden. Ohne diese Zeile wäre die eigene Anschrift
+// trotz `measure()` um genau diesen Abstand zu wenig verschoben.
+#let absenderzeile_block = block(width: 85mm, above: 0pt, below: 0pt)[
+  #if ja(sys.inputs.v_absenderzeile) [
+    #text(size: 7pt)[
+      #sys.inputs.firma_name · #sys.inputs.firma_strasse · #sys.inputs.firma_plz #sys.inputs.firma_ort
+    ]
+    #v(0.4cm)
+  ]
+]
+
+// Eigene Anschrift + Kontakt, rechtsbündig auf Höhe des Empfängernamens —
+// entkoppelt vom Logo, das oben allein steht. Reine Flusspositionierung
+// (kein `background`): Anders als die Falzmarken ist das eine
+// Inhaltsangabe, die nur auf Seite 1 gehört.
+//
+// Ohne Absenderzeile beginnt der Empfängername direkt bei 45 mm, mit ihr
+// erst danach (sie ist die erste Zeile *im* Anschriftfeld, siehe unten) —
+// deshalb hier `absenderzeile_block`s tatsächliche Höhe draufrechnen, sonst
+// stünde der eigene Name sichtbar höher als der Empfängername, obwohl beide
+// „auf Fensterhöhe" wirken sollen. `measure()` statt eines geschätzten
+// Millimeterwerts: Bleibt auch dann richtig, wenn sich Schriftgröße oder
+// Zeilenabstand der Absenderzeile einmal ändern.
+#context place(
   top + right,
-  dy: 45mm - rand_oben,
+  dy: 45mm - rand_oben + measure(absenderzeile_block).height,
   anschrift_und_kontakt,
 )
 
@@ -214,15 +241,7 @@
   dx: 20mm - rand_seitlich,
   dy: 45mm - rand_oben,
   block(width: 85mm)[
-    // Rücksendeangabe: kleingedruckt über der Anschrift, wie in der Norm
-    // vorgesehen. Sie steht ebenfalls im Fenster und weist den Absender aus,
-    // falls die Sendung nicht zustellbar ist.
-    #if ja(sys.inputs.v_absenderzeile) [
-      #text(size: 7pt)[
-        #sys.inputs.firma_name · #sys.inputs.firma_strasse · #sys.inputs.firma_plz #sys.inputs.firma_ort
-      ]
-      #v(0.4cm)
-    ]
+    #absenderzeile_block
     #if ist_gesetzt(sys.inputs.kunde_ansprechpartner) [
       #sys.inputs.kunde_ansprechpartner \
     ]
