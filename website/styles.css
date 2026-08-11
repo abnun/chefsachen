@@ -216,6 +216,36 @@ header p:has(> .download-nebenrangig) {
   color: var(--tinte-weich);
 }
 
+/* Installationsanleitung und FAQ standen bisher nur weit unten auf der
+   Seite bzw. in einer einzelnen FAQ-Antwort verlinkt — kaum jemand liest so
+   weit, bevor er installiert, und bleibt dann bei der Sicherheitswarnung
+   hängen. Bewusst neutral statt in den Warnfarben von `.hinweis-box`
+   gehalten: Das hier ist ein Lesetipp, keine Warnung. */
+.einstieg-hinweis {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--masz-2);
+  margin: var(--masz-4) 0 0;
+  padding: var(--masz-3) var(--masz-3);
+  border: 1px solid var(--linie);
+  border-radius: var(--radius);
+  background: var(--papier-tief);
+  font-size: 0.9375rem;
+  line-height: 1.55;
+  color: var(--tinte-weich);
+}
+
+.einstieg-hinweis-icon {
+  flex: none;
+  display: inline-flex;
+  margin-top: 0.1em;
+  color: var(--akzent);
+}
+
+.einstieg-hinweis strong {
+  color: var(--tinte);
+}
+
 .download-primaer,
 .download-nebenrangig {
   display: inline-flex;
