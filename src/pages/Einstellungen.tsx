@@ -313,12 +313,16 @@ function FirmendatenAbschnitt() {
         </div>
         <div className="feld">
           <label>
-            <PflichtMarker art="pflicht">USt-IdNr.</PflichtMarker>
+            USt-IdNr.
             <input
               value={firma.ust_idnr}
               onChange={(e) => setFirma({ ...firma, ust_idnr: e.currentTarget.value })}
             />
           </label>
+          <p className="feld-hinweis">
+            Optional, wenn die Steuernummer angegeben ist. Vor allem für Geschäfte
+            innerhalb der EU nötig (z. B. innergemeinschaftliche Lieferungen).
+          </p>
           {feldFehler("ust_idnr") && <div role="alert" className="feld-fehler">{feldFehler("ust_idnr")}</div>}
         </div>
         <div className="feld">

@@ -167,12 +167,16 @@ export function Einrichtung({ onFertig }: EinrichtungProps) {
           </div>
           <div className="feld">
             <label>
-              <PflichtMarker art="pflicht">USt-IdNr.</PflichtMarker>
+              USt-IdNr.
               <input
                 value={firma.ust_idnr}
                 onChange={(e) => feldAendern({ ust_idnr: e.currentTarget.value })}
               />
             </label>
+            <p className="feld-hinweis">
+              Optional, wenn die Steuernummer angegeben ist. Vor allem für Geschäfte
+              innerhalb der EU nötig (z. B. innergemeinschaftliche Lieferungen).
+            </p>
           </div>
           <div className="feld">
             <label>
