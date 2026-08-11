@@ -7,6 +7,20 @@ auf GitHub ändert daran nichts mehr.
 
 Deshalb hier in der Sprache der Anwender, nicht in der der Commits.
 
+## 1.3.3
+
+**Firmendaten**
+- USt-IdNr. war fälschlich als eigenständiges Pflichtfeld markiert, obwohl
+  „Steuernummer oder USt-IdNr." reicht. Betraf Ersteinrichtung und die
+  Firmendaten in den Einstellungen. USt-IdNr. hat jetzt keinen
+  Pflicht-Marker mehr und einen kurzen Hinweis dazu, wann sie gebraucht
+  wird.
+
+**Briefkopf**
+- Die eigene Anschrift stand bei aktiver Absenderzeile (Standardeinstellung)
+  sichtbar höher als der Empfängername, obwohl beide auf gleicher Höhe
+  wirken sollten. Verschiebt sich jetzt passend mit.
+
 ## 1.3.2
 
 **Briefkopf**
