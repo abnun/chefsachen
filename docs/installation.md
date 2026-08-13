@@ -13,14 +13,15 @@ nur **einmalig** zu bestätigen.
 2. Ziehe die App in den `Programme`-Ordner, wie bei jeder Mac-App.
 3. Starte sie per Doppelklick. macOS meldet, die App könne nicht geöffnet
    werden — das ist der erwartete Schritt, nicht das Ende.
-4. Öffne **Systemeinstellungen → Datenschutz & Sicherheit** und scrolle nach
+4. Öffne **Systemeinstellungen von deinem Mac** (die App mit dem
+   Zahnräder-Icon) **→ Datenschutz & Sicherheit** und scrolle nach
    unten. Dort steht jetzt ein Hinweis auf die blockierte App mit dem Button
    **„Dennoch öffnen"**. Klicke ihn an und bestätige den folgenden Dialog.
 5. Ab jetzt startet die App ganz normal per Doppelklick.
 
 > Ältere Anleitungen im Netz empfehlen stattdessen einen **Rechtsklick →
 > Öffnen**. Auf aktuellen macOS-Versionen führt dieser Weg nicht mehr zum
-> Ziel; nimm den Weg über die Systemeinstellungen.
+> Ziel; nimm den Weg über die Systemeinstellungen von deinem Mac.
 
 ## Windows
 
