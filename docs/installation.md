@@ -2,8 +2,8 @@
 
 Diese App ist nicht mit einem offiziellen Entwickler-Zertifikat signiert. Dein
 Betriebssystem zeigt deshalb beim allerersten Start eine Sicherheitswarnung —
-das ist normal und kein Zeichen für ein Problem mit der App. Die Warnung ist
-nur **einmalig** zu bestätigen.
+das ist normal und kein Zeichen für ein Problem mit der App. Die folgenden
+Schritte fallen nur **einmalig** an.
 
 ## macOS
 
@@ -12,7 +12,8 @@ nur **einmalig** zu bestätigen.
    du musst nichts unterscheiden.
 2. Ziehe die App in den `Programme`-Ordner, wie bei jeder Mac-App.
 3. Starte sie per Doppelklick. macOS meldet, die App könne nicht geöffnet
-   werden — das ist der erwartete Schritt, nicht das Ende.
+   werden — das ist der erwartete Schritt, nicht das Ende. Nicht auf „In
+   den Papierkorb legen" klicken, sondern auf **„Fertig"**.
 4. Öffne **Systemeinstellungen von deinem Mac** (die App mit dem
    Zahnräder-Icon) **→ Datenschutz & Sicherheit** und scrolle nach
    unten. Dort steht jetzt ein Hinweis auf die blockierte App mit dem Button
