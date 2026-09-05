@@ -1646,6 +1646,45 @@ pub(crate) mod tests {
         assert!(bytes.starts_with(b"%PDF-"));
     }
 
+    /// Die Gutschrift teilt sich die Typst-Vorlage mit der Rechnung, muss also
+    /// ebenfalls PDF/A-3b sein (Voraussetzung für die ZUGFeRD-Einbettung).
+    /// Prüft mit veraPDF, dem Referenzprüfer; überspringt sich wie der
+    /// ZUGFeRD-Test, wenn veraPDF/JVM lokal fehlen.
+    #[test]
+    fn gutschrift_pdf_ist_pdfa3b() {
+        if let Some(grund) = crate::dokument::verapdf::nicht_verfuegbar_weil() {
+            eprintln!("übersprungen: {grund}");
+            return;
+        }
+        let mut kontext = test_kontext();
+        kontext.firma.kleinunternehmer = false;
+        kontext.beleg.typ = "gutschrift".into();
+        kontext.beleg.nummer = Some("GS-2026-0001".into());
+        kontext.beleg.gutschrift_zu_id = Some("r1".into());
+        kontext.gutschrift_zu_nummer = Some("RE-2026-0007".into());
+        let basis = kontext.positionen[0].clone();
+        kontext.positionen = vec![
+            Belegposition {
+                id: "p1".into(), einzelpreis_cent: -5000, positionssumme_cent: -5000,
+                ust_satz_prozent: 19, ..basis.clone()
+            },
+            Belegposition {
+                id: "p2".into(), bezeichnung: "Rabatt".into(), einzelpreis_cent: -1000,
+                positionssumme_cent: -1000, ust_satz_prozent: 7, ..basis
+            },
+        ];
+        kontext.beleg.summe_cent = -6000;
+
+        let bytes = rendern(&kontext, None, &crate::dokument::vorlage::Vorlage::default()).unwrap();
+        let bericht = crate::dokument::verapdf::pruefen(&bytes, "3b").expect("veraPDF-Aufruf");
+        assert!(
+            bericht.konform,
+            "Das Gutschrift-PDF ist nicht PDF/A-3b-konform. Verstöße ({}):\n{}",
+            bericht.verstoesse.len(),
+            bericht.verstoesse.iter().map(|v| format!("  - {v}")).collect::<Vec<_>>().join("\n")
+        );
+    }
+
     #[test]
     fn rendern_mit_logo_erzeugt_gueltige_pdf_bytes() {
         const LOGO: &[u8] = include_bytes!("../../resources/test/logo_1x1.png");
