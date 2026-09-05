@@ -73,26 +73,34 @@ Verworfen:
 
 ### Neue Funktionen
 
-- `gutschrift_anlegen(kunde_id: String, gutschrift_zu_id: Option<String>) -> Beleg`
-  - Legt einen Entwurf an (`typ = 'gutschrift'`, `status = 'entwurf'`,
-    `nummer = NULL`).
-  - **Mit Bezug:** Kunde, Rechnungsadresse/Ansprechpartner und Kopftext der
-    Ursprungsrechnung werden übernommen; deren Positionen werden als Vorlage
-    kopiert — im Editor positiv dargestellt, vom Nutzer kürzbar/löschbar.
-  - **Ohne Bezug:** leerer Entwurf, Positionen frei.
-  - Tauri-Wrapper `gutschrift_anlegen` (dünn, wie die übrigen).
-- `gutschrift_festschreiben(id: String) -> Beleg` — Spiegel von
-  `rechnung_stellen`:
+- **Freie Gutschrift ohne Bezug:** über die vorhandene `create`-Funktion mit
+  `typ = "gutschrift"` — `pruefe_beleg_neu` wird um den Typ erweitert,
+  `BelegNeu` bekommt ein optionales `gutschrift_zu_id`. Der
+  `useBelegListe`-Anlege-Pfad im Frontend funktioniert unverändert. Leerer
+  Entwurf, Positionen frei.
+- **Gutschrift mit Rechnungsbezug:** neue Funktion
+  `gutschrift_aus_rechnung(rechnung_id: String) -> Beleg` + Tauri-Wrapper
+  `gutschrift_aus_rechnung_anlegen`. Legt einen Entwurf an mit übernommenem
+  Kunde, Rechnungsadresse/Ansprechpartner, Kopftext und **negativ** kopierten
+  Positionen; `gutschrift_zu_id` gesetzt. Der Editor stellt die Beträge zur
+  Anzeige/Bearbeitung positiv dar (`formatCent` zeigt die negative Belegsumme
+  weiterhin negativ).
+- **Festschreiben läuft über die vorhandene `stellen`-Funktion**, generalisiert
+  (kein eigener Command):
   - Nummer aus Nummernkreis `gutschrift` **innerhalb der Transaktion**
-    (`naechste_nummer`), damit ein Abbruch keine Lücke hinterlässt.
+    (`naechste_nummer(&mut tx, &beleg.typ, …)` trifft den Kreis automatisch),
+    damit ein Abbruch keine Lücke hinterlässt.
   - Kunden-Snapshot einfrieren (`kunde_snapshot`), Adresse pflichtprüfen wie
-    bei der Rechnung (§ 14 UStG gilt für die Gutschrift analog).
-  - Status → `festgeschrieben`.
-  - PDF + XRechnung + ZUGFeRD ins Belegarchiv ablegen (unveränderbar, `ablegen`
-    überschreibt nicht).
+    bei der Rechnung (§ 14 UStG gilt für die Gutschrift analog) — der
+    `matches!(typ, "rechnung" | "gutschrift")`-Zweig.
+  - Status → `festgeschrieben` (wie beim Angebot; nur die Rechnung wird
+    `gestellt`).
   - Ab dann ist der Beleg unveränderbar (gleiche Sperren wie eine gestellte
-    Rechnung).
-  - Tauri-Wrapper `gutschrift_festschreiben`.
+    Rechnung). Die Archivierung der Exportdateien passiert wie bei allen
+    Belegen erst beim Export (`ablegen` überschreibt eine vorhandene
+    Archivdatei nicht), nicht im `stellen`.
+  - Das Frontend ruft `api.belege.stellen(id)` auch für die Gutschrift; nur
+    der Bestätigungsdialog bekommt einen Gutschrift-Wortlaut.
 
 ### Positionen, Update, Löschen
 
@@ -106,11 +114,11 @@ Löschen eines Gutschrift-**Entwurfs**: vorhandene `beleg_delete`-Logik
 
 ### Validierung
 
-- `gutschrift_zu_id`, wenn gesetzt, muss auf einen Beleg mit `typ = 'rechnung'`
-  und `status IN ('gestellt', 'bezahlt')` zeigen. Abgelehnt: Angebot, Storno
-  (`storno_von_id IS NOT NULL`), andere Gutschrift, Entwurf.
-- Bezug auf eine bereits `storniert`e Rechnung wird abgelehnt (nichts mehr
-  gutzuschreiben).
+- `gutschrift_zu_id`, wenn gesetzt, muss auf einen Beleg mit `typ = 'rechnung'`,
+  `status = 'gestellt'` und `storno_von_id IS NULL` zeigen. Abgelehnt: Angebot,
+  Storno, andere Gutschrift, Entwurf, bereits `storniert`e Rechnung. (`gestellt`
+  ist der einzige „lebende" Rechnungsstatus — Bezahltheit ist abgeleitet, kein
+  eigener Status; `storniert` ist ein echter Status und wird ausgeschlossen.)
 - **Mehrere Gutschriften zur selben Rechnung sind erlaubt** — kein
   Einmaligkeits-Constraint wie beim Storno.
 - **Keine Betragsobergrenze** — Preisnachlässe, Skonto etc. sind legitim, auch
@@ -148,40 +156,49 @@ abgeleitet — die deckt negative Summen bereits ab (Test
 
 ### Einstieg mit Bezug
 
-Im `BelegEditor` einer **festgeschriebenen Rechnung** ein Knopf „Gutschrift
-erstellen" → `gutschrift_anlegen(kunde_id, Some(rechnung_id))`, öffnet den
-Editor auf dem neuen Entwurf.
+Im `BelegEditor` einer **gestellten Rechnung** (kein Storno) ein Knopf
+„Gutschrift erstellen" → `api.belege.gutschriftAusRechnung(rechnung_id)`,
+öffnet den Editor auf dem neuen Entwurf. `App.tsx` bekommt dafür einen Callback
+`onGutschriftErstellt`, der auf die Gutschriften-Seite umschaltet (Muster:
+`onRechnungErstellt` im Angebote-Zweig).
 
 ### Editor-Zweig
 
 `src/pages/BelegEditor.tsx` bekommt einen `typ === "gutschrift"`-Zweig:
 
 - Wiederverwendet Stammdaten-, Positionen- und Zahlungen-Karte.
-- Keine Angebots-/Storno-/Duplizieren-Knöpfe.
-- Hauptaktion: „Gutschrift festschreiben" (mit `useLoeschBestaetigung`-artiger
-  Rückfrage, wie „Rechnung stellen").
-- Bei Bezug: über der Positionstabelle „Gutschrift zu Rechnung RE-2026-0007
-  vom …".
-- Positionen werden **positiv** eingegeben; Positionssumme/Gesamtsumme in der
-  Vorschau **negativ**.
+- Keine Angebots-/Storno-Knöpfe. „Als Kopie anlegen" bleibt (dupliziert die
+  Gutschrift als bezugslosen Entwurf — akzeptabel).
+- Hauptaktion: Knopf „Festschreiben" → `api.belege.stellen(id)`, mit
+  Gutschrift-Wortlaut im Bestätigungsdialog.
+- Bei Bezug: unter dem Titel „Gutschrift zu Rechnung RE-2026-0007". Die Nummer
+  kommt über ein neues Feld `gutschrift_zu_nummer` in `BelegDetail` (Backend
+  `get` lädt sie analog `kontext_aus_beleg`).
+- Positionen werden **negativ** gespeichert; die Belegsumme wird negativ
+  angezeigt (`formatCent(-…)`). Beim Bearbeiten einer Position tippt der Nutzer
+  positiv, das Backend negiert.
+- XRechnung/ZUGFeRD-Export-Knöpfe auch für die Gutschrift (`typ` rechnung
+  **oder** gutschrift). Keine Zahlungserinnerung.
 - `useListenTastenkuerzel` und die zentrale Statusfarben-Tabelle um Typ/Status
   ergänzen.
 
 ### API
 
-`src/api.ts`: `gutschriftAnlegen(kundeId, gutschriftZuId?)` und
-`gutschriftFestschreiben(id)` neben den bestehenden Beleg-Funktionen.
+`src/api.ts`: `belege.gutschriftAusRechnung(rechnungId)` (→
+`gutschrift_aus_rechnung_anlegen`); `belege.list`-Typunion und `BelegNeu`/
+`Beleg` um Gutschrift-Felder erweitern; `belege.stellen` deckt die Gutschrift
+mit ab.
 
 ## 4. PDF-Vorlage (`src-tauri/templates/rechnung.typ`, `src-tauri/src/dokument/pdf.rs`)
 
 - Titel-Verzweigung in `dokument_bauen`: `typ == "gutschrift"` → **„Gutschrift"**
   (neben „Angebot", „Rechnungskorrektur" für Storno, „Rechnung").
-- Der Kontext bekommt statt des Storno-spezifischen `storno_von_nummer` ein
-  generisches Feld für den Belegbezug (Arbeitsname `bezug_nummer` +
-  `bezug_datum`), das Storno **und** Gutschrift bedienen. Der Storno-Zweig
-  wird auf das neue Feld umgestellt (Verhaltensgleichheit durch Test
-  abgesichert).
-- Kopfzeile bei Bezug: „Gutschrift zu Rechnung RE-2026-0007 vom …".
+- Der Kontext bekommt ein **paralleles** Feld `gutschrift_zu_nummer` neben dem
+  bestehenden `storno_von_nummer` (kein Rename — die beiden haben verschiedene
+  Kopfzeilen-Texte, und der Storno-Pfad bleibt so unangetastet). Für den
+  BG-3-Block in `xrechnung.rs` werden beide zu einem lokalen
+  `bezug_nummer = storno_von_nummer.or(gutschrift_zu_nummer)` zusammengefasst.
+- Kopfzeile bei Bezug: „Gutschrift zu Rechnung RE-2026-0007".
 - **Kein Girocode** — die vorhandene Wache in `pdf.rs`
   (`typ == "rechnung" && storno_von_id.is_none()`) wird auf „nur echte
   Rechnung, kein Storno, keine Gutschrift" präzisiert.
@@ -202,8 +219,8 @@ Editor auf dem neuen Entwurf.
   - sonst → `380`
 - Beträge gehen wie beim Storno als `.abs()` ins XML; die Gutschrift-Semantik
   trägt der TypeCode. Summenproben bleiben damit exakt.
-- **BG-3 (`ram:InvoiceReferencedDocument`)** wird gesetzt, wenn ein Belegbezug
-  vorhanden ist (`bezug_nummer.is_some()`): bei Gutschrift mit Rechnungsbezug
+- **BG-3 (`ram:InvoiceReferencedDocument`)** wird gesetzt, wenn `bezug_nummer`
+  vorhanden ist: bei Gutschrift mit Rechnungsbezug
   ja, bei freier Gutschrift nein.
 - **Offene Prüfung beim Umsetzen (Spike):** verlangt der KoSIT-CIUS
   (XRechnung 3.0.2) BG-3 für TypeCode 381 zwingend? Falls ja:
@@ -228,10 +245,9 @@ Editor auf dem neuen Entwurf.
 - **Dashboard-Umsatzgrenzen** (`commands/dashboard.rs`, `SUM(z.betrag_cent)`):
   ebenso automatisch — eine Erstattung senkt den laufenden Umsatz, konsistent
   mit der heutigen Storno-Behandlung. Nur neue Tests.
-- **Offene Posten** (`dashboard.rs`, Filter heute
-  `p.beleg.storno_von_id.is_none() && p.offener_betrag_cent > 0`): wird um
-  einen Ausschluss von `typ == "gutschrift"` ergänzt — eine Gutschrift ist
-  eine Verbindlichkeit, keine Forderung.
+- **Offene Posten** (`commands/belege.rs::offene_posten`): **keine
+  Codeänderung** — die Abfrage filtert bereits `typ = 'rechnung'`, Gutschriften
+  erscheinen nie in der Liste. Nur ein absichernder Test.
 - Eine eigene Zeile „offene Erstattungen" im Dashboard bleibt vorerst weg
   (YAGNI).
 
