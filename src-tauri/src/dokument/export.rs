@@ -45,11 +45,23 @@ pub(crate) async fn firma_logo(pool: &SqlitePool) -> AppResult<Option<Vec<u8>>> 
     crate::commands::firma::logo_get(pool).await
 }
 
-fn pruefe_ist_rechnung(kontext: &crate::dokument::kontext::BelegKontext) -> AppResult<()> {
+fn pruefe_ist_rechnung_oder_gutschrift(kontext: &crate::dokument::kontext::BelegKontext) -> AppResult<()> {
+    if !matches!(kontext.beleg.typ.as_str(), "rechnung" | "gutschrift") {
+        return Err(crate::error::AppError::Validation {
+            feld: "typ".into(),
+            meldung: "Nur Rechnungen und Gutschriften können als XRechnung/ZUGFeRD exportiert werden".into(),
+        });
+    }
+    Ok(())
+}
+
+/// Strenge Variante für die Zahlungserinnerung: Eine Gutschrift ist eine
+/// Auszahlung an den Kunden, keine Forderung — sie wird nie angemahnt.
+fn nur_rechnung(kontext: &crate::dokument::kontext::BelegKontext) -> AppResult<()> {
     if kontext.beleg.typ != "rechnung" {
         return Err(crate::error::AppError::Validation {
             feld: "typ".into(),
-            meldung: "Nur Rechnungen können als XRechnung/ZUGFeRD exportiert werden".into(),
+            meldung: "Nur Rechnungen können eine Zahlungserinnerung erhalten".into(),
         });
     }
     Ok(())
@@ -67,7 +79,7 @@ fn pruefe_kann_erinnert_werden(
     kontext: &crate::dokument::kontext::BelegKontext,
     heute: chrono::NaiveDate,
 ) -> AppResult<()> {
-    pruefe_ist_rechnung(kontext)?;
+    nur_rechnung(kontext)?;
     if kontext.beleg.status != "gestellt" {
         return Err(crate::error::AppError::Validation {
             feld: "status".into(),
@@ -118,7 +130,7 @@ pub async fn rechnung_xrechnung_exportieren<R: tauri::Runtime>(
     id: String,
 ) -> AppResult<Vec<u8>> {
     let kontext = kontext_aus_beleg(&pool, id).await?;
-    pruefe_ist_rechnung(&kontext)?;
+    pruefe_ist_rechnung_oder_gutschrift(&kontext)?;
     xrechnung::pruefe_exportierbarkeit(&kontext)?;
     let xml = xrechnung::xml_erzeugen(&kontext)?;
     let nummer = kontext.beleg.nummer.clone().unwrap_or_else(|| kontext.beleg.id.clone());
@@ -134,7 +146,7 @@ pub async fn rechnung_zugferd_exportieren<R: tauri::Runtime>(
     id: String,
 ) -> AppResult<Vec<u8>> {
     let kontext = kontext_aus_beleg(&pool, id).await?;
-    pruefe_ist_rechnung(&kontext)?;
+    pruefe_ist_rechnung_oder_gutschrift(&kontext)?;
     xrechnung::pruefe_exportierbarkeit(&kontext)?;
     let logo = firma_logo(&pool).await?;
     let vorlage = crate::dokument::vorlage::Vorlage::laden(&pool).await?;
@@ -226,6 +238,31 @@ mod tests {
         }
         // Der erste Tag im Verzug.
         assert!(pruefe_kann_erinnert_werden(&kontext, tag("2026-07-26")).is_ok());
+    }
+
+    #[test]
+    fn xrechnung_guard_akzeptiert_gutschrift_und_lehnt_angebot_ab() {
+        let mut kontext = crate::dokument::pdf::tests::test_kontext();
+        kontext.beleg.typ = "gutschrift".into();
+        assert!(pruefe_ist_rechnung_oder_gutschrift(&kontext).is_ok());
+
+        kontext.beleg.typ = "angebot".into();
+        let fehler = pruefe_ist_rechnung_oder_gutschrift(&kontext).unwrap_err();
+        assert!(matches!(fehler, crate::error::AppError::Validation { .. }));
+    }
+
+    /// Eine Gutschrift ist eine Auszahlung an den Kunden, keine Forderung —
+    /// der Zahlungserinnerungs-Pfad bleibt trotz gelockertem Export-Guard
+    /// auf reine Rechnungen beschränkt.
+    #[test]
+    fn eine_gutschrift_bekommt_keine_zahlungserinnerung() {
+        let mut kontext = crate::dokument::pdf::tests::test_kontext();
+        kontext.beleg.typ = "gutschrift".into();
+        let fehler = pruefe_kann_erinnert_werden(&kontext, tag("2026-08-04")).unwrap_err();
+        match fehler {
+            crate::error::AppError::Validation { feld, .. } => assert_eq!(feld, "typ"),
+            anderer => panic!("unerwarteter Fehler: {anderer:?}"),
+        }
     }
 
     #[test]

@@ -182,7 +182,13 @@ fn schreibe_steuersumme(xml: &mut Xml, cent: i64) {
 
 pub fn xml_erzeugen(kontext: &BelegKontext) -> AppResult<String> {
     let mut xml = Xml::neu();
-    let type_code = if kontext.beleg.storno_von_id.is_some() { "384" } else { "380" };
+    let type_code = if kontext.beleg.typ == "gutschrift" {
+        "381"
+    } else if kontext.beleg.storno_von_id.is_some() {
+        "384"
+    } else {
+        "380"
+    };
 
     // Regelbesteuerung: Die gespeicherten Beträge sind brutto, die Norm will
     // Nettobeträge. Alles wird vorab auf den Absolutwerten gerechnet — die
@@ -495,9 +501,11 @@ pub fn xml_erzeugen(kontext: &BelegKontext) -> AppResult<String> {
     }
     xml.zu("ram:SpecifiedTradeSettlementHeaderMonetarySummation");
 
-    // BG-3: Bei einer Korrektur (TypeCode 384) muss auf die Vorrechnung
-    // verwiesen werden — sonst ist nicht erkennbar, was korrigiert wird.
-    if let Some(nummer) = &kontext.storno_von_nummer {
+    // BG-3: Verweis auf die Vorrechnung — bei einer Korrektur (TypeCode 384)
+    // und bei einer kaufmännischen Gutschrift mit Rechnungsbezug (TypeCode 381).
+    // Ein Beleg ist nie beides zugleich, daher bleibt BG-3 einzeilig.
+    let bezug_nummer = kontext.storno_von_nummer.as_ref().or(kontext.gutschrift_zu_nummer.as_ref());
+    if let Some(nummer) = bezug_nummer {
         xml.auf("ram:InvoiceReferencedDocument");
         xml.feld( "ram:IssuerAssignedID", nummer);
         xml.zu("ram:InvoiceReferencedDocument");
@@ -648,6 +656,32 @@ pub(crate) mod tests {
     fn xml_erzeugen_setzt_typecode_384_fuer_storno() {
         let xml = xml_erzeugen(&test_kontext(Some("r1"), -9500)).unwrap();
         assert!(xml.contains("<ram:TypeCode>384</ram:TypeCode>"));
+    }
+
+    #[test]
+    fn xml_erzeugen_setzt_typecode_381_fuer_gutschrift() {
+        let mut k = test_kontext(None, -5000);
+        k.beleg.typ = "gutschrift".into();
+        let xml = xml_erzeugen(&k).unwrap();
+        assert!(xml.contains("<ram:TypeCode>381</ram:TypeCode>"));
+    }
+
+    #[test]
+    fn gutschrift_mit_bezug_schreibt_bg3() {
+        let mut k = test_kontext(None, -5000);
+        k.beleg.typ = "gutschrift".into();
+        k.gutschrift_zu_nummer = Some("RE-2026-0001".into());
+        let xml = xml_erzeugen(&k).unwrap();
+        assert!(xml.contains("<ram:InvoiceReferencedDocument>"));
+        assert!(xml.contains("RE-2026-0001"));
+    }
+
+    #[test]
+    fn freie_gutschrift_ohne_bezug_schreibt_kein_bg3() {
+        let mut k = test_kontext(None, -5000);
+        k.beleg.typ = "gutschrift".into();
+        let xml = xml_erzeugen(&k).unwrap();
+        assert!(!xml.contains("<ram:InvoiceReferencedDocument>"));
     }
 
     #[test]
