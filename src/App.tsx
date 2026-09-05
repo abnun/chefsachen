@@ -15,6 +15,7 @@ import { KundeDetail, type Reiter } from "./pages/KundeDetail";
 import { Artikel } from "./pages/Artikel";
 import { Angebote } from "./pages/Angebote";
 import { Rechnungen } from "./pages/Rechnungen";
+import { Gutschriften } from "./pages/Gutschriften";
 import { BelegEditor } from "./pages/BelegEditor";
 import { Eingangsrechnungen } from "./pages/Eingangsrechnungen";
 import { EingangsrechnungDetail } from "./pages/EingangsrechnungDetail";
@@ -32,6 +33,7 @@ function App() {
   const [kundeDetailStartReiter, setKundeDetailStartReiter] = useState<Reiter | null>(null);
   const [ausgewaehltesAngebot, setAusgewaehltesAngebot] = useState<string | null>(null);
   const [ausgewaehlteRechnung, setAusgewaehlteRechnung] = useState<string | null>(null);
+  const [ausgewaehlteGutschrift, setAusgewaehlteGutschrift] = useState<string | null>(null);
   const [formularBeimStartZiel, setFormularBeimStartZiel] = useState<"kunden" | "artikel" | null>(null);
   const [ausgewaehlteEingangsrechnung, setAusgewaehlteEingangsrechnung] = useState<string | null>(null);
 
@@ -93,6 +95,7 @@ function App() {
     setKundeDetailStartReiter(null);
     setAusgewaehltesAngebot(null);
     setAusgewaehlteRechnung(null);
+    setAusgewaehlteGutschrift(null);
     setAusgewaehlteEingangsrechnung(null);
     setFormularBeimStartZiel(null);
     setSeite(neueSeite);
@@ -178,6 +181,17 @@ function App() {
           />
         ) : (
           <Rechnungen onOeffnen={setAusgewaehlteRechnung} />
+        ))}
+      {seite === "gutschriften" &&
+        (ausgewaehlteGutschrift ? (
+          <BelegEditor
+            id={ausgewaehlteGutschrift}
+            onGeloescht={() => setAusgewaehlteGutschrift(null)}
+            onZurueck={() => setAusgewaehlteGutschrift(null)}
+            onDupliziert={setAusgewaehlteGutschrift}
+          />
+        ) : (
+          <Gutschriften onOeffnen={setAusgewaehlteGutschrift} />
         ))}
       {seite === "eingangsrechnungen" &&
         (ausgewaehlteEingangsrechnung ? (

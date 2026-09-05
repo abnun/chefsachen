@@ -6,6 +6,7 @@ export type Seite =
   | "artikel"
   | "angebote"
   | "rechnungen"
+  | "gutschriften"
   | "eingangsrechnungen"
   | "auswertung"
   | "einstellungen";
@@ -95,6 +96,7 @@ const NAV_EINTRAEGE: NavEintrag[] = [
   { seite: "artikel", label: "Artikel & Leistungen", icon: ICON_ARTIKEL },
   { seite: "angebote", label: "Angebote", icon: ICON_ANGEBOTE },
   { seite: "rechnungen", label: "Rechnungen", icon: ICON_RECHNUNGEN },
+  { seite: "gutschriften", label: "Gutschriften", icon: ICON_RECHNUNGEN },
   { seite: "eingangsrechnungen", label: "Eingangsrechnungen", icon: ICON_EINGANGSRECHNUNGEN },
   { seite: "auswertung", label: "Auswertung", icon: ICON_AUSWERTUNG },
   { seite: "einstellungen", label: "Einstellungen", icon: ICON_EINSTELLUNGEN },
