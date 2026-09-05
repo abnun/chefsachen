@@ -645,6 +645,80 @@ pub(crate) mod tests {
         );
     }
 
+    /// Kaufmännische Gutschrift mit Rechnungsbezug (TypeCode 381, BG-3 gesetzt),
+    /// regelbesteuert mit zwei Steuersätzen. Muss die amtliche KoSIT-Prüfung
+    /// bestehen — dieselbe, die Rechnungsempfänger einsetzen.
+    #[test]
+    fn gutschrift_mit_bezug_xrechnung_ist_normkonform() {
+        if let Some(grund) = crate::dokument::kosit::nicht_verfuegbar_weil() {
+            eprintln!("übersprungen: {grund}");
+            return;
+        }
+        let mut k = regelbesteuert_kontext(None, &[(19, -5000), (7, -1000)]);
+        k.beleg.typ = "gutschrift".into();
+        k.beleg.nummer = Some("GS-2026-0001".into());
+        k.gutschrift_zu_nummer = Some("RE-2026-0001".into());
+        let xml = xml_erzeugen(&k).unwrap();
+        let bericht = crate::dokument::kosit::validieren(&xml).expect("Validator-Aufruf fehlgeschlagen");
+        assert!(
+            bericht.gueltig,
+            "Die Gutschrift-XRechnung mit Bezug wurde abgelehnt. Befunde ({}):\n{}",
+            bericht.befunde().len(),
+            bericht.befunde().iter().map(|v| format!("  - {v}")).collect::<Vec<_>>().join("\n")
+        );
+    }
+
+    /// Freie Gutschrift ohne Rechnungsbezug (TypeCode 381, kein BG-3). Der
+    /// Spike hat bestätigt, dass der KoSIT-CIUS BG-3 für 381 nicht zwingend
+    /// verlangt — sonst müsste dieser Fall über `pruefe_exportierbarkeit`
+    /// abgewiesen werden (siehe Plan, Fall B).
+    #[test]
+    fn freie_gutschrift_xrechnung_ist_normkonform() {
+        if let Some(grund) = crate::dokument::kosit::nicht_verfuegbar_weil() {
+            eprintln!("übersprungen: {grund}");
+            return;
+        }
+        let mut k = regelbesteuert_kontext(None, &[(19, -5000)]);
+        k.beleg.typ = "gutschrift".into();
+        k.beleg.nummer = Some("GS-2026-0002".into());
+        let xml = xml_erzeugen(&k).unwrap();
+        assert!(!xml.contains("<ram:InvoiceReferencedDocument>"), "freie Gutschrift trägt kein BG-3");
+        let bericht = crate::dokument::kosit::validieren(&xml).expect("Validator-Aufruf fehlgeschlagen");
+        assert!(
+            bericht.gueltig,
+            "Die freie Gutschrift-XRechnung wurde abgelehnt. Befunde ({}):\n{}",
+            bericht.befunde().len(),
+            bericht.befunde().iter().map(|v| format!("  - {v}")).collect::<Vec<_>>().join("\n")
+        );
+    }
+
+    /// Kleinunternehmer-Pendant (Steuerkategorie E) — mit und ohne Bezug.
+    #[test]
+    fn kleinunternehmer_gutschrift_xrechnung_ist_normkonform() {
+        if let Some(grund) = crate::dokument::kosit::nicht_verfuegbar_weil() {
+            eprintln!("übersprungen: {grund}");
+            return;
+        }
+        for bezug in [Some("RE-2026-0001".to_string()), None] {
+            let mut k = test_kontext(None, -5000);
+            k.beleg.typ = "gutschrift".into();
+            k.beleg.nummer = Some("GS-2026-0003".into());
+            k.gutschrift_zu_nummer = bezug.clone();
+            k.positionen[0].einzelpreis_cent = 5000;
+            k.positionen[0].menge = 1000;
+            k.positionen[0].positionssumme_cent = -5000;
+            let xml = xml_erzeugen(&k).unwrap();
+            assert!(xml.contains("<ram:CategoryCode>E</ram:CategoryCode>"));
+            let bericht = crate::dokument::kosit::validieren(&xml).expect("Validator-Aufruf fehlgeschlagen");
+            assert!(
+                bericht.gueltig,
+                "Die Kleinunternehmer-Gutschrift-XRechnung (bezug={bezug:?}) wurde abgelehnt. Befunde ({}):\n{}",
+                bericht.befunde().len(),
+                bericht.befunde().iter().map(|v| format!("  - {v}")).collect::<Vec<_>>().join("\n")
+            );
+        }
+    }
+
     #[test]
     fn xml_erzeugen_setzt_typecode_380_fuer_regulaere_rechnung() {
         let xml = xml_erzeugen(&test_kontext(None, 9500)).unwrap();
