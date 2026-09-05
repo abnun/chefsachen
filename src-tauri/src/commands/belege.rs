@@ -53,6 +53,13 @@ pub struct Beleg {
     #[sqlx(default)]
     #[serde(default)]
     pub gesamtauftragswert_cent: Option<i64>,
+    /// Bezug auf die Ursprungsrechnung einer kaufmännischen Gutschrift.
+    /// `None` bei einer freien Gutschrift ohne Rechnungsbezug und bei jeder
+    /// anderen Belegart. Steuert BG-3 in der E-Rechnung und die Bezugszeile
+    /// auf dem PDF.
+    #[sqlx(default)]
+    #[serde(default)]
+    pub gutschrift_zu_id: Option<String>,
     /// Aus `kunde_snapshot` abgeleitet: `None` bei Entwürfen (noch kein
     /// Snapshot geschrieben), sonst der zum Zeitpunkt des Stellens
     /// eingefrorene Kundenname. Wird von `mit_snapshot_name()` befüllt,
@@ -173,7 +180,7 @@ pub struct Zahlung {
     pub notiz: String,
 }
 
-pub(crate) const BELEG_SPALTEN: &str = "id, typ, nummer, status, kunde_id, datum, leistungsdatum, leistungsdatum_bis, gueltig_bis, zahlungsziel_tage, kopftext, fusstext, summe_cent, ursprungsangebot_id, storno_von_id, kunde_snapshot, adresse_id, ansprechpartner_id, gesamtauftragswert_cent";
+pub(crate) const BELEG_SPALTEN: &str = "id, typ, nummer, status, kunde_id, datum, leistungsdatum, leistungsdatum_bis, gueltig_bis, zahlungsziel_tage, kopftext, fusstext, summe_cent, ursprungsangebot_id, storno_von_id, kunde_snapshot, adresse_id, ansprechpartner_id, gesamtauftragswert_cent, gutschrift_zu_id";
 
 /// Spalten einer Belegposition — an einer Stelle statt viermal wortgleich:
 /// Beim Feld `ust_satz_prozent` fiel auf, dass jede neue Spalte sonst an vier
@@ -300,13 +307,14 @@ pub async fn create(pool: &SqlitePool, d: BelegNeu) -> AppResult<Beleg> {
         adresse_id: None, ansprechpartner_id: None,
         bezahlt_cent: 0, zahlungsstand: None, faellig_am: None,
         gesamtauftragswert_cent: None,
+        gutschrift_zu_id: None,
     };
-    sqlx::query("INSERT INTO beleg (id, typ, nummer, status, kunde_id, datum, leistungsdatum, leistungsdatum_bis, gueltig_bis, zahlungsziel_tage, kopftext, fusstext, summe_cent, ursprungsangebot_id, storno_von_id, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
+    sqlx::query("INSERT INTO beleg (id, typ, nummer, status, kunde_id, datum, leistungsdatum, leistungsdatum_bis, gueltig_bis, zahlungsziel_tage, kopftext, fusstext, summe_cent, ursprungsangebot_id, storno_von_id, gutschrift_zu_id, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
         .bind(&beleg.id).bind(&beleg.typ).bind(&beleg.nummer).bind(&beleg.status).bind(&beleg.kunde_id)
         .bind(&beleg.datum).bind(&beleg.leistungsdatum).bind(&beleg.leistungsdatum_bis).bind(&beleg.gueltig_bis)
         .bind(beleg.zahlungsziel_tage)
         .bind(&beleg.kopftext).bind(&beleg.fusstext).bind(beleg.summe_cent)
-        .bind(&beleg.ursprungsangebot_id).bind(&beleg.storno_von_id).bind(jetzt()).bind(jetzt())
+        .bind(&beleg.ursprungsangebot_id).bind(&beleg.storno_von_id).bind(None::<String>).bind(jetzt()).bind(jetzt())
         .execute(pool).await?;
     Ok(beleg)
 }
@@ -503,12 +511,13 @@ pub async fn duplizieren(pool: &SqlitePool, id: String) -> AppResult<Beleg> {
     // müssen. Da die Kopie dieselben Positionen übernimmt, bleibt ihre Summe
     // gleich der des Originals — die beim Original geprüfte Invariante
     // (Gesamt-Auftragswert ≥ Summe) gilt für die Kopie unverändert weiter.
-    sqlx::query("INSERT INTO beleg (id, typ, nummer, status, kunde_id, datum, leistungsdatum, leistungsdatum_bis, gueltig_bis, zahlungsziel_tage, kopftext, fusstext, summe_cent, ursprungsangebot_id, storno_von_id, adresse_id, ansprechpartner_id, gesamtauftragswert_cent, created_at, updated_at) VALUES (?,?,NULL,'entwurf',?,?,?,NULL,?,?,?,?,?,NULL,NULL,?,?,?,?,?)")
+    sqlx::query("INSERT INTO beleg (id, typ, nummer, status, kunde_id, datum, leistungsdatum, leistungsdatum_bis, gueltig_bis, zahlungsziel_tage, kopftext, fusstext, summe_cent, ursprungsangebot_id, storno_von_id, adresse_id, ansprechpartner_id, gesamtauftragswert_cent, gutschrift_zu_id, created_at, updated_at) VALUES (?,?,NULL,'entwurf',?,?,?,NULL,?,?,?,?,?,NULL,NULL,?,?,?,?,?,?)")
         .bind(&kopie_id).bind(&quelle.typ).bind(&quelle.kunde_id)
         .bind(&heute).bind(&heute).bind(&gueltig_bis).bind(quelle.zahlungsziel_tage)
         .bind(&quelle.kopftext).bind(&quelle.fusstext).bind(summe)
         .bind(&adresse_id).bind(&ansprechpartner_id)
         .bind(quelle.gesamtauftragswert_cent)
+        .bind(None::<String>)
         .bind(jetzt()).bind(jetzt())
         .execute(&mut *tx).await?;
 
@@ -927,6 +936,7 @@ pub async fn angebot_ueberfuehren(pool: &SqlitePool, angebot_id: String) -> AppR
         adresse_id: angebot.adresse_id.clone(), ansprechpartner_id: angebot.ansprechpartner_id.clone(),
         bezahlt_cent: 0, zahlungsstand: None, faellig_am: None,
         gesamtauftragswert_cent: None,
+        gutschrift_zu_id: None,
     };
 
     // Transaktion: das Beleg-INSERT und die Positions-INSERTs müssen atomar sein,
@@ -952,11 +962,11 @@ pub async fn angebot_ueberfuehren(pool: &SqlitePool, angebot_id: String) -> AppR
         });
     }
 
-    sqlx::query("INSERT INTO beleg (id, typ, nummer, status, kunde_id, datum, leistungsdatum, leistungsdatum_bis, zahlungsziel_tage, kopftext, fusstext, summe_cent, ursprungsangebot_id, storno_von_id, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
+    sqlx::query("INSERT INTO beleg (id, typ, nummer, status, kunde_id, datum, leistungsdatum, leistungsdatum_bis, zahlungsziel_tage, kopftext, fusstext, summe_cent, ursprungsangebot_id, storno_von_id, gutschrift_zu_id, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
         .bind(&rechnung.id).bind(&rechnung.typ).bind(&rechnung.nummer).bind(&rechnung.status).bind(&rechnung.kunde_id)
         .bind(&rechnung.datum).bind(&rechnung.leistungsdatum).bind(&rechnung.leistungsdatum_bis).bind(rechnung.zahlungsziel_tage)
         .bind(&rechnung.kopftext).bind(&rechnung.fusstext).bind(rechnung.summe_cent)
-        .bind(&rechnung.ursprungsangebot_id).bind(&rechnung.storno_von_id).bind(jetzt()).bind(jetzt())
+        .bind(&rechnung.ursprungsangebot_id).bind(&rechnung.storno_von_id).bind(None::<String>).bind(jetzt()).bind(jetzt())
         .execute(&mut *tx).await?;
 
     let positionen: Vec<Belegposition> = sqlx::query_as(
@@ -1010,6 +1020,7 @@ pub async fn storniere_rechnung(pool: &SqlitePool, id: String) -> AppResult<Bele
         adresse_id: rechnung.adresse_id.clone(), ansprechpartner_id: rechnung.ansprechpartner_id.clone(),
         bezahlt_cent: 0, zahlungsstand: None, faellig_am: None,
         gesamtauftragswert_cent: None,
+        gutschrift_zu_id: None,
     };
 
     // Transaktion: das Storno-Beleg-INSERT, die negierten Positions-INSERTs und das
@@ -1021,11 +1032,11 @@ pub async fn storniere_rechnung(pool: &SqlitePool, id: String) -> AppResult<Bele
     // Alle Aufrufe innerhalb dieser Transaktion nehmen &mut SqliteConnection statt
     // &SqlitePool entgegen, es gibt also keine verschachtelten Pool-Aufrufe.
 
-    sqlx::query("INSERT INTO beleg (id, typ, nummer, status, kunde_id, datum, leistungsdatum, leistungsdatum_bis, zahlungsziel_tage, kopftext, fusstext, summe_cent, ursprungsangebot_id, storno_von_id, kunde_snapshot, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
+    sqlx::query("INSERT INTO beleg (id, typ, nummer, status, kunde_id, datum, leistungsdatum, leistungsdatum_bis, zahlungsziel_tage, kopftext, fusstext, summe_cent, ursprungsangebot_id, storno_von_id, kunde_snapshot, gutschrift_zu_id, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
         .bind(&storno.id).bind(&storno.typ).bind(&storno.nummer).bind(&storno.status).bind(&storno.kunde_id)
         .bind(&storno.datum).bind(&storno.leistungsdatum).bind(&storno.leistungsdatum_bis).bind(storno.zahlungsziel_tage)
         .bind(&storno.kopftext).bind(&storno.fusstext).bind(storno.summe_cent)
-        .bind(&storno.ursprungsangebot_id).bind(&storno.storno_von_id).bind(&snapshot.0).bind(jetzt()).bind(jetzt())
+        .bind(&storno.ursprungsangebot_id).bind(&storno.storno_von_id).bind(&snapshot.0).bind(None::<String>).bind(jetzt()).bind(jetzt())
         .execute(&mut *tx).await?;
 
     let positionen: Vec<Belegposition> = sqlx::query_as(
@@ -1356,6 +1367,22 @@ mod tests {
             "SELECT value FROM einstellung WHERE key = 'text.gutschrift.fuss'")
             .fetch_one(&pool).await.expect("text.gutschrift.fuss muss geseedet sein");
         assert!(fuss.contains("erstattet"), "war: {fuss}");
+    }
+
+    /// `get` muss die Bezugsspalte `gutschrift_zu_id` mitliefern — sie hängt an
+    /// `#[sqlx(default)]` und würde sonst stillschweigend als `None` gemappt.
+    #[tokio::test]
+    async fn beleg_get_liefert_gutschrift_zu_id() {
+        let (_dir, pool) = test_pool().await;
+        let kunde_id = kunde_anlegen(&pool).await;
+        let rechnung = create(&pool, beleg_neu("rechnung", &kunde_id)).await.unwrap();
+        sqlx::query(
+            "INSERT INTO beleg (id, typ, status, kunde_id, kunde_snapshot, datum, leistungsdatum, zahlungsziel_tage, kopftext, fusstext, summe_cent, gutschrift_zu_id, created_at, updated_at) \
+             VALUES ('g1','gutschrift','entwurf',?,'','2026-09-05','2026-09-05',14,'','',0,?,'2026-09-05T00:00:00Z','2026-09-05T00:00:00Z')")
+            .bind(&kunde_id).bind(&rechnung.id)
+            .execute(&pool).await.unwrap();
+        let d = get(&pool, "g1".into()).await.unwrap();
+        assert_eq!(d.beleg.gutschrift_zu_id.as_deref(), Some(rechnung.id.as_str()));
     }
 
     /// Legt einen Kunden samt Standard-Rechnungsadresse an — der Normalfall für
