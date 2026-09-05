@@ -520,6 +520,7 @@ export function BelegEditor({ id, onZurueck, onGeaendert, onRechnungErstellt, on
           rechnungId={beleg.id}
           zahlungen={zahlungen}
           offenerBetragCent={offener_betrag_cent}
+          istErstattung={istGutschrift}
           onGeaendert={laden}
         />
       )}

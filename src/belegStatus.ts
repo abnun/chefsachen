@@ -10,6 +10,8 @@
  * enthalten beide, damit jede Ansicht dieselbe Quelle benutzen kann.
  */
 
+import { type Zahlungsstand } from "./api";
+
 /** Statuswerte, die ein Angebot annehmen kann — in der Reihenfolge des Ablaufs. */
 export const ANGEBOT_STATUS = ["entwurf", "festgeschrieben", "angenommen", "abgelehnt", "abgelaufen"] as const;
 
@@ -18,6 +20,19 @@ export const RECHNUNG_STATUS = ["entwurf", "gestellt", "storniert"] as const;
 
 /** Statuswerte, die eine Gutschrift annehmen kann. */
 export const GUTSCHRIFT_STATUS = ["entwurf", "festgeschrieben", "storniert"] as const;
+
+/**
+ * Bei einer Gutschrift oder einem Stornobeleg fließt Geld zurück, nicht hin.
+ * „Offen" hieße dort fälschlich, der Kunde schulde etwas — tatsächlich steht
+ * eine Erstattung aus. Vorher stand diese Tabelle wortgleich in `Rechnungen.tsx`
+ * und `Gutschriften.tsx`.
+ */
+export const ERSTATTUNG_LABEL: Record<Zahlungsstand, string> = {
+  offen: "Erstattung offen",
+  teilbezahlt: "Teilerstattet",
+  bezahlt: "Erstattet",
+  ueberzahlt: "Übererstattet",
+};
 
 const LABEL: Record<string, string> = {
   entwurf: "Entwurf",

@@ -12,9 +12,16 @@ interface ZahlungenAbschnittProps {
   zahlungen: Zahlung[];
   offenerBetragCent: number;
   onGeaendert: () => void;
+  /**
+   * Bei einer Gutschrift fließt Geld zurück, nicht hin: Der offene Betrag ist
+   * negativ und meint eine ausstehende Erstattung. Dann tragen die
+   * Beschriftungen die Bedeutung und die Beträge werden als Betrag (ohne
+   * Vorzeichen) gezeigt.
+   */
+  istErstattung?: boolean;
 }
 
-export function ZahlungenAbschnitt({ rechnungId, zahlungen, offenerBetragCent, onGeaendert }: ZahlungenAbschnittProps) {
+export function ZahlungenAbschnitt({ rechnungId, zahlungen, offenerBetragCent, onGeaendert, istErstattung = false }: ZahlungenAbschnittProps) {
   const [datum, setDatum] = useState(heuteIso);
   const [betrag, setBetrag] = useState("");
   const [erstattung, setErstattung] = useState(false);
@@ -51,13 +58,15 @@ export function ZahlungenAbschnitt({ rechnungId, zahlungen, offenerBetragCent, o
       await api.belege.zahlungErfassen({
         rechnung_id: rechnungId,
         datum,
-        betrag_cent: erstattung ? -betragCent : betragCent,
+        // Bei einer Gutschrift ist jede Erfassung eine Rückzahlung — der Betrag
+        // geht ohne weitere Angabe negativ ein.
+        betrag_cent: istErstattung || erstattung ? -betragCent : betragCent,
         notiz,
       });
       setBetrag("");
       setNotiz("");
       onGeaendert();
-      zeigen("Zahlung erfasst");
+      zeigen(istErstattung ? "Erstattung erfasst" : "Zahlung erfasst");
     } catch (e) {
       setFehler(e as AppFehler);
     } finally {
@@ -71,7 +80,10 @@ export function ZahlungenAbschnitt({ rechnungId, zahlungen, offenerBetragCent, o
       {fehler && <Fehler fehler={fehler} />}
       {hinweis}
       {dialog}
-      <p>Offener Betrag: {formatCent(offenerBetragCent)}</p>
+      <p>
+        {istErstattung ? "Noch zu erstatten" : "Offener Betrag"}:{" "}
+        {formatCent(istErstattung ? Math.abs(offenerBetragCent) : offenerBetragCent)}
+      </p>
       <table className="tabelle">
         <thead>
           <tr>
@@ -117,10 +129,12 @@ export function ZahlungenAbschnitt({ rechnungId, zahlungen, offenerBetragCent, o
           <PflichtMarker art="pflicht">Betrag</PflichtMarker>
           <input value={betrag} onChange={(e) => setBetrag(e.currentTarget.value)} placeholder="95,00" />
         </label>
-        <label className="feld-checkbox">
-          <input type="checkbox" checked={erstattung} onChange={(e) => setErstattung(e.currentTarget.checked)} />
-          Erstattung (negativer Betrag)
-        </label>
+        {!istErstattung && (
+          <label className="feld-checkbox">
+            <input type="checkbox" checked={erstattung} onChange={(e) => setErstattung(e.currentTarget.checked)} />
+            Erstattung (negativer Betrag)
+          </label>
+        )}
         <label className="feld">
           Notiz
           <input value={notiz} onChange={(e) => setNotiz(e.currentTarget.value)} />
@@ -128,7 +142,7 @@ export function ZahlungenAbschnitt({ rechnungId, zahlungen, offenerBetragCent, o
         <PflichtLegende />
         <div className="aktionen aktionen-formular">
           <button type="submit" className="btn btn-primaer" disabled={laeuft}>
-            Zahlung erfassen
+            {istErstattung ? "Erstattung erfassen" : "Zahlung erfassen"}
           </button>
         </div>
       </form>

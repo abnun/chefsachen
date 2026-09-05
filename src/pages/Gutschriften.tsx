@@ -8,27 +8,15 @@ import { Laden } from "../components/Laden";
 import { SortierKopf } from "../components/SortierKopf";
 import { StatusMarke } from "../components/StatusMarke";
 import { Werkzeugleiste } from "../components/Werkzeugleiste";
-import { GUTSCHRIFT_STATUS, statusAuswahl } from "../belegStatus";
+import { ERSTATTUNG_LABEL, GUTSCHRIFT_STATUS, statusAuswahl } from "../belegStatus";
 import { datumDeutsch } from "../datum";
 import { formatCent } from "../geld";
 import { useBelegListe } from "../hooks/useBelegListe";
 import { useListenTastenkuerzel } from "../hooks/useListenTastenkuerzel";
-import { type Zahlungsstand } from "../api";
 
 interface GutschriftenProps {
   onOeffnen: (id: string) => void;
 }
-
-/**
- * Bei einer Gutschrift fließt Geld zurück, nicht hin. „Offen" hieße dort
- * fälschlich, der Kunde schulde etwas — tatsächlich steht eine Erstattung aus.
- */
-const ERSTATTUNG_LABEL: Record<Zahlungsstand, string> = {
-  offen: "Erstattung offen",
-  teilbezahlt: "Teilerstattet",
-  bezahlt: "Erstattet",
-  ueberzahlt: "Übererstattet",
-};
 
 export function Gutschriften({ onOeffnen }: GutschriftenProps) {
   const liste = useBelegListe("gutschrift", onOeffnen);

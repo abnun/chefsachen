@@ -8,7 +8,7 @@ import { Laden } from "../components/Laden";
 import { SortierKopf } from "../components/SortierKopf";
 import { StatusMarke } from "../components/StatusMarke";
 import { Werkzeugleiste } from "../components/Werkzeugleiste";
-import { RECHNUNG_STATUS, statusAuswahl } from "../belegStatus";
+import { ERSTATTUNG_LABEL, RECHNUNG_STATUS, statusAuswahl } from "../belegStatus";
 import { datumDeutsch, heuteIso } from "../datum";
 import { formatCent } from "../geld";
 import { useBelegListe } from "../hooks/useBelegListe";
@@ -58,17 +58,6 @@ const ZAHLUNGSSTAND_LABEL: Record<Zahlungsstand, string> = {
   teilbezahlt: "Teilbezahlt",
   bezahlt: "Bezahlt",
   ueberzahlt: "Überzahlt",
-};
-
-/**
- * Bei einem Stornobeleg fließt Geld zurück, nicht hin. „Offen" hieße dort
- * fälschlich, der Kunde schulde etwas — tatsächlich steht eine Erstattung aus.
- */
-const GUTSCHRIFT_LABEL: Record<Zahlungsstand, string> = {
-  offen: "Erstattung offen",
-  teilbezahlt: "Teilerstattet",
-  bezahlt: "Erstattet",
-  ueberzahlt: "Übererstattet",
 };
 
 const ZAHLUNGSSTAND_KLASSE: Record<Zahlungsstand, string> = {
@@ -256,7 +245,7 @@ export function Rechnungen({ onOeffnen }: RechnungenProps) {
                   <td>
                     {r.zahlungsstand ? (
                       <span className={`status ${ZAHLUNGSSTAND_KLASSE[r.zahlungsstand]}`}>
-                        {(r.storno_von_id ? GUTSCHRIFT_LABEL : ZAHLUNGSSTAND_LABEL)[r.zahlungsstand]}
+                        {(r.storno_von_id ? ERSTATTUNG_LABEL : ZAHLUNGSSTAND_LABEL)[r.zahlungsstand]}
                       </span>
                     ) : (
                       "—"

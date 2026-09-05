@@ -1397,6 +1397,37 @@ describe("BelegEditor – Gutschrift", () => {
     await waitFor(() => expect(onGutschriftErstellt).toHaveBeenCalledWith("g1"));
   });
 
+  it("festschreibt eine Gutschrift mit passendem Dialogtext und Erfolgs-Hinweis", async () => {
+    vi.mocked(api.belege.get).mockResolvedValue(gutschriftEntwurf() as never);
+    render(<BelegEditor id="b1" />);
+    await waitFor(() => expect(screen.getByText("Leistung")).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Festschreiben" }));
+    const dialog = await screen.findByRole("dialog");
+    expect(dialog).toHaveTextContent("Gutschrift festschreiben?");
+    fireEvent.click(within(dialog).getByRole("button", { name: "Festschreiben" }));
+    await waitFor(() => expect(api.belege.stellen).toHaveBeenCalledWith("b1"));
+    await waitFor(() => expect(screen.getByText("Gutschrift festgeschrieben")).toBeTruthy());
+  });
+
+  it("dupliziert eine Gutschrift und meldet es mit dem passenden Wortlaut", async () => {
+    vi.mocked(api.belege.get).mockResolvedValue(gutschriftEntwurf() as never);
+    render(<BelegEditor id="b1" />);
+    await waitFor(() => expect(screen.getByRole("button", { name: "Als Kopie anlegen" })).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Als Kopie anlegen" }));
+    await waitFor(() => expect(api.belege.duplizieren).toHaveBeenCalledWith("b1"));
+    await waitFor(() => expect(screen.getByText("Gutschrift dupliziert")).toBeTruthy());
+  });
+
+  it("beschriftet den Zahlungen-Abschnitt einer Gutschrift als Erstattung", async () => {
+    vi.mocked(api.belege.get).mockResolvedValue(
+      gutschriftEntwurf({ nummer: "GS-2026-0001", status: "festgeschrieben" }) as never,
+    );
+    render(<BelegEditor id="b1" />);
+    await waitFor(() => expect(screen.getByText(/Noch zu erstatten/)).toBeTruthy());
+    expect(screen.getByText("Noch zu erstatten: 95,50 €")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Erstattung erfassen" })).toBeTruthy();
+  });
+
   it("bietet Gutschrift-erstellen nicht für einen Stornobeleg an", async () => {
     vi.mocked(api.belege.get).mockResolvedValue({
       beleg: {
