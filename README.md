@@ -50,6 +50,17 @@ kein Konto, keine Cloud.
   verschwindet von selbst aus den offenen Posten
 - **Belege duplizieren**: ein festgeschriebener Beleg dient als Vorlage für
   den nächsten fast gleichen Vorgang
+- **Kaufmännische Gutschrift** als eigene Belegart: für die nachträgliche
+  Teilkorrektur mit Rechnungsbezug (Preisnachlass, Mängelrüge, Teilrückgabe)
+  über den Knopf „Gutschrift erstellen" auf einer gestellten Rechnung — Kunde,
+  Rechnungsadresse und Positionen werden übernommen — oder als freie Gutschrift
+  ohne Bezug über den Menüpunkt „Gutschriften". Eigener, jahresweise
+  zurücksetzbarer Nummernkreis `GS-{JJJJ}-{lfd:4}`, negativer Betrag,
+  Festschreiben wie bei einer Rechnung, danach unveränderbar. Ausgabe als
+  PDF/A-3b und als E-Rechnung (XRechnung/ZUGFeRD) mit Dokumententyp 381, bei
+  Rechnungsbezug mit Verweis auf die Ursprungsrechnung. Erstattungen an den
+  Kunden werden als Zahlung mit negativem Betrag erfasst. Das Vollstorno
+  (Storno der gesamten Rechnung) bleibt daneben bestehen
 - **Jahresauswertung** der vereinnahmten Zahlungen (Zuflussprinzip) mit
   CSV-Export für Excel und die Steuerberater-Zuarbeit
 - **Automatische Sicherungen** der Datenbank bei jedem Start (die letzten

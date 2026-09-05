@@ -14,8 +14,7 @@ Zuletzt veröffentlicht: **1.3.0** am 2026-08-08.
 | 2 | [Festschreiben/Stellen soll auf ungespeicherte Änderungen prüfen](#2-festschreibenstellen-soll-auf-ungespeicherte-änderungen-prüfen) | Verbesserung | mittel, Klärung offen |
 | 3 | [Wiederkehrende Rechnungen](#3-wiederkehrende-rechnungen) | Funktion | mittel, Klärung offen |
 | 4 | [Mahnstufen (mehrstufige Zahlungserinnerung)](#4-mahnstufen-mehrstufige-zahlungserinnerung) | Funktion | mittel, Klärung offen |
-| 5 | [Kaufmännische Gutschrift als eigene Belegart](#5-kaufmännische-gutschrift-als-eigene-belegart) | Funktion | mittel–groß, Klärung offen |
-| 6 | [Auftragsbestätigung und Lieferschein als Belegarten](#6-auftragsbestätigung-und-lieferschein-als-belegarten) | Funktion | groß, Klärung offen |
+| 5 | [Auftragsbestätigung und Lieferschein als Belegarten](#5-auftragsbestätigung-und-lieferschein-als-belegarten) | Funktion | groß, Klärung offen |
 
 ### 1. Export für den Steuerberater
 
@@ -115,35 +114,7 @@ Noch zu klären, bevor daraus ein Plan wird:
 - **Automatik:** Nur manuell auslösbar (wie heute), oder Vorschlag im
   Dashboard „3 Rechnungen mahnreif"?
 
-### 5. Kaufmännische Gutschrift als eigene Belegart
-
-Aktuell lässt sich eine Rechnung nur **stornieren** (Vollstorno mit Verweis
-auf die Ursprungsrechnung). Eine kaufmännische Gutschrift/Rechnungskorrektur
-über einen Teilbetrag (Preisnachlass, Mängelrüge, zurückgegebene Position)
-gibt es nicht. Sie wäre ein eigener Belegtyp mit § 14-Pflichtangaben,
-negativem Betrag und Bezug zur Ursprungsrechnung.
-
-Noch zu klären, bevor daraus ein Plan wird:
-
-- **Abgrenzung zum Storno:** Bleibt Storno = Vollstorno und Gutschrift =
-  Teilkorrektur? Oder ersetzt die Gutschrift das Storno ganz?
-- **Nummernkreis:** Eigener Kreis (z. B. `GS-…`) oder derselbe wie
-  Rechnungen? Der globale UNIQUE-Constraint auf `beleg.nummer` und die
-  Ablage als `<Nummer>.pdf` ohne Typ müssen weiter aufgehen.
-- **Positionen:** Freie Positionen mit negativer Menge/negativem Preis, oder
-  Auswahl von Positionen der Ursprungsrechnung mit Mengenkorrektur?
-- **Steuer:** Der Steuersatz je Position muss dem der Ursprungsrechnung
-  entsprechen (eingefrorener Modus im Kunden-Snapshot). Bei
-  Regelbesteuerung: USt wird wie bei der Rechnung herausgerechnet, nur
-  negativ.
-- **E-Rechnung:** XRechnung/ZUGFeRD kennen den Dokumententyp 381
-  (Gutschrift/Credit Note) — Export analog zur Rechnung, gegen den
-  KoSIT-Validator geprüft.
-- **Auswertung:** Die Gutschrift mindert die vereinnahmten Zahlungen im
-  Auszahlungsjahr (Zuflussprinzip) — wie das Storno heute schon negativ
-  zählt.
-
-### 6. Auftragsbestätigung und Lieferschein als Belegarten
+### 5. Auftragsbestätigung und Lieferschein als Belegarten
 
 sevDesk und vergleichbare Programme führen beide als eigene Dokumenttypen.
 Für Handwerk und Dienstleister mit längeren Aufträgen sind sie oft
@@ -179,6 +150,36 @@ Noch zu klären, bevor daraus ein Plan wird:
 Ursprünglich: priorisierte Arbeitsliste, abgeleitet aus dem
 [MVP-Review vom 2026-08-02](2026-08-02-mvp-review.md). Reihenfolge war
 Empfehlung; jeder Punkt trägt die Referenz aus dem Review.
+
+## Stand (2026-09-06, kaufmännische Gutschrift)
+
+**Kaufmännische Gutschrift als eigene Belegart implementiert** (1.4.0), war
+Offen-Punkt 5:
+
+- Neuer Belegtyp `gutschrift` neben Angebot und Rechnung (Migration 0022:
+  `beleg.typ`-CHECK erweitert per Tabellen-Neubau, nullable Spalte
+  `gutschrift_zu_id`, eigener Nummernkreis-Seed). Zwei Einstiege:
+  `gutschrift_aus_rechnung` übernimmt Kunde, Rechnungsadresse und Positionen
+  von einer gestellten Rechnung; die freie Gutschrift ohne Bezug entsteht über
+  `create` und den Menüpunkt „Gutschriften" (neue Listenseite, Mirror von
+  `Rechnungen.tsx`).
+- Nummernkreis `GS-{JJJJ}-{lfd:4}`, jahresweise zurücksetzbar. Positionsbeträge
+  werden negativ gespeichert (wie beim Vollstorno), der Editor erfasst und
+  zeigt positiv. Festschreiben über die generalisierte `stellen`-Funktion:
+  Status `festgeschrieben`, Rechnungsadresse Pflicht (§ 14), kein
+  Fälligkeitsdatum.
+- Export über die bestehende Pipeline mit gelockerten Guards: PDF/A-3b (Titel
+  „Gutschrift", Bezugszeile, kein Girocode) und XRechnung/ZUGFeRD mit TypeCode
+  381 und BG-3 aus generischem Bezug (`gutschrift_zu_nummer` im
+  `BelegKontext`). Neue KoSIT-Normtests in `xrechnung.rs`.
+- Erstattungen an den Kunden: `erfasse_zahlung` nimmt jetzt auch Gutschriften
+  (negativer Betrag), die Jahresauswertung/das Dashboard zählen die Gutschrift
+  im Auszahlungsjahr negativ — wie das Storno.
+- Das Vollstorno (Status `storniert` am Ursprung + Gegenbeleg) bleibt
+  unverändert daneben bestehen.
+- Neuer E2E-Durchstich `e2e/specs/gutschrift.js` (Rechnung → „Gutschrift
+  erstellen" → kürzen → festschreiben → Export → Liste); läuft nur im
+  Linux-CI-Job.
 
 ## Stand (2026-08-11, USt-IdNr.-Pflichtmarker, Briefkopf-Höhenausgleich)
 

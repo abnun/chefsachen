@@ -7,6 +7,25 @@ auf GitHub ändert daran nichts mehr.
 
 Deshalb hier in der Sprache der Anwender, nicht in der der Commits.
 
+## 1.4.0
+
+**Kaufmännische Gutschrift**
+- Neue Belegart neben Angebot und Rechnung. Zwei Wege dorthin: der Knopf
+  „Gutschrift erstellen" auf einer gestellten Rechnung übernimmt Kunde,
+  Rechnungsadresse und Positionen (Menge und Betrag dann frei kürzbar), oder
+  eine freie Gutschrift ohne Rechnungsbezug über den neuen Menüpunkt
+  „Gutschriften".
+- Eigener Nummernkreis `GS-{JJJJ}-{lfd:4}`, jahresweise zurücksetzbar wie
+  Rechnungen und Angebote. Der Betrag ist negativ. Das Festschreiben läuft wie
+  bei einer Rechnung: feste Nummer, danach unveränderbar.
+- Ausgabe als PDF/A-3b und als E-Rechnung (XRechnung/ZUGFeRD) mit dem
+  Dokumententyp 381, bei einer Gutschrift mit Rechnungsbezug zusätzlich mit
+  Verweis auf die Ursprungsrechnung — gegen den amtlichen KoSIT-Validator
+  geprüft.
+- Eine Erstattung an den Kunden wird wie beim Storno als Zahlung mit negativem
+  Betrag erfasst und mindert die Jahresauswertung im Jahr der Auszahlung.
+- Das bisherige Vollstorno einer Rechnung bleibt unverändert daneben bestehen.
+
 ## 1.3.3
 
 **Firmendaten**
