@@ -1311,6 +1311,53 @@ mod tests {
         assert_eq!(status("alt-rechnung").await, "gestellt");
     }
 
+    /// Migration 0022: 'gutschrift' als dritte Belegart, Bezugsspalte
+    /// `gutschrift_zu_id`, eigener Nummernkreis 'gutschrift'. Der `typ`-CHECK
+    /// muss erweitert sein und unbekannte Typen weiter ablehnen.
+    #[tokio::test]
+    async fn migration_erlaubt_belegtyp_gutschrift_und_seedet_nummernkreis() {
+        let (_dir, pool) = test_pool().await;
+        let kunde = kunde_anlegen(&pool).await;
+
+        // typ = 'gutschrift' muss einfügbar sein (CHECK erweitert)
+        sqlx::query(
+            "INSERT INTO beleg (id, typ, nummer, status, kunde_id, kunde_snapshot, datum, leistungsdatum, zahlungsziel_tage, kopftext, fusstext, summe_cent, created_at, updated_at) \
+             VALUES ('g-mig', 'gutschrift', NULL, 'entwurf', ?, '', '2026-09-05', '2026-09-05', 14, '', '', 0, '2026-09-05T00:00:00Z', '2026-09-05T00:00:00Z')")
+            .bind(&kunde)
+            .execute(&pool).await.expect("typ='gutschrift' muss erlaubt sein");
+
+        // gutschrift_zu_id existiert und ist nullable
+        sqlx::query("UPDATE beleg SET gutschrift_zu_id = NULL WHERE id = 'g-mig'")
+            .execute(&pool).await.expect("Spalte gutschrift_zu_id muss existieren");
+
+        // Nummernkreis-Seed
+        let (format,): (String,) = sqlx::query_as(
+            "SELECT format FROM nummernkreis WHERE art = 'gutschrift' AND deleted_at IS NULL")
+            .fetch_one(&pool).await.expect("Nummernkreis 'gutschrift' muss geseedet sein");
+        assert_eq!(format, "GS-{JJJJ}-{lfd:4}");
+
+        // alter Wert bleibt gültig
+        sqlx::query(
+            "INSERT INTO beleg (id, typ, status, kunde_id, kunde_snapshot, datum, leistungsdatum, zahlungsziel_tage, kopftext, fusstext, summe_cent, created_at, updated_at) \
+             VALUES ('r-mig', 'rechnung', 'entwurf', ?, '', '2026-09-05', '2026-09-05', 14, '', '', 0, '2026-09-05T00:00:00Z', '2026-09-05T00:00:00Z')")
+            .bind(&kunde)
+            .execute(&pool).await.expect("typ='rechnung' muss weiter erlaubt sein");
+
+        // ungültiger Typ wird weiter abgewiesen
+        let err = sqlx::query(
+            "INSERT INTO beleg (id, typ, status, kunde_id, kunde_snapshot, datum, leistungsdatum, zahlungsziel_tage, kopftext, fusstext, summe_cent, created_at, updated_at) \
+             VALUES ('b-mig', 'quatsch', 'entwurf', ?, '', '2026-09-05', '2026-09-05', 14, '', '', 0, '2026-09-05T00:00:00Z', '2026-09-05T00:00:00Z')")
+            .bind(&kunde)
+            .execute(&pool).await;
+        assert!(err.is_err(), "CHECK muss ungültige Typen weiter ablehnen");
+
+        // Textbausteine geseedet
+        let (fuss,): (String,) = sqlx::query_as(
+            "SELECT value FROM einstellung WHERE key = 'text.gutschrift.fuss'")
+            .fetch_one(&pool).await.expect("text.gutschrift.fuss muss geseedet sein");
+        assert!(fuss.contains("erstattet"), "war: {fuss}");
+    }
+
     /// Legt einen Kunden samt Standard-Rechnungsadresse an — der Normalfall für
     /// jemanden, dem man Rechnungen stellt. Ohne Adresse lehnt `stellen` eine
     /// Rechnung seit P2.4 ab (§ 14 Abs. 4 Nr. 1 UStG); wer diesen Fall testen

@@ -228,9 +228,11 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn nummernkreis_list_enthaelt_alle_vier_seeds() {
+    async fn nummernkreis_list_enthaelt_alle_seeds() {
         let (_dir, pool) = test_pool().await;
         let liste = nummernkreis_list_intern(&pool).await.unwrap();
-        assert_eq!(liste.len(), 4);
+        // kunde, artikel, angebot, rechnung (0001) + gutschrift (0022)
+        assert_eq!(liste.len(), 5);
+        assert!(liste.iter().any(|n| n.art == "gutschrift"));
     }
 }
