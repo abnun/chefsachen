@@ -16,6 +16,9 @@ export const ANGEBOT_STATUS = ["entwurf", "festgeschrieben", "angenommen", "abge
 /** Statuswerte, die eine Rechnung annehmen kann. */
 export const RECHNUNG_STATUS = ["entwurf", "gestellt", "storniert"] as const;
 
+/** Statuswerte, die eine Gutschrift annehmen kann. */
+export const GUTSCHRIFT_STATUS = ["entwurf", "festgeschrieben", "storniert"] as const;
+
 const LABEL: Record<string, string> = {
   entwurf: "Entwurf",
   // Nicht „Versendet": Die Anwendung verschickt nichts. Sie vergibt eine Nummer

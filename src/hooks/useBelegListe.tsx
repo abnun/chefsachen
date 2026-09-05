@@ -25,7 +25,10 @@ import { useSortierung } from "./useSortierung";
  * Zahlungsstand, Fälligkeit und offenen Betrag, ein Angebot nicht; sie über
  * Konfiguration zusammenzuführen brächte mehr Verwicklung als Ersparnis.
  */
-export function useBelegListe(typ: "angebot" | "rechnung", onOeffnen: (id: string) => void) {
+export function useBelegListe(
+  typ: "angebot" | "rechnung" | "gutschrift",
+  onOeffnen: (id: string) => void,
+) {
   const [belege, setBelege] = useState<Beleg[]>([]);
   const [kunden, setKunden] = useState<Kunde[]>([]);
   const [statusFilter, setStatusFilter] = useState("");

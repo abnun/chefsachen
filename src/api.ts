@@ -111,7 +111,7 @@ export interface Nummernkreis {
 }
 export interface Beleg {
   id: string;
-  typ: "angebot" | "rechnung";
+  typ: "angebot" | "rechnung" | "gutschrift";
   nummer: string | null;
   status: string;
   kunde_id: string;
@@ -150,13 +150,21 @@ export interface Beleg {
   zahlungsstand?: Zahlungsstand | null;
   /** Belegdatum plus Zahlungsziel. Null bei Angeboten und Entwürfen. */
   faellig_am?: string | null;
+  /**
+   * Bei einer Gutschrift mit Rechnungsbezug die ID der Ursprungsrechnung;
+   * null bei freien Gutschriften und allen anderen Belegarten.
+   */
+  gutschrift_zu_id?: string | null;
 }
 
 export type Zahlungsstand = "offen" | "teilbezahlt" | "bezahlt" | "ueberzahlt";
 export type BelegNeu = Pick<
   Beleg,
   "typ" | "kunde_id" | "datum" | "leistungsdatum" | "zahlungsziel_tage" | "kopftext" | "fusstext"
->;
+> & {
+  /** Nur bei einer Gutschrift mit Rechnungsbezug gesetzt; sonst None im Backend. */
+  gutschrift_zu_id?: string | null;
+};
 export interface BelegUpdate {
   id: string;
   kunde_id: string;
@@ -542,10 +550,16 @@ export const api = {
       invoke<void>("nummernkreis_update", { art, format, jahresReset }),
   },
   belege: {
-    list: (typ?: "angebot" | "rechnung", status?: string, suche?: string) =>
+    list: (typ?: "angebot" | "rechnung" | "gutschrift", status?: string, suche?: string) =>
       invoke<Beleg[]>("beleg_list", { typ: typ ?? null, status: status ?? null, suche: suche ?? null }),
     get: (id: string) => invoke<BelegDetail>("beleg_get", { id }),
     create: (daten: BelegNeu) => invoke<Beleg>("beleg_create", { daten }),
+    /**
+     * Legt eine Gutschrift mit Bezug zur angegebenen Rechnung an — Kunde,
+     * Texte und Positionen übernommen, Beträge negiert.
+     */
+    gutschriftAusRechnung: (rechnungId: string) =>
+      invoke<Beleg>("gutschrift_aus_rechnung_anlegen", { rechnungId }),
     update: (daten: BelegUpdate) => invoke<Beleg>("beleg_update", { daten }),
     delete: (id: string) => invoke<void>("beleg_delete", { id }),
     /**
@@ -559,6 +573,10 @@ export const api = {
     positionDelete: (id: string) => invoke<void>("belegposition_delete", { id }),
     positionVerschieben: (id: string, richtung: "hoch" | "runter") =>
       invoke<void>("belegposition_verschieben", { id, richtung }),
+    /**
+     * Schreibt den Beleg fest: feste Nummer, unveränderbar. Bei einer
+     * Gutschrift Status → festgeschrieben.
+     */
     stellen: (id: string) => invoke<Beleg>("beleg_stellen", { id }),
     angebotStatusSetzen: (id: string, status: string) => invoke<Beleg>("angebot_status_setzen", { id, status }),
     angebotInRechnungUeberfuehren: (angebotId: string) =>
