@@ -81,8 +81,12 @@ Verworfen:
 - **Gutschrift mit Rechnungsbezug:** neue Funktion
   `gutschrift_aus_rechnung(rechnung_id: String) -> Beleg` + Tauri-Wrapper
   `gutschrift_aus_rechnung_anlegen`. Legt einen Entwurf an mit übernommenem
-  Kunde, Rechnungsadresse/Ansprechpartner, Kopftext und **negativ** kopierten
-  Positionen; `gutschrift_zu_id` gesetzt. Der Editor stellt die Beträge zur
+  Kunde und Rechnungsadresse/Ansprechpartner sowie **negativ** kopierten
+  Positionen; `gutschrift_zu_id` gesetzt. Kopf- und Fußtext kommen **nicht**
+  aus der Rechnung, sondern aus den Textbausteinen `text.gutschrift.kopf` /
+  `text.gutschrift.fuss` (wie `angebot_in_rechnung_ueberfuehren` seine eigenen
+  Bausteine zieht) — eine Rechnungs-Anrede liest sich auf einer Gutschrift
+  falsch. Der Editor stellt die Beträge zur
   Anzeige/Bearbeitung positiv dar (`formatCent` zeigt die negative Belegsumme
   weiterhin negativ).
 - **Festschreiben läuft über die vorhandene `stellen`-Funktion**, generalisiert
