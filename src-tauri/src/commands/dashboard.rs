@@ -316,6 +316,65 @@ mod tests {
         assert_eq!(d.umsatz_laufendes_jahr_cent, 3_000_00);
     }
 
+    /// Legt eine festgeschriebene kaufmännische Gutschrift über `betrag_cent`
+    /// (positiv erfasst, intern negiert) an und gibt ihre Id zurück.
+    async fn gutschrift_festschreiben(pool: &SqlitePool, betrag_cent: i64, datum: &str) -> String {
+        let kunde_id = crate::commands::kunden::create(pool, crate::commands::kunden::KundeNeu {
+            typ: "firma".into(), name: "ACME GmbH".into(), zahlungsziel_tage: 14,
+            notizen: "".into(), ust_idnr: "".into(), email: "".into(),
+            leitweg_id: "".into(), kaeuferreferenz: "".into(),
+        }).await.unwrap().id;
+        crate::commands::kunden::adresse_speichern(pool, crate::commands::kunden::Adresse {
+            id: "".into(), kunde_id: kunde_id.clone(), typ: "rechnung".into(),
+            strasse: "Weg 5".into(), plz: "10117".into(), ort: "Berlin".into(),
+            land: "DE".into(), ist_standard: true,
+        }).await.unwrap();
+        let artikel_id = crate::commands::artikel::create(pool, crate::commands::artikel::ArtikelNeu {
+            bezeichnung: "Leistung".into(), beschreibung: "".into(),
+            einheit_id: "e0000000-0000-0000-0000-000000000001".into(),
+            standardpreis_cent: betrag_cent, ust_satz_prozent: 19,
+        }).await.unwrap().id;
+        let beleg = beleg_create(pool, BelegNeu {
+            typ: "gutschrift".into(), kunde_id, datum: datum.into(),
+            leistungsdatum: datum.into(), leistungsdatum_bis: None, zahlungsziel_tage: 0,
+            kopftext: "".into(), fusstext: "".into(), gutschrift_zu_id: None,
+        }).await.unwrap();
+        position_speichern(pool, BelegpositionNeu {
+            id: "".into(), beleg_id: beleg.id.clone(), artikel_id: Some(artikel_id),
+            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None, menge: 1000, ust_satz_prozent: None,
+        }).await.unwrap();
+        stellen(pool, beleg.id).await.unwrap().id
+    }
+
+    /// Eine Erstattung auf eine Gutschrift ist eine negative Zahlung und senkt
+    /// den laufenden vereinnahmten Umsatz.
+    #[tokio::test]
+    async fn erstattung_auf_gutschrift_senkt_den_laufenden_umsatz() {
+        let (_dir, pool) = test_pool().await;
+        let rechnung = rechnung_stellen(&pool, 5_000_00, "2026-02-01").await;
+        zahlen(&pool, &rechnung, 5_000_00, "2026-02-05").await;
+
+        let g = gutschrift_festschreiben(&pool, 2_000_00, "2026-03-01").await;
+        zahlen(&pool, &g, -2_000_00, "2026-03-10").await;
+
+        let d = laden(&pool, tag("2026-06-01")).await.unwrap();
+        assert_eq!(d.umsatz_laufendes_jahr_cent, 3_000_00);
+    }
+
+    /// Eine festgeschriebene Gutschrift ist eine Gegenbuchung mit negativer
+    /// Summe, keine Forderung — sie darf nicht als offener Posten erscheinen.
+    #[tokio::test]
+    async fn gutschrift_ist_kein_offener_posten() {
+        let (_dir, pool) = test_pool().await;
+        gutschrift_festschreiben(&pool, 2_000_00, "2026-03-01").await;
+
+        let posten = crate::commands::belege::offene_posten(&pool).await.unwrap();
+        assert!(posten.iter().all(|p| p.beleg.typ == "rechnung"));
+
+        let d = laden(&pool, tag("2026-06-01")).await.unwrap();
+        assert!(d.offene_rechnungen.is_empty());
+    }
+
     /// Bei Regelbesteuerung sind die Kleinunternehmergrenzen bedeutungslos —
     /// sie anzuzeigen wäre irreführend.
     #[tokio::test]
