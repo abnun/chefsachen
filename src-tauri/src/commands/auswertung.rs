@@ -136,7 +136,7 @@ mod tests {
         let beleg = beleg_create(pool, BelegNeu {
             typ: "rechnung".into(), kunde_id, datum: datum.into(),
             leistungsdatum: datum.into(), leistungsdatum_bis: None, zahlungsziel_tage: 14,
-            kopftext: "".into(), fusstext: "".into(),
+            kopftext: "".into(), fusstext: "".into(), gutschrift_zu_id: None,
         }).await.unwrap();
         position_speichern(pool, BelegpositionNeu {
             id: "".into(), beleg_id: beleg.id.clone(), artikel_id: Some(artikel_id),

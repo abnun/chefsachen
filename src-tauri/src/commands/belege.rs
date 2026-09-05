@@ -99,6 +99,10 @@ pub struct BelegNeu {
     pub zahlungsziel_tage: i64,
     pub kopftext: String,
     pub fusstext: String,
+    /// Bezug auf die Ursprungsrechnung bei einer kaufmännischen Gutschrift.
+    /// `None` bei einer freien Gutschrift und bei jeder anderen Belegart.
+    #[serde(default)]
+    pub gutschrift_zu_id: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -197,7 +201,7 @@ fn pruefe_beleg_neu(
     zahlungsziel_tage: i64,
     gueltig_bis: Option<&str>,
 ) -> AppResult<()> {
-    if !["angebot", "rechnung"].contains(&typ) {
+    if !["angebot", "rechnung", "gutschrift"].contains(&typ) {
         return Err(AppError::Validation { feld: "typ".into(), meldung: "Ungültiger Belegtyp".into() });
     }
     if datum.trim().is_empty() {
@@ -307,14 +311,14 @@ pub async fn create(pool: &SqlitePool, d: BelegNeu) -> AppResult<Beleg> {
         adresse_id: None, ansprechpartner_id: None,
         bezahlt_cent: 0, zahlungsstand: None, faellig_am: None,
         gesamtauftragswert_cent: None,
-        gutschrift_zu_id: None,
+        gutschrift_zu_id: d.gutschrift_zu_id.clone(),
     };
     sqlx::query("INSERT INTO beleg (id, typ, nummer, status, kunde_id, datum, leistungsdatum, leistungsdatum_bis, gueltig_bis, zahlungsziel_tage, kopftext, fusstext, summe_cent, ursprungsangebot_id, storno_von_id, gutschrift_zu_id, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
         .bind(&beleg.id).bind(&beleg.typ).bind(&beleg.nummer).bind(&beleg.status).bind(&beleg.kunde_id)
         .bind(&beleg.datum).bind(&beleg.leistungsdatum).bind(&beleg.leistungsdatum_bis).bind(&beleg.gueltig_bis)
         .bind(beleg.zahlungsziel_tage)
         .bind(&beleg.kopftext).bind(&beleg.fusstext).bind(beleg.summe_cent)
-        .bind(&beleg.ursprungsangebot_id).bind(&beleg.storno_von_id).bind(None::<String>).bind(jetzt()).bind(jetzt())
+        .bind(&beleg.ursprungsangebot_id).bind(&beleg.storno_von_id).bind(&beleg.gutschrift_zu_id).bind(jetzt()).bind(jetzt())
         .execute(pool).await?;
     Ok(beleg)
 }
@@ -1385,6 +1389,25 @@ mod tests {
         assert_eq!(d.beleg.gutschrift_zu_id.as_deref(), Some(rechnung.id.as_str()));
     }
 
+    /// Eine freie Gutschrift ohne Rechnungsbezug ist ein gültiger Entwurf:
+    /// `create` akzeptiert den Typ, vergibt keine Nummer und kein Ablaufdatum.
+    #[tokio::test]
+    async fn create_legt_freie_gutschrift_ohne_bezug_an() {
+        let (_dir, pool) = test_pool().await;
+        let kunde_id = kunde_anlegen(&pool).await;
+        let b = create(&pool, BelegNeu {
+            typ: "gutschrift".into(), kunde_id: kunde_id.clone(),
+            datum: "2026-09-05".into(), leistungsdatum: "2026-09-05".into(),
+            leistungsdatum_bis: None, zahlungsziel_tage: 0,
+            kopftext: "".into(), fusstext: "".into(), gutschrift_zu_id: None,
+        }).await.unwrap();
+        assert_eq!(b.typ, "gutschrift");
+        assert_eq!(b.status, "entwurf");
+        assert!(b.nummer.is_none());
+        assert!(b.gueltig_bis.is_none());
+        assert!(b.gutschrift_zu_id.is_none());
+    }
+
     /// Legt einen Kunden samt Standard-Rechnungsadresse an — der Normalfall für
     /// jemanden, dem man Rechnungen stellt. Ohne Adresse lehnt `stellen` eine
     /// Rechnung seit P2.4 ab (§ 14 Abs. 4 Nr. 1 UStG); wer diesen Fall testen
@@ -1416,7 +1439,7 @@ mod tests {
     fn beleg_neu(typ: &str, kunde_id: &str) -> BelegNeu {
         BelegNeu { typ: typ.into(), kunde_id: kunde_id.into(), datum: "2026-07-10".into(),
             leistungsdatum: "2026-07-10".into(), leistungsdatum_bis: None, zahlungsziel_tage: 14,
-            kopftext: "".into(), fusstext: "".into() }
+            kopftext: "".into(), fusstext: "".into(), gutschrift_zu_id: None }
     }
 
     /// Der Fußtext versprach „Dieses Angebot ist 30 Tage gültig", aber es gab
@@ -1910,6 +1933,7 @@ mod tests {
             typ: "rechnung".into(), kunde_id: kunde.clone(), datum: "2026-01-10".into(),
             leistungsdatum: "2026-01-10".into(), leistungsdatum_bis: None, zahlungsziel_tage: 21,
             kopftext: "Wie besprochen:".into(), fusstext: "Danke für den Auftrag.".into(),
+            gutschrift_zu_id: None,
         }).await.unwrap();
         position_speichern(&pool, BelegpositionNeu {
             id: "".into(), beleg_id: original.id.clone(), artikel_id: Some(artikel),
@@ -1950,7 +1974,7 @@ mod tests {
         let original = create(&pool, BelegNeu {
             typ: "rechnung".into(), kunde_id: kunde.clone(), datum: "2026-01-10".into(),
             leistungsdatum: "2026-01-10".into(), leistungsdatum_bis: None, zahlungsziel_tage: 14,
-            kopftext: "".into(), fusstext: "".into(),
+            kopftext: "".into(), fusstext: "".into(), gutschrift_zu_id: None,
         }).await.unwrap();
         position_speichern(&pool, BelegpositionNeu {
             id: "".into(), beleg_id: original.id.clone(), artikel_id: Some(artikel),

@@ -241,7 +241,7 @@ mod tests {
         let beleg = crate::commands::belege::create(pool, crate::commands::belege::BelegNeu {
             typ: "rechnung".into(), kunde_id: kunde.id.clone(), datum: "2026-07-11".into(),
             leistungsdatum: "2026-07-11".into(), leistungsdatum_bis: None, zahlungsziel_tage: 14,
-            kopftext: "".into(), fusstext: "Vielen Dank.".into(),
+            kopftext: "".into(), fusstext: "Vielen Dank.".into(), gutschrift_zu_id: None,
         }).await.unwrap();
         crate::commands::belege::position_speichern(pool, crate::commands::belege::BelegpositionNeu {
             id: "".into(), beleg_id: beleg.id.clone(), artikel_id: Some(artikel.id),
@@ -282,7 +282,7 @@ mod tests {
         let beleg = crate::commands::belege::create(&pool, crate::commands::belege::BelegNeu {
             typ: "rechnung".into(), kunde_id: kunde.id.clone(), datum: "2026-07-11".into(),
             leistungsdatum: "2026-07-11".into(), leistungsdatum_bis: None, zahlungsziel_tage: 14,
-            kopftext: "".into(), fusstext: "".into(),
+            kopftext: "".into(), fusstext: "".into(), gutschrift_zu_id: None,
         }).await.unwrap();
         crate::commands::belege::position_speichern(&pool, crate::commands::belege::BelegpositionNeu {
             id: "".into(), beleg_id: beleg.id.clone(), artikel_id: Some(artikel.id),
@@ -319,7 +319,7 @@ mod tests {
         let beleg = crate::commands::belege::create(&pool, crate::commands::belege::BelegNeu {
             typ: "rechnung".into(), kunde_id: kunde.id, datum: "2026-07-11".into(),
             leistungsdatum: "2026-07-11".into(), leistungsdatum_bis: None, zahlungsziel_tage: 14,
-            kopftext: "".into(), fusstext: "".into(),
+            kopftext: "".into(), fusstext: "".into(), gutschrift_zu_id: None,
         }).await.unwrap();
         let err = kontext_aus_beleg(&pool, beleg.id).await.unwrap_err();
         assert!(matches!(err, crate::error::AppError::Validation { .. }));

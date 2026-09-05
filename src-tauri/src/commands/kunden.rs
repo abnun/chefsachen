@@ -374,7 +374,7 @@ mod tests {
         crate::commands::belege::create(&pool, crate::commands::belege::BelegNeu {
             typ: "angebot".into(), kunde_id: kunde_id.clone(), datum: "2026-07-10".into(),
             leistungsdatum: "2026-07-10".into(), leistungsdatum_bis: None, zahlungsziel_tage: 14,
-            kopftext: "".into(), fusstext: "".into(),
+            kopftext: "".into(), fusstext: "".into(), gutschrift_zu_id: None,
         }).await.unwrap();
 
         let liste = list(&pool, None).await.unwrap();
@@ -388,7 +388,7 @@ mod tests {
         crate::commands::belege::create(&pool, crate::commands::belege::BelegNeu {
             typ: "angebot".into(), kunde_id: kunde_id.clone(), datum: "2026-07-10".into(),
             leistungsdatum: "2026-07-10".into(), leistungsdatum_bis: None, zahlungsziel_tage: 14,
-            kopftext: "".into(), fusstext: "".into(),
+            kopftext: "".into(), fusstext: "".into(), gutschrift_zu_id: None,
         }).await.unwrap();
 
         let err = delete(&pool, kunde_id, false).await.unwrap_err();
@@ -413,7 +413,7 @@ mod tests {
         let beleg = crate::commands::belege::create(&pool, crate::commands::belege::BelegNeu {
             typ: "angebot".into(), kunde_id: kunde_id.clone(), datum: "2026-07-10".into(),
             leistungsdatum: "2026-07-10".into(), leistungsdatum_bis: None, zahlungsziel_tage: 14,
-            kopftext: "".into(), fusstext: "".into(),
+            kopftext: "".into(), fusstext: "".into(), gutschrift_zu_id: None,
         }).await.unwrap();
         crate::commands::belege::position_speichern(&pool, crate::commands::belege::BelegpositionNeu {
             id: "".into(), beleg_id: beleg.id.clone(), artikel_id: Some(artikel_id),
