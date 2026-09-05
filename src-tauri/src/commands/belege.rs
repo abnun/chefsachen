@@ -1110,12 +1110,21 @@ pub struct OffenerPosten {
 }
 
 pub async fn erfasse_zahlung(pool: &SqlitePool, d: ZahlungNeu) -> AppResult<Zahlung> {
-    let rechnung = lade_beleg(pool, &d.rechnung_id).await?;
-    if rechnung.typ != "rechnung" {
-        return Err(AppError::Validation { feld: "rechnung_id".into(), meldung: "Zahlungen sind nur zu Rechnungen möglich".into() });
+    let beleg = lade_beleg(pool, &d.rechnung_id).await?;
+    let ist_rechnung = beleg.typ == "rechnung";
+    let ist_gutschrift = beleg.typ == "gutschrift";
+    if !ist_rechnung && !ist_gutschrift {
+        return Err(AppError::Validation { feld: "rechnung_id".into(), meldung: "Zahlungen sind nur zu Rechnungen und Gutschriften möglich".into() });
     }
-    if !["gestellt", "storniert"].contains(&rechnung.status.as_str()) {
-        return Err(AppError::Validation { feld: "rechnung_id".into(), meldung: "Zahlungen sind nur zu gestellten oder stornierten Rechnungen möglich".into() });
+    // Bei einer Gutschrift ist eine „Zahlung" eine Erstattung (negativer Betrag);
+    // sie setzt voraus, dass die Gutschrift festgeschrieben ist.
+    let status_ok = if ist_rechnung {
+        ["gestellt", "storniert"].contains(&beleg.status.as_str())
+    } else {
+        beleg.status == "festgeschrieben"
+    };
+    if !status_ok {
+        return Err(AppError::Validation { feld: "rechnung_id".into(), meldung: "Zahlungen sind nur zu gestellten oder stornierten Rechnungen und zu festgeschriebenen Gutschriften möglich".into() });
     }
     if d.datum.trim().is_empty() {
         return Err(AppError::Validation { feld: "datum".into(), meldung: "Datum darf nicht leer sein".into() });
@@ -1516,6 +1525,41 @@ mod tests {
         assert_eq!(pos.ust_satz_prozent, 19);
     }
 
+    /// Task 6b: Eine Erstattung zu einer festgeschriebenen Gutschrift ist eine
+    /// negative Zahlung; der offene Betrag nähert sich dann der Null.
+    #[tokio::test]
+    async fn erstattung_zu_festgeschriebener_gutschrift_moeglich() {
+        let (_dir, pool) = test_pool().await;
+        let kunde_id = kunde_anlegen(&pool).await;
+        let g = freie_gutschrift(&pool, &kunde_id).await;
+        let fest = stellen(&pool, g.id.clone()).await.unwrap();
+
+        let z = erfasse_zahlung(&pool, ZahlungNeu {
+            rechnung_id: fest.id.clone(), datum: "2026-09-06".into(),
+            betrag_cent: -3000, notiz: "Erstattung".into(),
+        }).await.unwrap();
+        assert_eq!(z.betrag_cent, -3000);
+
+        let d = get(&pool, fest.id).await.unwrap();
+        assert_eq!(d.offener_betrag_cent, -2000);
+    }
+
+    /// Task 6b: Zu einer Gutschrift im Entwurf ist keine Zahlung möglich.
+    #[tokio::test]
+    async fn zahlung_zu_gutschrift_entwurf_wird_abgewiesen() {
+        let (_dir, pool) = test_pool().await;
+        let kunde_id = kunde_anlegen(&pool).await;
+        let g = create(&pool, BelegNeu {
+            typ: "gutschrift".into(), kunde_id: kunde_id.clone(),
+            datum: "2026-09-06".into(), leistungsdatum: "2026-09-06".into(),
+            leistungsdatum_bis: None, zahlungsziel_tage: 0,
+            kopftext: "".into(), fusstext: "".into(), gutschrift_zu_id: None,
+        }).await.unwrap();
+        let err = erfasse_zahlung(&pool, ZahlungNeu {
+            rechnung_id: g.id, datum: "2026-09-06".into(), betrag_cent: -100, notiz: "".into(),
+        }).await.unwrap_err();
+        assert!(matches!(err, AppError::Validation { .. }));
+    }
 
     /// Legt einen Kunden samt Standard-Rechnungsadresse an — der Normalfall für
     /// jemanden, dem man Rechnungen stellt. Ohne Adresse lehnt `stellen` eine
