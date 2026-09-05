@@ -1099,6 +1099,73 @@ pub async fn rechnung_stornieren(pool: tauri::State<'_, SqlitePool>, id: String)
     storniere_rechnung(&pool, id).await
 }
 
+/// Legt einen Gutschrift-Entwurf mit Bezug auf eine gestellte Rechnung an.
+///
+/// Kunde, Rechnungsadresse/Ansprechpartner und Kopftext werden von der Rechnung
+/// übernommen, der Fußtext aus dem Baustein `text.gutschrift.fuss`. Die
+/// Positionen werden mit negierten Beträgen kopiert (wie beim Vollstorno) —
+/// eine Gutschrift ist eine Rückabwicklung; der Nutzer kürzt oder löscht im
+/// Editor. Mehrere Gutschriften zur selben Rechnung sind zulässig (Teilkorrekturen).
+pub async fn gutschrift_aus_rechnung(pool: &SqlitePool, rechnung_id: String) -> AppResult<Beleg> {
+    let rechnung = lade_beleg(pool, &rechnung_id).await?;
+    // Bezug nur auf eine echte, gestellte Rechnung: kein Angebot, kein
+    // Stornobeleg, keine stornierte Rechnung, kein Entwurf, keine andere
+    // Gutschrift. Hinweis: 'bezahlt'/'teilbezahlt' sind KEINE DB-Status — eine
+    // bezahlte Rechnung bleibt 'gestellt' und wird hier bewusst akzeptiert.
+    let bezug_gueltig = rechnung.typ == "rechnung"
+        && rechnung.storno_von_id.is_none()
+        && rechnung.status == "gestellt";
+    if !bezug_gueltig {
+        return Err(AppError::Validation {
+            feld: "gutschrift_zu_id".into(),
+            meldung: "Eine Gutschrift kann sich nur auf eine gestellte, nicht stornierte Rechnung beziehen".into(),
+        });
+    }
+
+    let fusstext = baustein(pool, "text.gutschrift.fuss").await?;
+
+    let positionen: Vec<Belegposition> = sqlx::query_as(
+        &format!("SELECT {BELEGPOSITION_SPALTEN} FROM belegposition WHERE beleg_id = ? AND deleted_at IS NULL ORDER BY reihenfolge"))
+        .bind(&rechnung_id).fetch_all(pool).await?;
+    let summe: i64 = positionen.iter().map(|p| -p.positionssumme_cent.abs()).sum();
+
+    // Transaktion: Beleg-INSERT und Positions-INSERTs müssen atomar sein —
+    // dieselbe Risikoklasse wie bei duplizieren/storniere_rechnung.
+    let id = Uuid::new_v4().to_string();
+    let mut tx = pool.begin().await?;
+    sqlx::query("INSERT INTO beleg (id, typ, nummer, status, kunde_id, datum, leistungsdatum, zahlungsziel_tage, kopftext, fusstext, summe_cent, adresse_id, ansprechpartner_id, gutschrift_zu_id, created_at, updated_at) VALUES (?,'gutschrift',NULL,'entwurf',?,?,?,0,?,?,?,?,?,?,?,?)")
+        .bind(&id).bind(&rechnung.kunde_id)
+        .bind(heute()).bind(heute())
+        .bind(&rechnung.kopftext).bind(&fusstext).bind(summe)
+        .bind(&rechnung.adresse_id).bind(&rechnung.ansprechpartner_id)
+        .bind(&rechnung_id)
+        .bind(jetzt()).bind(jetzt())
+        .execute(&mut *tx).await?;
+
+    for pos in &positionen {
+        // Der Steuersatz bleibt unnegiert: negativ ist der Betrag, nicht der Satz.
+        sqlx::query("INSERT INTO belegposition (id, beleg_id, artikel_id, bezeichnung, einheit_kuerzel, einzelpreis_cent, menge, positionssumme_cent, ust_satz_prozent, reihenfolge, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)")
+            .bind(Uuid::new_v4().to_string()).bind(&id).bind(&pos.artikel_id).bind(&pos.bezeichnung)
+            .bind(&pos.einheit_kuerzel).bind(-pos.einzelpreis_cent.abs()).bind(pos.menge)
+            .bind(-pos.positionssumme_cent.abs()).bind(pos.ust_satz_prozent).bind(pos.reihenfolge)
+            .bind(jetzt()).bind(jetzt())
+            .execute(&mut *tx).await?;
+    }
+
+    tx.commit().await?;
+    lade_beleg(pool, &id).await
+}
+
+// Dünner Tauri-Wrapper. Die Oberfläche ruft mit `rechnungId` auf — Tauri wandelt
+// camelCase in die snake_case-Signatur um (siehe ipc.rs).
+#[tauri::command]
+pub async fn gutschrift_aus_rechnung_anlegen(
+    pool: tauri::State<'_, SqlitePool>,
+    rechnung_id: String,
+) -> AppResult<Beleg> {
+    gutschrift_aus_rechnung(&pool, rechnung_id).await
+}
+
 #[derive(Debug, Deserialize)]
 pub struct ZahlungNeu {
     pub rechnung_id: String,
@@ -1632,6 +1699,77 @@ mod tests {
             rechnung_id: g.id, datum: "2026-09-06".into(), betrag_cent: -100, notiz: "".into(),
         }).await.unwrap_err();
         assert!(matches!(err, AppError::Validation { .. }));
+    }
+
+    /// Stellt eine Rechnung mit den gegebenen Positionen `(menge_x1000, einzelpreis_cent, ust_satz)`.
+    async fn rechnung_gestellt_mit_positionen(
+        pool: &sqlx::SqlitePool,
+        kunde_id: &str,
+        positionen: &[(i64, i64, i64)],
+    ) -> Beleg {
+        let r = create(pool, beleg_neu("rechnung", kunde_id)).await.unwrap();
+        for (menge, preis, satz) in positionen {
+            position_speichern(pool, BelegpositionNeu {
+                id: "".into(), beleg_id: r.id.clone(), artikel_id: None,
+                bezeichnung: "Leistung".into(), einheit_kuerzel: "Stk".into(),
+                einzelpreis_cent: Some(*preis), menge: *menge, ust_satz_prozent: Some(*satz),
+            }).await.unwrap();
+        }
+        stellen(pool, r.id).await.unwrap()
+    }
+
+    /// Task 6: Eine Gutschrift aus einer gestellten Rechnung übernimmt Kunde,
+    /// Adresse und Kopftext und kopiert die Positionen mit negierten Beträgen.
+    #[tokio::test]
+    async fn gutschrift_aus_rechnung_uebernimmt_kunde_adresse_kopftext_positionen() {
+        let (_dir, pool) = test_pool().await;
+        let kunde_id = kunde_anlegen(&pool).await;
+        let r = rechnung_gestellt_mit_positionen(&pool, &kunde_id, &[(1000, 5000, 19), (2000, 1000, 7)]).await;
+
+        let g = gutschrift_aus_rechnung(&pool, r.id.clone()).await.unwrap();
+        assert_eq!(g.typ, "gutschrift");
+        assert_eq!(g.status, "entwurf");
+        assert_eq!(g.kunde_id, kunde_id);
+        assert_eq!(g.adresse_id, r.adresse_id);
+        assert_eq!(g.gutschrift_zu_id.as_deref(), Some(r.id.as_str()));
+
+        let d = get(&pool, g.id).await.unwrap();
+        assert_eq!(d.positionen.len(), 2);
+        assert!(d.positionen.iter().all(|p| p.positionssumme_cent < 0));
+        assert!(d.positionen.iter().all(|p| p.einzelpreis_cent < 0));
+        assert!(d.positionen.iter().all(|p| p.ust_satz_prozent > 0));
+        assert!(d.beleg.summe_cent < 0);
+        assert_eq!(d.beleg.summe_cent, -7000);
+    }
+
+    /// Task 6: Bezug nur auf eine gestellte, nicht stornierte Rechnung.
+    #[tokio::test]
+    async fn gutschrift_aus_rechnung_lehnt_angebot_storno_entwurf_storniert_ab() {
+        let (_dir, pool) = test_pool().await;
+        let kunde_id = kunde_anlegen(&pool).await;
+
+        let entwurf = create(&pool, beleg_neu("rechnung", &kunde_id)).await.unwrap();
+        let err = gutschrift_aus_rechnung(&pool, entwurf.id).await.unwrap_err();
+        assert!(matches!(err, AppError::Validation { feld, .. } if feld == "gutschrift_zu_id"));
+
+        let angebot = create(&pool, beleg_neu("angebot", &kunde_id)).await.unwrap();
+        let err = gutschrift_aus_rechnung(&pool, angebot.id).await.unwrap_err();
+        assert!(matches!(err, AppError::Validation { feld, .. } if feld == "gutschrift_zu_id"));
+
+        let r = rechnung_gestellt_mit_positionen(&pool, &kunde_id, &[(1000, 5000, 19)]).await;
+        storniere_rechnung(&pool, r.id.clone()).await.unwrap();
+        let err = gutschrift_aus_rechnung(&pool, r.id).await.unwrap_err();
+        assert!(matches!(err, AppError::Validation { feld, .. } if feld == "gutschrift_zu_id"));
+    }
+
+    /// Task 6: Mehrere Gutschriften zur selben Rechnung sind zulässig.
+    #[tokio::test]
+    async fn mehrere_gutschriften_zur_selben_rechnung_erlaubt() {
+        let (_dir, pool) = test_pool().await;
+        let kunde_id = kunde_anlegen(&pool).await;
+        let r = rechnung_gestellt_mit_positionen(&pool, &kunde_id, &[(1000, 5000, 19)]).await;
+        gutschrift_aus_rechnung(&pool, r.id.clone()).await.unwrap();
+        gutschrift_aus_rechnung(&pool, r.id.clone()).await.unwrap();
     }
 
     /// Legt einen Kunden samt Standard-Rechnungsadresse an — der Normalfall für

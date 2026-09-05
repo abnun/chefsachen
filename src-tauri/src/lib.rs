@@ -159,6 +159,7 @@ fn mit_befehlen<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri::Builder
             commands::belege::angebot_status_setzen,
             commands::belege::angebot_in_rechnung_ueberfuehren,
             commands::belege::rechnung_stornieren,
+            commands::belege::gutschrift_aus_rechnung_anlegen,
             commands::belege::zahlung_erfassen,
             commands::belege::zahlung_delete,
             commands::belege::offene_posten_list,
