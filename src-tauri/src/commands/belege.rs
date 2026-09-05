@@ -635,7 +635,16 @@ pub async fn position_speichern(pool: &SqlitePool, d: BelegpositionNeu) -> AppRe
         (d.bezeichnung.trim().to_string(), d.einheit_kuerzel.clone(), preis, satz)
     };
 
-    let summe = positionssumme_cent(d.menge, einzelpreis_cent)?;
+    // Der Editor erfasst positive Brutto-Einzelpreise und Mengen. Bei einer
+    // Gutschrift werden Einzelpreis und Positionssumme negativ abgelegt (der
+    // Steuersatz bleibt positiv) — wie beim Vollstorno —, damit `beleg.summe_cent`
+    // negativ wird. Die Menge bleibt positiv.
+    let roh_summe = positionssumme_cent(d.menge, einzelpreis_cent)?;
+    let (einzelpreis_cent, summe) = if beleg.typ == "gutschrift" {
+        (-einzelpreis_cent, -roh_summe)
+    } else {
+        (einzelpreis_cent, roh_summe)
+    };
 
     let mut tx = pool.begin().await?;
 
@@ -1457,6 +1466,54 @@ mod tests {
         let g = freie_gutschrift(&pool, &kunde_id).await;
         let err = stellen(&pool, g.id).await.unwrap_err();
         assert!(matches!(err, AppError::Validation { feld, .. } if feld == "adresse"));
+    }
+
+    /// Task 5: Bei einer Gutschrift werden Einzelpreis und Positionssumme
+    /// negativ gespeichert (Steuersatz positiv), die Belegsumme wird negativ.
+    #[tokio::test]
+    async fn gutschrift_position_wird_negativ_gespeichert() {
+        let (_dir, pool) = test_pool().await;
+        let kunde_id = kunde_anlegen(&pool).await;
+        let g = create(&pool, BelegNeu {
+            typ: "gutschrift".into(), kunde_id: kunde_id.clone(),
+            datum: "2026-09-05".into(), leistungsdatum: "2026-09-05".into(),
+            leistungsdatum_bis: None, zahlungsziel_tage: 0,
+            kopftext: "".into(), fusstext: "".into(), gutschrift_zu_id: None,
+        }).await.unwrap();
+        let artikel = artikel_anlegen(&pool, 5000).await;
+        let pos = position_speichern(&pool, BelegpositionNeu {
+            id: "".into(), beleg_id: g.id.clone(), artikel_id: Some(artikel),
+            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None,
+            menge: 1000, ust_satz_prozent: None,
+        }).await.unwrap();
+        assert_eq!(pos.einzelpreis_cent, -5000);
+        assert_eq!(pos.positionssumme_cent, -5000);
+        assert_eq!(pos.ust_satz_prozent, 19);
+
+        let d = get(&pool, g.id).await.unwrap();
+        assert_eq!(d.beleg.summe_cent, -5000);
+    }
+
+    /// Task 5: Die Negierung greift auch bei einer Freitextposition (eigener
+    /// Codepfad ohne Artikel).
+    #[tokio::test]
+    async fn gutschrift_position_negiert_auch_freitextposition() {
+        let (_dir, pool) = test_pool().await;
+        let kunde_id = kunde_anlegen(&pool).await;
+        let g = create(&pool, BelegNeu {
+            typ: "gutschrift".into(), kunde_id: kunde_id.clone(),
+            datum: "2026-09-05".into(), leistungsdatum: "2026-09-05".into(),
+            leistungsdatum_bis: None, zahlungsziel_tage: 0,
+            kopftext: "".into(), fusstext: "".into(), gutschrift_zu_id: None,
+        }).await.unwrap();
+        let pos = position_speichern(&pool, BelegpositionNeu {
+            id: "".into(), beleg_id: g.id.clone(), artikel_id: None,
+            bezeichnung: "Nachlass".into(), einheit_kuerzel: "".into(),
+            einzelpreis_cent: Some(5000), menge: 1000, ust_satz_prozent: Some(19),
+        }).await.unwrap();
+        assert_eq!(pos.einzelpreis_cent, -5000);
+        assert_eq!(pos.positionssumme_cent, -5000);
+        assert_eq!(pos.ust_satz_prozent, 19);
     }
 
 
