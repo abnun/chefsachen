@@ -639,12 +639,16 @@ pub async fn position_speichern(pool: &SqlitePool, d: BelegpositionNeu) -> AppRe
     // Gutschrift werden Einzelpreis und Positionssumme negativ abgelegt (der
     // Steuersatz bleibt positiv) — wie beim Vollstorno —, damit `beleg.summe_cent`
     // negativ wird. Die Menge bleibt positiv.
-    let roh_summe = positionssumme_cent(d.menge, einzelpreis_cent)?;
-    let (einzelpreis_cent, summe) = if beleg.typ == "gutschrift" {
-        (-einzelpreis_cent, -roh_summe)
-    } else {
-        (einzelpreis_cent, roh_summe)
-    };
+    //
+    // Erst auf den Betrag normalisieren, dann das Vorzeichen aus dem Belegtyp
+    // setzen: `position_speichern` ist auch der Bearbeiten-Pfad, und ein bereits
+    // negativ gespeicherter Gutschrift-Einzelpreis darf beim erneuten Speichern
+    // weder `positionssumme_cent` verletzen noch ein zweites Mal umgedreht werden.
+    let betrag = einzelpreis_cent.abs();
+    let roh_summe = positionssumme_cent(d.menge, betrag)?;
+    let vorzeichen: i64 = if beleg.typ == "gutschrift" { -1 } else { 1 };
+    let einzelpreis_cent = betrag * vorzeichen;
+    let summe = roh_summe * vorzeichen;
 
     let mut tx = pool.begin().await?;
 
@@ -1523,6 +1527,75 @@ mod tests {
         assert_eq!(pos.einzelpreis_cent, -5000);
         assert_eq!(pos.positionssumme_cent, -5000);
         assert_eq!(pos.ust_satz_prozent, 19);
+    }
+
+    /// Task 5: `position_speichern` ist auch der Bearbeiten-Pfad. Eine erneut
+    /// gespeicherte Artikel-Position einer Gutschrift bleibt negativ — egal ob
+    /// der Editor den (positiven) Betrag oder den bereits negativen Wert schickt.
+    #[tokio::test]
+    async fn gutschrift_artikelposition_bleibt_beim_bearbeiten_negativ() {
+        let (_dir, pool) = test_pool().await;
+        let kunde_id = kunde_anlegen(&pool).await;
+        let g = create(&pool, BelegNeu {
+            typ: "gutschrift".into(), kunde_id: kunde_id.clone(),
+            datum: "2026-09-05".into(), leistungsdatum: "2026-09-05".into(),
+            leistungsdatum_bis: None, zahlungsziel_tage: 0,
+            kopftext: "".into(), fusstext: "".into(), gutschrift_zu_id: None,
+        }).await.unwrap();
+        let artikel = artikel_anlegen(&pool, 5000).await;
+        let pos = position_speichern(&pool, BelegpositionNeu {
+            id: "".into(), beleg_id: g.id.clone(), artikel_id: Some(artikel.clone()),
+            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None,
+            menge: 1000, ust_satz_prozent: None,
+        }).await.unwrap();
+
+        // Editor schickt den positiven Betrag zurück (Menge geändert auf 2).
+        let bearbeitet = position_speichern(&pool, BelegpositionNeu {
+            id: pos.id.clone(), beleg_id: g.id.clone(), artikel_id: Some(artikel),
+            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: Some(5000),
+            menge: 2000, ust_satz_prozent: None,
+        }).await.unwrap();
+        assert_eq!(bearbeitet.einzelpreis_cent, -5000);
+        assert_eq!(bearbeitet.positionssumme_cent, -10000);
+
+        // Selbst wenn der bereits negative Wert zurückkommt: kein Doppel-Flip
+        // und kein Fehler aus positionssumme_cent.
+        let nochmal = position_speichern(&pool, BelegpositionNeu {
+            id: pos.id.clone(), beleg_id: g.id.clone(), artikel_id: None,
+            bezeichnung: "Rest".into(), einheit_kuerzel: "".into(), einzelpreis_cent: Some(-5000),
+            menge: 1000, ust_satz_prozent: Some(19),
+        }).await.unwrap();
+        assert_eq!(nochmal.einzelpreis_cent, -5000);
+        assert_eq!(nochmal.positionssumme_cent, -5000);
+
+        let d = get(&pool, g.id).await.unwrap();
+        assert_eq!(d.beleg.summe_cent, -5000);
+    }
+
+    /// Task 5: dasselbe für den Freitext-Codepfad.
+    #[tokio::test]
+    async fn gutschrift_freitextposition_bleibt_beim_bearbeiten_negativ() {
+        let (_dir, pool) = test_pool().await;
+        let kunde_id = kunde_anlegen(&pool).await;
+        let g = create(&pool, BelegNeu {
+            typ: "gutschrift".into(), kunde_id: kunde_id.clone(),
+            datum: "2026-09-05".into(), leistungsdatum: "2026-09-05".into(),
+            leistungsdatum_bis: None, zahlungsziel_tage: 0,
+            kopftext: "".into(), fusstext: "".into(), gutschrift_zu_id: None,
+        }).await.unwrap();
+        let pos = position_speichern(&pool, BelegpositionNeu {
+            id: "".into(), beleg_id: g.id.clone(), artikel_id: None,
+            bezeichnung: "Nachlass".into(), einheit_kuerzel: "".into(),
+            einzelpreis_cent: Some(5000), menge: 1000, ust_satz_prozent: Some(19),
+        }).await.unwrap();
+
+        let bearbeitet = position_speichern(&pool, BelegpositionNeu {
+            id: pos.id.clone(), beleg_id: g.id.clone(), artikel_id: None,
+            bezeichnung: "Nachlass".into(), einheit_kuerzel: "".into(),
+            einzelpreis_cent: Some(3000), menge: 1000, ust_satz_prozent: Some(19),
+        }).await.unwrap();
+        assert_eq!(bearbeitet.einzelpreis_cent, -3000);
+        assert_eq!(bearbeitet.positionssumme_cent, -3000);
     }
 
     /// Task 6b: Eine Erstattung zu einer festgeschriebenen Gutschrift ist eine

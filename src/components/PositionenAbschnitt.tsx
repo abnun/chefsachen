@@ -102,7 +102,10 @@ export function PositionenAbschnitt({
     setFreitext(p.artikel_id === null);
     setBezeichnung(p.bezeichnung);
     setEinheitKuerzel(p.einheit_kuerzel);
-    setEinzelpreis((p.einzelpreis_cent / 100).toFixed(2).replace(".", ","));
+    // Betrag als positive Größe ins Eingabefeld: Bei einer Gutschrift ist
+    // einzelpreis_cent negativ gespeichert, und der Euro-Parser (geld.ts) weist
+    // ein führendes Minus ab. Für Rechnungen ist Math.abs ein No-op.
+    setEinzelpreis((Math.abs(p.einzelpreis_cent) / 100).toFixed(2).replace(".", ","));
     setMenge(formatMenge(p.menge));
     setUstSatz(p.ust_satz_prozent);
     setArtikelId(p.artikel_id ?? "");
