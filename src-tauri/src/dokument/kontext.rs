@@ -28,6 +28,10 @@ pub struct BelegKontext {
     /// Korrektur (TypeCode 384) den Verweis auf die Vorrechnung (BG-3), und auch
     /// auf dem PDF muss erkennbar sein, welche Rechnung korrigiert wird.
     pub storno_von_nummer: Option<String>,
+    /// Nummer der Ursprungsrechnung einer kaufmännischen Gutschrift. Steuert
+    /// BG-3 in der E-Rechnung (TypeCode 381) und die Bezugszeile auf dem PDF.
+    /// `None` bei freier Gutschrift und bei jeder anderen Belegart.
+    pub gutschrift_zu_nummer: Option<String>,
 }
 
 fn feld_str(wert: &serde_json::Value, feld: &str) -> String {
@@ -136,6 +140,16 @@ pub async fn kontext_aus_beleg(pool: &SqlitePool, beleg_id: String) -> AppResult
         }
         None => None,
     };
+    // Nummer der Ursprungsrechnung nachschlagen, falls dies eine kaufmännische
+    // Gutschrift mit Rechnungsbezug ist.
+    let gutschrift_zu_nummer = match &detail.beleg.gutschrift_zu_id {
+        Some(id) => {
+            let zeile: Option<(Option<String>,)> =
+                sqlx::query_as("SELECT nummer FROM beleg WHERE id = ?").bind(id).fetch_optional(pool).await?;
+            zeile.and_then(|z| z.0)
+        }
+        None => None,
+    };
     let firma_live = crate::commands::firma::get(pool).await?;
     let snapshot_roh: (String,) = sqlx::query_as("SELECT kunde_snapshot FROM beleg WHERE id = ?")
         .bind(&beleg_id).fetch_one(pool).await?;
@@ -182,6 +196,7 @@ pub async fn kontext_aus_beleg(pool: &SqlitePool, beleg_id: String) -> AppResult
         adresse_strasse: kf.adresse_strasse, adresse_plz: kf.adresse_plz,
         adresse_ort: kf.adresse_ort, adresse_land: kf.adresse_land,
         storno_von_nummer,
+        gutschrift_zu_nummer,
     })
 }
 
@@ -306,6 +321,25 @@ mod tests {
         assert_eq!(kontext.adresse_strasse, "Hauptstraße 42");
         assert_eq!(kontext.adresse_plz, "80331");
         assert_eq!(kontext.adresse_ort, "München");
+    }
+
+    /// Eine kaufmännische Gutschrift mit Rechnungsbezug muss die Nummer der
+    /// Ursprungsrechnung im Kontext tragen — daraus speisen sich BG-3 der
+    /// E-Rechnung und die Bezugszeile auf dem PDF. `storno_von_nummer` bleibt
+    /// dabei leer (es ist keine Stornierung).
+    #[tokio::test]
+    async fn kontext_liefert_gutschrift_zu_nummer() {
+        let (_dir, pool) = test_pool().await;
+        let rechnung_id = setup_gestellte_rechnung(&pool).await;
+        let rechnung = crate::commands::belege::get(&pool, rechnung_id.clone()).await.unwrap();
+        let rechnung_nummer = rechnung.beleg.nummer.clone().unwrap();
+
+        let gutschrift = crate::commands::belege::gutschrift_aus_rechnung(&pool, rechnung_id).await.unwrap();
+        let gestellt = crate::commands::belege::stellen(&pool, gutschrift.id).await.unwrap();
+
+        let k = kontext_aus_beleg(&pool, gestellt.id).await.unwrap();
+        assert_eq!(k.gutschrift_zu_nummer, Some(rechnung_nummer));
+        assert!(k.storno_von_nummer.is_none());
     }
 
     #[tokio::test]

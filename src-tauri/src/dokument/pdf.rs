@@ -440,6 +440,7 @@ pub(crate) mod tests {
             adresse_strasse: "Kundenweg 5".into(), adresse_plz: "10117".into(), adresse_ort: "Berlin".into(),
             adresse_land: "DE".into(),
             storno_von_nummer: None,
+            gutschrift_zu_nummer: None,
         }
     }
 

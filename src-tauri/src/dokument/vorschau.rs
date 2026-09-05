@@ -89,6 +89,7 @@ fn muster_beleg(firma: crate::commands::firma::Firma) -> BelegKontext {
         adresse_ort: "Musterstadt".into(),
         adresse_land: "DE".into(),
         storno_von_nummer: None,
+        gutschrift_zu_nummer: None,
     }
 }
 
