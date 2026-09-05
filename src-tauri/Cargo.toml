@@ -1,6 +1,6 @@
 [package]
 name = "chefsachen"
-version = "1.3.3"
+version = "1.4.0"
 description = "Rechnungen, Angebote und E-Rechnungen für Kleinunternehmer und Regelbesteuerte"
 authors = ["Markus Müller <abnun@gmx.de>"]
 license = "MIT"
