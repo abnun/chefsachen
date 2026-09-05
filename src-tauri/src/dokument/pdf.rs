@@ -141,6 +141,8 @@ pub(crate) fn dokument_bauen(
 ) -> AppResult<typst::layout::PagedDocument> {
     let titel = if kontext.beleg.typ == "angebot" {
         "Angebot"
+    } else if kontext.beleg.typ == "gutschrift" {
+        "Gutschrift"
     } else if kontext.beleg.storno_von_id.is_some() {
         "Rechnungskorrektur"
     } else {
@@ -246,6 +248,7 @@ pub(crate) fn dokument_bauen(
             String::new()
         }),
         ("storno_von_nummer", kontext.storno_von_nummer.clone().unwrap_or_default()),
+        ("gutschrift_zu_nummer", kontext.gutschrift_zu_nummer.clone().unwrap_or_default()),
         ("kunde_ansprechpartner", kontext.kunde_ansprechpartner.clone()),
         ("kunde_kundennummer", kontext.kunde_kundennummer.clone()),
         ("kunde_name", kontext.kunde_name.clone()),
@@ -1260,6 +1263,25 @@ pub(crate) mod tests {
         kontext.storno_von_nummer = Some("RE-2026-0007".into());
         let t = text(&kontext);
         assert!(t.contains("RE-2026-0007"), "Bezug zur Ursprungsrechnung fehlt:\n{t}");
+    }
+
+    /// Eine kaufmännische Gutschrift trägt den Titel „Gutschrift", nennt die
+    /// Bezugsrechnung und bekommt — da kein `typ == "rechnung"` — keinen
+    /// GiroCode (eine Gutschrift ist keine Zahlungsaufforderung an den Kunden).
+    #[test]
+    fn gutschrift_pdf_traegt_titel_und_bezug() {
+        let mut kontext = test_kontext();
+        kontext.beleg.typ = "gutschrift".into();
+        kontext.beleg.nummer = Some("GS-2026-0001".into());
+        kontext.beleg.summe_cent = -5000;
+        kontext.positionen[0].einzelpreis_cent = -5000;
+        kontext.positionen[0].positionssumme_cent = -5000;
+        kontext.beleg.gutschrift_zu_id = Some("r1".into());
+        kontext.gutschrift_zu_nummer = Some("RE-2026-0007".into());
+        let t = text(&kontext);
+        assert!(t.contains("Gutschrift"), "Titel „Gutschrift\" fehlt:\n{t}");
+        assert!(t.contains("RE-2026-0007"), "Bezug zur Ursprungsrechnung fehlt:\n{t}");
+        assert!(!t.contains("GiroCode"), "GiroCode auf einer Gutschrift:\n{t}");
     }
 
     #[test]

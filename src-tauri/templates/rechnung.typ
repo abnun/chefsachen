@@ -311,6 +311,13 @@
     Storno zu Rechnung #sys.inputs.storno_von_nummer
   ]
 
+  // Eine Gutschrift mit Rechnungsbezug: die Bezugsrechnung nennen, damit die
+  // Buchhaltung des Empfängers sie zuordnen kann (analog zur Storno-Zeile).
+  #if ist_gesetzt(sys.inputs.at("gutschrift_zu_nummer", default: "")) [
+    #v(0.3cm)
+    Gutschrift zu Rechnung #sys.inputs.at("gutschrift_zu_nummer", default: "")
+  ]
+
   #if ist_gesetzt(sys.inputs.kopftext) [
     #v(0.5cm)
     #sys.inputs.kopftext
