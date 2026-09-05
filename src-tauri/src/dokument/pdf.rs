@@ -234,7 +234,9 @@ pub(crate) fn dokument_bauen(
         }),
         // Ein Angebot ist keine Zahlungsaufforderung; dort bleibt das Feld leer
         // und die Vorlage lässt die Zeile weg.
-        ("zahlungsbedingung", if kontext.beleg.typ == "angebot" {
+        ("zahlungsbedingung", if matches!(kontext.beleg.typ.as_str(), "angebot" | "gutschrift") {
+            // Eine Gutschrift ist keine Zahlungsaufforderung — der
+            // Erstattungshinweis kommt aus dem Fußtext (text.gutschrift.fuss).
             String::new()
         } else {
             crate::dokument::zahlungsbedingung(&kontext.beleg.datum, kontext.beleg.zahlungsziel_tage)
@@ -1274,6 +1276,8 @@ pub(crate) mod tests {
         kontext.beleg.typ = "gutschrift".into();
         kontext.beleg.nummer = Some("GS-2026-0001".into());
         kontext.beleg.summe_cent = -5000;
+        // Produktionswert: eine Gutschrift hat kein Zahlungsziel.
+        kontext.beleg.zahlungsziel_tage = 0;
         kontext.positionen[0].einzelpreis_cent = -5000;
         kontext.positionen[0].positionssumme_cent = -5000;
         kontext.beleg.gutschrift_zu_id = Some("r1".into());
@@ -1282,6 +1286,12 @@ pub(crate) mod tests {
         assert!(t.contains("Gutschrift"), "Titel „Gutschrift\" fehlt:\n{t}");
         assert!(t.contains("RE-2026-0007"), "Bezug zur Ursprungsrechnung fehlt:\n{t}");
         assert!(!t.contains("GiroCode"), "GiroCode auf einer Gutschrift:\n{t}");
+        // Gutschrift-Beschriftung statt Rechnungswortlaut, keine Zahlungsaufforderung.
+        assert!(t.contains("Gutschriftnummer"), "Beschriftung „Gutschriftnummer\" fehlt:\n{t}");
+        assert!(t.contains("Gutschriftbetrag"), "Beschriftung „Gutschriftbetrag\" fehlt:\n{t}");
+        assert!(!t.contains("Rechnungsnummer"), "Rechnungswortlaut auf einer Gutschrift:\n{t}");
+        assert!(!t.contains("Rechnungsbetrag"), "Rechnungswortlaut auf einer Gutschrift:\n{t}");
+        assert!(!t.contains("Zahlbar"), "Zahlungsaufforderung auf einer Gutschrift:\n{t}");
     }
 
     #[test]

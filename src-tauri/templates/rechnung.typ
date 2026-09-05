@@ -282,7 +282,7 @@
   )
   #girocode_block(sys.inputs.girocode_matrix_json)
 ] else [
-  #let nummer_label = if sys.inputs.titel == "Angebot" { "Angebotsnummer:" } else { "Rechnungsnummer:" }
+  #let nummer_label = if sys.inputs.titel == "Angebot" { "Angebotsnummer:" } else if sys.inputs.titel == "Gutschrift" { "Gutschriftnummer:" } else { "Rechnungsnummer:" }
   #let leistung_label = sys.inputs.leistung_beschriftung + ":"
   #table(
     columns: (auto, 1fr),
@@ -394,7 +394,7 @@
   // Akzentfarbe, fett), damit sie sich sichtbar von der Aufschlüsselung
   // darüber abhebt, wie auf einem Kassenbon oder in einer Buchhaltungstabelle.
   #let steuerzeilen = json(bytes(sys.inputs.at("steuerzeilen_json", default: "[]")))
-  #let gesamt_label = if sys.inputs.titel == "Angebot" { "Gesamt" } else { "Rechnungsbetrag" }
+  #let gesamt_label = if sys.inputs.titel == "Angebot" { "Gesamt" } else if sys.inputs.titel == "Gutschrift" { "Gutschriftbetrag" } else { "Rechnungsbetrag" }
 
   // Nettobetrag und Steuer nur mit Satzangabe, wenn mehr als ein Satz auf dem
   // Beleg vorkommt — bei nur einem Satz macht "Nettobetrag 19 %" die Zeile
