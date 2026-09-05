@@ -12,6 +12,10 @@ Zuletzt veröffentlicht: **1.3.0** am 2026-08-08.
 |-----|-------|-----|---------|
 | 1 | [Export für den Steuerberater](#1-export-für-den-steuerberater) | Funktion | groß, Klärung offen |
 | 2 | [Festschreiben/Stellen soll auf ungespeicherte Änderungen prüfen](#2-festschreibenstellen-soll-auf-ungespeicherte-änderungen-prüfen) | Verbesserung | mittel, Klärung offen |
+| 3 | [Wiederkehrende Rechnungen](#3-wiederkehrende-rechnungen) | Funktion | mittel, Klärung offen |
+| 4 | [Mahnstufen (mehrstufige Zahlungserinnerung)](#4-mahnstufen-mehrstufige-zahlungserinnerung) | Funktion | mittel, Klärung offen |
+| 5 | [Kaufmännische Gutschrift als eigene Belegart](#5-kaufmännische-gutschrift-als-eigene-belegart) | Funktion | mittel–groß, Klärung offen |
+| 6 | [Auftragsbestätigung und Lieferschein als Belegarten](#6-auftragsbestätigung-und-lieferschein-als-belegarten) | Funktion | groß, Klärung offen |
 
 ### 1. Export für den Steuerberater
 
@@ -57,6 +61,116 @@ Noch zu klären, bevor daraus ein Plan wird:
   dafür schon einen zentralen Dirty-State, oder müsste der neu eingeführt
   werden?
 - Soll automatisch gespeichert werden, oder immer erst nachfragen?
+
+### 3. Wiederkehrende Rechnungen
+
+Für Kleinunternehmer mit festen laufenden Umsätzen (Wartungsverträge,
+Retainer, Miete, Abos): eine Rechnung als Vorlage markieren und in einem
+Intervall (monatlich, quartalsweise, jährlich) automatisch als **neuen
+Entwurf** anlegen lassen. Der Nutzer prüft und schreibt weiterhin von Hand
+fest — die App stellt und verschickt nichts von selbst, sonst gerät sie in
+Konflikt mit der GoBD-Festschreibung und dem Grundsatz „Verschickt wird
+nichts".
+
+Noch zu klären, bevor daraus ein Plan wird:
+
+- **Auslöser:** Erzeugt die App den Entwurf beim Start, wenn ein Intervall
+  fällig ist? Was passiert, wenn die App zwei Monate nicht lief — ein
+  Entwurf nachholen oder mehrere?
+- **Datenmodell:** Eigene Tabelle „Serie" (Kunde, Positionen, Intervall,
+  Startdatum, nächste Fälligkeit, aktiv/pausiert) oder ein Flag am Beleg?
+  Positionen und Preise beim Anlegen aus der Serie kopieren oder live aus
+  den Artikeln ziehen (dann ändern sich Preise rückwirkend)?
+- **Leistungszeitraum:** Trägt der erzeugte Entwurf automatisch den
+  passenden Monat/Zeitraum als Leistungsdatum bzw. in den Kopftext?
+- **Sichtbarkeit:** Eigene Seite „Wiederkehrend" mit Liste der Serien, oder
+  in die Rechnungsliste integriert?
+- **Ende:** Feste Anzahl Wiederholungen, Enddatum, oder nur manuelles
+  Pausieren/Löschen?
+
+### 4. Mahnstufen (mehrstufige Zahlungserinnerung)
+
+Heute gibt es genau eine Zahlungserinnerung als PDF. Erweiterung auf mehrere
+Stufen (z. B. Erinnerung → 1. Mahnung → 2. Mahnung) mit optionaler
+Mahngebühr und Verzugszinsen, damit der Nutzer den Eskalationsstand pro
+Rechnung sieht. Nutzt die bestehende Erinnerungs-Vorlage
+(`ist_erinnerung`-Zweig in `rechnung.typ`) weiter — keine zweite Geometrie.
+
+Noch zu klären, bevor daraus ein Plan wird:
+
+- **Wird die Stufe gespeichert?** Die Zahlungserinnerung wird bewusst nicht
+  archiviert (ihr Inhalt hängt vom Erzeugungstag ab). Eine „Mahnstufe" ist
+  aber ein dauerhafter Zustand der Rechnung — die müsste also doch
+  irgendwo persistiert werden (Zähler oder Log am Beleg), ohne die
+  einzelnen PDFs unveränderlich abzulegen.
+- **Wortlaut je Stufe:** Fester Text pro Stufe, oder als Textbaustein
+  konfigurierbar? Ab welcher Stufe fällt das Wort „Mahnung"?
+- **Mahngebühr/Verzugszinsen:** Optionaler Pauschalbetrag pro Stufe;
+  Zinsen nach § 288 BGB (Basiszins + 9 bzw. 5 Prozentpunkte) — Basiszinssatz
+  pflegt der Nutzer selbst oder liegt als Tabelle bei? Fließt die Gebühr in
+  den offenen Betrag ein oder steht sie nur informativ auf dem PDF?
+- **Verhältnis zur bestehenden Erinnerung:** Ist die heutige
+  „Zahlungserinnerung" die Stufe 0, oder bleibt sie als formlose Variante
+  daneben bestehen?
+- **Automatik:** Nur manuell auslösbar (wie heute), oder Vorschlag im
+  Dashboard „3 Rechnungen mahnreif"?
+
+### 5. Kaufmännische Gutschrift als eigene Belegart
+
+Aktuell lässt sich eine Rechnung nur **stornieren** (Vollstorno mit Verweis
+auf die Ursprungsrechnung). Eine kaufmännische Gutschrift/Rechnungskorrektur
+über einen Teilbetrag (Preisnachlass, Mängelrüge, zurückgegebene Position)
+gibt es nicht. Sie wäre ein eigener Belegtyp mit § 14-Pflichtangaben,
+negativem Betrag und Bezug zur Ursprungsrechnung.
+
+Noch zu klären, bevor daraus ein Plan wird:
+
+- **Abgrenzung zum Storno:** Bleibt Storno = Vollstorno und Gutschrift =
+  Teilkorrektur? Oder ersetzt die Gutschrift das Storno ganz?
+- **Nummernkreis:** Eigener Kreis (z. B. `GS-…`) oder derselbe wie
+  Rechnungen? Der globale UNIQUE-Constraint auf `beleg.nummer` und die
+  Ablage als `<Nummer>.pdf` ohne Typ müssen weiter aufgehen.
+- **Positionen:** Freie Positionen mit negativer Menge/negativem Preis, oder
+  Auswahl von Positionen der Ursprungsrechnung mit Mengenkorrektur?
+- **Steuer:** Der Steuersatz je Position muss dem der Ursprungsrechnung
+  entsprechen (eingefrorener Modus im Kunden-Snapshot). Bei
+  Regelbesteuerung: USt wird wie bei der Rechnung herausgerechnet, nur
+  negativ.
+- **E-Rechnung:** XRechnung/ZUGFeRD kennen den Dokumententyp 381
+  (Gutschrift/Credit Note) — Export analog zur Rechnung, gegen den
+  KoSIT-Validator geprüft.
+- **Auswertung:** Die Gutschrift mindert die vereinnahmten Zahlungen im
+  Auszahlungsjahr (Zuflussprinzip) — wie das Storno heute schon negativ
+  zählt.
+
+### 6. Auftragsbestätigung und Lieferschein als Belegarten
+
+sevDesk und vergleichbare Programme führen beide als eigene Dokumenttypen.
+Für Handwerk und Dienstleister mit längeren Aufträgen sind sie oft
+Kundenerwartung: Die **Auftragsbestätigung** dokumentiert die Annahme eines
+Angebots, der **Lieferschein** begleitet die Leistung/Ware ohne Preise. Beide
+sind keine Rechnungen (nicht § 14-pflichtig, keine E-Rechnung).
+
+Noch zu klären, bevor daraus ein Plan wird:
+
+- **Lohnt der Umfang?** Zwei neue Belegarten ziehen sich durch Editor,
+  Listen, Statuslogik, Vorlagen, Duplizieren und Tastenkürzel. Erst prüfen,
+  wie viele der Zielnutzer das wirklich brauchen — oder ob ein
+  frei betitelbarer „sonstiger Beleg" reicht.
+- **Kette:** Angebot → Auftragsbestätigung → Lieferschein → Rechnung. Wird
+  jeder Schritt aus dem vorigen erzeugt (Positionen übernehmen), oder stehen
+  sie unabhängig nebeneinander?
+- **Nummernkreise:** Jeweils eigener Kreis (`AB-…`, `LS-…`), jahresweise
+  zurücksetzbar wie die bestehenden. Kollision mit dem globalen
+  `beleg.nummer`-UNIQUE bedenken.
+- **Lieferschein ohne Preise:** Eigene Vorlagenvariante (Positionen mit
+  Menge/Einheit, ohne Einzel- und Gesamtpreis). Die DIN-5008-Geometrie fürs
+  Adressfenster muss an der einen getesteten Stelle bleiben.
+- **Festschreiben/GoBD:** Unterliegen diese Belege derselben
+  Unveränderbarkeit wie Rechnungen, oder bleiben sie formlos änderbar? (Die
+  Auftragsbestätigung kann rechtlich bindend sein — eher festschreiben.)
+- **Status:** Braucht die Auftragsbestätigung Status wie „bestätigt",
+  „teilweise geliefert"? Oder genügt Entwurf/festgeschrieben?
 
 ---
 
