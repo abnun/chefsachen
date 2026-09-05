@@ -236,6 +236,8 @@ export interface BelegDetail {
   offener_betrag_cent: number;
   /** Leer bei Kleinunternehmer-Belegen; sonst eine Zeile je Steuersatz. */
   steuerzeilen: SteuerZeile[];
+  /** Nummer der Ursprungsrechnung bei einer Gutschrift mit Rechnungsbezug. */
+  gutschrift_zu_nummer?: string | null;
 }
 export interface OffenerPosten {
   beleg: Beleg;

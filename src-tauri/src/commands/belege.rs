@@ -141,6 +141,9 @@ pub struct BelegDetail {
     /// Netto/USt je Steuersatz, aus den Bruttobeträgen herausgerechnet.
     /// Leer bei Kleinunternehmer-Belegen — dort gibt es nichts auszuweisen.
     pub steuerzeilen: Vec<crate::domain::steuer::SteuerZeile>,
+    /// Nummer der Ursprungsrechnung, falls dies eine kaufmännische Gutschrift
+    /// mit Rechnungsbezug ist — sonst `None`.
+    pub gutschrift_zu_nummer: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
@@ -403,7 +406,18 @@ pub async fn get(pool: &SqlitePool, id: String) -> AppResult<BelegDetail> {
         crate::domain::steuer::aufschluesselung(&gruppen)
     };
 
-    Ok(BelegDetail { beleg, positionen, zahlungen, bezahlt_cent, offener_betrag_cent, steuerzeilen })
+    // Nummer der Ursprungsrechnung nachschlagen, falls dies eine kaufmännische
+    // Gutschrift mit Rechnungsbezug ist (Spiegel von kontext.rs::kontext_aus_beleg).
+    let gutschrift_zu_nummer = match &beleg.gutschrift_zu_id {
+        Some(bezug_id) => {
+            let zeile: Option<(Option<String>,)> =
+                sqlx::query_as("SELECT nummer FROM beleg WHERE id = ?").bind(bezug_id).fetch_optional(pool).await?;
+            zeile.and_then(|z| z.0)
+        }
+        None => None,
+    };
+
+    Ok(BelegDetail { beleg, positionen, zahlungen, bezahlt_cent, offener_betrag_cent, steuerzeilen, gutschrift_zu_nummer })
 }
 
 pub async fn update(pool: &SqlitePool, d: BelegUpdate) -> AppResult<Beleg> {
@@ -1484,6 +1498,20 @@ mod tests {
             .execute(&pool).await.unwrap();
         let d = get(&pool, "g1".into()).await.unwrap();
         assert_eq!(d.beleg.gutschrift_zu_id.as_deref(), Some(rechnung.id.as_str()));
+    }
+
+    /// `get` liefert für eine Gutschrift mit Rechnungsbezug die Nummer der
+    /// Ursprungsrechnung mit — der Editor zeigt daraus die Bezugszeile.
+    #[tokio::test]
+    async fn beleg_get_liefert_gutschrift_zu_nummer() {
+        let (_dir, pool) = test_pool().await;
+        let kunde_id = kunde_anlegen(&pool).await;
+        let r = rechnung_gestellt_mit_positionen(&pool, &kunde_id, &[(1000, 5000, 19)]).await;
+        let g = gutschrift_aus_rechnung(&pool, r.id.clone()).await.unwrap();
+
+        let d = get(&pool, g.id).await.unwrap();
+        assert_eq!(d.gutschrift_zu_nummer, r.nummer);
+        assert!(d.gutschrift_zu_nummer.is_some());
     }
 
     /// Eine freie Gutschrift ohne Rechnungsbezug ist ein gültiger Entwurf:
