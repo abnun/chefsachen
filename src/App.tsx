@@ -178,6 +178,11 @@ function App() {
             onGeloescht={() => setAusgewaehlteRechnung(null)}
             onZurueck={() => setAusgewaehlteRechnung(null)}
             onDupliziert={setAusgewaehlteRechnung}
+            onGutschriftErstellt={(gid) => {
+              setAusgewaehlteRechnung(null);
+              setSeite("gutschriften");
+              setAusgewaehlteGutschrift(gid);
+            }}
           />
         ) : (
           <Rechnungen onOeffnen={setAusgewaehlteRechnung} />

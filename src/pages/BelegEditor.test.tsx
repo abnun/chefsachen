@@ -57,6 +57,12 @@ vi.mock("../api", () => ({
         datum: "2026-07-10", leistungsdatum: "2026-07-10", zahlungsziel_tage: 14,
         kopftext: "", fusstext: "", summe_cent: 9550, ursprungsangebot_id: "b1", storno_von_id: null,
       }),
+      gutschriftAusRechnung: vi.fn().mockResolvedValue({
+        id: "g1", typ: "gutschrift", nummer: null, status: "entwurf", kunde_id: "k1",
+        datum: "2026-07-10", leistungsdatum: "2026-07-10", zahlungsziel_tage: 0,
+        kopftext: "", fusstext: "", summe_cent: -9550, ursprungsangebot_id: null,
+        storno_von_id: null, gutschrift_zu_id: "b1",
+      }),
       pdfExportieren: vi.fn().mockResolvedValue([1, 2, 3]),
       xrechnungExportieren: vi.fn().mockResolvedValue([1, 2, 3]),
       zugferdExportieren: vi.fn().mockResolvedValue([1, 2, 3]),
@@ -1324,5 +1330,84 @@ describe("BelegEditor – Gesamt-Auftragswert", () => {
     render(<BelegEditor id="b1" />);
     await waitFor(() => expect(screen.getByText(/Gesamt-Auftragswert/)).toBeTruthy());
     expect(screen.getByText("Gesamt-Auftragswert: 1.470,00 €")).toBeTruthy();
+  });
+});
+
+describe("BelegEditor – Gutschrift", () => {
+  const gutschriftEntwurf = (zusatz: Record<string, unknown> = {}) => ({
+    beleg: {
+      id: "b1", typ: "gutschrift" as const, nummer: null, status: "entwurf", kunde_id: "k1",
+      datum: "2026-07-10", leistungsdatum: "2026-07-10", zahlungsziel_tage: 0,
+      kopftext: "", fusstext: "", summe_cent: -9550, ursprungsangebot_id: null,
+      storno_von_id: null, gutschrift_zu_id: "r1", ...zusatz,
+    },
+    positionen: [{
+      id: "p1", beleg_id: "b1", artikel_id: null, bezeichnung: "Leistung",
+      einheit_kuerzel: "Std", einzelpreis_cent: -9550, menge: 1000,
+      positionssumme_cent: -9550, ust_satz_prozent: 19, reihenfolge: 0,
+    }],
+    zahlungen: [], bezahlt_cent: 0, offener_betrag_cent: -9550, steuerzeilen: [],
+  });
+
+  it("zeigt Gutschrift im Titel, ohne Stornieren oder In-Rechnung-Überführen", async () => {
+    vi.mocked(api.belege.get).mockResolvedValue(gutschriftEntwurf() as never);
+    render(<BelegEditor id="b1" />);
+    await waitFor(() => expect(screen.getByRole("heading", { name: /Gutschrift/ })).toBeTruthy());
+    expect(screen.getByRole("button", { name: "Festschreiben" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Stornieren" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "In Rechnung überführen" })).toBeNull();
+  });
+
+  it("zeigt die Bezugszeile zur Ursprungsrechnung, wenn die Nummer vorliegt", async () => {
+    vi.mocked(api.belege.get).mockResolvedValue({
+      ...gutschriftEntwurf({ nummer: "GS-2026-0001", status: "festgeschrieben" }),
+      gutschrift_zu_nummer: "R-2026-0007",
+    } as never);
+    render(<BelegEditor id="b1" />);
+    await waitFor(() =>
+      expect(screen.getByText("Gutschrift zu Rechnung R-2026-0007")).toBeTruthy(),
+    );
+  });
+
+  it("bietet bei festgeschriebener Gutschrift XRechnung/ZUGFeRD und den Zahlungen-Abschnitt", async () => {
+    vi.mocked(api.belege.get).mockResolvedValue(
+      gutschriftEntwurf({ nummer: "GS-2026-0001", status: "festgeschrieben" }) as never,
+    );
+    render(<BelegEditor id="b1" />);
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Als XRechnung (XML) exportieren" })).toBeTruthy(),
+    );
+    expect(screen.getByRole("button", { name: "Als ZUGFeRD-Rechnung exportieren" })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Zahlungen" })).toBeTruthy();
+  });
+
+  it("erstellt aus einer gestellten Rechnung eine Gutschrift und meldet deren Id", async () => {
+    vi.mocked(api.belege.get).mockResolvedValue({
+      beleg: {
+        id: "r1", typ: "rechnung", nummer: "R-2026-0001", status: "gestellt", kunde_id: "k1",
+        datum: "2026-07-10", leistungsdatum: "2026-07-10", zahlungsziel_tage: 14,
+        kopftext: "", fusstext: "", summe_cent: 9550, ursprungsangebot_id: null, storno_von_id: null,
+      },
+      positionen: [], zahlungen: [], bezahlt_cent: 0, offener_betrag_cent: 9550, steuerzeilen: [],
+    } as never);
+    const onGutschriftErstellt = vi.fn();
+    render(<BelegEditor id="r1" onGutschriftErstellt={onGutschriftErstellt} />);
+    fireEvent.click(await screen.findByRole("button", { name: "Gutschrift erstellen" }));
+    await waitFor(() => expect(api.belege.gutschriftAusRechnung).toHaveBeenCalledWith("r1"));
+    await waitFor(() => expect(onGutschriftErstellt).toHaveBeenCalledWith("g1"));
+  });
+
+  it("bietet Gutschrift-erstellen nicht für einen Stornobeleg an", async () => {
+    vi.mocked(api.belege.get).mockResolvedValue({
+      beleg: {
+        id: "r1", typ: "rechnung", nummer: "R-2026-0002", status: "gestellt", kunde_id: "k1",
+        datum: "2026-07-10", leistungsdatum: "2026-07-10", zahlungsziel_tage: 14,
+        kopftext: "", fusstext: "", summe_cent: -9550, ursprungsangebot_id: null, storno_von_id: "r0",
+      },
+      positionen: [], zahlungen: [], bezahlt_cent: 0, offener_betrag_cent: -9550, steuerzeilen: [],
+    } as never);
+    render(<BelegEditor id="r1" />);
+    await waitFor(() => expect(screen.getByText(/R-2026-0002/)).toBeTruthy());
+    expect(screen.queryByRole("button", { name: "Gutschrift erstellen" })).toBeNull();
   });
 });

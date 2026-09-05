@@ -24,6 +24,8 @@ interface BelegEditorProps {
    * angezeigte Kennung wechselt auf den neuen Entwurf.
    */
   onDupliziert?: (kopieId: string) => void;
+  /** Wird nach „Gutschrift erstellen" mit der Id des neuen Gutschrift-Entwurfs gerufen. */
+  onGutschriftErstellt?: (id: string) => void;
   /** Zurück zur Liste. Ohne diesen Weg kommt man nur über die Navigation raus. */
   onZurueck?: () => void;
 }
@@ -40,7 +42,7 @@ const ANGEBOT_ABSCHLUSS_STATUS = [
  * Status-Workflow (Entwurf → gestellt) und Positions-Verwaltung, daher eine
  * gemeinsame Komponente statt zweier Kopien.
  */
-export function BelegEditor({ id, onZurueck, onGeaendert, onRechnungErstellt, onGeloescht, onDupliziert }: BelegEditorProps) {
+export function BelegEditor({ id, onZurueck, onGeaendert, onRechnungErstellt, onGeloescht, onDupliziert, onGutschriftErstellt }: BelegEditorProps) {
   const [detail, setDetail] = useState<BelegDetail | null>(null);
   const [kunden, setKunden] = useState<Kunde[]>([]);
   const [artikelListe, setArtikelListe] = useState<Artikel[]>([]);
@@ -73,6 +75,9 @@ export function BelegEditor({ id, onZurueck, onGeaendert, onRechnungErstellt, on
 
   const { beleg, positionen, zahlungen, offener_betrag_cent, steuerzeilen } = detail;
   const istEntwurf = beleg.status === "entwurf";
+  const istAngebot = beleg.typ === "angebot";
+  const istRechnung = beleg.typ === "rechnung";
+  const istGutschrift = beleg.typ === "gutschrift";
 
   async function stammdatenSpeichern(felder: {
     kunde_id: string;
@@ -109,10 +114,13 @@ export function BelegEditor({ id, onZurueck, onGeaendert, onRechnungErstellt, on
    * Mailkonto, sie hält nur fest, dass *du* es verschickt hast.
    */
   async function stellen() {
-    const istAngebot = beleg.typ === "angebot";
     const frage = istAngebot
       ? "Angebot festschreiben? Es bekommt eine Nummer und lässt sich danach nicht mehr " +
         "ändern. Verschickt wird nichts — dafür exportierst du es als PDF und schickst es selbst."
+      : istGutschrift
+      ? "Gutschrift festschreiben? Sie bekommt eine feste Nummer und ist danach nicht mehr " +
+        "änderbar. Verschickt wird nichts — dafür exportierst du sie als PDF/E-Rechnung und " +
+        "schickst sie selbst."
       : "Rechnung stellen? Sie erhält eine feste Nummer und ist danach nicht mehr änderbar — " +
         "eine Korrektur ist nur noch per Storno möglich. Verschickt wird nichts.";
     // Was gleich unveränderbar wird, gehört vor die Zusage. Gerade die Texte
@@ -149,14 +157,20 @@ export function BelegEditor({ id, onZurueck, onGeaendert, onRechnungErstellt, on
         <dd>{beleg.fusstext.trim() || <em>leer</em>}</dd>
       </dl>
     );
-    if (!(await bestaetigen(frage, istAngebot ? "Festschreiben" : "Stellen", vorschau))) return;
+    if (!(await bestaetigen(frage, istRechnung ? "Stellen" : "Festschreiben", vorschau))) return;
     setFehler(null);
     setLaeuft(true);
     try {
       await api.belege.stellen(beleg.id);
       laden();
       onGeaendert?.();
-      zeigen(istAngebot ? "Angebot festgeschrieben" : "Rechnung gestellt");
+      zeigen(
+        istAngebot
+          ? "Angebot festgeschrieben"
+          : istGutschrift
+          ? "Gutschrift festgeschrieben"
+          : "Rechnung gestellt",
+      );
     } catch (e) {
       setFehler(e as AppFehler);
     } finally {
@@ -202,6 +216,26 @@ export function BelegEditor({ id, onZurueck, onGeaendert, onRechnungErstellt, on
     }
   }
 
+  /**
+   * Legt aus dieser gestellten Rechnung einen Gutschrift-Entwurf an und
+   * wechselt zu ihm. Der Entwurf übernimmt Kunde, Adresse und die Positionen
+   * mit negierten Beträgen; festgeschrieben wird er erst dort.
+   */
+  async function gutschriftErstellen() {
+    setFehler(null);
+    setLaeuft(true);
+    try {
+      const g = await api.belege.gutschriftAusRechnung(beleg.id);
+      onGeaendert?.();
+      onGutschriftErstellt?.(g.id);
+      zeigen("Gutschrift-Entwurf erstellt");
+    } catch (e) {
+      setFehler(e as AppFehler);
+    } finally {
+      setLaeuft(false);
+    }
+  }
+
   async function stornieren() {
     const frage =
       "Rechnung stornieren? Es entsteht ein eigener Stornobeleg mit neuer Nummer. " +
@@ -222,7 +256,7 @@ export function BelegEditor({ id, onZurueck, onGeaendert, onRechnungErstellt, on
   }
 
   async function entwurfLoeschen() {
-    const was = beleg.typ === "angebot" ? "Angebot" : "Rechnung";
+    const was = istAngebot ? "Angebot" : istGutschrift ? "Gutschrift" : "Rechnung";
     if (!(await bestaetigen(`${was}sentwurf endgültig löschen?`, "Löschen"))) return;
     setFehler(null);
     setLaeuft(true);
@@ -253,7 +287,9 @@ export function BelegEditor({ id, onZurueck, onGeaendert, onRechnungErstellt, on
       const kopie = await api.belege.duplizieren(beleg.id);
       onGeaendert?.();
       onDupliziert?.(kopie.id);
-      zeigen(beleg.typ === "angebot" ? "Angebot dupliziert" : "Rechnung dupliziert");
+      zeigen(
+        istGutschrift ? "Gutschrift dupliziert" : istAngebot ? "Angebot dupliziert" : "Rechnung dupliziert",
+      );
     } catch (e) {
       setFehler(e as AppFehler);
     } finally {
@@ -283,8 +319,12 @@ export function BelegEditor({ id, onZurueck, onGeaendert, onRechnungErstellt, on
         </button>
       )}
       <h1 className="seiten-kopf">
-        {beleg.typ === "angebot" ? "Angebot" : "Rechnung"} {beleg.nummer ?? "(Entwurf)"}
+        {istAngebot ? "Angebot" : istGutschrift ? "Gutschrift" : "Rechnung"}{" "}
+        {beleg.nummer ?? "(Entwurf)"}
       </h1>
+      {istGutschrift && detail.gutschrift_zu_nummer && (
+        <p className="beleg-bezug">Gutschrift zu Rechnung {detail.gutschrift_zu_nummer}</p>
+      )}
       {/* Die Aktionen stehen beim Status, nicht am Seitenende. Ein Beleg mit
           vielen Positionen ist lang; „Stellen" war dort erst nach mehrmaligem
           Scrollen zu finden — und daneben lagen Löschen und Stornieren. */}
@@ -302,7 +342,18 @@ export function BelegEditor({ id, onZurueck, onGeaendert, onRechnungErstellt, on
               title={positionen.length === 0 ? "Erst eine Position hinzufügen" : undefined}
               onClick={stellen}
             >
-              {beleg.typ === "angebot" ? "Festschreiben" : "Stellen"}
+              {istRechnung ? "Stellen" : "Festschreiben"}
+            </button>
+          )}
+
+          {istRechnung && beleg.status === "gestellt" && beleg.storno_von_id === null && (
+            <button
+              type="button"
+              className="btn"
+              disabled={laeuft}
+              onClick={gutschriftErstellen}
+            >
+              Gutschrift erstellen
             </button>
           )}
 
@@ -337,7 +388,7 @@ export function BelegEditor({ id, onZurueck, onGeaendert, onRechnungErstellt, on
               PDF
             </button>
           )}
-          {beleg.typ === "rechnung" && beleg.status !== "entwurf" && (
+          {(istRechnung || istGutschrift) && beleg.status !== "entwurf" && (
             <>
               <button
                 type="button"
@@ -462,7 +513,8 @@ export function BelegEditor({ id, onZurueck, onGeaendert, onRechnungErstellt, on
         <p>Diese Rechnung wurde storniert.</p>
       )}
 
-      {beleg.typ === "rechnung" && ["gestellt", "storniert"].includes(beleg.status) && (
+      {((istRechnung && ["gestellt", "storniert"].includes(beleg.status)) ||
+        (istGutschrift && beleg.status === "festgeschrieben")) && (
         <ZahlungenAbschnitt
           key={`${beleg.id}-zahlungen`}
           rechnungId={beleg.id}
