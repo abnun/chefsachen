@@ -794,14 +794,18 @@ pub(crate) fn mit_snapshot_name(mut beleg: Beleg) -> Beleg {
 /// Nur für Rechnungen: Ein Angebot kennt weder Zahlungen noch eine Fälligkeit,
 /// dort blieben die Felder sonst mit sinnlosen Werten belegt.
 fn mit_zahlungsstand(mut beleg: Beleg) -> Beleg {
-    if beleg.typ == "rechnung" && beleg.status != "entwurf" {
+    // Rechnungen und Gutschriften haben eine Zahlungslage (Erstattung), sobald
+    // sie den Entwurf verlassen haben; ein Angebot kennt beides nicht.
+    let hat_zahlungslage =
+        matches!(beleg.typ.as_str(), "rechnung" | "gutschrift") && beleg.status != "entwurf";
+    if hat_zahlungslage {
         beleg.zahlungsstand = Some(crate::domain::beleg::zahlungsstand(
             beleg.summe_cent,
             beleg.bezahlt_cent,
         ));
-        // Ein Stornobeleg ist eine Gutschrift, keine Forderung — ein Zahlungsziel
-        // hat er nicht. Ein Fälligkeitsdatum wäre dort schlicht erfunden.
-        if beleg.storno_von_id.is_none() {
+        // Weder ein Stornobeleg noch eine Gutschrift ist eine Forderung — ein
+        // Zahlungsziel hat keiner von beiden. Ein Fälligkeitsdatum wäre erfunden.
+        if beleg.storno_von_id.is_none() && beleg.typ != "gutschrift" {
             beleg.faellig_am = chrono::NaiveDate::parse_from_str(&beleg.datum, "%Y-%m-%d")
                 .ok()
                 .and_then(|d| d.checked_add_signed(chrono::Duration::days(beleg.zahlungsziel_tage)))
@@ -846,12 +850,12 @@ pub async fn stellen(pool: &SqlitePool, id: String) -> AppResult<Beleg> {
     // Empfängerblock — heilbar nur noch per Storno. Angebote sind ausgenommen,
     // sie unterliegen § 14 nicht und gehen oft an noch unvollständig erfasste
     // Interessenten.
-    if beleg.typ == "rechnung" && standardadresse.is_none() {
+    if matches!(beleg.typ.as_str(), "rechnung" | "gutschrift") && standardadresse.is_none() {
         return Err(AppError::Validation {
             feld: "adresse".into(),
             meldung: format!(
                 "Für „{}\" ist keine Rechnungsadresse als Standard hinterlegt. \
-                 Eine Rechnung muss die vollständige Anschrift des Empfängers enthalten (§ 14 UStG).",
+                 Auch eine Gutschrift muss die vollständige Anschrift des Empfängers enthalten (§ 14 UStG).",
                 kunde.kunde.name
             ),
         });
@@ -866,9 +870,10 @@ pub async fn stellen(pool: &SqlitePool, id: String) -> AppResult<Beleg> {
     // hatte eine Lücke.
     let mut tx = pool.begin().await?;
     let nummer = naechste_nummer(&mut tx, &beleg.typ, Some(&beleg.datum)).await?;
-    // Ein Angebot ist mit dem Festschreiben nicht verschickt — das tut der
-    // Nutzer selbst. Eine Rechnung ist damit dagegen tatsächlich gestellt.
-    let neuer_status = if beleg.typ == "angebot" { "festgeschrieben" } else { "gestellt" };
+    // Eine Rechnung ist mit dem Festschreiben tatsächlich gestellt. Ein Angebot
+    // und eine Gutschrift bekommen nur eine Nummer und werden unveränderbar —
+    // das Verschicken tut der Nutzer selbst.
+    let neuer_status = if beleg.typ == "rechnung" { "gestellt" } else { "festgeschrieben" };
     let ergebnis = sqlx::query(
         "UPDATE beleg SET nummer=?, status=?, kunde_snapshot=?, updated_at=? WHERE id=? AND status = 'entwurf'")
         .bind(&nummer).bind(neuer_status).bind(&snapshot).bind(jetzt()).bind(&id)
@@ -1407,6 +1412,53 @@ mod tests {
         assert!(b.gueltig_bis.is_none());
         assert!(b.gutschrift_zu_id.is_none());
     }
+
+    /// Legt eine freie Gutschrift mit einer Artikel-Position an (positiv erfasst).
+    async fn freie_gutschrift(pool: &sqlx::SqlitePool, kunde_id: &str) -> Beleg {
+        let g = create(pool, BelegNeu {
+            typ: "gutschrift".into(), kunde_id: kunde_id.into(),
+            datum: "2026-09-05".into(), leistungsdatum: "2026-09-05".into(),
+            leistungsdatum_bis: None, zahlungsziel_tage: 0,
+            kopftext: "".into(), fusstext: "".into(), gutschrift_zu_id: None,
+        }).await.unwrap();
+        let artikel = artikel_anlegen(pool, 5000).await;
+        position_speichern(pool, BelegpositionNeu {
+            id: "".into(), beleg_id: g.id.clone(), artikel_id: Some(artikel),
+            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: None,
+            menge: 1000, ust_satz_prozent: None,
+        }).await.unwrap();
+        g
+    }
+
+    /// Task 4: Eine festgeschriebene Gutschrift bekommt ihre Nummer aus dem
+    /// eigenen Kreis `gutschrift`, Status `festgeschrieben`, kein Fälligkeitsdatum.
+    #[tokio::test]
+    async fn stellen_schreibt_gutschrift_fest_mit_eigener_nummer() {
+        let (_dir, pool) = test_pool().await;
+        let kunde_id = kunde_anlegen(&pool).await;
+        let g = freie_gutschrift(&pool, &kunde_id).await;
+
+        let fest = stellen(&pool, g.id.clone()).await.unwrap();
+        assert_eq!(fest.status, "festgeschrieben");
+        assert!(fest.nummer.unwrap().starts_with("GS-"));
+        assert!(fest.faellig_am.is_none());
+
+        let (rz,): (i64,) = sqlx::query_as("SELECT zaehler FROM nummernkreis WHERE art='rechnung'")
+            .fetch_one(&pool).await.unwrap();
+        assert_eq!(rz, 0, "der Rechnungs-Nummernkreis bleibt unberührt");
+    }
+
+    /// Task 4: Auch eine Gutschrift verlangt beim Festschreiben eine
+    /// Rechnungsadresse (§ 14 UStG).
+    #[tokio::test]
+    async fn stellen_verlangt_rechnungsadresse_auch_bei_gutschrift() {
+        let (_dir, pool) = test_pool().await;
+        let kunde_id = kunde_ohne_adresse_anlegen(&pool).await;
+        let g = freie_gutschrift(&pool, &kunde_id).await;
+        let err = stellen(&pool, g.id).await.unwrap_err();
+        assert!(matches!(err, AppError::Validation { feld, .. } if feld == "adresse"));
+    }
+
 
     /// Legt einen Kunden samt Standard-Rechnungsadresse an — der Normalfall für
     /// jemanden, dem man Rechnungen stellt. Ohne Adresse lehnt `stellen` eine
