@@ -19,7 +19,7 @@ export const ANGEBOT_STATUS = ["entwurf", "festgeschrieben", "angenommen", "abge
 export const RECHNUNG_STATUS = ["entwurf", "gestellt", "storniert"] as const;
 
 /** Statuswerte, die eine Gutschrift annehmen kann. */
-export const GUTSCHRIFT_STATUS = ["entwurf", "festgeschrieben", "storniert"] as const;
+export const GUTSCHRIFT_STATUS = ["entwurf", "festgeschrieben"] as const;
 
 /**
  * Bei einer Gutschrift oder einem Stornobeleg fließt Geld zurück, nicht hin.

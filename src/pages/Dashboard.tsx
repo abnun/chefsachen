@@ -50,6 +50,7 @@ const RUNDGANG_SCHRITTE: FuehrungsSchritt[] = [
 interface DashboardProps {
   onRechnungOeffnen: (id: string) => void;
   onAngebotOeffnen: (id: string) => void;
+  onGutschriftOeffnen: (id: string) => void;
   /** Sprung aus der Kachel „Erste Schritte" an die Stelle, wo es weitergeht. */
   onErsterSchritt: (schritt: Schritt) => void;
 }
@@ -151,7 +152,12 @@ function HinweisKarte({ hinweis }: { hinweis: Hinweis }) {
  * Kleinunternehmer geführt wird — bei Regelbesteuerung liefert das Backend sie
  * gar nicht erst.
  */
-export function Dashboard({ onRechnungOeffnen, onAngebotOeffnen, onErsterSchritt }: DashboardProps) {
+export function Dashboard({
+  onRechnungOeffnen,
+  onAngebotOeffnen,
+  onGutschriftOeffnen,
+  onErsterSchritt,
+}: DashboardProps) {
   const [daten, setDaten] = useState<DashboardDaten | null>(null);
   const [fehler, setFehler] = useState<AppFehler | null>(null);
 
@@ -286,25 +292,28 @@ export function Dashboard({ onRechnungOeffnen, onAngebotOeffnen, onErsterSchritt
               </tr>
             </thead>
             <tbody>
-              {daten.letzte_belege.map((b) => (
-                <tr
-                  key={b.id}
-                  onClick={() => (b.typ === "angebot" ? onAngebotOeffnen(b.id) : onRechnungOeffnen(b.id))}
-                >
-                  <td>{b.typ === "angebot" ? "Angebot" : "Rechnung"}</td>
+              {daten.letzte_belege.map((b) => {
+                const oeffnen = () =>
+                  b.typ === "angebot"
+                    ? onAngebotOeffnen(b.id)
+                    : b.typ === "gutschrift"
+                      ? onGutschriftOeffnen(b.id)
+                      : onRechnungOeffnen(b.id);
+                const art =
+                  b.typ === "angebot" ? "Angebot" : b.typ === "gutschrift" ? "Gutschrift" : "Rechnung";
+                return (
+                <tr key={b.id} onClick={oeffnen}>
+                  <td>{art}</td>
                   <td>
-                    <ZeilenKnopf
-                      onOeffnen={() =>
-                        b.typ === "angebot" ? onAngebotOeffnen(b.id) : onRechnungOeffnen(b.id)
-                      }
-                    >
+                    <ZeilenKnopf onOeffnen={oeffnen}>
                       {b.nummer || "(Entwurf)"}
                     </ZeilenKnopf>
                   </td>
                   <td>{b.kunde_name}</td>
                   <td>{formatCent(b.summe_cent)}</td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         )}

@@ -79,6 +79,7 @@ vi.mock("../api", () => ({
           "text.kleinunternehmer": "Gemäß § 19 UStG wird keine Umsatzsteuer berechnet.",
           "text.rechnung.fuss": "Vielen Dank für Ihren Auftrag.",
           "text.angebot.fuss": "Dieses Angebot ist 30 Tage gültig.",
+          "text.gutschrift.fuss": "Der Betrag wird Ihnen erstattet.",
         };
         return Promise.resolve(werte[key] ?? null);
       }),
@@ -132,6 +133,9 @@ describe("Einstellungen", () => {
     expect(screen.getAllByText("Kleinunternehmer-Hinweis").length).toBeGreaterThan(0);
     expect(screen.getByDisplayValue("Vielen Dank für Ihren Auftrag.")).toBeTruthy();
     expect(screen.getByDisplayValue("Dieses Angebot ist 30 Tage gültig.")).toBeTruthy();
+    // Auch für Gutschriften lässt sich der Kopf- und Fußtext bearbeiten.
+    expect(screen.getByLabelText("Gutschrift-Kopftext")).toBeTruthy();
+    expect(screen.getByDisplayValue("Der Betrag wird Ihnen erstattet.")).toBeTruthy();
   });
 
   it("zeigt nach dem Speichern der Firmendaten einen Erfolgs-Hinweis", async () => {

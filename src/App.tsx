@@ -120,6 +120,10 @@ function App() {
             setAusgewaehltesAngebot(id);
             setSeite("angebote");
           }}
+          onGutschriftOeffnen={(id) => {
+            setAusgewaehlteGutschrift(id);
+            setSeite("gutschriften");
+          }}
           onErsterSchritt={(schritt) => {
             if (schritt === "kunde") return navigiereMitFormular("kunden");
             if (schritt === "artikel") return navigiereMitFormular("artikel");

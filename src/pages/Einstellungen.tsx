@@ -886,6 +886,8 @@ const TEXTBAUSTEIN_LABEL: Record<string, string> = {
   "text.angebot.fuss": "Angebots-Fußtext",
   "text.rechnung.kopf": "Rechnungs-Kopftext",
   "text.rechnung.fuss": "Rechnungs-Fußtext",
+  "text.gutschrift.kopf": "Gutschrift-Kopftext",
+  "text.gutschrift.fuss": "Gutschrift-Fußtext",
   "text.zahlungserinnerung": "Zahlungserinnerungs-Text",
 };
 

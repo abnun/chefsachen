@@ -56,7 +56,12 @@ function mitGrenzen(zusatz: { umsatzgrenzen?: Umsatzgrenzen } = {}): DashboardDa
 }
 
 const laden = () => vi.mocked(api.dashboard.laden);
-const props = { onRechnungOeffnen: vi.fn(), onAngebotOeffnen: vi.fn(), onErsterSchritt: vi.fn() };
+const props = {
+  onRechnungOeffnen: vi.fn(),
+  onAngebotOeffnen: vi.fn(),
+  onGutschriftOeffnen: vi.fn(),
+  onErsterSchritt: vi.fn(),
+};
 
 describe("Dashboard", () => {
   it("zeigt den vereinnahmten Umsatz mit Vorjahresvergleich", async () => {
@@ -211,6 +216,27 @@ describe("Dashboard", () => {
     render(<Dashboard {...props} />);
     await waitFor(() => expect(screen.getByText("01.06.2026")).toBeTruthy());
     expect(screen.getByText("unbefristet")).toBeTruthy();
+  });
+
+  /// Eine Gutschrift in „Zuletzt bearbeitet" wurde als „Rechnung" beschriftet
+  /// und beim Klick unter den Rechnungen geöffnet — statt unter den Gutschriften.
+  it("beschriftet eine Gutschrift korrekt und öffnet sie unter Gutschriften", async () => {
+    laden().mockResolvedValue({
+      ...LEER,
+      letzte_belege: [
+        {
+          id: "g1", typ: "gutschrift", nummer: "GU-2026-0001",
+          kunde_name: "ACME GmbH", status: "festgeschrieben", summe_cent: -50000,
+        },
+      ],
+    });
+    render(<Dashboard {...props} />);
+    await waitFor(() => expect(screen.getByText("GU-2026-0001")).toBeTruthy());
+    expect(screen.getByText("Gutschrift")).toBeTruthy();
+
+    fireEvent.click(screen.getByText("GU-2026-0001"));
+    expect(props.onGutschriftOeffnen).toHaveBeenCalledWith("g1");
+    expect(props.onRechnungOeffnen).not.toHaveBeenCalled();
   });
 
   it("zeigt Leerzustände statt leerer Tabellen", async () => {
