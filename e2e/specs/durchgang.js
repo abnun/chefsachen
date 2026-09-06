@@ -1,6 +1,9 @@
 /**
  * Ein Durchgang durch die Anwendung, so wie ihn ein neuer Nutzer geht:
- * einrichten, Kunde, Artikel, Angebot, Position, festschreiben.
+ * einrichten, Kunde, Artikel, Angebot, Position, festschreiben — und zuletzt
+ * der Durchstich für die kaufmännische Gutschrift (Rechnung stellen →
+ * „Gutschrift erstellen" → festschreiben → exportierbar → in der Liste mit
+ * negativem Betrag).
  *
  * Bewusst **eine** Datei mit aufeinander aufbauenden Fällen. Zwei getrennte
  * Dateien liefen gegen denselben Datenordner: Die Anwendung legt ihre Datenbank
@@ -44,6 +47,24 @@ async function nav(ziel) {
   const k = await $(`//button[contains(@class,"app-nav-eintrag")][contains(., "${ziel}")]`);
   await k.waitForClickable({ timeout: 20000 });
   await k.click();
+}
+
+/**
+ * Bestätigt den Bestätigungsdialog über den Knopf mit dem gegebenen Text.
+ *
+ * Im Dialog gesucht, nicht auf der Seite: Der auslösende Knopf trägt oft
+ * denselben Text („Stellen", „Festschreiben") und liegt nach dem Öffnen unter
+ * dem Overlay — ein Klick darauf ginge ins Leere (siehe „schreibt das Angebot
+ * über den Dialog fest").
+ */
+async function dialogBestaetigen(knopfText) {
+  const dialog = await $('[role="dialog"]');
+  await dialog.waitForDisplayed({ timeout: 5000 });
+  await (await dialog.$(`.//button[normalize-space(text())="${knopfText}"]`)).click();
+  await browser.waitUntil(
+    async () => !(await (await $('[role="dialog"]')).isDisplayed().catch(() => false)),
+    { timeout: 10000, timeoutMsg: "Der Dialog bleibt nach dem Bestätigen offen." },
+  );
 }
 
 describe("Ein Durchgang durch die Anwendung", () => {
@@ -201,5 +222,108 @@ describe("Ein Durchgang durch die Anwendung", () => {
     });
     await nav("Übersicht");
     await expect(await browser.execute(() => window.__e2eVerstoesse)).toEqual([]);
+  });
+
+  /*
+   * Ab hier: der Durchstich für die kaufmännische Gutschrift (v1.4.0).
+   *
+   * Bewusst hier angehängt statt in einer eigenen Spec-Datei: Beide Dateien
+   * liefen gegen denselben Datenordner (die Anwendung legt ihre Datenbank unter
+   * HOME an, `tauri-driver` erbt HOME beim Start). Eine zweite Datei fand dann
+   * keine Ersteinrichtung mehr vor, und ihr `einrichten`-Schutz scheiterte an
+   * „Übersicht 2026" statt „Ersteinrichtung" — aus einem Grund, der nichts mit
+   * ihrem Gegenstand zu tun hatte. Deshalb baut dieser Teil auf dem Zustand
+   * auf, den die Fälle oben hinterlassen: Firma eingerichtet, Kunde „Lanius
+   * Natur" (noch ohne Adresse), Artikel „Homepage-Erweiterung".
+   *
+   * Der Datei-Export lässt sich hier nicht zu Ende prüfen: `save()` öffnet
+   * einen Datei-Dialog des Betriebssystems, den WebDriver nicht bedient.
+   * Geprüft wird, dass die Export-Knöpfe für eine festgeschriebene Gutschrift
+   * angeboten und nicht abgeblendet sind. Die Normkonformität der XRechnung
+   * (TypeCode 381) deckt der KoSIT-Test in `xrechnung.rs` ab.
+   */
+  it("gibt „Lanius Natur“ eine Standard-Rechnungsadresse", async () => {
+    // § 14 UStG verlangt die vollständige Anschrift des Leistungsempfängers.
+    // Ohne Standardadresse lehnt das Backend sowohl „Rechnung stellen" als
+    // auch „Gutschrift festschreiben" ab.
+    await nav("Kunden");
+    await (await $('//td[contains(., "Lanius Natur")]')).click();
+    await klick("Adressen");
+
+    await (await feld("Straße")).waitForDisplayed({ timeout: 20000 });
+    await (await feld("Straße")).setValue("Erstattungsweg 7");
+    await (await feld("PLZ")).setValue("54321");
+    await (await feld("Ort")).setValue("Gutstadt");
+    await (await feld("Land")).setValue("DE");
+    await (await feld("Standardadresse")).click();
+    await klick("Hinzufügen");
+    // Die Standard-Spalte der Adresstabelle steht dann auf „Ja".
+    await (await $('//td[normalize-space()="Ja"]')).waitForDisplayed({ timeout: 20000 });
+  });
+
+  it("stellt eine Rechnung mit einer Position", async () => {
+    await nav("Rechnungen");
+    await klick("Neue Rechnung");
+    await (await feld("Kunde")).selectByVisibleText("Lanius Natur");
+    await klick("Anlegen");
+
+    // Derselbe erprobte Weg wie beim Angebot oben: Artikel über die Tipphilfe,
+    // nicht als Freitextposition.
+    const artikel = await feld("Artikel");
+    await artikel.waitForDisplayed({ timeout: 20000 });
+    await artikel.setValue("Homepage-Erweiterung");
+    await (await feld("Menge")).setValue("2");
+    await klick("Position hinzufügen");
+    await (await $('//td[contains(., "Homepage-Erweiterung")]')).waitForDisplayed({ timeout: 20000 });
+
+    await klick("Stellen");
+    await dialogBestaetigen("Stellen");
+    await expect(await $(".status")).toHaveText("Gestellt", { wait: 20000 });
+  });
+
+  it("erstellt aus der Rechnung einen Gutschrift-Entwurf mit übernommener Position", async () => {
+    await klick("Gutschrift erstellen");
+
+    // Der Editor wechselt in den neuen Gutschrift-Entwurf.
+    await browser.waitUntil(
+      async () => /Gutschrift/.test(await (await $("h1.seiten-kopf")).getText()),
+      { timeout: 20000, timeoutMsg: "Der Gutschrift-Entwurf öffnet sich nicht." },
+    );
+    await expect(await $(".status")).toHaveText("Entwurf", { wait: 20000 });
+    await expect(await $("p.beleg-bezug")).toHaveText(
+      expect.stringContaining("Gutschrift zu Rechnung"),
+    );
+    await (await $('//td[contains(., "Homepage-Erweiterung")]')).waitForDisplayed({ timeout: 20000 });
+  });
+
+  it("schreibt die Gutschrift fest — eigene Nummer GS-…, Status festgeschrieben", async () => {
+    await klick("Festschreiben");
+    await dialogBestaetigen("Festschreiben");
+    await expect(await $(".status")).toHaveText("Festgeschrieben", { wait: 20000 });
+    await browser.waitUntil(
+      async () => /Gutschrift\s+GS-\d{4}-\d{4}/.test(await (await $("h1.seiten-kopf")).getText()),
+      { timeout: 20000, timeoutMsg: "Die Gutschrift bekommt keine GS-Nummer." },
+    );
+  });
+
+  it("bietet PDF- und XRechnung-Export für die festgeschriebene Gutschrift an", async () => {
+    // Der Datei-Dialog des Betriebssystems ist über WebDriver nicht bedienbar;
+    // geprüft wird, dass die gelockerten Guards (Rechnung *oder* Gutschrift)
+    // den Export einer Gutschrift zulassen.
+    for (const name of ["Als PDF exportieren", "Als XRechnung (XML) exportieren"]) {
+      const knopf = await $(`//button[@aria-label="${name}"]`);
+      await knopf.waitForDisplayed({ timeout: 20000 });
+      expect(await knopf.getAttribute("disabled")).toBeFalsy();
+    }
+  });
+
+  it("zeigt die Gutschrift in der Liste mit negativem Betrag", async () => {
+    await nav("Gutschriften");
+    const zeile = await $('//tr[.//td[contains(., "GS-")]]');
+    await zeile.waitForDisplayed({ timeout: 20000 });
+    const betrag = await (await zeile.$("td.nicht-umbrechen:last-child")).getText();
+    // de-DE stellt negative Beträge mit einem Minuszeichen voran (ASCII "-"
+    // oder das typografische "−").
+    expect(betrag).toMatch(/[-−]\s?\d/);
   });
 });
