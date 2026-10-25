@@ -7,6 +7,23 @@ auf GitHub ändert daran nichts mehr.
 
 Deshalb hier in der Sprache der Anwender, nicht in der der Commits.
 
+## 1.4.1
+
+**Sicherheitsupdate**
+- Am 19. Oktober 2026 wurde weltweit bekannt, dass die Schlüssel von acht
+  Zertifikaten der Zertifizierungsstelle eMudhra kompromittiert wurden. Damit
+  ließen sich Internetverbindungen vortäuschen, wenn eine Software dieser
+  Stelle noch vertraut. Wir haben die betroffenen Sicherheitsbausteine
+  umgehend aktualisiert, damit chefsachen den Zertifikaten nicht mehr traut.
+  Das betrifft die Verbindung der Update-Prüfung.
+- Updates wurden auch bisher nur installiert, wenn ihre digitale Signatur
+  stimmt. Eine untergeschobene Version hätte also nie installiert werden
+  können. Deine Daten waren zu keinem Zeitpunkt betroffen, sie bleiben
+  ausschließlich auf deinem Rechner.
+- Außerdem haben wir die Werkzeuge aktualisiert, mit denen chefsachen gebaut
+  wird, und mehrere bekannte Schwachstellen darin geschlossen. Für die
+  fertige App ist daran nichts zu tun, eine neue Funktion kommt nicht dazu.
+
 ## 1.4.0
 
 **Kaufmännische Gutschrift**
