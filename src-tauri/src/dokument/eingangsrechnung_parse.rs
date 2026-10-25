@@ -95,6 +95,18 @@ fn ohne_praefix(name: &str) -> &str {
     name.rsplit(':').next().unwrap_or(name)
 }
 
+/// Hängt eine Entität (`&amp;`, `&#252;` …) an den gesammelten Text an.
+fn entitaet_anhaengen(puffer: &mut String, r: &quick_xml::events::BytesRef) -> AppResult<()> {
+    let fehler = || AppError::Technisch("XML ist nicht wohlgeformt: unbekannte Entität".into());
+    if let Some(zeichen) = r.resolve_char_ref().map_err(|_| fehler())? {
+        puffer.push(zeichen);
+    } else {
+        let name = r.xml10_content();
+        puffer.push_str(quick_xml::escape::resolve_predefined_entity(&name).ok_or_else(fehler)?);
+    }
+    Ok(())
+}
+
 fn parse_cii(xml: &str) -> AppResult<GeparsteRechnung> {
     let mut reader = Reader::from_str(xml);
     let mut pfad: Vec<String> = Vec::new();
@@ -106,11 +118,95 @@ fn parse_cii(xml: &str) -> AppResult<GeparsteRechnung> {
     let mut aktuelle_zeile = GeparstePosition::default();
     let mut aktuelle_steuerzeile = GeparsteSteuerzeile::default();
 
+    let mut text_puffer = String::new();
     loop {
-        match reader.read_event().map_err(|e| AppError::Technisch(format!("XML ist nicht wohlgeformt: {e}")))? {
+        let ereignis = reader.read_event().map_err(|e| AppError::Technisch(format!("XML ist nicht wohlgeformt: {e}")))?;
+        // Text kommt seit quick-xml 0.38 in Stücken (Entitäten wie `&amp;` sind eigene
+        // Ereignisse). Deshalb sammeln und erst beim nächsten anderen Ereignis auswerten.
+        match &ereignis {
+            Event::Text(t) => { text_puffer.push_str(&t.xml10_content()); continue; }
+            Event::GeneralRef(r) => { entitaet_anhaengen(&mut text_puffer, r)?; continue; }
+            _ => {}
+        }
+        if !text_puffer.is_empty() {
+            let text = std::mem::take(&mut text_puffer);
+            if in_zeile {
+                match zeilen_pfad.join("/").as_str() {
+                    "SpecifiedTradeProduct/Name" => aktuelle_zeile.bezeichnung = text,
+                    "SpecifiedLineTradeAgreement/NetPriceProductTradePrice/ChargeAmount" =>
+                        aktuelle_zeile.einzelpreis_cent = dezimal_zu_festkomma(&text, 2, 100),
+                    "SpecifiedLineTradeDelivery/BilledQuantity" =>
+                        aktuelle_zeile.menge = dezimal_zu_festkomma(&text, 3, 1000),
+                    "SpecifiedLineTradeSettlement/SpecifiedTradeSettlementLineMonetarySummation/LineTotalAmount" =>
+                        aktuelle_zeile.positionssumme_cent = dezimal_zu_festkomma(&text, 2, 100),
+                    _ => {}
+                }
+            } else if in_steuerzeile {
+                match steuerzeilen_pfad.join("/").as_str() {
+                    "BasisAmount" => aktuelle_steuerzeile.nettobetrag_cent = dezimal_zu_festkomma(&text, 2, 100),
+                    "CalculatedAmount" => aktuelle_steuerzeile.steuerbetrag_cent = dezimal_zu_festkomma(&text, 2, 100),
+                    "RateApplicablePercent" => aktuelle_steuerzeile.steuersatz_promille = dezimal_zu_festkomma(&text, 1, 10),
+                    _ => {}
+                }
+            } else {
+                match pfad.join("/").as_str() {
+                    "CrossIndustryInvoice/ExchangedDocument/ID" => ergebnis.rechnungsnummer = text,
+                    "CrossIndustryInvoice/ExchangedDocument/IssueDateTime/DateTimeString" =>
+                        ergebnis.rechnungsdatum = formatiere_cii_datum(&text),
+                    "CrossIndustryInvoice/SupplyChainTradeTransaction/ApplicableHeaderTradeAgreement/SellerTradeParty/Name" =>
+                        ergebnis.rechnungssteller_name = text,
+                    "CrossIndustryInvoice/SupplyChainTradeTransaction/ApplicableHeaderTradeSettlement/InvoiceCurrencyCode" =>
+                        ergebnis.waehrung = text,
+                    "CrossIndustryInvoice/SupplyChainTradeTransaction/ApplicableHeaderTradeSettlement/SpecifiedTradeSettlementHeaderMonetarySummation/GrandTotalAmount" =>
+                        ergebnis.betrag_cent = dezimal_zu_festkomma(&text, 2, 100),
+                    "CrossIndustryInvoice/SupplyChainTradeTransaction/ApplicableHeaderTradeAgreement/BuyerTradeParty/Name" =>
+                        ergebnis.kaeufer_name = text,
+                    "CrossIndustryInvoice/SupplyChainTradeTransaction/ApplicableHeaderTradeAgreement/BuyerTradeParty/PostalTradeAddress/LineOne" =>
+                        ergebnis.kaeufer_strasse = text,
+                    "CrossIndustryInvoice/SupplyChainTradeTransaction/ApplicableHeaderTradeAgreement/BuyerTradeParty/PostalTradeAddress/PostcodeCode" =>
+                        ergebnis.kaeufer_plz = text,
+                    "CrossIndustryInvoice/SupplyChainTradeTransaction/ApplicableHeaderTradeAgreement/BuyerTradeParty/PostalTradeAddress/CityName" =>
+                        ergebnis.kaeufer_ort = text,
+                    "CrossIndustryInvoice/SupplyChainTradeTransaction/ApplicableHeaderTradeAgreement/BuyerTradeParty/PostalTradeAddress/CountryID" =>
+                        ergebnis.kaeufer_land = text,
+                    "CrossIndustryInvoice/SupplyChainTradeTransaction/ApplicableHeaderTradeAgreement/SellerTradeParty/PostalTradeAddress/LineOne" =>
+                        ergebnis.verkaeufer_strasse = text,
+                    "CrossIndustryInvoice/SupplyChainTradeTransaction/ApplicableHeaderTradeAgreement/SellerTradeParty/PostalTradeAddress/PostcodeCode" =>
+                        ergebnis.verkaeufer_plz = text,
+                    "CrossIndustryInvoice/SupplyChainTradeTransaction/ApplicableHeaderTradeAgreement/SellerTradeParty/PostalTradeAddress/CityName" =>
+                        ergebnis.verkaeufer_ort = text,
+                    "CrossIndustryInvoice/SupplyChainTradeTransaction/ApplicableHeaderTradeAgreement/SellerTradeParty/PostalTradeAddress/CountryID" =>
+                        ergebnis.verkaeufer_land = text,
+                    "CrossIndustryInvoice/SupplyChainTradeTransaction/ApplicableHeaderTradeAgreement/SellerTradeParty/SpecifiedTaxRegistration/ID" =>
+                        ergebnis.verkaeufer_steuernummer = text,
+                    "CrossIndustryInvoice/SupplyChainTradeTransaction/ApplicableHeaderTradeAgreement/SellerTradeParty/URIUniversalCommunication/URIID" =>
+                        ergebnis.verkaeufer_email = text,
+                    "CrossIndustryInvoice/SupplyChainTradeTransaction/ApplicableHeaderTradeAgreement/SellerTradeParty/ID" =>
+                        ergebnis.lieferantennummer = text,
+                    "CrossIndustryInvoice/SupplyChainTradeTransaction/ApplicableHeaderTradeAgreement/BuyerOrderReferencedDocument/IssuerAssignedID" =>
+                        ergebnis.bestellnummer = text,
+                    "CrossIndustryInvoice/SupplyChainTradeTransaction/ApplicableHeaderTradeAgreement/BuyerReference" =>
+                        ergebnis.leitweg_id = text,
+                    "CrossIndustryInvoice/SupplyChainTradeTransaction/ApplicableHeaderTradeDelivery/ActualDeliverySupplyChainEvent/OccurrenceDateTime/DateTimeString" =>
+                        ergebnis.leistungsdatum = formatiere_cii_datum(&text),
+                    "CrossIndustryInvoice/SupplyChainTradeTransaction/ApplicableHeaderTradeSettlement/SpecifiedTradePaymentTerms/Description" =>
+                        ergebnis.zahlungsbedingungen = text,
+                    "CrossIndustryInvoice/SupplyChainTradeTransaction/ApplicableHeaderTradeSettlement/SpecifiedTradePaymentTerms/DueDateDateTime/DateTimeString" =>
+                        ergebnis.faelligkeitsdatum = formatiere_cii_datum(&text),
+                    "CrossIndustryInvoice/SupplyChainTradeTransaction/ApplicableHeaderTradeSettlement/SpecifiedTradeSettlementPaymentMeans/PayeePartyCreditorFinancialAccount/IBANID" =>
+                        ergebnis.iban = text,
+                    "CrossIndustryInvoice/SupplyChainTradeTransaction/ApplicableHeaderTradeSettlement/SpecifiedTradeSettlementPaymentMeans/PayeeSpecifiedCreditorFinancialInstitution/BICID" =>
+                        ergebnis.bic = text,
+                    "CrossIndustryInvoice/SupplyChainTradeTransaction/ApplicableHeaderTradeSettlement/SpecifiedTradeSettlementPaymentMeans/PayeeSpecifiedCreditorFinancialInstitution/Name" =>
+                        ergebnis.bankname = text,
+                    _ => {}
+                }
+            }
+        }
+        match ereignis {
             Event::Eof => break,
             Event::Start(e) => {
-                let name = String::from_utf8_lossy(e.name().as_ref()).into_owned();
+                let name = e.name().as_ref().to_owned();
                 if ohne_praefix(&name) == "IncludedSupplyChainTradeLineItem" {
                     in_zeile = true;
                     aktuelle_zeile = GeparstePosition::default();
@@ -132,81 +228,6 @@ fn parse_cii(xml: &str) -> AppResult<GeparsteRechnung> {
                 // Vergleiche unten unabhängig davon greifen, welches Präfix der
                 // Absender gewählt hat.
                 pfad.push(ohne_praefix(&name).to_string());
-            }
-            Event::Text(t) => {
-                let text = t.unescape().map_err(|e| AppError::Technisch(format!("XML ist nicht wohlgeformt: {e}")))?.into_owned();
-                if in_zeile {
-                    match zeilen_pfad.join("/").as_str() {
-                        "SpecifiedTradeProduct/Name" => aktuelle_zeile.bezeichnung = text,
-                        "SpecifiedLineTradeAgreement/NetPriceProductTradePrice/ChargeAmount" =>
-                            aktuelle_zeile.einzelpreis_cent = dezimal_zu_festkomma(&text, 2, 100),
-                        "SpecifiedLineTradeDelivery/BilledQuantity" =>
-                            aktuelle_zeile.menge = dezimal_zu_festkomma(&text, 3, 1000),
-                        "SpecifiedLineTradeSettlement/SpecifiedTradeSettlementLineMonetarySummation/LineTotalAmount" =>
-                            aktuelle_zeile.positionssumme_cent = dezimal_zu_festkomma(&text, 2, 100),
-                        _ => {}
-                    }
-                } else if in_steuerzeile {
-                    match steuerzeilen_pfad.join("/").as_str() {
-                        "BasisAmount" => aktuelle_steuerzeile.nettobetrag_cent = dezimal_zu_festkomma(&text, 2, 100),
-                        "CalculatedAmount" => aktuelle_steuerzeile.steuerbetrag_cent = dezimal_zu_festkomma(&text, 2, 100),
-                        "RateApplicablePercent" => aktuelle_steuerzeile.steuersatz_promille = dezimal_zu_festkomma(&text, 1, 10),
-                        _ => {}
-                    }
-                } else {
-                    match pfad.join("/").as_str() {
-                        "CrossIndustryInvoice/ExchangedDocument/ID" => ergebnis.rechnungsnummer = text,
-                        "CrossIndustryInvoice/ExchangedDocument/IssueDateTime/DateTimeString" =>
-                            ergebnis.rechnungsdatum = formatiere_cii_datum(&text),
-                        "CrossIndustryInvoice/SupplyChainTradeTransaction/ApplicableHeaderTradeAgreement/SellerTradeParty/Name" =>
-                            ergebnis.rechnungssteller_name = text,
-                        "CrossIndustryInvoice/SupplyChainTradeTransaction/ApplicableHeaderTradeSettlement/InvoiceCurrencyCode" =>
-                            ergebnis.waehrung = text,
-                        "CrossIndustryInvoice/SupplyChainTradeTransaction/ApplicableHeaderTradeSettlement/SpecifiedTradeSettlementHeaderMonetarySummation/GrandTotalAmount" =>
-                            ergebnis.betrag_cent = dezimal_zu_festkomma(&text, 2, 100),
-                        "CrossIndustryInvoice/SupplyChainTradeTransaction/ApplicableHeaderTradeAgreement/BuyerTradeParty/Name" =>
-                            ergebnis.kaeufer_name = text,
-                        "CrossIndustryInvoice/SupplyChainTradeTransaction/ApplicableHeaderTradeAgreement/BuyerTradeParty/PostalTradeAddress/LineOne" =>
-                            ergebnis.kaeufer_strasse = text,
-                        "CrossIndustryInvoice/SupplyChainTradeTransaction/ApplicableHeaderTradeAgreement/BuyerTradeParty/PostalTradeAddress/PostcodeCode" =>
-                            ergebnis.kaeufer_plz = text,
-                        "CrossIndustryInvoice/SupplyChainTradeTransaction/ApplicableHeaderTradeAgreement/BuyerTradeParty/PostalTradeAddress/CityName" =>
-                            ergebnis.kaeufer_ort = text,
-                        "CrossIndustryInvoice/SupplyChainTradeTransaction/ApplicableHeaderTradeAgreement/BuyerTradeParty/PostalTradeAddress/CountryID" =>
-                            ergebnis.kaeufer_land = text,
-                        "CrossIndustryInvoice/SupplyChainTradeTransaction/ApplicableHeaderTradeAgreement/SellerTradeParty/PostalTradeAddress/LineOne" =>
-                            ergebnis.verkaeufer_strasse = text,
-                        "CrossIndustryInvoice/SupplyChainTradeTransaction/ApplicableHeaderTradeAgreement/SellerTradeParty/PostalTradeAddress/PostcodeCode" =>
-                            ergebnis.verkaeufer_plz = text,
-                        "CrossIndustryInvoice/SupplyChainTradeTransaction/ApplicableHeaderTradeAgreement/SellerTradeParty/PostalTradeAddress/CityName" =>
-                            ergebnis.verkaeufer_ort = text,
-                        "CrossIndustryInvoice/SupplyChainTradeTransaction/ApplicableHeaderTradeAgreement/SellerTradeParty/PostalTradeAddress/CountryID" =>
-                            ergebnis.verkaeufer_land = text,
-                        "CrossIndustryInvoice/SupplyChainTradeTransaction/ApplicableHeaderTradeAgreement/SellerTradeParty/SpecifiedTaxRegistration/ID" =>
-                            ergebnis.verkaeufer_steuernummer = text,
-                        "CrossIndustryInvoice/SupplyChainTradeTransaction/ApplicableHeaderTradeAgreement/SellerTradeParty/URIUniversalCommunication/URIID" =>
-                            ergebnis.verkaeufer_email = text,
-                        "CrossIndustryInvoice/SupplyChainTradeTransaction/ApplicableHeaderTradeAgreement/SellerTradeParty/ID" =>
-                            ergebnis.lieferantennummer = text,
-                        "CrossIndustryInvoice/SupplyChainTradeTransaction/ApplicableHeaderTradeAgreement/BuyerOrderReferencedDocument/IssuerAssignedID" =>
-                            ergebnis.bestellnummer = text,
-                        "CrossIndustryInvoice/SupplyChainTradeTransaction/ApplicableHeaderTradeAgreement/BuyerReference" =>
-                            ergebnis.leitweg_id = text,
-                        "CrossIndustryInvoice/SupplyChainTradeTransaction/ApplicableHeaderTradeDelivery/ActualDeliverySupplyChainEvent/OccurrenceDateTime/DateTimeString" =>
-                            ergebnis.leistungsdatum = formatiere_cii_datum(&text),
-                        "CrossIndustryInvoice/SupplyChainTradeTransaction/ApplicableHeaderTradeSettlement/SpecifiedTradePaymentTerms/Description" =>
-                            ergebnis.zahlungsbedingungen = text,
-                        "CrossIndustryInvoice/SupplyChainTradeTransaction/ApplicableHeaderTradeSettlement/SpecifiedTradePaymentTerms/DueDateDateTime/DateTimeString" =>
-                            ergebnis.faelligkeitsdatum = formatiere_cii_datum(&text),
-                        "CrossIndustryInvoice/SupplyChainTradeTransaction/ApplicableHeaderTradeSettlement/SpecifiedTradeSettlementPaymentMeans/PayeePartyCreditorFinancialAccount/IBANID" =>
-                            ergebnis.iban = text,
-                        "CrossIndustryInvoice/SupplyChainTradeTransaction/ApplicableHeaderTradeSettlement/SpecifiedTradeSettlementPaymentMeans/PayeeSpecifiedCreditorFinancialInstitution/BICID" =>
-                            ergebnis.bic = text,
-                        "CrossIndustryInvoice/SupplyChainTradeTransaction/ApplicableHeaderTradeSettlement/SpecifiedTradeSettlementPaymentMeans/PayeeSpecifiedCreditorFinancialInstitution/Name" =>
-                            ergebnis.bankname = text,
-                        _ => {}
-                    }
-                }
             }
             Event::End(_) => {
                 if let Some(name) = pfad.pop() {
@@ -251,11 +272,88 @@ fn parse_ubl(xml: &str) -> AppResult<GeparsteRechnung> {
     let mut aktuelle_zeile = GeparstePosition::default();
     let mut aktuelle_steuerzeile = GeparsteSteuerzeile::default();
 
+    let mut text_puffer = String::new();
     loop {
-        match reader.read_event().map_err(|e| AppError::Technisch(format!("XML ist nicht wohlgeformt: {e}")))? {
+        let ereignis = reader.read_event().map_err(|e| AppError::Technisch(format!("XML ist nicht wohlgeformt: {e}")))?;
+        // Text kommt seit quick-xml 0.38 in Stücken (Entitäten wie `&amp;` sind eigene
+        // Ereignisse). Deshalb sammeln und erst beim nächsten anderen Ereignis auswerten.
+        match &ereignis {
+            Event::Text(t) => { text_puffer.push_str(&t.xml10_content()); continue; }
+            Event::GeneralRef(r) => { entitaet_anhaengen(&mut text_puffer, r)?; continue; }
+            _ => {}
+        }
+        if !text_puffer.is_empty() {
+            let text = std::mem::take(&mut text_puffer);
+            if in_zeile {
+                match zeilen_pfad.join("/").as_str() {
+                    "Item/Name" => aktuelle_zeile.bezeichnung = text,
+                    "Price/PriceAmount" => aktuelle_zeile.einzelpreis_cent = dezimal_zu_festkomma(&text, 2, 100),
+                    "InvoicedQuantity" => aktuelle_zeile.menge = dezimal_zu_festkomma(&text, 3, 1000),
+                    "LineExtensionAmount" => aktuelle_zeile.positionssumme_cent = dezimal_zu_festkomma(&text, 2, 100),
+                    _ => {}
+                }
+            } else if in_steuerzeile {
+                match steuerzeilen_pfad.join("/").as_str() {
+                    "TaxableAmount" => aktuelle_steuerzeile.nettobetrag_cent = dezimal_zu_festkomma(&text, 2, 100),
+                    "TaxAmount" => aktuelle_steuerzeile.steuerbetrag_cent = dezimal_zu_festkomma(&text, 2, 100),
+                    "TaxCategory/Percent" => aktuelle_steuerzeile.steuersatz_promille = dezimal_zu_festkomma(&text, 1, 10),
+                    _ => {}
+                }
+            } else {
+                match pfad.join("/").as_str() {
+                    "Invoice/ID" => ergebnis.rechnungsnummer = text,
+                    "Invoice/IssueDate" => ergebnis.rechnungsdatum = text,
+                    "Invoice/DueDate" => ergebnis.faelligkeitsdatum = text,
+                    "Invoice/DocumentCurrencyCode" => ergebnis.waehrung = text,
+                    "Invoice/BuyerReference" => ergebnis.leitweg_id = text,
+                    "Invoice/OrderReference/ID" => ergebnis.bestellnummer = text,
+                    "Invoice/LegalMonetaryTotal/TaxInclusiveAmount" =>
+                        ergebnis.betrag_cent = dezimal_zu_festkomma(&text, 2, 100),
+                    "Invoice/AccountingSupplierParty/Party/PartyLegalEntity/RegistrationName" =>
+                        steller_registrierungsname = text,
+                    "Invoice/AccountingSupplierParty/Party/PartyName/Name" =>
+                        steller_partyname = text,
+                    "Invoice/AccountingSupplierParty/Party/PostalAddress/StreetName" =>
+                        ergebnis.verkaeufer_strasse = text,
+                    "Invoice/AccountingSupplierParty/Party/PostalAddress/PostalZone" =>
+                        ergebnis.verkaeufer_plz = text,
+                    "Invoice/AccountingSupplierParty/Party/PostalAddress/CityName" =>
+                        ergebnis.verkaeufer_ort = text,
+                    "Invoice/AccountingSupplierParty/Party/PostalAddress/Country/IdentificationCode" =>
+                        ergebnis.verkaeufer_land = text,
+                    "Invoice/AccountingSupplierParty/Party/PartyTaxScheme/CompanyID" =>
+                        ergebnis.verkaeufer_steuernummer = text,
+                    "Invoice/AccountingSupplierParty/Party/Contact/ElectronicMail" =>
+                        ergebnis.verkaeufer_email = text,
+                    "Invoice/AccountingSupplierParty/Party/PartyIdentification/ID" =>
+                        ergebnis.lieferantennummer = text,
+                    "Invoice/AccountingCustomerParty/Party/PartyLegalEntity/RegistrationName" =>
+                        kaeufer_registrierungsname = text,
+                    "Invoice/AccountingCustomerParty/Party/PartyName/Name" =>
+                        kaeufer_partyname = text,
+                    "Invoice/AccountingCustomerParty/Party/PostalAddress/StreetName" =>
+                        ergebnis.kaeufer_strasse = text,
+                    "Invoice/AccountingCustomerParty/Party/PostalAddress/PostalZone" =>
+                        ergebnis.kaeufer_plz = text,
+                    "Invoice/AccountingCustomerParty/Party/PostalAddress/CityName" =>
+                        ergebnis.kaeufer_ort = text,
+                    "Invoice/AccountingCustomerParty/Party/PostalAddress/Country/IdentificationCode" =>
+                        ergebnis.kaeufer_land = text,
+                    "Invoice/Delivery/ActualDeliveryDate" => ergebnis.leistungsdatum = text,
+                    "Invoice/PaymentTerms/Note" => ergebnis.zahlungsbedingungen = text,
+                    "Invoice/PaymentMeans/PayeeFinancialAccount/ID" => ergebnis.iban = text,
+                    "Invoice/PaymentMeans/PayeeFinancialAccount/FinancialInstitutionBranch/ID" =>
+                        ergebnis.bic = text,
+                    "Invoice/PaymentMeans/PayeeFinancialAccount/FinancialInstitutionBranch/FinancialInstitution/Name" =>
+                        ergebnis.bankname = text,
+                    _ => {}
+                }
+            }
+        }
+        match ereignis {
             Event::Eof => break,
             Event::Start(e) => {
-                let name = String::from_utf8_lossy(e.name().as_ref()).into_owned();
+                let name = e.name().as_ref().to_owned();
                 if ohne_praefix(&name) == "InvoiceLine" {
                     in_zeile = true;
                     aktuelle_zeile = GeparstePosition::default();
@@ -275,74 +373,6 @@ fn parse_ubl(xml: &str) -> AppResult<GeparsteRechnung> {
                 // Vergleiche unten unabhängig davon greifen, welches Präfix der
                 // Absender gewählt hat.
                 pfad.push(ohne_praefix(&name).to_string());
-            }
-            Event::Text(t) => {
-                let text = t.unescape().map_err(|e| AppError::Technisch(format!("XML ist nicht wohlgeformt: {e}")))?.into_owned();
-                if in_zeile {
-                    match zeilen_pfad.join("/").as_str() {
-                        "Item/Name" => aktuelle_zeile.bezeichnung = text,
-                        "Price/PriceAmount" => aktuelle_zeile.einzelpreis_cent = dezimal_zu_festkomma(&text, 2, 100),
-                        "InvoicedQuantity" => aktuelle_zeile.menge = dezimal_zu_festkomma(&text, 3, 1000),
-                        "LineExtensionAmount" => aktuelle_zeile.positionssumme_cent = dezimal_zu_festkomma(&text, 2, 100),
-                        _ => {}
-                    }
-                } else if in_steuerzeile {
-                    match steuerzeilen_pfad.join("/").as_str() {
-                        "TaxableAmount" => aktuelle_steuerzeile.nettobetrag_cent = dezimal_zu_festkomma(&text, 2, 100),
-                        "TaxAmount" => aktuelle_steuerzeile.steuerbetrag_cent = dezimal_zu_festkomma(&text, 2, 100),
-                        "TaxCategory/Percent" => aktuelle_steuerzeile.steuersatz_promille = dezimal_zu_festkomma(&text, 1, 10),
-                        _ => {}
-                    }
-                } else {
-                    match pfad.join("/").as_str() {
-                        "Invoice/ID" => ergebnis.rechnungsnummer = text,
-                        "Invoice/IssueDate" => ergebnis.rechnungsdatum = text,
-                        "Invoice/DueDate" => ergebnis.faelligkeitsdatum = text,
-                        "Invoice/DocumentCurrencyCode" => ergebnis.waehrung = text,
-                        "Invoice/BuyerReference" => ergebnis.leitweg_id = text,
-                        "Invoice/OrderReference/ID" => ergebnis.bestellnummer = text,
-                        "Invoice/LegalMonetaryTotal/TaxInclusiveAmount" =>
-                            ergebnis.betrag_cent = dezimal_zu_festkomma(&text, 2, 100),
-                        "Invoice/AccountingSupplierParty/Party/PartyLegalEntity/RegistrationName" =>
-                            steller_registrierungsname = text,
-                        "Invoice/AccountingSupplierParty/Party/PartyName/Name" =>
-                            steller_partyname = text,
-                        "Invoice/AccountingSupplierParty/Party/PostalAddress/StreetName" =>
-                            ergebnis.verkaeufer_strasse = text,
-                        "Invoice/AccountingSupplierParty/Party/PostalAddress/PostalZone" =>
-                            ergebnis.verkaeufer_plz = text,
-                        "Invoice/AccountingSupplierParty/Party/PostalAddress/CityName" =>
-                            ergebnis.verkaeufer_ort = text,
-                        "Invoice/AccountingSupplierParty/Party/PostalAddress/Country/IdentificationCode" =>
-                            ergebnis.verkaeufer_land = text,
-                        "Invoice/AccountingSupplierParty/Party/PartyTaxScheme/CompanyID" =>
-                            ergebnis.verkaeufer_steuernummer = text,
-                        "Invoice/AccountingSupplierParty/Party/Contact/ElectronicMail" =>
-                            ergebnis.verkaeufer_email = text,
-                        "Invoice/AccountingSupplierParty/Party/PartyIdentification/ID" =>
-                            ergebnis.lieferantennummer = text,
-                        "Invoice/AccountingCustomerParty/Party/PartyLegalEntity/RegistrationName" =>
-                            kaeufer_registrierungsname = text,
-                        "Invoice/AccountingCustomerParty/Party/PartyName/Name" =>
-                            kaeufer_partyname = text,
-                        "Invoice/AccountingCustomerParty/Party/PostalAddress/StreetName" =>
-                            ergebnis.kaeufer_strasse = text,
-                        "Invoice/AccountingCustomerParty/Party/PostalAddress/PostalZone" =>
-                            ergebnis.kaeufer_plz = text,
-                        "Invoice/AccountingCustomerParty/Party/PostalAddress/CityName" =>
-                            ergebnis.kaeufer_ort = text,
-                        "Invoice/AccountingCustomerParty/Party/PostalAddress/Country/IdentificationCode" =>
-                            ergebnis.kaeufer_land = text,
-                        "Invoice/Delivery/ActualDeliveryDate" => ergebnis.leistungsdatum = text,
-                        "Invoice/PaymentTerms/Note" => ergebnis.zahlungsbedingungen = text,
-                        "Invoice/PaymentMeans/PayeeFinancialAccount/ID" => ergebnis.iban = text,
-                        "Invoice/PaymentMeans/PayeeFinancialAccount/FinancialInstitutionBranch/ID" =>
-                            ergebnis.bic = text,
-                        "Invoice/PaymentMeans/PayeeFinancialAccount/FinancialInstitutionBranch/FinancialInstitution/Name" =>
-                            ergebnis.bankname = text,
-                        _ => {}
-                    }
-                }
             }
             Event::End(_) => {
                 if let Some(name) = pfad.pop() {
@@ -403,7 +433,7 @@ pub fn parsen(xml: &str) -> AppResult<GeparsteRechnung> {
         match reader.read_event().map_err(|e| AppError::Technisch(format!("XML ist nicht wohlgeformt: {e}")))? {
             Event::Eof => return Err(AppError::Technisch("Leere oder ungültige XML-Datei".into())),
             Event::Start(e) | Event::Empty(e) => {
-                break String::from_utf8_lossy(e.name().as_ref()).into_owned();
+                break e.name().as_ref().to_owned();
             }
             _ => continue,
         }
@@ -911,6 +941,19 @@ mod tests {
         assert_eq!(ergebnis.rechnungssteller_name, "Fremdanbieter GmbH");
         assert_eq!(ergebnis.rechnungsdatum, "2026-07-15");
         assert_eq!(ergebnis.betrag_cent, 23_800);
+    }
+
+    /// Entitäten kommen vom Parser als eigene Ereignisse; der Text darf dadurch
+    /// weder zerfallen noch Zeichen verlieren.
+    #[test]
+    fn entitaeten_im_text_bleiben_erhalten() {
+        let xml = "<rsm:CrossIndustryInvoice><rsm:SupplyChainTradeTransaction>\
+            <ram:ApplicableHeaderTradeAgreement><ram:SellerTradeParty>\
+            <ram:Name>M&#252;ller &amp; S&#xF6;hne &lt;GbR&gt;</ram:Name>\
+            </ram:SellerTradeParty></ram:ApplicableHeaderTradeAgreement>\
+            </rsm:SupplyChainTradeTransaction></rsm:CrossIndustryInvoice>";
+        let r = parse_cii(xml).unwrap();
+        assert_eq!(r.rechnungssteller_name, "Müller & Söhne <GbR>");
     }
 
     /// Byte-Slicing auf Fremddaten: Ein Mehrbyte-Zeichen an der Schnittstelle

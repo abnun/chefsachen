@@ -39,14 +39,14 @@ typst-pdf = "0.13"
 # Bild über eine data:-URL ohne Aufweichung der Richtlinie auskommt.
 typst-svg = "0.13"
 typst-as-lib = "0.14"
-lopdf = "0.35"
+lopdf = "0.46"
 xmp-writer = "0.3"
-quick-xml = { version = "0.37", features = ["serialize"] }
+quick-xml = { version = "0.42", features = ["serialize"] }
 tauri-plugin-log = "2.9.0"
 log = "0.4.33"
 # Bündelt eine Sicherung mit dem Belegarchiv zu einer einzigen Datei beim
 # Exportieren (P/A1). Reine Rust-Implementierung, kein Systemwerkzeug nötig.
-zip = { version = "2", default-features = false, features = ["deflate"] }
+zip = { version = "9", default-features = false, features = ["deflate"] }
 # Für den optionalen SEPA-Girocode auf Rechnungen. Ohne image/svg-Feature —
 # nur die Modul-Matrix wird gebraucht, Typst zeichnet sie als Vektor-Rechtecke.
 qrcode = { version = "0.14", default-features = false }

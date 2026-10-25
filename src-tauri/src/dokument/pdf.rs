@@ -494,7 +494,7 @@ pub(crate) mod tests {
     fn textpositionen(bytes: &[u8]) -> Vec<(f32, f32)> {
         let doc = lopdf::Document::load_mem(bytes).unwrap();
         let (_, seite) = doc.get_pages().into_iter().next().unwrap();
-        let inhalt = lopdf::content::Content::decode(&doc.get_page_content(seite).unwrap()).unwrap();
+        let inhalt = lopdf::content::Content::decode(&doc.get_page_content(seite)).unwrap();
 
         let mut ctm = EINHEIT;
         let mut stapel: Vec<Matrix> = Vec::new();
@@ -532,7 +532,7 @@ pub(crate) mod tests {
     fn bildpositionen(bytes: &[u8]) -> Vec<(f32, f32)> {
         let doc = lopdf::Document::load_mem(bytes).unwrap();
         let (_, seite) = doc.get_pages().into_iter().next().unwrap();
-        let inhalt = lopdf::content::Content::decode(&doc.get_page_content(seite).unwrap()).unwrap();
+        let inhalt = lopdf::content::Content::decode(&doc.get_page_content(seite)).unwrap();
 
         let mut ctm = EINHEIT;
         let mut stapel: Vec<Matrix> = Vec::new();
@@ -572,7 +572,7 @@ pub(crate) mod tests {
     fn linienpositionen_seite(bytes: &[u8], seite_index: usize) -> Vec<((f32, f32), (f32, f32))> {
         let doc = lopdf::Document::load_mem(bytes).unwrap();
         let (_, seite) = doc.get_pages().into_iter().nth(seite_index).unwrap();
-        let inhalt = lopdf::content::Content::decode(&doc.get_page_content(seite).unwrap()).unwrap();
+        let inhalt = lopdf::content::Content::decode(&doc.get_page_content(seite)).unwrap();
 
         let mut ctm = EINHEIT;
         let mut stapel: Vec<Matrix> = Vec::new();

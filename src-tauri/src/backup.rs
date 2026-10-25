@@ -331,7 +331,7 @@ pub async fn zip_einspielen(zip_pfad: &Path, app_data_dir: &Path) -> AppResult<Z
     for i in 0..archiv.len() {
         let mut eintrag = archiv.by_index(i)
             .map_err(|e| AppError::Technisch(format!("Zip-Eintrag nicht lesbar: {e}")))?;
-        let name = eintrag.name().to_string();
+        let name = eintrag.name().map_err(|e| AppError::Technisch(format!("Zip-Eintrag nicht lesbar: {e}")))?.to_string();
         let mut inhalt = Vec::new();
         std::io::Read::read_to_end(&mut eintrag, &mut inhalt)
             .map_err(|e| AppError::Technisch(format!("Zip-Eintrag nicht lesbar: {e}")))?;
@@ -541,7 +541,7 @@ mod tests {
     fn zip_eintraege(bytes: &[u8]) -> Vec<String> {
         let mut archiv = zip::ZipArchive::new(std::io::Cursor::new(bytes)).unwrap();
         (0..archiv.len())
-            .map(|i| archiv.by_index(i).unwrap().name().to_string())
+            .map(|i| archiv.by_index(i).unwrap().name().unwrap().to_string())
             .collect()
     }
 
