@@ -7,6 +7,17 @@ auf GitHub ändert daran nichts mehr.
 
 Deshalb hier in der Sprache der Anwender, nicht in der der Commits.
 
+## 1.4.2
+
+**Weitere Sicherheitsaktualisierung**
+- Die verschlüsselte Verbindung der Update-Prüfung und mehrere Bausteine zum
+  Lesen von Rechnungs-PDFs, E-Rechnungs-XML und Sicherungsdateien sind auf den
+  neuesten Stand gebracht. Damit sind bekannt gewordene Schwachstellen
+  geschlossen, unter anderem eine, bei der eine manipulierte PDF-Datei die
+  App beim Import zum Absturz bringen konnte.
+- Am Aussehen und an der Bedienung ändert sich nichts. Die Daten bleiben
+  unverändert.
+
 ## 1.4.1
 
 **Sicherheitsupdate**
