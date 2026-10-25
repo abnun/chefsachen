@@ -16,7 +16,7 @@
 set -euo pipefail
 
 VALIDATOR_VERSION="1.6.2"
-VERAPDF_VERSION="1.30.2"
+VERAPDF_VERSION="1.30.3"
 KONFIGURATION_VERSION="2026-01-31"
 XRECHNUNG_VERSION="3.0.2"
 
@@ -29,7 +29,7 @@ XRECHNUNG_VERSION="3.0.2"
 # unbemerkt eine neue, ungeprüfte Version zu installieren.
 VALIDATOR_SHA256="244978514ad48f67c7573acfffc8f4fd73d81feda6f276710033f9913579857e"
 KONFIGURATION_SHA256="6a5a5911a421b25fbc423f62f93f894df7b236f5d73ca4f84bb222a945082704"
-VERAPDF_SHA256="6cc6341cb1af644044054b81f00a6590a7918abb18f762243de115258bcad838"
+VERAPDF_SHA256="b512bf24945503a33fc10738ecffc1f2dccaaf8593a448e94ee9ac86a9559a59"
 
 # Portable SHA-256-Prüfung: `shasum -a 256 -c -` gibt es auf macOS,
 # `sha256sum -c -` auf den meisten Linux-Distributionen (u. a. GitHub-Runnern).
