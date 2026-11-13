@@ -7,3 +7,4 @@ pub mod eingangsrechnungen;
 pub mod einstellungen;
 pub mod firma;
 pub mod kunden;
+pub mod vertriebsweg;

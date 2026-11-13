@@ -81,6 +81,16 @@ jobs:
       - name: Clippy
         run: cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
 
+      # Die Store-Fassung entsteht aus demselben Code ohne Updater. Ohne diesen
+      # Schritt fiele ein Aufruf, der nicht hinter dem Feature steht, erst beim
+      # Store-Bau auf dem Rechner des Betreibers auf. TAURI_CONFIG reicht die
+      # Überlagerung hinein, wie es `tauri build --config` täte.
+      - name: Clippy (Store-Fassung)
+        run: |
+          TAURI_CONFIG="$(cat src-tauri/tauri.appstore.conf.json)" \
+            cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets \
+            --no-default-features --features mac-app-store -- -D warnings
+
       - name: Tests
         # KOSIT_PFLICHT lässt die Normprüfungen (XRechnung und PDF/A)
         # fehlschlagen, statt sich zu überspringen, falls ein Prüfer oder die

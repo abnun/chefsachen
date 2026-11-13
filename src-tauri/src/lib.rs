@@ -93,13 +93,20 @@ fn mit_plugins<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri::Builder<
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init());
 
-    // Aktualisierung und Neustart gibt es auf Mobilgeräten nicht.
-    #[cfg(not(any(target_os = "android", target_os = "ios")))]
+    // Aktualisierung und Neustart gibt es auf Mobilgeräten nicht, und in den
+    // Store-Fassungen nicht, weil dort allein der Store aktualisiert.
+    #[cfg(all(
+        feature = "selbst-aktualisierung",
+        not(any(target_os = "android", target_os = "ios"))
+    ))]
     let builder = builder
         // Der Updater lädt und prüft in Rust, nicht im Webview — die
         // Inhaltsrichtlinie der Oberfläche muss GitHub deshalb nicht kennen.
         .plugin(tauri_plugin_updater::Builder::new().build())
-        .plugin(tauri_plugin_process::init())
+        .plugin(tauri_plugin_process::init());
+
+    #[cfg(not(any(target_os = "android", target_os = "ios")))]
+    let builder = builder
         // Merkt sich Größe, Position und ob das Fenster maximiert war. Beim
         // ersten Start gibt es nichts zu merken — dann greift `maximized` aus
         // `tauri.conf.json`.
@@ -203,7 +210,8 @@ fn mit_befehlen<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri::Builder
             commands::eingangsrechnungen::eingangsrechnung_aenderungen,
             commands::eingangsrechnungen::eingangsrechnung_original_exportieren,
             protokoll::protokoll_pfad,
-            menue::menue_einstellungen_freigeben
+            menue::menue_einstellungen_freigeben,
+            commands::vertriebsweg::vertriebsweg
     ])
 }
 
@@ -246,7 +254,8 @@ pub fn run() {
         .expect("error while running tauri application");
 }
 
-#[cfg(test)]
+// Nur im GitHub-Bau: Die Store-Fassungen enthalten den Updater gar nicht.
+#[cfg(all(test, feature = "selbst-aktualisierung"))]
 mod aktualisierung;
 #[cfg(test)]
 mod ipc;

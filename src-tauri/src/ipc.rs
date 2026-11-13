@@ -89,6 +89,7 @@ fn jeder_registrierte_befehl_ist_erreichbar() {
         "eingangsrechnung_list",
         "sicherungen_liste",
         "protokoll_pfad",
+        "vertriebsweg",
     ] {
         let ergebnis = rufe(&fenster, befehl, serde_json::json!({}));
         assert!(ergebnis.is_ok(), "{befehl} nicht erreichbar: {ergebnis:?}");
@@ -167,14 +168,28 @@ const PLUGIN_AUFRUFE: &[(&str, &str)] = &[
     ("readFile — Import einer Eingangsrechnung", "plugin:fs|read_file"),
     ("open — Dateiauswahl beim Import", "plugin:dialog|open"),
     ("save — Speicherort für den Export", "plugin:dialog|save"),
-    ("check — Suche nach einer Aktualisierung", "plugin:updater|check"),
-    ("downloadAndInstall — Aktualisierung einspielen", "plugin:updater|download_and_install"),
-    ("relaunch — Neustart nach der Aktualisierung", "plugin:process|restart"),
     ("error — Fehler der Oberfläche protokollieren", "plugin:log|log"),
     ("revealItemInDir — Protokolldatei zeigen", "plugin:opener|reveal_item_in_dir"),
     ("openUrl — Veröffentlichung im Browser öffnen", "plugin:opener|open_url"),
     ("getVersion — Versionsanzeige", "plugin:app|version"),
 ];
+
+/// Die Aufrufe der Selbstaktualisierung. Getrennt von [`PLUGIN_AUFRUFE`], weil
+/// nur die GitHub-Fassung sie erlaubt: In den Store-Fassungen ruft die
+/// Oberfläche sie nicht auf, und dort darf sie es auch nicht.
+const AKTUALISIERUNGS_AUFRUFE: &[(&str, &str)] = &[
+    ("check — Suche nach einer Aktualisierung", "plugin:updater|check"),
+    ("downloadAndInstall — Aktualisierung einspielen", "plugin:updater|download_and_install"),
+    ("relaunch — Neustart nach der Aktualisierung", "plugin:process|restart"),
+];
+
+/// Ob das Hauptfenster einen Befehl laut den Berechtigungen im Kontext aufrufen
+/// darf.
+fn erlaubt(autoritaet: &tauri::ipc::RuntimeAuthority, befehl: &str) -> bool {
+    autoritaet
+        .resolve_access(befehl, "main", "main", &tauri::ipc::Origin::Local)
+        .is_some_and(|treffer| !treffer.is_empty())
+}
 
 #[test]
 fn die_oberflaeche_darf_alles_aufrufen_was_sie_aufruft() {
@@ -189,12 +204,16 @@ fn die_oberflaeche_darf_alles_aufrufen_was_sie_aufruft() {
     let mut kontext = crate::kontext::<tauri::test::MockRuntime>();
     let autoritaet = kontext.runtime_authority_mut();
 
+    // Die Updater-Rechte stehen als eingebettete Capability in
+    // tauri.conf.json. Fehlte sie, meldete die GitHub-Fassung bei jeder Suche
+    // einen Fehler, während alle anderen Tests bestünden.
+    let aufrufe = PLUGIN_AUFRUFE.iter();
+    #[cfg(feature = "selbst-aktualisierung")]
+    let aufrufe = aufrufe.chain(AKTUALISIERUNGS_AUFRUFE);
+
     let mut fehlend = Vec::new();
-    for (aufruf, befehl) in PLUGIN_AUFRUFE {
-        let erlaubt = autoritaet
-            .resolve_access(befehl, "main", "main", &tauri::ipc::Origin::Local)
-            .is_some_and(|treffer| !treffer.is_empty());
-        if !erlaubt {
+    for (aufruf, befehl) in aufrufe {
+        if !erlaubt(autoritaet, befehl) {
             fehlend.push(format!("{aufruf} → {befehl}"));
         }
     }
@@ -204,6 +223,39 @@ fn die_oberflaeche_darf_alles_aufrufen_was_sie_aufruft() {
         "Die Oberfläche ruft diese Funktionen auf, darf es laut capabilities/default.json \
          aber nicht:\n  {}",
         fehlend.join("\n  "),
+    );
+}
+
+#[test]
+fn der_vertriebsweg_passt_zu_den_berechtigungen() {
+    // Die Oberfläche blendet die Aktualisierungssuche nach diesem Wert aus.
+    // Stimmte er nicht mit dem Bau überein, säße im Store-Bau ein Knopf, der
+    // an fehlenden Rechten scheitert, oder der GitHub-Bau suchte nie.
+    let (_dir, fenster) = test_app();
+    let weg = rufe(&fenster, "vertriebsweg", serde_json::json!({})).unwrap();
+
+    let mut kontext = crate::kontext::<tauri::test::MockRuntime>();
+    let autoritaet = kontext.runtime_authority_mut();
+    let updater_erlaubt: Vec<_> = AKTUALISIERUNGS_AUFRUFE
+        .iter()
+        .filter(|(_, befehl)| erlaubt(autoritaet, befehl))
+        .map(|(aufruf, _)| *aufruf)
+        .collect();
+
+    if weg == "github" {
+        assert_eq!(updater_erlaubt.len(), AKTUALISIERUNGS_AUFRUFE.len());
+    } else {
+        // Ein Store-Bau, dessen Berechtigungen den Updater noch nennen, ließe
+        // sich gar nicht übersetzen. Die Probe hier fängt den Fall ab, dass
+        // jemand die Rechte später über ein anderes Plugin wieder hineinholt.
+        assert!(
+            updater_erlaubt.is_empty(),
+            "Store-Bau ({weg}) erlaubt Aktualisierungsaufrufe: {updater_erlaubt:?}",
+        );
+    }
+    assert!(
+        ["github", "mac_app_store", "microsoft_store"].contains(&weg.as_str().unwrap()),
+        "unbekannter Vertriebsweg {weg}",
     );
 }
 

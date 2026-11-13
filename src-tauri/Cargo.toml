@@ -60,6 +60,30 @@ pdf-extract = "0.12.0"
 tempfile = "3"
 
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
-tauri-plugin-process = "2.3.1"
-tauri-plugin-updater = "2.10.1"
+# Optional, weil die Store-Fassungen keinen Selbstaktualisierungscode enthalten
+# dürfen (App-Store-Richtlinie 2.4.5): Updates kommen dort nur über den Store.
+# Fehlt das Crate ganz, kann auch kein vergessener Aufruf mehr hineinrutschen.
+tauri-plugin-process = { version = "2.3.1", optional = true }
+tauri-plugin-updater = { version = "2.10.1", optional = true }
+
+# Der Vertriebsweg wird beim Übersetzen festgelegt, nicht zur Laufzeit erkannt:
+# Nur so fehlt der Updater im Store-Bau wirklich, statt bloß abgeschaltet zu sein.
+#
+#   GitHub (Standard):  cargo build
+#   Mac App Store:      cargo build --no-default-features --features mac-app-store
+#   Microsoft Store:    cargo build --no-default-features --features microsoft-store
+#
+# Die Store-Bauten brauchen zusätzlich ihre Konfigurationsüberlagerung
+# (tauri.appstore.conf.json bzw. tauri.microsoftstore.conf.json), weil die
+# Updater-Berechtigungen in tauri.conf.json sonst auf ein fehlendes Plugin
+# zeigen. `tauri build --config <datei>` reicht sie selbst hinein; für reines
+# cargo build/test/clippy übernimmt das die Umgebungsvariable TAURI_CONFIG:
+#
+#   TAURI_CONFIG="$(cat tauri.appstore.conf.json)" cargo test \
+#     --no-default-features --features mac-app-store
+[features]
+default = ["selbst-aktualisierung"]
+selbst-aktualisierung = ["dep:tauri-plugin-updater", "dep:tauri-plugin-process"]
+mac-app-store = []
+microsoft-store = []
 

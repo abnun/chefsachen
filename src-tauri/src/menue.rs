@@ -18,6 +18,7 @@ use tauri::{Emitter, Manager, Runtime};
 const EINSTELLUNGEN: &str = "einstellungen";
 
 /// Kennung des Menüeintrags für die Aktualisierungssuche.
+#[cfg(feature = "selbst-aktualisierung")]
 const AKTUALISIERUNG: &str = "aktualisierung";
 
 /// Merkt sich den Menüeintrag, damit er sich später ein- und ausschalten lässt.
@@ -39,6 +40,10 @@ pub const EREIGNIS_EINSTELLUNGEN: &str = "menue:einstellungen";
 /// auch während der Ersteinrichtung, denn sie hängt an keiner Seite. Und ein
 /// abgeblendeter Punkt ohne Begründung wirft mehr Fragen auf, als er
 /// beantwortet.
+///
+/// Nur in der GitHub-Fassung: In den Stores aktualisiert allein der Store, ein
+/// eigener Menüpunkt dafür wäre dort ein Grund zur Ablehnung.
+#[cfg(feature = "selbst-aktualisierung")]
 pub const EREIGNIS_AKTUALISIERUNG: &str = "menue:aktualisierung";
 
 /// Baut das Programmmenü und hängt es an die Anwendung.
@@ -55,16 +60,6 @@ pub fn einrichten<R: Runtime>(app: &tauri::App<R>) -> tauri::Result<()> {
         Some("CmdOrCtrl+,"),
     )?;
 
-    // Ohne Kürzel: Unter macOS hat „Nach Updates suchen" keines, das man
-    // erwartete, und ein erfundenes stünde jedem anderen im Weg.
-    let aktualisierung = MenuItem::with_id(
-        app,
-        AKTUALISIERUNG,
-        "Nach Updates suchen …",
-        true,
-        None::<&str>,
-    )?;
-
     let programm = Submenu::with_items(
         app,
         &name,
@@ -72,19 +67,34 @@ pub fn einrichten<R: Runtime>(app: &tauri::App<R>) -> tauri::Result<()> {
         &[
             &PredefinedMenuItem::about(app, Some(&format!("Über {name}")), None)?,
             &PredefinedMenuItem::separator(app)?,
-            // Direkt unter „Über …", wie in den meisten Programmen unter macOS.
-            &aktualisierung,
-            &PredefinedMenuItem::separator(app)?,
-            &einstellungen,
-            &PredefinedMenuItem::separator(app)?,
-            &PredefinedMenuItem::services(app, Some("Dienste"))?,
-            &PredefinedMenuItem::separator(app)?,
-            &PredefinedMenuItem::hide(app, Some(&format!("{name} ausblenden")))?,
-            &PredefinedMenuItem::hide_others(app, Some("Andere ausblenden"))?,
-            &PredefinedMenuItem::separator(app)?,
-            &PredefinedMenuItem::quit(app, Some(&format!("{name} beenden")))?,
         ],
     )?;
+
+    // Direkt unter „Über …", wie in den meisten Programmen unter macOS. Ohne
+    // Kürzel: „Nach Updates suchen" hat dort keines, das man erwartete, und
+    // ein erfundenes stünde jedem anderen im Weg.
+    #[cfg(feature = "selbst-aktualisierung")]
+    programm.append_items(&[
+        &MenuItem::with_id(
+            app,
+            AKTUALISIERUNG,
+            "Nach Updates suchen …",
+            true,
+            None::<&str>,
+        )?,
+        &PredefinedMenuItem::separator(app)?,
+    ])?;
+
+    programm.append_items(&[
+        &einstellungen,
+        &PredefinedMenuItem::separator(app)?,
+        &PredefinedMenuItem::services(app, Some("Dienste"))?,
+        &PredefinedMenuItem::separator(app)?,
+        &PredefinedMenuItem::hide(app, Some(&format!("{name} ausblenden")))?,
+        &PredefinedMenuItem::hide_others(app, Some("Andere ausblenden"))?,
+        &PredefinedMenuItem::separator(app)?,
+        &PredefinedMenuItem::quit(app, Some(&format!("{name} beenden")))?,
+    ])?;
 
     // „Bearbeiten" trägt Ausschneiden, Kopieren, Einfügen und Rückgängig. Ohne
     // dieses Menü fehlen unter macOS auch die zugehörigen Tastenkürzel in den
@@ -126,7 +136,9 @@ pub fn einrichten<R: Runtime>(app: &tauri::App<R>) -> tauri::Result<()> {
         // nichts umzuschalten beziehungsweise zu suchen.
         if ereignis.id() == EINSTELLUNGEN {
             let _ = app.emit(EREIGNIS_EINSTELLUNGEN, ());
-        } else if ereignis.id() == AKTUALISIERUNG {
+        }
+        #[cfg(feature = "selbst-aktualisierung")]
+        if ereignis.id() == AKTUALISIERUNG {
             let _ = app.emit(EREIGNIS_AKTUALISIERUNG, ());
         }
     });
