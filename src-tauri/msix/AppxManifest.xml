@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Paketbeschreibung der Microsoft-Store-Fassung (MSIX).
+
+  Vorlage: scripts/microsoft-store.ps1 ersetzt die Platzhalter in doppelten
+  geschweiften Klammern beim Packen. Identität und Herausgeber stammen aus dem
+  Partner Center (Produktverwaltung, Produktidentität) und kommen aus
+  Umgebungsvariablen, die Version aus tauri.conf.json.
+
+  Unsigniert hochgeladen: Der Store signiert das Paket selbst. Publisher muss
+  deshalb genau dem Wert aus dem Partner Center entsprechen, sonst lehnt er
+  das Paket ab.
+
+  runFullTrust mit Windows.FullTrustApplication: Chefsachen ist ein
+  gewöhnliches Win32-Programm (Tauri mit WebView2), keine UWP-App. Mindestens
+  Windows 10 1809 (Build 17763), ab dort nimmt der Store MSIX-Pakete an.
+-->
+<Package
+  xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
+  xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
+  xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
+  IgnorableNamespaces="uap rescap">
+
+  <Identity
+    Name="{{IDENTITAET}}"
+    Publisher="{{HERAUSGEBER}}"
+    Version="{{VERSION}}"
+    ProcessorArchitecture="x64" />
+
+  <Properties>
+    <DisplayName>Chefsachen</DisplayName>
+    <PublisherDisplayName>{{HERAUSGEBER_ANZEIGENAME}}</PublisherDisplayName>
+    <Logo>Assets\StoreLogo.png</Logo>
+  </Properties>
+
+  <Dependencies>
+    <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.17763.0" MaxVersionTested="10.0.26100.0" />
+  </Dependencies>
+
+  <Resources>
+    <Resource Language="de-DE" />
+  </Resources>
+
+  <Applications>
+    <Application Id="Chefsachen" Executable="chefsachen.exe" EntryPoint="Windows.FullTrustApplication">
+      <uap:VisualElements
+        DisplayName="Chefsachen"
+        Description="Rechnungen, Angebote und E-Rechnungen für Kleinunternehmer und Regelbesteuerte"
+        BackgroundColor="transparent"
+        Square150x150Logo="Assets\Square150x150Logo.png"
+        Square44x44Logo="Assets\Square44x44Logo.png" />
+    </Application>
+  </Applications>
+
+  <Capabilities>
+    <rescap:Capability Name="runFullTrust" />
+  </Capabilities>
+</Package>
