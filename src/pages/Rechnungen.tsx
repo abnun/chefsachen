@@ -8,13 +8,13 @@ import { Laden } from "../components/Laden";
 import { SortierKopf } from "../components/SortierKopf";
 import { StatusMarke } from "../components/StatusMarke";
 import { Werkzeugleiste } from "../components/Werkzeugleiste";
+import { Suchfeld } from "../components/Suchfeld";
 import { ERSTATTUNG_LABEL, RECHNUNG_STATUS, statusAuswahl } from "../belegStatus";
 import { datumDeutsch, heuteIso } from "../datum";
 import { formatCent } from "../geld";
 import { useBelegListe } from "../hooks/useBelegListe";
 import { useListenTastenkuerzel } from "../hooks/useListenTastenkuerzel";
 import { type FuehrungsSchritt } from "../components/Fuehrung";
-import { SeitenkopfMitRundgang } from "../components/SeitenkopfMitRundgang";
 import { type Zahlungsstand } from "../api";
 
 /**
@@ -60,11 +60,17 @@ const ZAHLUNGSSTAND_LABEL: Record<Zahlungsstand, string> = {
   ueberzahlt: "Überzahlt",
 };
 
+/**
+ * Bezahlt ist der Normalfall und bleibt leise; Farbe trägt nur, was noch
+ * etwas verlangt: Offenes in Blau, eine Überzahlung (Geld muss zurück) in
+ * Bernstein. Zwölf grüne Marken untereinander sagten nichts, außer dass die
+ * Tabelle bunt ist.
+ */
 const ZAHLUNGSSTAND_KLASSE: Record<Zahlungsstand, string> = {
   offen: "status-gestellt",
   teilbezahlt: "status-gestellt",
-  bezahlt: "status-bezahlt",
-  ueberzahlt: "status-storniert",
+  bezahlt: "status-leise",
+  ueberzahlt: "status-warnung",
 };
 
 /**
@@ -92,35 +98,31 @@ export function Rechnungen({ onOeffnen }: RechnungenProps) {
 
   return (
     <div>
-      <SeitenkopfMitRundgang titel="Rechnungen" schritte={RUNDGANG_SCHRITTE} />
-      {liste.fehler && <Fehler fehler={liste.fehler} />}
       <Werkzeugleiste
+        titel="Rechnungen"
+        rundgang={RUNDGANG_SCHRITTE}
         filter={
           <>
-            <label className="feld" data-tour="suche">
-              Suche
-              <input
-                ref={sucheRef}
-                type="search"
-                value={liste.suche}
-                onChange={(e) => liste.setSuche(e.currentTarget.value)}
-                placeholder="Nummer oder Kunde"
-              />
-            </label>
-            <label className="feld" data-tour="status">
-              Status
-              <select
-                value={liste.statusFilter}
-                onChange={(e) => liste.setStatusFilter(e.currentTarget.value)}
-              >
-                <option value="">Alle</option>
-                {statusAuswahl(RECHNUNG_STATUS).map(([wert, label]) => (
-                  <option key={wert} value={wert}>
-                    {label}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <Suchfeld
+              ref={sucheRef}
+              wert={liste.suche}
+              onAendern={liste.setSuche}
+              platzhalter="Nummer oder Kunde"
+              dataTour="suche"
+            />
+            <select
+              aria-label="Status"
+              data-tour="status"
+              value={liste.statusFilter}
+              onChange={(e) => liste.setStatusFilter(e.currentTarget.value)}
+            >
+              <option value="">Alle Status</option>
+              {statusAuswahl(RECHNUNG_STATUS).map(([wert, label]) => (
+                <option key={wert} value={wert}>
+                  {label}
+                </option>
+              ))}
+            </select>
           </>
         }
         aktion={
@@ -136,6 +138,7 @@ export function Rechnungen({ onOeffnen }: RechnungenProps) {
           )
         }
       />
+      {liste.fehler && <Fehler fehler={liste.fehler} />}
 
       {/* Solange das Anlage-Formular offen ist, bleibt die Liste komplett
           ausgeblendet — sonst wirkte sie wie ein Teil der neuen Rechnung. */}
@@ -214,6 +217,7 @@ export function Rechnungen({ onOeffnen }: RechnungenProps) {
                 </SortierKopf>
                 <SortierKopf
                   spalte="summe"
+                  className="zahl"
                   aktiv={liste.sortierung.spalte}
                   richtung={liste.sortierung.richtung}
                   onSortieren={liste.sortieren}
@@ -222,6 +226,7 @@ export function Rechnungen({ onOeffnen }: RechnungenProps) {
                 </SortierKopf>
                 <SortierKopf
                   spalte="offen"
+                  className="zahl"
                   aktiv={liste.sortierung.spalte}
                   richtung={liste.sortierung.richtung}
                   onSortieren={liste.sortieren}
@@ -257,8 +262,8 @@ export function Rechnungen({ onOeffnen }: RechnungenProps) {
                       <td className={`nicht-umbrechen ${f.ueberfaellig ? "ueberfaellig" : ""}`}>{f.text}</td>
                     );
                   })()}
-                  <td className="nicht-umbrechen">{formatCent(r.summe_cent)}</td>
-                  <td className="nicht-umbrechen">
+                  <td className="zahl nicht-umbrechen">{formatCent(r.summe_cent)}</td>
+                  <td className="zahl nicht-umbrechen">
                     {r.zahlungsstand && r.zahlungsstand !== "bezahlt"
                       ? formatCent(r.summe_cent - (r.bezahlt_cent ?? 0))
                       : "—"}

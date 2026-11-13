@@ -27,7 +27,7 @@ import { Belegvorlage } from "../components/Belegvorlage";
 import { PAYPAL_LINK } from "../components/SpendenHinweis";
 import { zeitpunktDeutsch } from "../datum";
 import { type FuehrungsSchritt } from "../components/Fuehrung";
-import { SeitenkopfMitRundgang } from "../components/SeitenkopfMitRundgang";
+import { Werkzeugleiste } from "../components/Werkzeugleiste";
 import { storeName, useIstGithubFassung, useVertriebsweg } from "../hooks/useVertriebsweg";
 
 /**
@@ -106,7 +106,7 @@ export function Einstellungen() {
         : RUNDGANG_SCHRITTE;
   return (
     <div>
-      <SeitenkopfMitRundgang titel="Einstellungen" schritte={schritte} />
+      <Werkzeugleiste titel="Einstellungen" rundgang={schritte} />
       <FirmendatenAbschnitt />
       <SicherungenAbschnitt />
       <EinheitenAbschnitt />

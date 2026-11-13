@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { aktuellePlattform } from "../plattform";
 
 export type Seite =
   | "uebersicht"
@@ -90,17 +91,59 @@ const ICON_EINSTELLUNGEN = (
   </svg>
 );
 
-const NAV_EINTRAEGE: NavEintrag[] = [
-  { seite: "uebersicht", label: "Übersicht", icon: ICON_UEBERSICHT },
-  { seite: "kunden", label: "Kunden", icon: ICON_KUNDEN },
-  { seite: "artikel", label: "Artikel & Leistungen", icon: ICON_ARTIKEL },
-  { seite: "angebote", label: "Angebote", icon: ICON_ANGEBOTE },
-  { seite: "rechnungen", label: "Rechnungen", icon: ICON_RECHNUNGEN },
-  { seite: "gutschriften", label: "Gutschriften", icon: ICON_RECHNUNGEN },
-  { seite: "eingangsrechnungen", label: "Eingangsrechnungen", icon: ICON_EINGANGSRECHNUNGEN },
-  { seite: "auswertung", label: "Auswertung", icon: ICON_AUSWERTUNG },
-  { seite: "einstellungen", label: "Einstellungen", icon: ICON_EINSTELLUNGEN },
+/*
+ * Gutschrift: derselbe Beleg wie bei Rechnungen, aber mit einem Pfeil
+ * zurück. Vorher teilten sich beide ein Symbol, und in der Seitenleiste
+ * standen zwei gleiche Bilder untereinander.
+ */
+const ICON_GUTSCHRIFTEN = (
+  <svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6">
+    <path d="M5 3h7l3 3v11H5z" strokeLinejoin="round" />
+    <path d="M12 3v3h3" strokeLinejoin="round" />
+    <path d="M12.5 12.5H8M9.8 10.7 8 12.5l1.8 1.8" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
+/**
+ * Gruppiert wie die Postfächer in Mail: Was zusammen gebraucht wird, steht
+ * zusammen, und die Überschrift sagt, wozu es gehört. Eine Gruppe ohne
+ * Titel steht für sich (Übersicht, Auswertung).
+ */
+interface NavGruppe {
+  id: string;
+  titel?: string;
+  eintraege: NavEintrag[];
+}
+
+const NAV_GRUPPEN: NavGruppe[] = [
+  { id: "start", eintraege: [{ seite: "uebersicht", label: "Übersicht", icon: ICON_UEBERSICHT }] },
+  {
+    id: "belege",
+    titel: "Belege",
+    eintraege: [
+      { seite: "angebote", label: "Angebote", icon: ICON_ANGEBOTE },
+      { seite: "rechnungen", label: "Rechnungen", icon: ICON_RECHNUNGEN },
+      { seite: "gutschriften", label: "Gutschriften", icon: ICON_GUTSCHRIFTEN },
+    ],
+  },
+  {
+    id: "eingang",
+    titel: "Eingang",
+    eintraege: [{ seite: "eingangsrechnungen", label: "Eingangsrechnungen", icon: ICON_EINGANGSRECHNUNGEN }],
+  },
+  {
+    id: "stammdaten",
+    titel: "Stammdaten",
+    eintraege: [
+      { seite: "kunden", label: "Kunden", icon: ICON_KUNDEN },
+      { seite: "artikel", label: "Artikel & Leistungen", icon: ICON_ARTIKEL },
+    ],
+  },
+  { id: "auswertung", eintraege: [{ seite: "auswertung", label: "Auswertung", icon: ICON_AUSWERTUNG }] },
 ];
+
+/** Einstellungen stehen abgesetzt am Fuß, wie in den meisten Mac-Programmen. */
+const NAV_FUSS: NavEintrag = { seite: "einstellungen", label: "Einstellungen", icon: ICON_EINSTELLUNGEN };
 
 interface LayoutProps {
   aktiveSeite: Seite;
@@ -110,28 +153,52 @@ interface LayoutProps {
 
 /**
  * App-Layout mit fester linker Navigation und Content-Bereich. Kontrolliert
- * durch die Eltern-Komponente (App.tsx hält den Routing-State via useState) —
- * kein eigener Router, da bei fünf Seiten nicht nötig.
+ * durch die Eltern-Komponente (App.tsx hält den Routing-State via useState),
+ * kein eigener Router, da bei neun Seiten nicht nötig.
+ *
+ * Unter macOS reicht die Seitenleiste bis an die Fensteroberkante, die
+ * Ampelknöpfe sitzen darauf. Ihr Kopf hält ihnen den Platz frei und dient
+ * zugleich als Griff zum Verschieben des Fensters.
  */
 export function Layout({ aktiveSeite, onNavigiere, children }: LayoutProps) {
+  const mac = aktuellePlattform() === "mac";
+
+  function eintrag({ seite, label, icon }: NavEintrag) {
+    return (
+      <li key={seite}>
+        <button
+          type="button"
+          onClick={() => onNavigiere(seite)}
+          aria-current={aktiveSeite === seite ? "page" : undefined}
+          className="app-nav-eintrag"
+        >
+          <span className="app-nav-icon">{icon}</span>
+          {label}
+        </button>
+      </li>
+    );
+  }
+
   return (
     <div className="app-layout">
-      <nav className="app-nav">
-        <ul className="app-nav-liste">
-          {NAV_EINTRAEGE.map(({ seite, label, icon }) => (
-            <li key={seite}>
-              <button
-                type="button"
-                onClick={() => onNavigiere(seite)}
-                aria-current={aktiveSeite === seite ? "page" : undefined}
-                className="app-nav-eintrag"
-              >
-                <span className="app-nav-icon">{icon}</span>
-                {label}
-              </button>
-            </li>
-          ))}
-        </ul>
+      <nav className="app-nav" aria-label="Bereiche">
+        <div className="app-nav-kopf" {...(mac ? { "data-tauri-drag-region": "" } : {})} />
+        {NAV_GRUPPEN.map((gruppe) => (
+          <div key={gruppe.id} className="app-nav-gruppe">
+            {gruppe.titel && (
+              <div id={`nav-gruppe-${gruppe.id}`} className="app-nav-gruppe-titel">
+                {gruppe.titel}
+              </div>
+            )}
+            <ul
+              className="app-nav-liste"
+              aria-labelledby={gruppe.titel ? `nav-gruppe-${gruppe.id}` : undefined}
+            >
+              {gruppe.eintraege.map(eintrag)}
+            </ul>
+          </div>
+        ))}
+        <ul className="app-nav-liste app-nav-fuss">{eintrag(NAV_FUSS)}</ul>
       </nav>
       <main className="app-main">{children}</main>
     </div>

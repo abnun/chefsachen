@@ -27,6 +27,7 @@ const ZUSAMMENGESETZT = new Set([
   "status-gestellt",
   "status-bezahlt",
   "status-storniert",
+  "status-leise",
   // `kundenpreis-badge ${klasse}` in KundenpreiseDialog.tsx
   "guenstiger",
   "teurer",

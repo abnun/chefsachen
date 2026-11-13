@@ -11,6 +11,7 @@ import { Fehler } from "../components/Fehler";
 import { Laden } from "../components/Laden";
 import { SortierKopf } from "../components/SortierKopf";
 import { Werkzeugleiste } from "../components/Werkzeugleiste";
+import { Suchfeld } from "../components/Suchfeld";
 import { useSortierung } from "../hooks/useSortierung";
 import { Hinweis } from "../components/Hinweis";
 import { useErfolgsHinweis } from "../hooks/useErfolgsHinweis";
@@ -18,7 +19,6 @@ import { useBestaetigung } from "../hooks/useBestaetigung";
 import { useListenTastenkuerzel } from "../hooks/useListenTastenkuerzel";
 import { KundenpreiseDialog } from "../components/KundenpreiseDialog";
 import { type FuehrungsSchritt } from "../components/Fuehrung";
-import { SeitenkopfMitRundgang } from "../components/SeitenkopfMitRundgang";
 import { formatCent, parseEuro } from "../geld";
 import { PflichtLegende, PflichtMarker } from "../components/PflichtMarker";
 
@@ -252,7 +252,24 @@ export function Artikel({ zeigeFormularBeimStart, onFormularUebernommen, onZuKun
 
   return (
     <div>
-      <SeitenkopfMitRundgang titel="Artikel & Leistungen" schritte={RUNDGANG_SCHRITTE} />
+      <Werkzeugleiste
+        titel="Artikel & Leistungen"
+        rundgang={RUNDGANG_SCHRITTE}
+        filter={
+          <Suchfeld
+            ref={sucheRef}
+            wert={suche}
+            onAendern={setSuche}
+            platzhalter="Nummer oder Bezeichnung"
+            dataTour="suche"
+          />
+        }
+        aktion={
+          <button type="button" className="btn btn-primaer" data-tour="neu" onClick={neuFormular}>
+            Neuer Artikel
+          </button>
+        }
+      />
       <Fehler fehler={fehler} />
       {hinweis}
       {dialog}
@@ -265,26 +282,6 @@ export function Artikel({ zeigeFormularBeimStart, onFormularUebernommen, onZuKun
           </button>
         </Hinweis>
       )}
-
-      <Werkzeugleiste
-        filter={
-          <label className="feld" data-tour="suche">
-            Suche
-            <input
-              ref={sucheRef}
-              type="search"
-              placeholder="Nummer oder Bezeichnung"
-              value={suche}
-              onChange={(e) => setSuche(e.currentTarget.value)}
-            />
-          </label>
-        }
-        aktion={
-          <button type="button" className="btn btn-primaer" data-tour="neu" onClick={neuFormular}>
-            Neuer Artikel
-          </button>
-        }
-      />
 
       {zeigeFormular && (
         <form
@@ -410,10 +407,10 @@ export function Artikel({ zeigeFormularBeimStart, onFormularUebernommen, onZuKun
                 <SortierKopf spalte="einheit" aktiv={sortierung.spalte} richtung={sortierung.richtung} onSortieren={sortieren}>
                   Einheit
                 </SortierKopf>
-                <SortierKopf spalte="preis" aktiv={sortierung.spalte} richtung={sortierung.richtung} onSortieren={sortieren}>
+                <SortierKopf spalte="preis" className="zahl" aktiv={sortierung.spalte} richtung={sortierung.richtung} onSortieren={sortieren}>
                   Preis
                 </SortierKopf>
-                <SortierKopf spalte="ust" aktiv={sortierung.spalte} richtung={sortierung.richtung} onSortieren={sortieren}>
+                <SortierKopf spalte="ust" className="zahl" aktiv={sortierung.spalte} richtung={sortierung.richtung} onSortieren={sortieren}>
                   USt
                 </SortierKopf>
                 <SortierKopf spalte="kundenpreise" aktiv={sortierung.spalte} richtung={sortierung.richtung} onSortieren={sortieren} dataTour="kundenpreise">
@@ -428,8 +425,8 @@ export function Artikel({ zeigeFormularBeimStart, onFormularUebernommen, onZuKun
                   <td className="tabelle-num">{a.artikelnummer}</td>
                   <td>{a.bezeichnung}</td>
                   <td>{einheitKuerzel(a.einheit_id)}</td>
-                  <td>{formatCent(a.standardpreis_cent)}</td>
-                  <td>{a.ust_satz_prozent} %</td>
+                  <td className="zahl nicht-umbrechen">{formatCent(a.standardpreis_cent)}</td>
+                  <td className="zahl nicht-umbrechen">{a.ust_satz_prozent} %</td>
                   <td>
                     {/* Eigene Spalte statt eines dritten Knopfes im Aktionsfeld:
                         Die Anzahl ist eine Angabe zum Artikel und gehört zu den

@@ -12,6 +12,7 @@
     "fs:allow-read-file",
     "fs:allow-write-file",
     "log:default",
-    "core:window:allow-destroy"
+    "core:window:allow-destroy",
+    "core:window:allow-start-dragging"
   ]
 }

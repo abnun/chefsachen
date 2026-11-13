@@ -8,13 +8,13 @@ import { Laden } from "../components/Laden";
 import { SortierKopf } from "../components/SortierKopf";
 import { StatusMarke } from "../components/StatusMarke";
 import { Werkzeugleiste } from "../components/Werkzeugleiste";
+import { Suchfeld } from "../components/Suchfeld";
 import { ANGEBOT_STATUS, statusAuswahl } from "../belegStatus";
 import { datumDeutsch } from "../datum";
 import { formatCent } from "../geld";
 import { useBelegListe } from "../hooks/useBelegListe";
 import { useListenTastenkuerzel } from "../hooks/useListenTastenkuerzel";
 import { type FuehrungsSchritt } from "../components/Fuehrung";
-import { SeitenkopfMitRundgang } from "../components/SeitenkopfMitRundgang";
 
 /**
  * Statisch außerhalb der Komponente, wie auf der Übersicht: Ein je Rendern
@@ -65,35 +65,31 @@ export function Angebote({ onOeffnen }: AngeboteProps) {
 
   return (
     <div>
-      <SeitenkopfMitRundgang titel="Angebote" schritte={RUNDGANG_SCHRITTE} />
-      {liste.fehler && <Fehler fehler={liste.fehler} />}
       <Werkzeugleiste
+        titel="Angebote"
+        rundgang={RUNDGANG_SCHRITTE}
         filter={
           <>
-            <label className="feld" data-tour="suche">
-              Suche
-              <input
-                ref={sucheRef}
-                type="search"
-                value={liste.suche}
-                onChange={(e) => liste.setSuche(e.currentTarget.value)}
-                placeholder="Nummer oder Kunde"
-              />
-            </label>
-            <label className="feld" data-tour="status">
-              Status
-              <select
-                value={liste.statusFilter}
-                onChange={(e) => liste.setStatusFilter(e.currentTarget.value)}
-              >
-                <option value="">Alle</option>
-                {statusAuswahl(ANGEBOT_STATUS).map(([wert, label]) => (
-                  <option key={wert} value={wert}>
-                    {label}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <Suchfeld
+              ref={sucheRef}
+              wert={liste.suche}
+              onAendern={liste.setSuche}
+              platzhalter="Nummer oder Kunde"
+              dataTour="suche"
+            />
+            <select
+              aria-label="Status"
+              data-tour="status"
+              value={liste.statusFilter}
+              onChange={(e) => liste.setStatusFilter(e.currentTarget.value)}
+            >
+              <option value="">Alle Status</option>
+              {statusAuswahl(ANGEBOT_STATUS).map(([wert, label]) => (
+                <option key={wert} value={wert}>
+                  {label}
+                </option>
+              ))}
+            </select>
           </>
         }
         aktion={
@@ -109,6 +105,7 @@ export function Angebote({ onOeffnen }: AngeboteProps) {
           )
         }
       />
+      {liste.fehler && <Fehler fehler={liste.fehler} />}
 
       {/* Solange das Anlage-Formular offen ist, bleibt die Liste komplett
           ausgeblendet — sonst wirkte sie wie ein Teil des neuen Angebots. */}
@@ -182,6 +179,7 @@ export function Angebote({ onOeffnen }: AngeboteProps) {
                 </SortierKopf>
                 <SortierKopf
                   spalte="summe"
+                  className="zahl"
                   aktiv={liste.sortierung.spalte}
                   richtung={liste.sortierung.richtung}
                   onSortieren={liste.sortieren}
@@ -201,7 +199,7 @@ export function Angebote({ onOeffnen }: AngeboteProps) {
                   <td>
                     <StatusMarke status={a.status} />
                   </td>
-                  <td className="nicht-umbrechen">{formatCent(a.summe_cent)}</td>
+                  <td className="zahl nicht-umbrechen">{formatCent(a.summe_cent)}</td>
                 </tr>
               ))}
             </tbody>

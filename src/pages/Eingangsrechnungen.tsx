@@ -11,11 +11,11 @@ import { Hinweis } from "../components/Hinweis";
 import { Laden } from "../components/Laden";
 import { SortierKopf } from "../components/SortierKopf";
 import { Werkzeugleiste } from "../components/Werkzeugleiste";
+import { Suchfeld } from "../components/Suchfeld";
 import { useSortierung } from "../hooks/useSortierung";
 import { formatCentMitWaehrung, formatMenge, parseEuro } from "../geld";
 import { datumDeutsch } from "../datum";
 import { type FuehrungsSchritt } from "../components/Fuehrung";
-import { SeitenkopfMitRundgang } from "../components/SeitenkopfMitRundgang";
 
 /**
  * Statisch außerhalb der Komponente, wie auf der Übersicht: Ein je Rendern
@@ -159,7 +159,24 @@ export function Eingangsrechnungen({ onOeffnen }: EingangsrechnungenProps) {
 
   return (
     <div>
-      <SeitenkopfMitRundgang titel="Eingangsrechnungen" schritte={RUNDGANG_SCHRITTE} />
+      <Werkzeugleiste
+        titel="Eingangsrechnungen"
+        rundgang={RUNDGANG_SCHRITTE}
+        filter={
+          <Suchfeld
+            ref={sucheRef}
+            wert={suche}
+            onAendern={setSuche}
+            platzhalter="Rechnungssteller oder Nummer"
+            dataTour="suche"
+          />
+        }
+        aktion={
+          <button type="button" className="btn btn-primaer" data-tour="importieren" onClick={dateiImportierenAuswaehlen}>
+            Importieren
+          </button>
+        }
+      />
       <Fehler fehler={fehler} />
 
       {zeigeDuplikatWarnung && (
@@ -170,26 +187,6 @@ export function Eingangsrechnungen({ onOeffnen }: EingangsrechnungenProps) {
           onBestaetigen={speichernAusfuehren}
         />
       )}
-
-      <Werkzeugleiste
-        filter={
-          <label className="feld" data-tour="suche">
-            Suche
-            <input
-              ref={sucheRef}
-              type="search"
-              placeholder="Rechnungssteller oder Nummer"
-              value={suche}
-              onChange={(e) => setSuche(e.currentTarget.value)}
-            />
-          </label>
-        }
-        aktion={
-          <button type="button" className="btn btn-primaer" data-tour="importieren" onClick={dateiImportierenAuswaehlen}>
-            Importieren
-          </button>
-        }
-      />
 
       {vorschau && (
         <form
@@ -340,7 +337,7 @@ export function Eingangsrechnungen({ onOeffnen }: EingangsrechnungenProps) {
             <SortierKopf spalte="datum" aktiv={sortierung.spalte} richtung={sortierung.richtung} onSortieren={sortieren}>
               Datum
             </SortierKopf>
-            <SortierKopf spalte="betrag" aktiv={sortierung.spalte} richtung={sortierung.richtung} onSortieren={sortieren}>
+            <SortierKopf spalte="betrag" className="zahl" aktiv={sortierung.spalte} richtung={sortierung.richtung} onSortieren={sortieren}>
               Betrag
             </SortierKopf>
             <SortierKopf spalte="format" aktiv={sortierung.spalte} richtung={sortierung.richtung} onSortieren={sortieren}>
@@ -356,7 +353,7 @@ export function Eingangsrechnungen({ onOeffnen }: EingangsrechnungenProps) {
                 <ZeilenKnopf onOeffnen={() => onOeffnen(e.id)}>{e.rechnungsnummer}</ZeilenKnopf>
               </td>
               <td className="nicht-umbrechen">{datumDeutsch(e.rechnungsdatum)}</td>
-              <td>{formatCentMitWaehrung(e.betrag_cent, e.waehrung)}</td>
+              <td className="zahl nicht-umbrechen">{formatCentMitWaehrung(e.betrag_cent, e.waehrung)}</td>
               <td>{FORMAT_LABEL[e.format] ?? e.format}</td>
             </tr>
           ))}

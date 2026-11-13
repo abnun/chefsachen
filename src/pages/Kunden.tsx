@@ -7,6 +7,7 @@ import { useXRechnungHilfe } from "../hooks/useXRechnungHilfe";
 import { ZeilenKnopf } from "../components/ZeilenKnopf";
 import { SortierKopf } from "../components/SortierKopf";
 import { Werkzeugleiste } from "../components/Werkzeugleiste";
+import { Suchfeld } from "../components/Suchfeld";
 import { useSortierung } from "../hooks/useSortierung";
 import { Laden } from "../components/Laden";
 import { Hinweis } from "../components/Hinweis";
@@ -14,7 +15,6 @@ import { useErfolgsHinweis } from "../hooks/useErfolgsHinweis";
 import { useBestaetigung } from "../hooks/useBestaetigung";
 import { useListenTastenkuerzel } from "../hooks/useListenTastenkuerzel";
 import { type FuehrungsSchritt } from "../components/Fuehrung";
-import { SeitenkopfMitRundgang } from "../components/SeitenkopfMitRundgang";
 import type { Reiter } from "./KundeDetail";
 
 /**
@@ -183,7 +183,29 @@ export function Kunden({
 
   return (
     <div>
-      <SeitenkopfMitRundgang titel="Kunden" schritte={RUNDGANG_SCHRITTE} />
+      <Werkzeugleiste
+        titel="Kunden"
+        rundgang={RUNDGANG_SCHRITTE}
+        filter={
+          <Suchfeld
+            ref={sucheRef}
+            wert={suche}
+            onAendern={setSuche}
+            platzhalter="Nummer oder Name"
+            dataTour="suche"
+          />
+        }
+        aktion={
+          <button
+            type="button"
+            className="btn btn-primaer"
+            data-tour="neu"
+            onClick={() => setZeigeFormular(true)}
+          >
+            Neuer Kunde
+          </button>
+        }
+      />
       <Fehler fehler={fehler} />
       {hinweis}
       {dialog}
@@ -209,31 +231,6 @@ export function Kunden({
           </button>
         </Hinweis>
       )}
-
-      <Werkzeugleiste
-        filter={
-          <label className="feld" data-tour="suche">
-            Suche
-            <input
-              ref={sucheRef}
-              type="search"
-              placeholder="Nummer oder Name"
-              value={suche}
-              onChange={(e) => setSuche(e.currentTarget.value)}
-            />
-          </label>
-        }
-        aktion={
-          <button
-            type="button"
-            className="btn btn-primaer"
-            data-tour="neu"
-            onClick={() => setZeigeFormular(true)}
-          >
-            Neuer Kunde
-          </button>
-        }
-      />
 
       {zeigeFormular && (
         <form

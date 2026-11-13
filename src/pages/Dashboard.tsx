@@ -5,7 +5,7 @@ import { Laden } from "../components/Laden";
 import { ZeilenKnopf } from "../components/ZeilenKnopf";
 import { ErsteSchritte, type Schritt } from "../components/ErsteSchritte";
 import { type FuehrungsSchritt } from "../components/Fuehrung";
-import { SeitenkopfMitRundgang } from "../components/SeitenkopfMitRundgang";
+import { Werkzeugleiste } from "../components/Werkzeugleiste";
 import { formatCent } from "../geld";
 import { datumDeutsch } from "../datum";
 
@@ -174,7 +174,7 @@ export function Dashboard({
   if (fehler) {
     return (
       <div>
-        <h1 className="seiten-kopf">Übersicht</h1>
+        <Werkzeugleiste titel="Übersicht" />
         <Fehler fehler={fehler} />
       </div>
     );
@@ -183,7 +183,7 @@ export function Dashboard({
   if (!daten) {
     return (
       <div>
-        <h1 className="seiten-kopf">Übersicht</h1>
+        <Werkzeugleiste titel="Übersicht" />
         <Laden />
       </div>
     );
@@ -193,7 +193,7 @@ export function Dashboard({
 
   return (
     <div>
-      <SeitenkopfMitRundgang titel={<>Übersicht {daten.jahr}</>} schritte={RUNDGANG_SCHRITTE} />
+      <Werkzeugleiste titel={<>Übersicht {daten.jahr}</>} rundgang={RUNDGANG_SCHRITTE} />
 
       {/* Ganz oben: Wer noch am Anfang steht, soll nicht erst an Umsatzzahlen
           vorbeiscrollen, die alle auf null stehen. */}
@@ -211,31 +211,31 @@ export function Dashboard({
         </p>
       </section>
 
-      <section className="karte" data-tour="offene-rechnungen">
+      <section className="abschnitt" data-tour="offene-rechnungen">
         <h2>Offene Rechnungen</h2>
         {daten.offene_rechnungen.length === 0 ? (
           <p>Keine offenen Rechnungen.</p>
         ) : (
-          <table className="tabelle">
+          <table className="tabelle tabelle-klickbar">
             <thead>
               <tr>
                 <th>Nummer</th>
                 <th>Kunde</th>
                 <th>Fälligkeit</th>
-                <th>Offen</th>
+                <th className="zahl">Offen</th>
               </tr>
             </thead>
             <tbody>
               {daten.offene_rechnungen.map((r) => (
                 <tr key={r.id} onClick={() => onRechnungOeffnen(r.id)}>
-                  <td>
+                  <td className="tabelle-num nicht-umbrechen">
                     <ZeilenKnopf onOeffnen={() => onRechnungOeffnen(r.id)}>{r.nummer}</ZeilenKnopf>
                   </td>
                   <td>{r.kunde_name}</td>
                   <td className={r.tage_bis_faellig < 0 ? "ueberfaellig" : undefined}>
                     {datumDeutsch(r.faellig_am)} — {faelligkeitText(r.tage_bis_faellig)}
                   </td>
-                  <td>{formatCent(r.offener_betrag_cent)}</td>
+                  <td className="zahl nicht-umbrechen">{formatCent(r.offener_betrag_cent)}</td>
                 </tr>
               ))}
             </tbody>
@@ -243,25 +243,25 @@ export function Dashboard({
         )}
       </section>
 
-      <section className="karte" data-tour="offene-angebote">
+      <section className="abschnitt" data-tour="offene-angebote">
         <h2>Offene Angebote</h2>
         {daten.offene_angebote.length === 0 ? (
           <p>Keine offenen Angebote.</p>
         ) : (
-          <table className="tabelle">
+          <table className="tabelle tabelle-klickbar">
             <thead>
               <tr>
                 <th>Nummer</th>
                 <th>Kunde</th>
                 <th>Datum</th>
                 <th>Gültig bis</th>
-                <th>Summe</th>
+                <th className="zahl">Summe</th>
               </tr>
             </thead>
             <tbody>
               {daten.offene_angebote.map((a) => (
                 <tr key={a.id} onClick={() => onAngebotOeffnen(a.id)}>
-                  <td>
+                  <td className="tabelle-num nicht-umbrechen">
                     <ZeilenKnopf onOeffnen={() => onAngebotOeffnen(a.id)}>{a.nummer}</ZeilenKnopf>
                   </td>
                   <td>{a.kunde_name}</td>
@@ -269,7 +269,7 @@ export function Dashboard({
                   {/* Ein abgelaufenes Angebot fehlt hier bereits — diese Spalte
                       erklärt, warum eines demnächst verschwinden wird. */}
                   <td>{a.gueltig_bis ? datumDeutsch(a.gueltig_bis) : "unbefristet"}</td>
-                  <td>{formatCent(a.summe_cent)}</td>
+                  <td className="zahl nicht-umbrechen">{formatCent(a.summe_cent)}</td>
                 </tr>
               ))}
             </tbody>
@@ -277,18 +277,18 @@ export function Dashboard({
         )}
       </section>
 
-      <section className="karte" data-tour="zuletzt-bearbeitet">
+      <section className="abschnitt" data-tour="zuletzt-bearbeitet">
         <h2>Zuletzt bearbeitet</h2>
         {daten.letzte_belege.length === 0 ? (
           <p>Noch keine Belege angelegt.</p>
         ) : (
-          <table className="tabelle">
+          <table className="tabelle tabelle-klickbar">
             <thead>
               <tr>
                 <th>Art</th>
                 <th>Nummer</th>
                 <th>Kunde</th>
-                <th>Summe</th>
+                <th className="zahl">Summe</th>
               </tr>
             </thead>
             <tbody>
@@ -304,13 +304,13 @@ export function Dashboard({
                 return (
                 <tr key={b.id} onClick={oeffnen}>
                   <td>{art}</td>
-                  <td>
+                  <td className="tabelle-num nicht-umbrechen">
                     <ZeilenKnopf onOeffnen={oeffnen}>
                       {b.nummer || "(Entwurf)"}
                     </ZeilenKnopf>
                   </td>
                   <td>{b.kunde_name}</td>
-                  <td>{formatCent(b.summe_cent)}</td>
+                  <td className="zahl nicht-umbrechen">{formatCent(b.summe_cent)}</td>
                 </tr>
                 );
               })}

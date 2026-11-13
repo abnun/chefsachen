@@ -8,6 +8,7 @@ import { Laden } from "../components/Laden";
 import { SortierKopf } from "../components/SortierKopf";
 import { StatusMarke } from "../components/StatusMarke";
 import { Werkzeugleiste } from "../components/Werkzeugleiste";
+import { Suchfeld } from "../components/Suchfeld";
 import { ERSTATTUNG_LABEL, GUTSCHRIFT_STATUS, statusAuswahl } from "../belegStatus";
 import { datumDeutsch } from "../datum";
 import { formatCent } from "../geld";
@@ -31,35 +32,28 @@ export function Gutschriften({ onOeffnen }: GutschriftenProps) {
 
   return (
     <div>
-      <h1 data-tour="titel">Gutschriften</h1>
-      {liste.fehler && <Fehler fehler={liste.fehler} />}
       <Werkzeugleiste
+        titel="Gutschriften"
         filter={
           <>
-            <label className="feld">
-              Suche
-              <input
-                ref={sucheRef}
-                type="search"
-                value={liste.suche}
-                onChange={(e) => liste.setSuche(e.currentTarget.value)}
-                placeholder="Nummer oder Kunde"
-              />
-            </label>
-            <label className="feld">
-              Status
-              <select
-                value={liste.statusFilter}
-                onChange={(e) => liste.setStatusFilter(e.currentTarget.value)}
-              >
-                <option value="">Alle</option>
-                {statusAuswahl(GUTSCHRIFT_STATUS).map(([wert, label]) => (
-                  <option key={wert} value={wert}>
-                    {label}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <Suchfeld
+              ref={sucheRef}
+              wert={liste.suche}
+              onAendern={liste.setSuche}
+              platzhalter="Nummer oder Kunde"
+            />
+            <select
+              aria-label="Status"
+              value={liste.statusFilter}
+              onChange={(e) => liste.setStatusFilter(e.currentTarget.value)}
+            >
+              <option value="">Alle Status</option>
+              {statusAuswahl(GUTSCHRIFT_STATUS).map(([wert, label]) => (
+                <option key={wert} value={wert}>
+                  {label}
+                </option>
+              ))}
+            </select>
           </>
         }
         aktion={
@@ -74,6 +68,7 @@ export function Gutschriften({ onOeffnen }: GutschriftenProps) {
           )
         }
       />
+      {liste.fehler && <Fehler fehler={liste.fehler} />}
 
       {/* Solange das Anlage-Formular offen ist, bleibt die Liste ausgeblendet —
           sonst wirkte sie wie ein Teil der neuen Gutschrift. */}
@@ -144,6 +139,7 @@ export function Gutschriften({ onOeffnen }: GutschriftenProps) {
                 <th>Erstattung</th>
                 <SortierKopf
                   spalte="summe"
+                  className="zahl"
                   aktiv={liste.sortierung.spalte}
                   richtung={liste.sortierung.richtung}
                   onSortieren={liste.sortieren}
@@ -165,7 +161,7 @@ export function Gutschriften({ onOeffnen }: GutschriftenProps) {
                     {g.gutschrift_zu_id && <span className="marke">mit Bezug</span>}
                   </td>
                   <td>{g.zahlungsstand ? ERSTATTUNG_LABEL[g.zahlungsstand] : "—"}</td>
-                  <td className="nicht-umbrechen">{formatCent(g.summe_cent)}</td>
+                  <td className="zahl nicht-umbrechen">{formatCent(g.summe_cent)}</td>
                 </tr>
               ))}
             </tbody>

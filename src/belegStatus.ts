@@ -51,8 +51,11 @@ const KLASSE: Record<string, string> = {
   entwurf: "status-entwurf",
   // Ein abgelaufenes Angebot ist so wenig verbindlich wie ein Entwurf.
   abgelaufen: "status-entwurf",
+  // Ein festgeschriebenes Angebot wartet auf Antwort und darf auffallen.
   festgeschrieben: "status-gestellt",
-  gestellt: "status-gestellt",
+  // Eine gestellte Rechnung ist der Normalfall; was mit ihr noch zu tun ist,
+  // sagt der Zahlungsstand daneben. Deshalb leise, nicht blau.
+  gestellt: "status-leise",
   angenommen: "status-bezahlt",
   abgelehnt: "status-storniert",
   storniert: "status-storniert",

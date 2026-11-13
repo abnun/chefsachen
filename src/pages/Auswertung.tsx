@@ -9,7 +9,6 @@ import { formatCent, formatCentZahl } from "../geld";
 import { datumDeutsch } from "../datum";
 import { zuCsv } from "../csv";
 import { type FuehrungsSchritt } from "../components/Fuehrung";
-import { SeitenkopfMitRundgang } from "../components/SeitenkopfMitRundgang";
 
 /**
  * Statisch außerhalb der Komponente, wie auf der Übersicht: Ein je Rendern
@@ -106,22 +105,23 @@ export function Auswertung() {
 
   return (
     <div>
-      <SeitenkopfMitRundgang titel="Auswertung" schritte={RUNDGANG_SCHRITTE} />
-      <Fehler fehler={fehler} />
-
       <Werkzeugleiste
+        titel="Auswertung"
+        rundgang={RUNDGANG_SCHRITTE}
         filter={
           jahre && jahr !== null ? (
-            <label className="feld" data-tour="jahr">
-              Jahr
-              <select value={jahr} onChange={(e) => setJahr(Number(e.currentTarget.value))}>
-                {jahre.map((j) => (
-                  <option key={j} value={j}>
-                    {j}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <select
+              aria-label="Jahr"
+              data-tour="jahr"
+              value={jahr}
+              onChange={(e) => setJahr(Number(e.currentTarget.value))}
+            >
+              {jahre.map((j) => (
+                <option key={j} value={j}>
+                  {j}
+                </option>
+              ))}
+            </select>
           ) : undefined
         }
         aktion={
@@ -136,6 +136,7 @@ export function Auswertung() {
           </button>
         }
       />
+      <Fehler fehler={fehler} />
 
       {!daten ? (
         // Kein `was`: „die Auswertung werden geladen" wäre grammatisch falsch
@@ -158,16 +159,16 @@ export function Auswertung() {
                   <th>Datum</th>
                   <th>Rechnung</th>
                   <th>Kunde</th>
-                  <th>Betrag</th>
+                  <th className="zahl">Betrag</th>
                 </tr>
               </thead>
               <tbody>
                 {daten.vereinnahmungen.map((v, i) => (
                   <tr key={`${v.datum}-${v.rechnung_nummer}-${i}`}>
-                    <td>{datumDeutsch(v.datum)}</td>
-                    <td>{v.rechnung_nummer}</td>
+                    <td className="nicht-umbrechen">{datumDeutsch(v.datum)}</td>
+                    <td className="tabelle-num nicht-umbrechen">{v.rechnung_nummer}</td>
                     <td>{v.kunde_name}</td>
-                    <td className="tabelle-num">{formatCent(v.betrag_cent)}</td>
+                    <td className="zahl nicht-umbrechen">{formatCent(v.betrag_cent)}</td>
                   </tr>
                 ))}
               </tbody>

@@ -1,46 +1,61 @@
-/* Buttons */
+/* Knöpfe
+   Maße wie die normale Steuerelementgröße von macOS: 28 px hoch, 6 px
+   Radius, 13 px halbfett. Jeder Zustand ist ausgeführt; ein Knopf ohne
+   sichtbaren Druck- oder Fokuszustand fühlt sich in einer Desktop-App
+   kaputt an. */
 .btn {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
-  padding: 7px 14px;
+  min-height: 28px;
+  padding: 0 12px;
   border-radius: var(--radius-s);
   border: 1px solid var(--rand-stark);
   background: var(--flaeche);
   color: var(--text);
   font-size: var(--text-m);
   font-weight: 500;
-  box-shadow: var(--schatten);
+  line-height: 1.2;
+  white-space: nowrap;
+  box-shadow: var(--schatten-knopf);
+  transition:
+    background-color var(--dauer-kurz) var(--ease-aus),
+    border-color var(--dauer-kurz) var(--ease-aus),
+    box-shadow var(--dauer-kurz) var(--ease-aus);
 }
 
-.btn:hover {
-  border-color: var(--akzent);
+.btn:hover:not(:disabled) {
+  background-color: var(--zebra);
+}
+
+.btn:active:not(:disabled) {
+  background-color: var(--st-entwurf-bg);
+  box-shadow: none;
+}
+
+.btn:focus-visible {
+  box-shadow: var(--schatten-knopf), var(--fokusring);
 }
 
 .btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+  opacity: 0.45;
+  cursor: default;
 }
 
 .btn-primaer {
-  background: var(--akzent);
-  border-color: var(--akzent);
-  color: var(--akzent-text);
+  background: var(--akzent-flaeche);
+  border-color: transparent;
+  color: var(--auf-akzent);
 }
 
-.btn-primaer:hover {
-  background: var(--akzent-hover);
-  border-color: var(--akzent-hover);
+.btn-primaer:hover:not(:disabled),
+.btn-primaer:active:not(:disabled) {
+  background-color: var(--akzent-flaeche-hover);
 }
 
 .btn-gefahr {
-  background: var(--flaeche);
-  border-color: var(--st-storniert-bg);
   color: var(--st-storniert-text);
-}
-
-.btn-gefahr:hover {
-  border-color: var(--st-storniert-text);
 }
 
 .btn-leise {
@@ -50,42 +65,69 @@
   box-shadow: none;
 }
 
-.btn-leise:hover {
-  background: var(--akzent-leise);
+.btn-leise:hover:not(:disabled) {
+  background-color: var(--akzent-leise);
+}
+
+.btn-leise:active:not(:disabled) {
+  background-color: var(--akzent-leise);
+  box-shadow: none;
+}
+
+.btn-leise:focus-visible {
+  box-shadow: var(--fokusring);
 }
 
 .btn[aria-current="page"] {
   background: var(--akzent-leise);
-  border-color: var(--akzent);
-  color: var(--akzent);
+  border-color: transparent;
+  color: var(--text);
   font-weight: 600;
+  box-shadow: none;
 }
 
-/* Seitenkopf */
+/* Knopf nur mit Symbol, etwa der Rundgang neben dem Seitentitel. Leise,
+   bis man ihn sucht. */
+.btn-symbol {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-s);
+  background: transparent;
+  color: var(--text-leise);
+  transition:
+    background-color var(--dauer-kurz) var(--ease-aus),
+    color var(--dauer-kurz) var(--ease-aus);
+}
+
+.btn-symbol:hover {
+  background-color: var(--zeile-hover);
+  color: var(--text);
+}
+
+.btn-symbol:active {
+  background-color: var(--akzent-leise);
+}
+
+/* Seitentitel einer Seite ohne Werkzeugleiste (Beleg, Kunde, Eingangs-
+   rechnung). Der obere Abstand setzt ihn auf dieselbe Höhe wie den Titel in
+   der Werkzeugleiste, damit er beim Seitenwechsel nicht springt. */
 .seiten-kopf {
   display: flex;
   align-items: baseline;
   gap: var(--abstand-s);
+  margin-top: calc((var(--leiste-hoehe) - 1.2em) / 2);
 }
 
 .seiten-kopf small {
-  font-size: var(--text-s);
+  font-size: var(--text-m);
   font-weight: 400;
+  letter-spacing: 0;
   color: var(--text-leise);
-}
-
-/* Seitenkopf mit einer Aktion daneben (etwa der Rundgang-Knopf auf der
-   Übersicht) — der Titel behält seinen üblichen Abstand nach unten, jetzt
-   nur am Zeilenende statt am eigenen. */
-.seiten-kopf-zeile {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--abstand-m);
-}
-
-.seiten-kopf-zeile .seiten-kopf {
-  margin-bottom: 0;
 }
 
 /* Formularfelder */
@@ -152,48 +194,107 @@ label.feld textarea {
   margin: -6px 0 var(--abstand-m);
 }
 
-/* Tabellen */
+/* Tabellen
+   Wie die Listenansicht im Finder oder in Numbers: keine umrandete Karte,
+   Zeilen im Wechsel ganz leicht getönt, Kopf klein und ohne Versalien. Die
+   Zebrazeilen sind an den Enden gerundet wie die Auswahl in macOS-Listen. */
 .tabelle {
   width: 100%;
-  border-collapse: collapse;
-  background: var(--flaeche);
-  border: 1px solid var(--rand);
-  border-radius: var(--radius-m);
-  overflow: hidden;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-variant-numeric: tabular-nums;
 }
 
 .tabelle th {
   text-align: left;
   font-size: var(--text-s);
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
+  font-weight: 500;
   color: var(--text-leise);
-  padding: var(--abstand-s) var(--abstand-m);
-  background: var(--bg-gedaempft);
+  padding: 6px 10px;
   border-bottom: 1px solid var(--rand);
+  white-space: nowrap;
+  vertical-align: bottom;
 }
 
 .tabelle td {
-  padding: var(--abstand-s) var(--abstand-m);
-  border-bottom: 1px solid var(--rand);
+  height: 30px;
+  padding: 5px 10px;
+  vertical-align: middle;
 }
 
-.tabelle tbody tr:last-child td {
-  border-bottom: none;
+.tabelle tbody tr:nth-child(even) td {
+  background-color: var(--zebra);
 }
 
-.tabelle tbody tr:hover {
-  background: var(--bg-gedaempft);
+.tabelle tbody td:first-child {
+  border-radius: var(--radius-s) 0 0 var(--radius-s);
 }
 
+.tabelle tbody td:last-child {
+  border-radius: 0 var(--radius-s) var(--radius-s) 0;
+}
+
+/* Der Hover liegt als durchscheinende Schicht über der Zeilenfarbe, damit er
+   auf hellen und getönten Zeilen gleich stark wirkt. */
 .tabelle-klickbar tbody tr {
-  cursor: pointer;
+  cursor: default;
 }
 
+.tabelle-klickbar tbody tr:hover td {
+  background-image: linear-gradient(var(--zeile-hover), var(--zeile-hover));
+}
+
+/* Unter einer Werkzeugleiste bleiben die Spaltenköpfe beim Scrollen direkt
+   darunter stehen, wie im Finder: Bei zwanzig Rechnungen weiß man sonst ab
+   der Mitte nicht mehr, welche Spalte „Summe" und welche „Offen" ist. */
+.werkzeugleiste ~ .tabelle th,
+.werkzeugleiste ~ * .tabelle th {
+  position: sticky;
+  top: var(--leiste-hoehe);
+  z-index: 5;
+  background: var(--bg);
+}
+
+/* In einem Dialog scrollt der Dialog selbst; dort gibt es keine Leiste,
+   unter der der Kopf stehen bleiben könnte. */
+.bestaetigung-overlay .tabelle th {
+  position: static;
+}
+
+/* Belegnummern und andere Kennungen: Textfarbe, gleich breite Ziffern. */
 .tabelle-num {
-  color: var(--text-leise);
   font-variant-numeric: tabular-nums;
+}
+
+/* Beträge rechtsbündig, damit Komma unter Komma steht. Steht an `th` und
+   `td` derselben Spalte. */
+.zahl {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.tabelle th.zahl {
+  text-align: right;
+}
+
+/* Eine Knopfreihe in einer Zelle bleibt Tabellenzelle: Mit `display: flex`
+   aus `.aktionen` fiele sie aus dem Tabellenraster, und die Zeilenfläche
+   bräche an dieser Stelle ab. */
+.tabelle td.aktionen {
+  display: table-cell;
+  white-space: nowrap;
+}
+
+.tabelle td.aktionen > * + * {
+  margin-left: var(--abstand-xs);
+}
+
+/* Knöpfe in einer Zeile in der kleinen Steuerelementgröße, sonst bestimmen
+   sie die Zeilenhöhe. */
+.tabelle .btn {
+  min-height: 22px;
+  padding: 0 8px;
+  font-size: var(--text-s);
 }
 
 /* Karte */
@@ -205,35 +306,71 @@ label.feld textarea {
   margin-bottom: var(--abstand-l);
 }
 
-/* Werkzeugleiste */
-/* Kopfleiste einer Listenseite: Filter links, Hauptaktion rechts.
-   `align-items: flex-end` richtet Knopf und Eingabefeld an der Grundlinie aus —
-   sonst klebt der Knopf an der Beschriftung darüber statt am Feld daneben. */
+/* Werkzeugleiste (Werkzeugleiste.tsx)
+   Klebt oben im Inhaltsbereich und reicht über dessen seitlichen Rand bis an
+   die Kanten, damit die Linie darunter durchgeht. Die Linie ist von Anfang an
+   da, nur unsichtbar: Ein Rand, der erst beim Scrollen entsteht, ließe den
+   Inhalt um einen Pixel springen. */
+.werkzeugleiste-anker {
+  height: 0;
+}
+
 .werkzeugleiste {
+  position: sticky;
+  top: 0;
+  z-index: 10;
   display: flex;
-  align-items: flex-end;
-  gap: var(--abstand-m);
-  margin-bottom: var(--abstand-l);
+  align-items: center;
+  gap: var(--abstand-s);
+  min-height: var(--leiste-hoehe);
+  margin: 0 calc(-1 * var(--abstand-xl)) var(--abstand-m);
+  padding: var(--abstand-s) var(--abstand-xl);
+  background: var(--bg);
+  border-bottom: 1px solid transparent;
+  transition: border-color var(--dauer-kurz) var(--ease-aus);
 }
 
-.werkzeugleiste-filter {
+.werkzeugleiste.gescrollt {
+  border-bottom-color: var(--rand);
+}
+
+.werkzeugleiste-titel {
+  margin: 0;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.werkzeugleiste-rechts {
   display: flex;
-  align-items: flex-end;
-  gap: var(--abstand-m);
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--abstand-s);
   flex: 1;
-  flex-wrap: wrap;
+  min-width: 0;
 }
 
-.werkzeugleiste-aktion {
-  flex-shrink: 0;
+/* Suchfeld mit Lupe (Suchfeld.tsx). */
+.suchfeld {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  flex: 0 1 240px;
+  min-width: 140px;
 }
 
-.werkzeugleiste input[type="search"] {
-  flex: 1;
+.suchfeld svg {
+  position: absolute;
+  left: 8px;
+  color: var(--text-leise);
+  pointer-events: none;
 }
 
-.werkzeugleiste .feld {
-  margin-bottom: 0;
+.suchfeld input {
+  width: 100%;
+  padding-left: 26px;
+  border-radius: var(--radius-s);
 }
 
 /* Fehler-Box */
@@ -250,15 +387,21 @@ label.feld textarea {
   margin: 0;
 }
 
-/* Status-Badges */
+/* Statusmarken
+   Kleine Kapsel, Text immer dabei: Der Status hängt nie allein an der Farbe.
+   Farbig sind nur Zustände, die etwas verlangen; der Normalfall (gestellt,
+   bezahlt) steht als leiser Text da. */
 .status {
-  display: inline-block;
-  padding: 2px 10px;
+  display: inline-flex;
+  align-items: center;
+  min-height: 18px;
+  padding: 0 7px;
   border-radius: var(--radius-pill);
   font-size: var(--text-s);
   font-weight: 600;
+  line-height: 1.2;
   /* Ein umgebrochenes Etikett ("Erstattung / offen") liest sich wie zwei
-     Angaben und zerreißt zudem die Pillenform. */
+     Angaben und zerreißt zudem die Kapselform. */
   white-space: nowrap;
 }
 
@@ -282,18 +425,59 @@ label.feld textarea {
   color: var(--st-storniert-text);
 }
 
-/* Layout */
+.status-warnung {
+  background: var(--st-warnung-bg);
+  color: var(--st-warnung-text);
+}
+
+/* Ohne Fläche und Innenabstand, damit leise Marken bündig mit dem übrigen
+   Spaltentext stehen. */
+.status-leise {
+  padding: 0;
+  font-size: var(--text-m);
+  font-weight: 400;
+  color: var(--text-leise);
+}
+
+/* Layout
+   Fenster in zwei Spalten, die jede für sich scrollen: Die Seitenleiste
+   bleibt stehen, wenn eine lange Liste läuft, so wie in Mail. */
 .app-layout {
   display: flex;
-  min-height: 100vh;
+  height: 100vh;
 }
 
 .app-nav {
+  display: flex;
+  flex-direction: column;
   width: 220px;
   flex-shrink: 0;
-  background: var(--bg-gedaempft);
+  overflow-y: auto;
+  background: var(--seitenleiste);
   border-right: 1px solid var(--rand);
-  padding: var(--abstand-l) 0;
+  padding: 0 var(--abstand-s) var(--abstand-s);
+}
+
+/* Unter macOS sitzen hier die Ampelknöpfe; der Kopf hält ihnen den Platz
+   frei. Anderswo genügt ein kleiner Abstand zum Fensterrand. */
+.app-nav-kopf {
+  flex-shrink: 0;
+  height: var(--abstand-m);
+}
+
+html[data-plattform="mac"] .app-nav-kopf {
+  height: var(--leiste-hoehe);
+}
+
+.app-nav-gruppe + .app-nav-gruppe {
+  margin-top: var(--abstand-s);
+}
+
+.app-nav-gruppe-titel {
+  padding: var(--abstand-xs) var(--abstand-s) 2px;
+  font-size: var(--text-s);
+  font-weight: 600;
+  color: var(--text-leise);
 }
 
 .app-nav-liste {
@@ -302,58 +486,64 @@ label.feld textarea {
   padding: 0;
 }
 
+/* Abgesetzt am Fuß der Leiste, egal wie hoch das Fenster ist. */
+.app-nav-fuss {
+  margin-top: auto;
+  padding-top: var(--abstand-m);
+}
+
 .app-nav-eintrag {
   display: flex;
   align-items: center;
-  gap: var(--abstand-s);
-  width: calc(100% - 16px);
-  margin: 2px var(--abstand-s);
+  gap: 7px;
+  width: 100%;
+  min-height: 28px;
+  margin: 1px 0;
   text-align: left;
-  padding: var(--abstand-s) var(--abstand-m);
+  padding: 0 var(--abstand-s);
   border: none;
   border-radius: var(--radius-s);
   background: transparent;
-  color: var(--text-leise);
+  color: var(--text);
   font-size: var(--text-m);
   font-weight: 400;
   box-shadow: none;
+  transition: background-color var(--dauer-kurz) var(--ease-aus);
 }
 
 .app-nav-eintrag:hover {
-  background: var(--rand);
-  border-color: transparent;
-  color: var(--text);
+  background: var(--zeile-hover);
 }
 
 .app-nav-eintrag[aria-current="page"] {
   background: var(--akzent-leise);
-  color: var(--akzent);
-  font-weight: 600;
+  font-weight: 500;
 }
 
+/* Symbole in Akzentfarbe, wie in den Seitenleisten von Mail und Finder. */
 .app-nav-icon {
   display: inline-flex;
   flex-shrink: 0;
+  color: var(--akzent);
 }
 
 .app-main {
   flex: 1;
-  padding: var(--abstand-xl);
-  max-width: 960px;
+  padding: 0 var(--abstand-xl) var(--abstand-xl);
   /*
    * `min-width: 0` hebt die Voreinstellung `auto` auf, mit der ein Flex-Element
    * nie schmaler wird als die Mindestbreite seines Inhalts. Eine breite Tabelle
-   * zog damit die gesamte Seite über den Fensterrand hinaus — und mit ihr die
+   * zog damit die gesamte Seite über den Fensterrand hinaus, und mit ihr die
    * Kopfleiste. Deren Knöpfe standen dann außerhalb des Fensters: sichtbar
    * waren sie nur nach waagerechtem Scrollen, und ein Klick darauf traf ins
    * Leere, ohne jede Meldung.
    *
-   * `overflow-x: auto` gibt der breiten Tabelle einen eigenen Schiebebereich,
-   * statt die Seite mitzuziehen. Alles andere — Überschriften, Kopfleiste,
-   * Formulare — bleibt damit immer im Fenster.
+   * Der Hauptbereich scrollt selbst (in beide Richtungen), statt das Fenster
+   * mitzuziehen. So bleibt die Seitenleiste stehen, und die Werkzeugleiste
+   * kann oben kleben.
    */
   min-width: 0;
-  overflow-x: auto;
+  overflow: auto;
 }
 
 /* Einrichtungs-Assistent */
@@ -464,7 +654,7 @@ label.feld textarea {
 .bestaetigung-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(20, 24, 33, 0.35);
+  background: var(--abdeckung);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -474,7 +664,7 @@ label.feld textarea {
 .bestaetigung-karte {
   background: var(--flaeche);
   border-radius: var(--radius-m);
-  box-shadow: 0 8px 30px rgba(20, 24, 33, 0.25);
+  box-shadow: var(--schatten-dialog);
   padding: var(--abstand-l);
   max-width: 360px;
   width: calc(100% - var(--abstand-xl));
@@ -510,10 +700,12 @@ label.feld textarea {
   margin-left: var(--abstand-s);
   padding: 2px var(--abstand-s);
   border-radius: var(--radius-pill);
-  background: var(--akzent-leise);
-  color: var(--akzent);
+  /* Neutral statt im Akzent: Die Marke ergänzt, sie ist weder Auswahl noch
+     Aktion, und Violett steht in dieser App nur für diese beiden. */
+  background: var(--st-entwurf-bg);
+  color: var(--st-entwurf-text);
   font-size: var(--text-s);
-  font-weight: 500;
+  font-weight: 600;
   vertical-align: middle;
 }
 
@@ -560,8 +752,8 @@ label.feld textarea {
 /* Die Farbe sitzt am Container und wird über currentColor an die Füllung
    vererbt — so bleibt Balken und zugehöriger Text zwangsläufig gleichfarbig. */
 .grenze-keine { color: var(--st-bezahlt-text); }
-.grenze-annaeherung { color: #a8720d; }
-.grenze-kritisch { color: #b4530a; }
+.grenze-annaeherung { color: var(--grenze-annaeherung); }
+.grenze-kritisch { color: var(--grenze-kritisch); }
 .grenze-ueberschritten { color: var(--fehler-text); }
 
 /* Abstand zum Vorherigen für Abschnitte ohne eigene Überschrift — sonst
@@ -619,11 +811,6 @@ label.feld textarea {
 .ueberfaellig {
   color: var(--fehler-text);
   font-weight: 500;
-}
-
-@media (prefers-color-scheme: dark) {
-  .grenze-annaeherung { color: #e0b060; }
-  .grenze-kritisch { color: #f0a070; }
 }
 
 /* Beschriftung eines Bereichs, der kein Eingabefeld umschließt (etwa das Logo
@@ -690,16 +877,23 @@ label.feld textarea {
   cursor: pointer;
 }
 
-.zeilen-knopf:hover {
-  text-decoration: underline;
-}
+/* Kein Unterstrich beim Überfahren: Die ganze Zeile zeigt schon, dass sie
+   sich öffnen lässt. */
 
 /* Sichtbarer Fokus, überall. Ohne ihn ist Tastaturbedienung zwar möglich,
-   aber blind — man sieht nicht, wo man ist (WCAG 2.4.7). */
+   aber blind: man sieht nicht, wo man ist (WCAG 2.4.7).
+   Als Ring außen wie unter macOS, gezeichnet als Schatten. Der durchsichtige
+   Umriss bleibt für den Kontrastmodus von Windows stehen, der Schatten
+   ausblendet und Umrisse in der Systemfarbe zeichnet. */
 :where(a, button, input, select, textarea, [tabindex]):focus-visible {
-  outline: 2px solid var(--akzent);
-  outline-offset: 2px;
-  border-radius: var(--radius-s);
+  outline: 2px solid transparent;
+  box-shadow: var(--fokusring);
+}
+
+/* Ein Knopf ohne eigene Rundung (Zeilen- oder Sortierknopf) bekommt sie für
+   den Ring, sonst wäre er eckig neben lauter runden. */
+:where(.zeilen-knopf, .sortier-kopf):focus-visible {
+  border-radius: 4px;
 }
 
 /* Sortierbarer Spaltenkopf. */
@@ -718,11 +912,20 @@ label.feld textarea {
   gap: var(--abstand-xs, 4px);
 }
 
+.sortier-kopf:hover {
+  color: var(--text);
+}
+
 .sortier-pfeil {
-  font-size: 0.8em;
   /* Feste Breite, damit die Spalte beim Sortieren nicht springt. */
-  width: 1em;
-  display: inline-block;
+  width: 9px;
+  display: inline-flex;
+}
+
+/* In einer rechtsbündigen Spalte steht der Pfeil links, sonst rückte die
+   Beschriftung beim Sortieren von der Kante weg. */
+.zahl .sortier-kopf {
+  flex-direction: row-reverse;
 }
 
 /* Blätterleiste. */
@@ -794,6 +997,16 @@ label.feld textarea {
 
 .seiten-kopf {
   margin-bottom: var(--abstand-l);
+}
+
+/* Abschnitt ohne eigene Fläche, nur über Überschrift und Abstand gegliedert
+   (etwa die Tabellen der Übersicht). */
+.abschnitt {
+  margin-bottom: var(--abstand-xl);
+}
+
+.abschnitt > h2 {
+  margin-top: 0;
 }
 
 /* Kopfleiste eines Belegs: Status links, Aktionen rechts.
@@ -1045,7 +1258,8 @@ label.feld textarea {
 
 .vorlage-vorschau {
   position: sticky;
-  top: var(--abstand-l);
+  /* Unter der klebenden Werkzeugleiste, nicht dahinter. */
+  top: calc(var(--leiste-hoehe) + var(--abstand-l));
 }
 
 .vorlage-vorschau img {
@@ -1084,14 +1298,14 @@ label.feld textarea {
   z-index: 1;
   border-radius: var(--radius-m);
   box-shadow:
-    0 0 0 9999px rgba(20, 24, 33, 0.55),
+    0 0 0 9999px var(--abdeckung-fuehrung),
     0 0 0 3px var(--akzent);
   pointer-events: none;
   transition:
-    top 0.2s ease,
-    left 0.2s ease,
-    width 0.2s ease,
-    height 0.2s ease;
+    top var(--dauer-mittel) var(--ease-aus),
+    left var(--dauer-mittel) var(--ease-aus),
+    width var(--dauer-mittel) var(--ease-aus),
+    height var(--dauer-mittel) var(--ease-aus);
 }
 
 .fuehrung-tooltip {
@@ -1099,7 +1313,7 @@ label.feld textarea {
   z-index: 2;
   background: var(--flaeche);
   border-radius: var(--radius-m);
-  box-shadow: 0 8px 30px rgba(20, 24, 33, 0.25);
+  box-shadow: var(--schatten-dialog);
   padding: var(--abstand-l);
 }
 

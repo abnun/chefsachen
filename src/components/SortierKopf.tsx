@@ -24,19 +24,38 @@ interface SortierKopfProps {
    * genau denen, die den Rundgang am nötigsten haben.
    */
   dataTour?: string;
+  /** Etwa `zahl` für eine rechtsbündige Betragsspalte. */
+  className?: string;
 }
 
-export function SortierKopf({ spalte, aktiv, richtung, onSortieren, children, dataTour }: SortierKopfProps) {
+export function SortierKopf({
+  spalte,
+  aktiv,
+  richtung,
+  onSortieren,
+  children,
+  dataTour,
+  className,
+}: SortierKopfProps) {
   const istAktiv = aktiv === spalte;
   return (
     <th
       aria-sort={istAktiv ? (richtung === "auf" ? "ascending" : "descending") : "none"}
       data-tour={dataTour}
+      className={className}
     >
       <button type="button" className="sortier-kopf" onClick={() => onSortieren(spalte)}>
         {children}
         <span aria-hidden="true" className="sortier-pfeil">
-          {istAktiv ? (richtung === "auf" ? "▲" : "▼") : ""}
+          {istAktiv && (
+            <svg viewBox="0 0 10 10" width="9" height="9" fill="none" stroke="currentColor" strokeWidth="1.6">
+              <path
+                d={richtung === "auf" ? "M2 6.5 5 3.5l3 3" : "M2 3.5 5 6.5l3-3"}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          )}
         </span>
       </button>
     </th>

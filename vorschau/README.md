@@ -14,6 +14,7 @@ Danach unter <http://localhost:1430/> öffnen.
 | --- | --- |
 | `/` | Beispielfirma „Lena Hoffmann · Grafik & Illustration“, Leipzig, mit Kunden, Artikeln und Belegen |
 | `/?leer=1` | Frische Installation, zeigt den Einrichtungsassistenten |
+| `/?plattform=mac` | Erzwingt die Mac-Ansicht (Platz für die Ampelknöpfe), ebenso `win` und `andere` |
 
 ## Aufbau
 
