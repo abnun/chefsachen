@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Berechtigungen der Mac-App-Store-Fassung.
+
+  TEAM_ID ist ein Platzhalter. scripts/mac-app-store.sh setzt beim Bau die
+  Team-ID aus der Umgebungsvariablen MAS_TEAM_ID in eine Kopie dieser Datei
+  ein; hier bleibt der Platzhalter stehen, damit nichts Kontogebundenes im
+  Repository liegt.
+
+  Bewusst ohne network.client: Die Store-Fassung enthält keinen Updater, und
+  Links öffnet der Browser, nicht das Programm. Ein Recht, das nicht gebraucht
+  wird, muss bei der Prüfung begründet werden.
+-->
+<plist version="1.0">
+<dict>
+	<!-- Pflicht für den Mac App Store. Datenbank, Sicherungen und Protokoll
+	     liegen damit im Container der App. -->
+	<key>com.apple.security.app-sandbox</key>
+	<true/>
+	<!-- Import, Export und Sicherungen gehen ausschließlich über die
+	     Dateidialoge; jede gewählte Datei wird damit lesbar bzw. beschreibbar. -->
+	<key>com.apple.security.files.user-selected.read-write</key>
+	<true/>
+	<key>com.apple.application-identifier</key>
+	<string>TEAM_ID.de.chefsachen.app</string>
+	<key>com.apple.developer.team-identifier</key>
+	<string>TEAM_ID</string>
+</dict>
+</plist>

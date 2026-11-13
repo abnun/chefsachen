@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Datenschutzmanifest für den Mac App Store.
+
+  Chefsachen erfasst keine Daten und verfolgt niemanden: Alles bleibt lokal in
+  der Datenbank im Container der App.
+
+  Begründet werden nur die Schnittstellen, die Apple als „required reason API"
+  führt und die das Programm tatsächlich berührt:
+  - Dateizeitstempel (C617.1): Die Liste der Sicherungen liest Dateiangaben
+    über stat, und SQLite tut es für die eigene Datenbank. Apple zählt stat
+    zu diesen Schnittstellen; berührt werden nur Dateien im eigenen Container.
+  - UserDefaults (CA92.1): WebKit legt darin Einstellungen der eigenen App
+    ab; das Programm selbst liest keine fremden Werte.
+-->
+<plist version="1.0">
+<dict>
+	<key>NSPrivacyTracking</key>
+	<false/>
+	<key>NSPrivacyTrackingDomains</key>
+	<array/>
+	<key>NSPrivacyCollectedDataTypes</key>
+	<array/>
+	<key>NSPrivacyAccessedAPITypes</key>
+	<array>
+		<dict>
+			<key>NSPrivacyAccessedAPIType</key>
+			<string>NSPrivacyAccessedAPICategoryFileTimestamp</string>
+			<key>NSPrivacyAccessedAPITypeReasons</key>
+			<array>
+				<string>C617.1</string>
+			</array>
+		</dict>
+		<dict>
+			<key>NSPrivacyAccessedAPIType</key>
+			<string>NSPrivacyAccessedAPICategoryUserDefaults</string>
+			<key>NSPrivacyAccessedAPITypeReasons</key>
+			<array>
+				<string>CA92.1</string>
+			</array>
+		</dict>
+	</array>
+</dict>
+</plist>

@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Ergänzt die von Tauri erzeugte Info.plist (Tauri liest diese Datei neben
+  tauri.conf.json von selbst ein, für jeden macOS-Bau).
+
+  ITSAppUsesNonExemptEncryption: Das Programm verschlüsselt nichts selbst. Ohne
+  diesen Eintrag fragt App Store Connect bei jedem hochgeladenen Bau erneut
+  nach der Exportkonformität.
+  LSApplicationCategoryType: Pflicht für den Mac App Store; Tauri leitet ihn
+  zwar aus bundle.category ab, hier steht er ausdrücklich, damit er nicht von
+  einer Überlagerung abhängt.
+-->
+<plist version="1.0">
+<dict>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+	<key>LSApplicationCategoryType</key>
+	<string>public.app-category.business</string>
+</dict>
+</plist>

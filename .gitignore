@@ -14,3 +14,8 @@ src-tauri/.validator-cache/
 
 # Abhängigkeiten des Durchstichs (siehe e2e/README.md)
 e2e/node_modules/
+
+# Mac-App-Store-Bau (siehe scripts/mac-app-store.sh): Provisioning-Profil und
+# App-Store-Connect-API-Schlüssel sind kontogebunden und gehören nie ins Repo.
+*.provisionprofile
+private_keys/
