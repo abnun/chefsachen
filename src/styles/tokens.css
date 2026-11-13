@@ -1,47 +1,83 @@
+/*
+ * Farben in OKLCH: Helligkeit, Buntheit und Farbton lassen sich getrennt
+ * stellen. Eine Stufe heller heißt hier wirklich nur heller, ohne dass der
+ * Farbton wandert wie bei Hex- oder HSL-Werten.
+ *
+ * Alle Neutralen sind ganz leicht zum Akzent (Farbton 290, Kopierstift-
+ * Violett) getönt. Reines Weiß und reines Schwarz kommen nicht vor; sie
+ * wirken neben dem Systemrahmen von macOS kalt und hart.
+ *
+ * Jedes Textpaar ist in kontrast.test.ts gegen WCAG AA geprüft. Wer hier
+ * einen Wert verschiebt, sieht dort sofort, ob er noch trägt.
+ */
 :root {
-  /* Farben — Hell */
-  --bg: #f4f6f8;
-  --bg-gedaempft: #f7f8fa;
-  --flaeche: #ffffff;
-  --flaeche-eingabe: #ffffff;
-  --rand: #e3e6ec;
-  --rand-stark: #d3d8e0;
-  --text: #1c2230;
+  /* Flächen, von hinten nach vorn */
+  --bg: oklch(0.99 0.003 290);
+  --seitenleiste: oklch(0.955 0.006 290);
+  /* Für die eingesetzten Formulargruppen wie in den Systemeinstellungen. */
+  --gruppe: oklch(0.965 0.005 290);
+  --zebra: oklch(0.97 0.004 290);
+  --bg-gedaempft: oklch(0.97 0.004 290);
+  /* Erhöhte Fläche: Knöpfe, Karten, Dialoge. */
+  --flaeche: oklch(0.995 0.002 290);
+  --flaeche-eingabe: oklch(0.995 0.002 290);
+  /* Hover über einer Tabellen- oder Navigationszeile: durchscheinend, damit
+     er auf der Zebrazeile wie auf der hellen Zeile gleich stark wirkt. */
+  --zeile-hover: oklch(0.45 0.03 290 / 0.07);
+
+  --rand: oklch(0.89 0.006 290);
+  --rand-stark: oklch(0.82 0.008 290);
+
+  --text: oklch(0.22 0.012 290);
   /* Nur zwei Textstufen: Eine dritte, noch leisere Farbe kann auf dieser
      Palette nicht zugleich existieren und 4,5:1 erreichen. Siehe
      kontrast.test.ts. */
-  --text-leise: #6b7280;
-  --akzent: #33506b;
-  --akzent-hover: #2b4459;
-  --akzent-text: #ffffff;
-  --akzent-leise: #e9ecf1;
+  --text-leise: oklch(0.5 0.012 290);
 
-  --st-entwurf-bg: #eef0f3;
-  --st-entwurf-text: #5a6273;
-  --st-gestellt-bg: #e4edf5;
-  --st-gestellt-text: #2f5c86;
-  --st-bezahlt-bg: #e6f4ec;
-  --st-bezahlt-text: #1f7a52;
-  --st-storniert-bg: #fdecea;
-  --st-storniert-text: #a3231f;
+  /* Akzent für Text, Symbole, Verweise und den Fokusring. */
+  --akzent: oklch(0.48 0.15 290);
+  /* Gefüllte Fläche der Hauptaktion; eigener Wert, weil er im Dunkeln
+     anders liegen muss als die Textfarbe. */
+  --akzent-flaeche: oklch(0.48 0.15 290);
+  --akzent-flaeche-hover: oklch(0.43 0.15 290);
+  --auf-akzent: oklch(0.99 0.004 290);
+  /* Auswahl in Seitenleiste und Tabelle. */
+  --akzent-leise: oklch(0.48 0.15 290 / 0.12);
+  --fokus: oklch(0.48 0.15 290 / 0.4);
 
-  --fehler-bg: #fdecea;
-  --fehler-text: #7a1212;
-  --fehler-rand: #f5c2c0;
+  /* Status: Der Normalfall bleibt leise, nur Ausnahmen tragen Farbe. */
+  --st-entwurf-bg: oklch(0.94 0.006 290);
+  --st-entwurf-text: oklch(0.45 0.012 290);
+  --st-gestellt-bg: oklch(0.94 0.03 245);
+  --st-gestellt-text: oklch(0.45 0.11 245);
+  --st-bezahlt-bg: oklch(0.94 0.04 150);
+  --st-bezahlt-text: oklch(0.43 0.1 150);
+  --st-storniert-bg: oklch(0.94 0.03 27);
+  --st-storniert-text: oklch(0.48 0.16 27);
+  --st-warnung-bg: oklch(0.95 0.04 70);
+  --st-warnung-text: oklch(0.47 0.11 70);
 
-  /* Nichts ist kaputt, das Ergebnis wird nur schlecht — zwischen Hinweis
+  --fehler-bg: oklch(0.95 0.025 27);
+  --fehler-text: oklch(0.42 0.14 27);
+  --fehler-rand: oklch(0.85 0.06 27);
+
+  /* Nichts ist kaputt, das Ergebnis wird nur schlecht: zwischen Hinweis
      und Fehler angesiedelt, deshalb ein gedämpftes Bernstein statt Rot. */
-  --warnung-text: #8a5200;
-  --erfolg-text: #1f7a52;
+  --warnung-text: oklch(0.5 0.12 70);
+  --erfolg-text: oklch(0.43 0.1 150);
 
-  --hinweis-bg: #eaf1f7;
-  --hinweis-text: #2c5a7c;
-  --hinweis-rand: #c9dced;
+  --hinweis-bg: oklch(0.95 0.025 245);
+  --hinweis-text: oklch(0.43 0.1 245);
+  --hinweis-rand: oklch(0.86 0.05 245);
 
-  --preis-guenstiger-bg: #e6f4ec;
-  --preis-guenstiger-text: #1f7a52;
-  --preis-teurer-bg: #fdecea;
-  --preis-teurer-text: #a3231f;
+  --preis-guenstiger-bg: oklch(0.94 0.04 150);
+  --preis-guenstiger-text: oklch(0.43 0.1 150);
+  --preis-teurer-bg: oklch(0.94 0.03 27);
+  --preis-teurer-text: oklch(0.48 0.16 27);
+
+  /* Stufen der Kleinunternehmergrenze zwischen Grün und Rot. */
+  --grenze-annaeherung: oklch(0.58 0.13 75);
+  --grenze-kritisch: oklch(0.55 0.15 50);
 
   /* Abstände */
   --abstand-xs: 4px;
@@ -53,59 +89,111 @@
   /* Radien */
   --radius-s: 6px;
   --radius-m: 8px;
+  --radius-gruppe: 10px;
   --radius-pill: 999px;
 
-  /* Schatten */
-  --schatten: 0 1px 2px rgba(20, 24, 33, 0.06);
+  /* Schatten und Abdeckung */
+  --schatten: 0 1px 2px oklch(0.2 0.02 290 / 0.06);
+  --schatten-knopf: 0 0.5px 1px oklch(0.2 0.02 290 / 0.12);
+  --schatten-dialog: 0 10px 30px oklch(0.2 0.02 290 / 0.22);
+  --abdeckung: oklch(0.2 0.02 290 / 0.32);
+  --abdeckung-fuehrung: oklch(0.2 0.02 290 / 0.55);
+  /* macOS-Fokusring: außen, drei Pixel, Akzent mit 40 % Deckkraft. */
+  --fokusring: 0 0 0 3px var(--fokus);
 
-  /* Schrift */
-  --schrift: -apple-system, system-ui, "Segoe UI", Roboto, sans-serif;
+  /* Schrift: die Systemschrift, unter Windows die variable Segoe. */
+  --schrift: -apple-system, BlinkMacSystemFont, "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  --text-s: 11px;
+  --text-m: 13px;
+  --text-l: 15px;
+  --text-xl: 17px;
+  --text-titel: 22px;
+
+  /* Bewegung: nur zur Zustandsänderung, immer mit sanftem Auslauf. */
+  --dauer-kurz: 120ms;
+  --dauer-mittel: 220ms;
+  --ease-aus: cubic-bezier(0.25, 1, 0.5, 1);
+
+  /* Höhe der Fensterleiste: so hoch, dass die Ampelknöpfe unter macOS
+     mittig darin sitzen. */
+  --leiste-hoehe: 52px;
+}
+
+/* Windows-Anwendungen setzen Grundtext in 14 px; 13 px wirkt dort zu klein,
+   weil Segoe bei gleicher Größe kleiner zeichnet als SF. */
+html[data-plattform="win"] {
   --text-s: 12px;
   --text-m: 14px;
   --text-l: 16px;
-  --text-xl: 20px;
+  --text-xl: 18px;
+  --text-titel: 24px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dauer-kurz: 0ms;
+    --dauer-mittel: 0ms;
+  }
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #16181d;
-    --bg-gedaempft: #1b1e24;
-    --flaeche: #21252c;
-    --flaeche-eingabe: #1b1e24;
-    --rand: #2e333c;
-    --rand-stark: #3a414c;
-    --text: #e6e8ec;
-    --text-leise: #9aa2b0;
-    --akzent: #4d7093;
-    --akzent-hover: #5a80a4;
-    --akzent-text: #ffffff;
-    --akzent-leise: #26303a;
+    --bg: oklch(0.19 0.006 290);
+    --seitenleiste: oklch(0.235 0.008 290);
+    --gruppe: oklch(0.235 0.008 290);
+    --zebra: oklch(0.215 0.006 290);
+    --bg-gedaempft: oklch(0.215 0.006 290);
+    --flaeche: oklch(0.27 0.008 290);
+    --flaeche-eingabe: oklch(0.235 0.008 290);
+    --zeile-hover: oklch(0.9 0.02 290 / 0.07);
 
-    --st-entwurf-bg: #262b33;
-    --st-entwurf-text: #9aa2b0;
-    --st-gestellt-bg: #1d2c3a;
-    --st-gestellt-text: #83aed6;
-    --st-bezahlt-bg: #163a2a;
-    --st-bezahlt-text: #6ed3a0;
-    --st-storniert-bg: #3a1e1c;
-    --st-storniert-text: #ef8f8a;
+    --rand: oklch(0.32 0.008 290);
+    --rand-stark: oklch(0.4 0.01 290);
 
-    --fehler-bg: #2c1a1a;
-    --fehler-text: #ef9a95;
-    --fehler-rand: #4a2c2a;
+    --text: oklch(0.93 0.006 290);
+    --text-leise: oklch(0.7 0.012 290);
 
-    --warnung-text: #e8b464;
-    --erfolg-text: #6ed3a0;
+    --akzent: oklch(0.74 0.12 290);
+    --akzent-flaeche: oklch(0.52 0.15 290);
+    --akzent-flaeche-hover: oklch(0.57 0.15 290);
+    --auf-akzent: oklch(0.99 0.004 290);
+    --akzent-leise: oklch(0.62 0.14 290 / 0.24);
+    --fokus: oklch(0.74 0.12 290 / 0.45);
 
-    --hinweis-bg: #1a2733;
-    --hinweis-text: #8fc1e8;
-    --hinweis-rand: #2d4358;
+    --st-entwurf-bg: oklch(0.28 0.008 290);
+    --st-entwurf-text: oklch(0.78 0.012 290);
+    --st-gestellt-bg: oklch(0.3 0.05 245);
+    --st-gestellt-text: oklch(0.82 0.09 245);
+    --st-bezahlt-bg: oklch(0.3 0.05 150);
+    --st-bezahlt-text: oklch(0.82 0.12 150);
+    --st-storniert-bg: oklch(0.3 0.06 27);
+    --st-storniert-text: oklch(0.8 0.1 27);
+    --st-warnung-bg: oklch(0.31 0.05 70);
+    --st-warnung-text: oklch(0.84 0.11 75);
 
-    --preis-guenstiger-bg: #163a2a;
-    --preis-guenstiger-text: #6ed3a0;
-    --preis-teurer-bg: #3a1e1c;
-    --preis-teurer-text: #ef8f8a;
+    --fehler-bg: oklch(0.27 0.05 27);
+    --fehler-text: oklch(0.82 0.09 27);
+    --fehler-rand: oklch(0.4 0.08 27);
 
-    --schatten: 0 1px 3px rgba(0, 0, 0, 0.4);
+    --warnung-text: oklch(0.8 0.12 70);
+    --erfolg-text: oklch(0.8 0.13 150);
+
+    --hinweis-bg: oklch(0.27 0.04 245);
+    --hinweis-text: oklch(0.83 0.08 245);
+    --hinweis-rand: oklch(0.4 0.06 245);
+
+    --preis-guenstiger-bg: oklch(0.3 0.05 150);
+    --preis-guenstiger-text: oklch(0.82 0.12 150);
+    --preis-teurer-bg: oklch(0.3 0.06 27);
+    --preis-teurer-text: oklch(0.8 0.1 27);
+
+    --grenze-annaeherung: oklch(0.8 0.12 80);
+    --grenze-kritisch: oklch(0.76 0.13 55);
+
+    --schatten: 0 1px 3px oklch(0 0 0 / 0.4);
+    --schatten-knopf: 0 0.5px 1px oklch(0 0 0 / 0.35);
+    --schatten-dialog: 0 12px 36px oklch(0 0 0 / 0.5);
+    --abdeckung: oklch(0.1 0.01 290 / 0.5);
+    --abdeckung-fuehrung: oklch(0.1 0.01 290 / 0.65);
   }
 }
