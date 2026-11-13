@@ -211,7 +211,8 @@ fn mit_befehlen<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri::Builder
             commands::eingangsrechnungen::eingangsrechnung_original_exportieren,
             protokoll::protokoll_pfad,
             menue::menue_einstellungen_freigeben,
-            commands::vertriebsweg::vertriebsweg
+            commands::vertriebsweg::vertriebsweg,
+            commands::vertriebsweg::programm_neu_starten
     ])
 }
 

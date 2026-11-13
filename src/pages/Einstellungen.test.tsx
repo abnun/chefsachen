@@ -30,6 +30,8 @@ vi.mock("@tauri-apps/plugin-fs", () => ({
 }));
 vi.mock("../api", () => ({
   api: {
+    vertriebsweg: vi.fn().mockResolvedValue("github"),
+    neuStarten: vi.fn().mockResolvedValue(undefined),
     protokoll: { pfad: vi.fn().mockResolvedValue("/p/protokoll.log") },
     sicherungen: {
       liste: vi.fn().mockResolvedValue([]),
@@ -94,6 +96,7 @@ vi.mock("../api", () => ({
 }));
 import { api } from "../api";
 import { AktualisierungProvider } from "../hooks/useAktualisierung";
+import { VertriebswegProvider } from "../hooks/useVertriebsweg";
 import { Einstellungen } from "./Einstellungen";
 
 /**
@@ -539,5 +542,56 @@ describe("Einstellungen", () => {
       expect(api.einstellungen.set).toHaveBeenCalledWith("vorlage.angebot_gueltigkeit_tage", "45"),
     );
     await waitFor(() => expect(screen.getByText("Angebotsgültigkeit gespeichert")).toBeTruthy());
+  });
+
+  it("startet nach einer vorgemerkten Wiederherstellung über den eigenen Befehl neu", async () => {
+    // Nicht über `relaunch` aus dem Prozess-Plugin: Das fehlt in den
+    // Store-Fassungen, der Knopf täte dort sonst nichts.
+    vi.mocked(api.sicherungen.liste).mockResolvedValue([
+      { zeitstempel: "2026-08-01_09-00-00", groesse_bytes: 2048, pfad: "/p/a.db" },
+    ]);
+    render(<EinstellungenMitAnbieter />);
+    await waitFor(() => expect(screen.getByText("01.08.2026, 09:00 Uhr")).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Zurückspielen" }));
+    const dialog = await screen.findByRole("dialog");
+    fireEvent.click(within(dialog).getByRole("button", { name: "Zurückspielen" }));
+
+    fireEvent.click(await screen.findByRole("button", { name: "Jetzt neu starten" }));
+    expect(api.neuStarten).toHaveBeenCalled();
+  });
+
+  it("zeigt in der GitHub-Fassung Aktualisierungssuche und Spendenabschnitt", async () => {
+    vi.mocked(api.vertriebsweg).mockResolvedValueOnce("github");
+    render(
+      <VertriebswegProvider>
+        <EinstellungenMitAnbieter />
+      </VertriebswegProvider>,
+    );
+    expect(await screen.findByRole("button", { name: "Nach Aktualisierung suchen" })).toBeTruthy();
+    expect(screen.getByRole("link", { name: /PayPal unterstützen/ })).toBeTruthy();
+  });
+
+  it("blendet in der Store-Fassung Aktualisierungssuche und Spendenabschnitt aus", async () => {
+    // App-Store-Richtlinie 2.4.5: Updates nur über den Store. Und
+    // Spendenaufrufe außerhalb des In-App-Kaufs sind dort unzulässig.
+    vi.mocked(api.vertriebsweg).mockResolvedValueOnce("mac_app_store");
+    render(
+      <VertriebswegProvider>
+        <EinstellungenMitAnbieter />
+      </VertriebswegProvider>,
+    );
+    expect(await screen.findByText("Aktualisierungen kommen über den App Store.")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Nach Aktualisierung suchen" })).toBeNull();
+    expect(screen.queryByText(/beim Programmstart nach einer Aktualisierung/i)).toBeNull();
+    expect(screen.queryByRole("link", { name: /PayPal/ })).toBeNull();
+    // Versionsanzeige und Protokoll bleiben: Sie braucht jede Fehlersuche.
+    expect(screen.getByText("Installiert: Version 0.1.0")).toBeTruthy();
+    expect(screen.getByText("/p/protokoll.log")).toBeTruthy();
+
+    // Der Rundgang verspricht an seinem Ende keine Suche, die es nicht gibt.
+    fireEvent.click(screen.getByRole("button", { name: "Rundgang" }));
+    for (let i = 0; i < 6; i++) fireEvent.click(screen.getByRole("button", { name: "Weiter" }));
+    expect(screen.getByText("7 von 7")).toBeTruthy();
+    expect(screen.getByText(/Aktualisierungen kommen über den App Store\./, { selector: "p:not(.feld-hinweis)" })).toBeTruthy();
   });
 });

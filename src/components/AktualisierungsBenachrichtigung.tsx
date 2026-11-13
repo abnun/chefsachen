@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { useAktualisierung } from "../hooks/useAktualisierung";
+import { useIstGithubFassung } from "../hooks/useVertriebsweg";
 import { Dialog } from "./Dialog";
 import { Aenderungstext } from "./Aenderungstext";
 
@@ -22,8 +23,11 @@ import { Aenderungstext } from "./Aenderungstext";
 export function AktualisierungsBenachrichtigung() {
   const { stand, letzteQuelle, suchen, installieren } = useAktualisierung();
   const [ausgeblendet, setAusgeblendet] = useState(false);
+  // In den Store-Fassungen gibt es weder Suche noch Menüpunkt dafür.
+  const githubFassung = useIstGithubFassung();
 
   useEffect(() => {
+    if (!githubFassung) return;
     // „Nach Updates suchen …" aus dem Programmmenü. Der Anbieter sitzt in
     // main.tsx, die Suche ist also von hier aus möglich, egal welche Seite
     // gerade offen ist — und auch während der Ersteinrichtung.
@@ -35,7 +39,7 @@ export function AktualisierungsBenachrichtigung() {
       // In einer Testumgebung ohne Tauri gibt es kein Ereignissystem.
       .catch(() => {});
     return () => abmelden?.();
-  }, [suchen]);
+  }, [githubFassung, suchen]);
 
   // Eine neue Suche (z. B. der manuelle Knopf in den Einstellungen) soll den
   // Hinweis wieder zeigen dürfen, auch wenn er zuvor weggeklickt wurde.
@@ -43,7 +47,7 @@ export function AktualisierungsBenachrichtigung() {
     if (stand.art === "sucht") setAusgeblendet(false);
   }, [stand.art]);
 
-  if (ausgeblendet) return null;
+  if (ausgeblendet || !githubFassung) return null;
 
   if (stand.art === "verfuegbar") {
     return (

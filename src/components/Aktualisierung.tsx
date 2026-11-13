@@ -3,6 +3,7 @@ import { relaunch } from "@tauri-apps/plugin-process";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { api } from "../api";
 import { useAktualisierung } from "../hooks/useAktualisierung";
+import { storeName, useVertriebsweg } from "../hooks/useVertriebsweg";
 import { Aenderungstext } from "./Aenderungstext";
 
 /**
@@ -19,10 +20,16 @@ import { Aenderungstext } from "./Aenderungstext";
  * dem privaten Schlüssel signiert sein, dessen öffentliche Hälfte in
  * `tauri.conf.json` steht; ein manipuliertes Paket wird abgelehnt, bevor es
  * installiert wird.
+ *
+ * In den Store-Fassungen bleiben nur Versionsanzeige und Protokoll: Dort
+ * aktualisiert allein der Store, und Suche wie Neustart fehlen im Programm.
+ * Der Abschnitt verschwindet trotzdem nicht ganz, weil der Protokollpfad bei
+ * jeder Fehlersuche gebraucht wird.
  */
 export function Aktualisierung() {
   const { version, autoSuche, stand, suchen, installieren, autoSucheUmschalten } = useAktualisierung();
   const [protokollPfad, setProtokollPfad] = useState("");
+  const weg = useVertriebsweg();
 
   useEffect(() => {
     api.protokoll.pfad().then(setProtokollPfad).catch(() => setProtokollPfad(""));
@@ -33,66 +40,73 @@ export function Aktualisierung() {
       <h2>Programmversion</h2>
       <p>Installiert: Version {version || "unbekannt"}</p>
 
-      {stand.art === "sucht" && <p role="status">Es wird nach einer Aktualisierung gesucht …</p>}
+      {weg === "github" && (
+        <>
+          {stand.art === "sucht" && <p role="status">Es wird nach einer Aktualisierung gesucht …</p>}
 
-      {stand.art === "aktuell" && <p role="status">Die Anwendung ist auf dem neuesten Stand.</p>}
+          {stand.art === "aktuell" && <p role="status">Die Anwendung ist auf dem neuesten Stand.</p>}
 
-      {stand.art === "verfuegbar" && (
-        <div className="hinweis-karte">
-          <h3>Version {stand.update.version} ist verfügbar</h3>
-          {stand.update.body && <Aenderungstext text={stand.update.body} />}
-          <p>
-            Die Aktualisierung wird geladen, geprüft und eingespielt. Danach startet die
-            Anwendung neu. Deine Daten bleiben dabei unverändert — sie liegen außerhalb
-            des Programms.
+          {stand.art === "verfuegbar" && (
+            <div className="hinweis-karte">
+              <h3>Version {stand.update.version} ist verfügbar</h3>
+              {stand.update.body && <Aenderungstext text={stand.update.body} />}
+              <p>
+                Die Aktualisierung wird geladen, geprüft und eingespielt. Danach startet die
+                Anwendung neu. Deine Daten bleiben dabei unverändert — sie liegen außerhalb
+                des Programms.
+              </p>
+              <button type="button" className="btn btn-primaer" onClick={() => installieren(stand.update)}>
+                Jetzt aktualisieren
+              </button>
+            </div>
+          )}
+
+          {stand.art === "laedt" && (
+            <p role="status">
+              {stand.anteil === null
+                ? "Aktualisierung wird geladen …"
+                : `Aktualisierung wird geladen … ${stand.anteil} %`}
+            </p>
+          )}
+
+          {stand.art === "bereit" && (
+            <div className="hinweis-karte">
+              <h3>Die Aktualisierung ist eingespielt</h3>
+              <p>Sie wird mit dem nächsten Start wirksam.</p>
+              <button type="button" className="btn btn-primaer" onClick={() => relaunch()}>
+                Jetzt neu starten
+              </button>
+            </div>
+          )}
+
+          {stand.art === "fehler" && (
+            <p role="alert">
+              Die Suche nach einer Aktualisierung ist fehlgeschlagen: {stand.meldung}
+            </p>
+          )}
+
+          <label className="feld-checkbox">
+            <input
+              type="checkbox"
+              checked={autoSuche ?? true}
+              onChange={(e) => autoSucheUmschalten(e.currentTarget.checked)}
+            />
+            Beim Programmstart nach einer Aktualisierung suchen
+          </label>
+          <p className="feld-hinweis">
+            Es wird nur gesucht, nie von selbst installiert. Ohne Internetverbindung
+            passiert nichts.
           </p>
-          <button type="button" className="btn btn-primaer" onClick={() => installieren(stand.update)}>
-            Jetzt aktualisieren
-          </button>
-        </div>
+
+          {stand.art !== "sucht" && stand.art !== "laedt" && (
+            <button type="button" className="btn" onClick={() => suchen("einstellungen")}>
+              Nach Aktualisierung suchen
+            </button>
+          )}
+        </>
       )}
-
-      {stand.art === "laedt" && (
-        <p role="status">
-          {stand.anteil === null
-            ? "Aktualisierung wird geladen …"
-            : `Aktualisierung wird geladen … ${stand.anteil} %`}
-        </p>
-      )}
-
-      {stand.art === "bereit" && (
-        <div className="hinweis-karte">
-          <h3>Die Aktualisierung ist eingespielt</h3>
-          <p>Sie wird mit dem nächsten Start wirksam.</p>
-          <button type="button" className="btn btn-primaer" onClick={() => relaunch()}>
-            Jetzt neu starten
-          </button>
-        </div>
-      )}
-
-      {stand.art === "fehler" && (
-        <p role="alert">
-          Die Suche nach einer Aktualisierung ist fehlgeschlagen: {stand.meldung}
-        </p>
-      )}
-
-      <label className="feld-checkbox">
-        <input
-          type="checkbox"
-          checked={autoSuche ?? true}
-          onChange={(e) => autoSucheUmschalten(e.currentTarget.checked)}
-        />
-        Beim Programmstart nach einer Aktualisierung suchen
-      </label>
-      <p className="feld-hinweis">
-        Es wird nur gesucht, nie von selbst installiert. Ohne Internetverbindung
-        passiert nichts.
-      </p>
-
-      {stand.art !== "sucht" && stand.art !== "laedt" && (
-        <button type="button" className="btn" onClick={() => suchen("einstellungen")}>
-          Nach Aktualisierung suchen
-        </button>
+      {weg !== null && weg !== "github" && (
+        <p className="feld-hinweis">Aktualisierungen kommen über {storeName(weg)}.</p>
       )}
 
       {/* Geht etwas schief, ist diese Datei das Einzige, woran sich im

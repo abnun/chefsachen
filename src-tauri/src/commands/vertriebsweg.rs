@@ -51,3 +51,17 @@ pub const fn aktueller() -> &'static str {
 pub fn vertriebsweg() -> &'static str {
     aktueller()
 }
+
+/// Startet das Programm neu, damit eine vorgemerkte Wiederherstellung greift.
+///
+/// Eigener Befehl statt `relaunch` aus dem Prozess-Plugin: Das Plugin gehört
+/// zur Selbstaktualisierung und fehlt in den Store-Fassungen. Der Knopf
+/// „Jetzt neu starten" nach dem Einspielen einer Sicherung muss dort aber
+/// genauso funktionieren, gerade beim Umzug in die Store-Fassung.
+///
+/// `request_restart` statt `restart`: Es lässt Tauri erst sauber herunterfahren
+/// (Fensterzustand, Protokoll), wie es auch das Plugin tut.
+#[tauri::command]
+pub fn programm_neu_starten<R: tauri::Runtime>(app: tauri::AppHandle<R>) {
+    app.request_restart();
+}

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
+import { useIstGithubFassung } from "../hooks/useVertriebsweg";
 import { Dialog } from "./Dialog";
 
 /** Fälligkeitszeitpunkt der nächsten Erinnerung, als ISO-Datum. */
@@ -24,11 +25,16 @@ function neuerTermin(): string {
  * gespeichert. Dann wird nur der erste Termin vermerkt, ohne sofort zu
  * stören — eine frisch eingerichtete App soll nicht mit einer Spendenbitte
  * begrüßen.
+ *
+ * Nur in der GitHub-Fassung: In den Stores sind Spendenaufrufe außerhalb des
+ * In-App-Kaufs für Einzelentwickler unzulässig.
  */
 export function SpendenHinweis() {
   const [zeigen, setZeigen] = useState(false);
+  const githubFassung = useIstGithubFassung();
 
   useEffect(() => {
+    if (!githubFassung) return;
     let abgebaut = false;
 
     async function pruefen() {
@@ -52,7 +58,7 @@ export function SpendenHinweis() {
     return () => {
       abgebaut = true;
     };
-  }, []);
+  }, [githubFassung]);
 
   function schliessen() {
     setZeigen(false);
@@ -62,7 +68,7 @@ export function SpendenHinweis() {
     api.einstellungen.set(SCHLUESSEL_NAECHSTE_ERINNERUNG, neuerTermin()).catch(() => {});
   }
 
-  if (!zeigen) return null;
+  if (!zeigen || !githubFassung) return null;
 
   return (
     <Dialog

@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { open, save } from "@tauri-apps/plugin-dialog";
 import { readFile, writeFile } from "@tauri-apps/plugin-fs";
-import { relaunch } from "@tauri-apps/plugin-process";
 import {
   api,
   type AppFehler,
@@ -29,6 +28,7 @@ import { PAYPAL_LINK } from "../components/SpendenHinweis";
 import { zeitpunktDeutsch } from "../datum";
 import { type FuehrungsSchritt } from "../components/Fuehrung";
 import { SeitenkopfMitRundgang } from "../components/SeitenkopfMitRundgang";
+import { storeName, useIstGithubFassung, useVertriebsweg } from "../hooks/useVertriebsweg";
 
 /**
  * Statisch außerhalb der Komponente, wie auf der Übersicht: Ein je Rendern
@@ -73,15 +73,40 @@ const RUNDGANG_SCHRITTE: FuehrungsSchritt[] = [
 ];
 
 /**
+ * Der Rundgang der Store-Fassungen. Dort sucht das Programm nicht selbst,
+ * der letzte Schritt versprach sonst etwas, das es nicht gibt. Je Store ein
+ * fester Satz, damit das Array wie oben stabil bleibt.
+ */
+function rundgangFuerStore(store: string): FuehrungsSchritt[] {
+  return [
+    ...RUNDGANG_SCHRITTE.slice(0, -1),
+    {
+      ziel: "[data-tour='programmversion']",
+      titel: "Programmversion",
+      text: `Zeigt die installierte Version und den Ort des Protokolls. Aktualisierungen kommen über ${store}.`,
+    },
+  ];
+}
+const RUNDGANG_APP_STORE = rundgangFuerStore(storeName("mac_app_store"));
+const RUNDGANG_MICROSOFT_STORE = rundgangFuerStore(storeName("microsoft_store"));
+
+/**
  * Einstellungsseite mit unabhängigen Abschnitten: Firmendaten, Sicherungen,
  * Einheiten-Verwaltung, Nummernkreise, Textbausteine und Programmversion. Jeder Abschnitt lädt
  * und speichert unabhängig von den anderen — ein Fehler in einem Abschnitt
  * blockiert die anderen nicht.
  */
 export function Einstellungen() {
+  const weg = useVertriebsweg();
+  const schritte =
+    weg === "mac_app_store"
+      ? RUNDGANG_APP_STORE
+      : weg === "microsoft_store"
+        ? RUNDGANG_MICROSOFT_STORE
+        : RUNDGANG_SCHRITTE;
   return (
     <div>
-      <SeitenkopfMitRundgang titel="Einstellungen" schritte={RUNDGANG_SCHRITTE} />
+      <SeitenkopfMitRundgang titel="Einstellungen" schritte={schritte} />
       <FirmendatenAbschnitt />
       <SicherungenAbschnitt />
       <EinheitenAbschnitt />
@@ -98,7 +123,12 @@ export function Einstellungen() {
   );
 }
 
+/**
+ * Nur in der GitHub-Fassung: Spendenaufrufe außerhalb des In-App-Kaufs sind
+ * in den Stores für Einzelentwickler unzulässig.
+ */
 function SpendenAbschnitt() {
+  if (!useIstGithubFassung()) return null;
   return (
     <section className="abschnitt-abstand">
       <div className="hinweis-karte">
@@ -637,7 +667,7 @@ function SicherungenAbschnitt() {
             lässt sich im laufenden Betrieb nicht austauschen. Der jetzige Stand wird dabei
             zuerst gesichert.
           </p>
-          <button type="button" className="btn btn-primaer" onClick={() => relaunch()}>
+          <button type="button" className="btn btn-primaer" onClick={() => api.neuStarten()}>
             Jetzt neu starten
           </button>
         </div>

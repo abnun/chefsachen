@@ -4,6 +4,7 @@ import { check, type Update } from "@tauri-apps/plugin-updater";
 import { info, warn } from "@tauri-apps/plugin-log";
 import { api } from "../api";
 import { SCHLUESSEL_NOTIZEN } from "../components/VersionsHinweis";
+import { useIstGithubFassung } from "./useVertriebsweg";
 
 /**
  * Stand der Aktualisierungssuche.
@@ -72,6 +73,12 @@ export function AktualisierungProvider({ children }: { children: ReactNode }) {
    * eine Fehlermeldung verschwand wieder, ohne dass etwas passiert wäre.
    */
   const startsucheErledigt = useRef(false);
+  /**
+   * Nur die GitHub-Fassung sucht. In den Stores fehlt das Updater-Plugin
+   * ganz, eine Suche schlüge dort fehl, und Apple verlangt, dass Updates
+   * allein über den Store kommen (Richtlinie 2.4.5).
+   */
+  const sucheErlaubt = useIstGithubFassung();
 
   useEffect(() => {
     getVersion().then(setVersion).catch(() => setVersion(""));
@@ -120,8 +127,8 @@ export function AktualisierungProvider({ children }: { children: ReactNode }) {
     // Erst suchen, wenn feststeht, ob überhaupt gesucht werden soll — sonst
     // liefe beim ersten Rendern eine Abfrage los, die der Nutzer abbestellt hat.
     // Und nur, solange nicht schon gesucht wurde: Ein Klick des Nutzers geht vor.
-    if (autoSuche && !startsucheErledigt.current) suchen("start");
-  }, [autoSuche, suchen]);
+    if (sucheErlaubt && autoSuche && !startsucheErledigt.current) suchen("start");
+  }, [sucheErlaubt, autoSuche, suchen]);
 
   async function autoSucheUmschalten(an: boolean) {
     setAutoSuche(an);

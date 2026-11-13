@@ -4,6 +4,7 @@ import App from "./App";
 import { fehlerAufzeichnungEinrichten } from "./protokoll";
 import { UngespeichertProvider } from "./hooks/useUngespeichert";
 import { AktualisierungProvider } from "./hooks/useAktualisierung";
+import { VertriebswegProvider } from "./hooks/useVertriebsweg";
 import { XRechnungHilfeProvider } from "./hooks/useXRechnungHilfe";
 import { AktualisierungsBenachrichtigung } from "./components/AktualisierungsBenachrichtigung";
 
@@ -15,13 +16,16 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
     {/* Außerhalb von App, nicht innerhalb: App hat vor der Ersteinrichtung
         und während des Ladens eigene frühe Rückgaben — die Suche soll ab dem
         tatsächlichen Programmstart laufen, nicht erst danach. */}
-    <AktualisierungProvider>
-      <AktualisierungsBenachrichtigung />
-      <UngespeichertProvider>
-        <XRechnungHilfeProvider>
-          <App />
-        </XRechnungHilfeProvider>
-      </UngespeichertProvider>
-    </AktualisierungProvider>
+    {/* Ganz außen: Der Aktualisierungsanbieter fragt ihn ab, bevor er sucht. */}
+    <VertriebswegProvider>
+      <AktualisierungProvider>
+        <AktualisierungsBenachrichtigung />
+        <UngespeichertProvider>
+          <XRechnungHilfeProvider>
+            <App />
+          </XRechnungHilfeProvider>
+        </UngespeichertProvider>
+      </AktualisierungProvider>
+    </VertriebswegProvider>
   </React.StrictMode>,
 );

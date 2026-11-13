@@ -458,7 +458,21 @@ export function istValidierungsfehler(e: unknown): e is Extract<AppFehler, { typ
   return typeof e === "object" && e !== null && (e as AppFehler).typ === "validation";
 }
 
+/**
+ * Über welchen Weg diese Fassung verteilt wird. Legt der Rust-Teil beim
+ * Übersetzen fest; siehe `commands/vertriebsweg.rs`.
+ */
+export type Vertriebsweg = "github" | "mac_app_store" | "microsoft_store";
+
 export const api = {
+  /** Vertriebsweg dieser Fassung; ändert sich zur Laufzeit nie. */
+  vertriebsweg: () => invoke<Vertriebsweg>("vertriebsweg"),
+  /**
+   * Startet das Programm neu, etwa damit eine vorgemerkte Wiederherstellung
+   * greift. Eigener Befehl statt `relaunch` aus dem Prozess-Plugin, weil das
+   * Plugin in den Store-Fassungen fehlt.
+   */
+  neuStarten: () => invoke<void>("programm_neu_starten"),
   dashboard: {
     laden: () => invoke<DashboardDaten>("dashboard_laden"),
   },
