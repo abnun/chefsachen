@@ -89,7 +89,33 @@ sind sie mit weg. Sichere den ganzen Ordner regelmäßig zusätzlich woandershin
 etwa per Time Machine oder auf eine externe Festplatte. Aufbewahrungspflichtig
 sind Rechnungen zehn Jahre lang.
 
+## Umzug in die Store-Fassung
+
+Die Fassungen aus dem Mac App Store und dem Microsoft Store legen ihre Daten
+an einem eigenen Ort ab und sehen die Daten der Fassung von GitHub nicht. Auf
+macOS ist das ein abgeschotteter Bereich unter
+`~/Library/Containers/de.chefsachen.app`. Deine bisherigen Daten nimmst du so
+mit:
+
+1. In der **bisherigen Fassung** unter **Einstellungen → Sicherungen** bei der
+   jüngsten Sicherung **„Speichern unter …"** wählen. Am besten vorher
+   **„Jetzt sichern"**, damit auch die letzten Eingaben darin sind. Es entsteht
+   eine Zip-Datei mit der Datenbank und dem Belegarchiv.
+2. Die bisherige Fassung beenden und die **Store-Fassung** starten.
+3. Im Einrichtungsassistenten gleich auf der ersten Seite **„Ich nutze
+   Chefsachen schon: Sicherung einspielen …"** wählen und die Zip-Datei
+   öffnen. Die Firmendaten musst du dafür nicht ausfüllen.
+4. **„Jetzt neu starten"**. Danach sind Kunden, Belege und Einstellungen wieder
+   da.
+
+Die bisherige Fassung und ihre Daten bleiben dabei unverändert. Lösche sie erst,
+wenn in der Store-Fassung alles angekommen ist, und arbeite nicht in beiden
+weiter: Sie gleichen sich nicht ab.
+
 ## Updates
+
+Die Fassungen aus dem Mac App Store und dem Microsoft Store aktualisiert der
+jeweilige Store; der folgende Abschnitt gilt für die Fassung von GitHub.
 
 Die App sucht bei jedem Start nach einer neuen Version. Findet sie eine,
 erscheint unter **Einstellungen → Programmversion** ein Hinweis mit einem

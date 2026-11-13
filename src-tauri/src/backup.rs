@@ -618,6 +618,45 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn umzug_in_eine_frisch_installierte_fassung_vor_der_einrichtung() {
+        // Der Weg aus dem Einrichtungsassistenten: Die Store-Fassung liegt in
+        // ihrem eigenen Container und sieht die Daten der GitHub-Fassung
+        // nicht. Sie hat beim ersten Start schon eine leere, nicht
+        // eingerichtete Datenbank geöffnet, wenn der Nutzer die Sicherung der
+        // alten Fassung einspielt. Nach dem Neustart muss die alte Firma da
+        // sein, sonst stünde er wieder im Assistenten.
+        let alt = tempfile::tempdir().unwrap();
+        let alte_db = alt.path().join("daten.db");
+        let pool = crate::db::init_db(&alte_db).await.unwrap();
+        sqlx::query("UPDATE firma SET name = 'Altfirma', eingerichtet = 1")
+            .execute(&pool).await.unwrap();
+        crate::db::wal_einfalten(&pool).await.unwrap();
+        pool.close().await;
+        let belege = crate::dokument::export::belege_verzeichnis(alt.path());
+        std::fs::create_dir_all(&belege).unwrap();
+        std::fs::write(belege.join("RE-2026-0001.pdf"), b"pdf-inhalt").unwrap();
+        let zip = alt.path().join("umzug.zip");
+        std::fs::write(&zip, archiv_bauen(&alte_db, alt.path()).unwrap()).unwrap();
+
+        let neu = tempfile::tempdir().unwrap();
+        let neue_db = neu.path().join("daten.db");
+        let laufend = crate::db::init_db(&neue_db).await.unwrap();
+        assert!(!crate::commands::firma::get(&laufend).await.unwrap().eingerichtet);
+
+        // Eingespielt wird bei geöffneter Datenbank, wie im Programm.
+        let ergebnis = zip_einspielen(&zip, neu.path()).await.unwrap();
+        assert_eq!(ergebnis.belege_neu, 1);
+        laufend.close().await;
+
+        // Neustart: erst die Vormerkung, dann wie in `starten` öffnen.
+        assert!(vorgemerkte_einspielen(&neue_db, neu.path(), "2026-11-13_10-00-00").unwrap());
+        let danach = crate::db::init_db(&neue_db).await.unwrap();
+        let firma = crate::commands::firma::get(&danach).await.unwrap();
+        assert!(firma.eingerichtet, "nach dem Umzug stünde der Nutzer wieder im Assistenten");
+        assert_eq!(firma.name, "Altfirma");
+    }
+
+    #[tokio::test]
     async fn zip_einspielen_merkt_datenbank_vor_und_uebernimmt_belege() {
         let dir = tempfile::tempdir().unwrap();
         let db = echte_datenbank_bytes(dir.path()).await;

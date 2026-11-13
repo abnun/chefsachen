@@ -11,8 +11,18 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
+vi.mock("@tauri-apps/plugin-dialog", () => ({ open: vi.fn().mockResolvedValue(null) }));
+
 vi.mock("../api", () => ({
   api: {
+    neuStarten: vi.fn().mockResolvedValue(undefined),
+    sicherungen: {
+      ausDateiEinspielen: vi.fn().mockResolvedValue({
+        belege_neu: 3,
+        belege_vorhanden: 0,
+        vormerkung_ersetzt: false,
+      }),
+    },
     firma: {
       get: vi.fn().mockResolvedValue({
         id: "f1",
@@ -53,6 +63,7 @@ vi.mock("../api", () => ({
   ),
 }));
 
+import { open } from "@tauri-apps/plugin-dialog";
 import { api } from "../api";
 import { Einrichtung } from "./Einrichtung";
 
@@ -171,5 +182,56 @@ describe("Einrichtung", () => {
     const feld = screen.getByLabelText(/Gründungsjahr/) as HTMLInputElement;
     expect(feld.min).toBe("1900");
     expect(Number(feld.max)).toBe(new Date().getFullYear());
+  });
+
+  describe("Umzug aus einer Sicherung", () => {
+    it("spielt die gewählte Sicherung ein und startet auf Wunsch neu", async () => {
+      // Die Store-Fassung sieht die Daten der GitHub-Fassung nicht. Wer
+      // umzieht, soll nicht erst eine Firma erfinden müssen.
+      vi.mocked(open).mockResolvedValueOnce("/Users/test/chefsachen.zip");
+      render(<Einrichtung onFertig={() => {}} />);
+      fireEvent.click(
+        await screen.findByRole("button", { name: /Ich nutze Chefsachen schon: Sicherung einspielen/ }),
+      );
+
+      expect(await screen.findByText("Die Sicherung ist eingespielt")).toBeTruthy();
+      expect(api.sicherungen.ausDateiEinspielen).toHaveBeenCalledWith("/Users/test/chefsachen.zip");
+      expect(screen.getByText("3 Belegdatei(en) übernommen.")).toBeTruthy();
+      // Die Datenbank wird erst beim Start getauscht; ohne Neustart bliebe der
+      // Assistent stehen, als wäre nichts geschehen.
+      expect(api.neuStarten).not.toHaveBeenCalled();
+      fireEvent.click(screen.getByRole("button", { name: "Jetzt neu starten" }));
+      expect(api.neuStarten).toHaveBeenCalled();
+      // Die Firma des Assistenten wird nicht gespeichert: Sie käme sonst als
+      // Sicherung vor den echten Daten in die Liste.
+      expect(api.firma.save).not.toHaveBeenCalled();
+    });
+
+    it("bricht ohne gewählte Datei still ab", async () => {
+      render(<Einrichtung onFertig={() => {}} />);
+      fireEvent.click(
+        await screen.findByRole("button", { name: /Ich nutze Chefsachen schon: Sicherung einspielen/ }),
+      );
+      await waitFor(() => expect(open).toHaveBeenCalled());
+      expect(api.sicherungen.ausDateiEinspielen).not.toHaveBeenCalled();
+      expect(screen.getByText("Schritt 1 von 5")).toBeTruthy();
+    });
+
+    it("meldet eine unbrauchbare Sicherung und bleibt im Assistenten", async () => {
+      vi.mocked(open).mockResolvedValueOnce("/Users/test/falsch.zip");
+      vi.mocked(api.sicherungen.ausDateiEinspielen).mockRejectedValueOnce({
+        typ: "validation",
+        feld: "datei",
+        meldung: "Diese Zip enthält keine daten.db — sie ist keine Sicherung dieser Anwendung.",
+      });
+      render(<Einrichtung onFertig={() => {}} />);
+      fireEvent.click(
+        await screen.findByRole("button", { name: /Ich nutze Chefsachen schon: Sicherung einspielen/ }),
+      );
+
+      expect(await screen.findByText(/keine Sicherung dieser Anwendung/)).toBeTruthy();
+      expect(screen.getByText("Schritt 1 von 5")).toBeTruthy();
+      expect(screen.queryByText("Die Sicherung ist eingespielt")).toBeNull();
+    });
   });
 });

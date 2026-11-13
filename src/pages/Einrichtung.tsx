@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { readFile } from "@tauri-apps/plugin-fs";
-import { api, istValidierungsfehler, type AppFehler, type Firma } from "../api";
+import { api, istValidierungsfehler, type AppFehler, type Firma, type ZipImport } from "../api";
 import { formularFehler } from "../formularFehler";
 import { Fehler } from "../components/Fehler";
 import { PflichtLegende, PflichtMarker } from "../components/PflichtMarker";
@@ -34,6 +34,9 @@ export function Einrichtung({ onFertig }: EinrichtungProps) {
   const [fehler, setFehler] = useState<AppFehler | null>(null);
   const [speichert, setSpeichert] = useState(false);
   const [prueft, setPrueft] = useState(false);
+  /** Ergebnis eines Umzugs aus einer Sicherung; danach fehlt nur der Neustart. */
+  const [umzug, setUmzug] = useState<ZipImport | null>(null);
+  const [spieltEin, setSpieltEin] = useState(false);
 
   useEffect(() => {
     api.firma.get().then(setFirma).catch((e) => setFehler(e as AppFehler));
@@ -93,6 +96,33 @@ export function Einrichtung({ onFertig }: EinrichtungProps) {
     setLogoBytes(Array.from(bytes));
   }
 
+  /**
+   * Übernimmt die Daten einer bestehenden Installation aus einer Sicherung.
+   *
+   * Der Weg für den Umzug in die Store-Fassung: Sie liegt in einem eigenen
+   * Container und sieht die Daten der GitHub-Fassung nicht. Ohne diesen Knopf
+   * müsste man erst eine Firma erfinden, um an die Einstellungen und damit an
+   * „Aus Datei einspielen" zu kommen, und hätte danach eine Sicherung des
+   * erfundenen Standes zwischen den echten.
+   *
+   * Ohne Rückfrage: Vor der Einrichtung gibt es nichts, was verloren ginge.
+   * Wirksam wird die Datenbank wie in den Einstellungen erst beim Neustart,
+   * weil sie im laufenden Betrieb geöffnet ist.
+   */
+  async function sicherungEinspielen() {
+    setFehler(null);
+    const pfad = await open({ filters: [{ name: "Zip", extensions: ["zip"] }], multiple: false });
+    if (typeof pfad !== "string") return;
+    setSpieltEin(true);
+    try {
+      setUmzug(await api.sicherungen.ausDateiEinspielen(pfad));
+    } catch (e) {
+      setFehler(e as AppFehler);
+    } finally {
+      setSpieltEin(false);
+    }
+  }
+
   async function abschliessen() {
     if (!firma) return;
     setFehler(null);
@@ -114,6 +144,29 @@ export function Einrichtung({ onFertig }: EinrichtungProps) {
     }
   }
 
+  if (umzug) {
+    return (
+      <main className="einrichtung-main">
+        <h1 className="seiten-kopf">Ersteinrichtung</h1>
+        <section className="karte" role="status">
+          <h2>Die Sicherung ist eingespielt</h2>
+          <p>
+            Beim Neustart übernimmt Chefsachen die Daten daraus. Danach geht es dort weiter, wo
+            du in der bisherigen Fassung aufgehört hast.
+          </p>
+          {umzug.belege_neu > 0 && (
+            <p className="feld-hinweis">{umzug.belege_neu} Belegdatei(en) übernommen.</p>
+          )}
+          <div className="aktionen aktionen-formular">
+            <button type="button" className="btn btn-primaer" onClick={() => api.neuStarten()}>
+              Jetzt neu starten
+            </button>
+          </div>
+        </section>
+      </main>
+    );
+  }
+
   return (
     <main className="einrichtung-main">
       <h1 className="seiten-kopf">Ersteinrichtung</h1>
@@ -124,6 +177,20 @@ export function Einrichtung({ onFertig }: EinrichtungProps) {
           <p className="schritt-fortschritt">Schritt 1 von 5</p>
           <h2>Firmendaten</h2>
           <p>Diese Angaben erscheinen später auf deinen Angeboten und Rechnungen.</p>
+          {/* Leise und vor dem Formular: Wer umzieht, soll es nicht erst
+              ausfüllen, alle anderen stört ein Knopf in dieser Form nicht. */}
+          <p className="feld-hinweis">
+            <button
+              type="button"
+              className="btn btn-leise"
+              disabled={spieltEin}
+              onClick={sicherungEinspielen}
+            >
+              {spieltEin
+                ? "Sicherung wird eingespielt …"
+                : "Ich nutze Chefsachen schon: Sicherung einspielen …"}
+            </button>
+          </p>
           <div className="feld">
             <label>
               <PflichtMarker art="pflicht">Name</PflichtMarker>
