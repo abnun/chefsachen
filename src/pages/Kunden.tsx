@@ -234,106 +234,114 @@ export function Kunden({
 
       {zeigeFormular && (
         <form
-          className="karte"
+          className="inhalt-schmal"
           onSubmit={(e) => {
             e.preventDefault();
             anlegen();
           }}
         >
           <Fehler fehler={bannerFehler} />
-          <div className="feld">
-            <label>
-              Typ
-              <select
-                value={neuerKunde.typ}
-                onChange={(e) =>
-                  setNeuerKunde({ ...neuerKunde, typ: e.currentTarget.value as "firma" | "privat" })
-                }
-              >
-                <option value="firma">Firma</option>
-                <option value="privat">Privat</option>
-              </select>
-            </label>
-          </div>
-          <div className="feld">
-            <label>
-              <PflichtMarker art="pflicht">Name</PflichtMarker>
-              <input
-                required
-                value={neuerKunde.name}
-                onChange={(e) => setNeuerKunde({ ...neuerKunde, name: e.currentTarget.value })}
-              />
-            </label>
-            {feldFehler("name") && <div className="feld-fehler" role="alert">{feldFehler("name")}</div>}
-          </div>
-          <div className="feld">
-            <label>
-              Zahlungsziel (Tage)
-              <input
-                type="number"
-                min={0}
-                max={365}
-                value={neuerKunde.zahlungsziel_tage}
-                onChange={(e) =>
-                  setNeuerKunde({ ...neuerKunde, zahlungsziel_tage: Number(e.currentTarget.value) })
-                }
-              />
-            </label>
-          </div>
-          <div className="feld">
-            <label>
-              Notizen
-              <textarea
-                value={neuerKunde.notizen}
-                onChange={(e) => setNeuerKunde({ ...neuerKunde, notizen: e.currentTarget.value })}
-              />
-            </label>
-          </div>
-          <div className="feld">
-            <label>
-              USt-IdNr.
-              <input
-                value={neuerKunde.ust_idnr}
-                onChange={(e) => setNeuerKunde({ ...neuerKunde, ust_idnr: e.currentTarget.value })}
-              />
-            </label>
-          </div>
-          <div className="feld">
-            <label>
-              E-Mail
-              <input
-                value={neuerKunde.email}
-                onChange={(e) => setNeuerKunde({ ...neuerKunde, email: e.currentTarget.value })}
-              />
-            </label>
-            {feldFehler("email") && <div className="feld-fehler" role="alert">{feldFehler("email")}</div>}
-          </div>
-          <div className="feld">
-            <label>
-              <PflichtMarker art="xrechnung">Leitweg-ID</PflichtMarker>
-              <input
-                value={neuerKunde.leitweg_id}
-                onChange={(e) => setNeuerKunde({ ...neuerKunde, leitweg_id: e.currentTarget.value })}
-              />
-            </label>
-            <p className="feld-hinweis">
-              Nur bei Rechnungen an Behörden — die Behörde gibt dir die Leitweg-ID vor.
-            </p>
-          </div>
-          <div className="feld">
-            <label>
-              <PflichtMarker art="xrechnung">Käuferreferenz</PflichtMarker>
-              <input
-                value={neuerKunde.kaeuferreferenz}
-                onChange={(e) =>
-                  setNeuerKunde({ ...neuerKunde, kaeuferreferenz: e.currentTarget.value })
-                }
-              />
-            </label>
-            <p className="feld-hinweis">
-              Referenz, die manche Firmenkunden verlangen, z. B. eine Bestellnummer. Leitweg-ID
-              oder Käuferreferenz reicht für den XRechnung-Export.
-            </p>
+          <div className="gruppe">
+            <div className="felder-reihe felder-schmal-breit">
+              <div className="feld">
+                <label>
+                  Typ
+                  <select
+                    value={neuerKunde.typ}
+                    onChange={(e) =>
+                      setNeuerKunde({ ...neuerKunde, typ: e.currentTarget.value as "firma" | "privat" })
+                    }
+                  >
+                    <option value="firma">Firma</option>
+                    <option value="privat">Privat</option>
+                  </select>
+                </label>
+              </div>
+              <div className="feld">
+                <label>
+                  <PflichtMarker art="pflicht">Name</PflichtMarker>
+                  <input
+                    required
+                    value={neuerKunde.name}
+                    onChange={(e) => setNeuerKunde({ ...neuerKunde, name: e.currentTarget.value })}
+                  />
+                </label>
+                {feldFehler("name") && <div className="feld-fehler" role="alert">{feldFehler("name")}</div>}
+              </div>
+            </div>
+            <div className="feld feld-schmal">
+              <label>
+                Zahlungsziel (Tage)
+                <input
+                  type="number"
+                  min={0}
+                  max={365}
+                  value={neuerKunde.zahlungsziel_tage}
+                  onChange={(e) =>
+                    setNeuerKunde({ ...neuerKunde, zahlungsziel_tage: Number(e.currentTarget.value) })
+                  }
+                />
+              </label>
+            </div>
+            <div className="feld">
+              <label>
+                Notizen
+                <textarea
+                  value={neuerKunde.notizen}
+                  onChange={(e) => setNeuerKunde({ ...neuerKunde, notizen: e.currentTarget.value })}
+                />
+              </label>
+            </div>
+            <div className="felder-reihe">
+              <div className="feld">
+                <label>
+                  USt-IdNr.
+                  <input
+                    value={neuerKunde.ust_idnr}
+                    onChange={(e) => setNeuerKunde({ ...neuerKunde, ust_idnr: e.currentTarget.value })}
+                  />
+                </label>
+              </div>
+              <div className="feld">
+                <label>
+                  E-Mail
+                  <input
+                    value={neuerKunde.email}
+                    onChange={(e) => setNeuerKunde({ ...neuerKunde, email: e.currentTarget.value })}
+                  />
+                </label>
+                {feldFehler("email") && <div className="feld-fehler" role="alert">{feldFehler("email")}</div>}
+              </div>
+            </div>
+            <div className="felder-reihe">
+              <div className="feld">
+                <label>
+                  <PflichtMarker art="xrechnung">Leitweg-ID</PflichtMarker>
+                  <input
+                    value={neuerKunde.leitweg_id}
+                    onChange={(e) => setNeuerKunde({ ...neuerKunde, leitweg_id: e.currentTarget.value })}
+                  />
+                </label>
+                <p className="feld-hinweis">
+                  Nur bei Rechnungen an Behörden — die Behörde gibt dir die Leitweg-ID vor.
+                </p>
+              </div>
+              <div className="feld">
+                <label>
+                  <PflichtMarker art="xrechnung">Käuferreferenz</PflichtMarker>
+                  <input
+                    value={neuerKunde.kaeuferreferenz}
+                    onChange={(e) =>
+                      setNeuerKunde({ ...neuerKunde, kaeuferreferenz: e.currentTarget.value })
+                    }
+                  />
+                </label>
+                <p className="feld-hinweis">
+                  Referenz, die manche Firmenkunden verlangen, z. B. eine Bestellnummer. Leitweg-ID
+                  oder Käuferreferenz reicht für den XRechnung-Export.
+                </p>
+              </div>
+            </div>
           </div>
           <PflichtLegende zeigtXrechnung />
           <button type="button" className="feld-hinweis-link" onClick={zeigeXRechnungHilfe}>

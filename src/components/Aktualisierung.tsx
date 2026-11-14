@@ -36,7 +36,7 @@ export function Aktualisierung() {
   }, []);
 
   return (
-    <section data-tour="programmversion">
+    <section className="abschnitt inhalt-schmal" data-tour="programmversion">
       <h2>Programmversion</h2>
       <p>Installiert: Version {version || "unbekannt"}</p>
 

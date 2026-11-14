@@ -285,89 +285,93 @@ export function Artikel({ zeigeFormularBeimStart, onFormularUebernommen, onZuKun
 
       {zeigeFormular && (
         <form
-          className="karte"
+          className="inhalt-schmal"
           onSubmit={(e) => {
             e.preventDefault();
             speichern();
           }}
         >
           <Fehler fehler={bannerFehler} />
-          <div className="feld">
-            <label>
-              <PflichtMarker art="pflicht">Bezeichnung</PflichtMarker>
-              {/* Kein `required`: Die eingebaute Blase des Browsers steht in
-                  der Sprache des Systems, sieht anders aus als jede andere
-                  Meldung der Anwendung und verschwindet beim nächsten Klick.
-                  Die Prüfung im Rust-Teil meldet dasselbe an derselben Stelle
-                  wie alle übrigen Feldfehler. */}
-              <input
-                value={form.bezeichnung}
-                onChange={(e) => setForm({ ...form, bezeichnung: e.currentTarget.value })}
-              />
-            </label>
-            {feldFehler("bezeichnung") && <div className="feld-fehler" role="alert">{feldFehler("bezeichnung")}</div>}
-          </div>
-          <div className="feld">
-            <label>
-              Beschreibung
-              <textarea
-                value={form.beschreibung}
-                onChange={(e) => setForm({ ...form, beschreibung: e.currentTarget.value })}
-              />
-            </label>
-          </div>
-          <div className="feld">
-            <label>
-              <PflichtMarker art="pflicht">Einheit</PflichtMarker>
-              <select
-                value={form.einheit_id}
-                onChange={(e) => setForm({ ...form, einheit_id: e.currentTarget.value })}
-              >
-                <option value="">–</option>
-                {einheiten.map((e) => (
-                  <option key={e.id} value={e.id}>
-                    {e.name} ({e.kuerzel})
-                  </option>
-                ))}
-              </select>
-            </label>
-            {feldFehler("einheit_id") && (
-              <div className="feld-fehler" role="alert">{feldFehler("einheit_id")}</div>
-            )}
-          </div>
-          <div className="feld">
-            <label>
-              Standardpreis (€, brutto)
-              <input value={preisText} onChange={(e) => setPreisText(e.currentTarget.value)} />
-            </label>
-            {(preisFehlerText || feldFehler("standardpreis_cent")) && (
-              <div className="feld-fehler" role="alert">
-                {preisFehlerText ?? feldFehler("standardpreis_cent")}
+          <div className="gruppe">
+            <div className="feld">
+              <label>
+                <PflichtMarker art="pflicht">Bezeichnung</PflichtMarker>
+                {/* Kein `required`: Die eingebaute Blase des Browsers steht in
+                    der Sprache des Systems, sieht anders aus als jede andere
+                    Meldung der Anwendung und verschwindet beim nächsten Klick.
+                    Die Prüfung im Rust-Teil meldet dasselbe an derselben Stelle
+                    wie alle übrigen Feldfehler. */}
+                <input
+                  value={form.bezeichnung}
+                  onChange={(e) => setForm({ ...form, bezeichnung: e.currentTarget.value })}
+                />
+              </label>
+              {feldFehler("bezeichnung") && <div className="feld-fehler" role="alert">{feldFehler("bezeichnung")}</div>}
+            </div>
+            <div className="feld">
+              <label>
+                Beschreibung
+                <textarea
+                  value={form.beschreibung}
+                  onChange={(e) => setForm({ ...form, beschreibung: e.currentTarget.value })}
+                />
+              </label>
+            </div>
+            <div className="felder-reihe">
+              <div className="feld">
+                <label>
+                  <PflichtMarker art="pflicht">Einheit</PflichtMarker>
+                  <select
+                    value={form.einheit_id}
+                    onChange={(e) => setForm({ ...form, einheit_id: e.currentTarget.value })}
+                  >
+                    <option value="">–</option>
+                    {einheiten.map((e) => (
+                      <option key={e.id} value={e.id}>
+                        {e.name} ({e.kuerzel})
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                {feldFehler("einheit_id") && (
+                  <div className="feld-fehler" role="alert">{feldFehler("einheit_id")}</div>
+                )}
               </div>
-            )}
-          </div>
-          <div className="feld">
-            <label>
-              Umsatzsteuersatz
-              {/* Der Satz wirkt nur bei Regelbesteuerung; Kleinunternehmer-Belege
-                  weisen nie Steuer aus. Preise bleiben brutto — die USt wird auf
-                  dem Beleg herausgerechnet, der Kunde zahlt denselben Betrag. */}
-              <select
-                value={form.ust_satz_prozent}
-                onChange={(e) => setForm({ ...form, ust_satz_prozent: Number(e.currentTarget.value) })}
-              >
-                <option value={19}>19 % (Regelsatz)</option>
-                <option value={7}>7 % (ermäßigt)</option>
-                <option value={0}>0 % (steuerfrei)</option>
-              </select>
-            </label>
-            {feldFehler("ust_satz_prozent") && (
-              <div className="feld-fehler" role="alert">{feldFehler("ust_satz_prozent")}</div>
-            )}
-            <p className="feld-hinweis">
-              Wirkt nur bei Regelbesteuerung. Mit gesetztem Kleinunternehmer-Häkchen
-              (Einstellungen) weisen Belege keine Umsatzsteuer aus.
-            </p>
+              <div className="feld">
+                <label>
+                  Standardpreis (€, brutto)
+                  <input value={preisText} onChange={(e) => setPreisText(e.currentTarget.value)} />
+                </label>
+                {(preisFehlerText || feldFehler("standardpreis_cent")) && (
+                  <div className="feld-fehler" role="alert">
+                    {preisFehlerText ?? feldFehler("standardpreis_cent")}
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="feld feld-mittel">
+              <label>
+                Umsatzsteuersatz
+                {/* Der Satz wirkt nur bei Regelbesteuerung; Kleinunternehmer-Belege
+                    weisen nie Steuer aus. Preise bleiben brutto — die USt wird auf
+                    dem Beleg herausgerechnet, der Kunde zahlt denselben Betrag. */}
+                <select
+                  value={form.ust_satz_prozent}
+                  onChange={(e) => setForm({ ...form, ust_satz_prozent: Number(e.currentTarget.value) })}
+                >
+                  <option value={19}>19 % (Regelsatz)</option>
+                  <option value={7}>7 % (ermäßigt)</option>
+                  <option value={0}>0 % (steuerfrei)</option>
+                </select>
+              </label>
+              {feldFehler("ust_satz_prozent") && (
+                <div className="feld-fehler" role="alert">{feldFehler("ust_satz_prozent")}</div>
+              )}
+              <p className="feld-hinweis">
+                Wirkt nur bei Regelbesteuerung. Mit gesetztem Kleinunternehmer-Häkchen
+                (Einstellungen) weisen Belege keine Umsatzsteuer aus.
+              </p>
+            </div>
           </div>
           <PflichtLegende />
           <div className="aktionen aktionen-formular">

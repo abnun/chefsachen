@@ -84,14 +84,14 @@ export function ErsteSchritte({ hatBelege, onStarten }: ErsteSchritteProps) {
   const offen = schritte.filter((s) => !s.erledigt).length;
 
   return (
-    <section className="karte erste-schritte" aria-labelledby="erste-schritte">
+    <section className="abschnitt erste-schritte" aria-labelledby="erste-schritte">
       <h2 id="erste-schritte">Erste Schritte</h2>
       <p className="feld-hinweis">
         Noch {offen} {offen === 1 ? "Schritt" : "Schritte"} bis zur ersten Rechnung. Danach
         verschwindet diese Kachel.
       </p>
 
-      <ol className="schritt-liste">
+      <ol className="schritt-liste gruppe">
         {schritte.map((s) => (
           <li key={s.schluessel} className={s.erledigt ? "schritt erledigt" : "schritt"}>
             <span className="schritt-marke" aria-hidden="true">

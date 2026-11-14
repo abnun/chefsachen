@@ -190,7 +190,7 @@ export function Eingangsrechnungen({ onOeffnen }: EingangsrechnungenProps) {
 
       {vorschau && (
         <form
-          className="karte"
+          className="inhalt-schmal"
           onSubmit={(e) => {
             e.preventDefault();
             speichernKlick();
@@ -215,46 +215,60 @@ export function Eingangsrechnungen({ onOeffnen }: EingangsrechnungenProps) {
 
           {vorschau.geparst && !bearbeitenModus ? (
             <>
-              <p>Rechnungssteller: <span>{vorschau.felder.rechnungssteller_name}</span></p>
-              <p>Nummer: <span>{vorschau.felder.rechnungsnummer}</span></p>
-              <p>Datum: <span>{vorschau.felder.rechnungsdatum}</span></p>
-              <p>Betrag: <span>{formatCentMitWaehrung(vorschau.felder.betrag_cent, vorschau.felder.waehrung)}</span></p>
-              <button type="button" className="btn" onClick={() => setBearbeitenModus(true)}>
-                Bearbeiten
-              </button>
+              <dl className="angaben">
+                <dt>Rechnungssteller</dt>
+                <dd>{vorschau.felder.rechnungssteller_name}</dd>
+                <dt>Nummer</dt>
+                <dd>{vorschau.felder.rechnungsnummer}</dd>
+                <dt>Datum</dt>
+                <dd>{vorschau.felder.rechnungsdatum}</dd>
+                <dt>Betrag</dt>
+                <dd>{formatCentMitWaehrung(vorschau.felder.betrag_cent, vorschau.felder.waehrung)}</dd>
+              </dl>
+              <div className="aktionen">
+                <button type="button" className="btn" onClick={() => setBearbeitenModus(true)}>
+                  Bearbeiten
+                </button>
+              </div>
             </>
           ) : (
             <>
-              <label className="feld">
-                Rechnungssteller
-                <input
-                  value={vorschau.felder.rechnungssteller_name}
-                  onChange={(e) => feldAendern("rechnungssteller_name", e.currentTarget.value)}
-                />
-              </label>
-              <label className="feld">
-                Nummer
-                <input
-                  value={vorschau.felder.rechnungsnummer}
-                  onChange={(e) => feldAendern("rechnungsnummer", e.currentTarget.value)}
-                />
-              </label>
-              <label className="feld">
-                Datum
-                <input
-                  type="date"
-                  value={vorschau.felder.rechnungsdatum}
-                  onChange={(e) => feldAendern("rechnungsdatum", e.currentTarget.value)}
-                />
-              </label>
-              <label className="feld">
-                Betrag ({vorschau.felder.waehrung})
-                <input value={betragText} onChange={(e) => setBetragText(e.currentTarget.value)} placeholder="95,00" />
-              </label>
+              <div className="gruppe">
+                <label className="feld">
+                  Rechnungssteller
+                  <input
+                    value={vorschau.felder.rechnungssteller_name}
+                    onChange={(e) => feldAendern("rechnungssteller_name", e.currentTarget.value)}
+                  />
+                </label>
+                <div className="felder-reihe">
+                  <label className="feld">
+                    Nummer
+                    <input
+                      value={vorschau.felder.rechnungsnummer}
+                      onChange={(e) => feldAendern("rechnungsnummer", e.currentTarget.value)}
+                    />
+                  </label>
+                  <label className="feld">
+                    Datum
+                    <input
+                      type="date"
+                      value={vorschau.felder.rechnungsdatum}
+                      onChange={(e) => feldAendern("rechnungsdatum", e.currentTarget.value)}
+                    />
+                  </label>
+                  <label className="feld">
+                    Betrag ({vorschau.felder.waehrung})
+                    <input value={betragText} onChange={(e) => setBetragText(e.currentTarget.value)} placeholder="95,00" />
+                  </label>
+                </div>
+              </div>
               {vorschau.geparst && (
-                <button type="button" className="btn" onClick={() => setBearbeitenModus(false)}>
-                  Abbrechen
-                </button>
+                <div className="aktionen">
+                  <button type="button" className="btn" onClick={() => setBearbeitenModus(false)}>
+                    Abbrechen
+                  </button>
+                </div>
               )}
             </>
           )}
@@ -264,18 +278,18 @@ export function Eingangsrechnungen({ onOeffnen }: EingangsrechnungenProps) {
               <thead>
                 <tr>
                   <th>Bezeichnung</th>
-                  <th>Menge</th>
-                  <th>Einzelpreis</th>
-                  <th>Summe</th>
+                  <th className="zahl">Menge</th>
+                  <th className="zahl">Einzelpreis</th>
+                  <th className="zahl">Summe</th>
                 </tr>
               </thead>
               <tbody>
                 {vorschau.felder.positionen.map((p, i) => (
                   <tr key={i}>
                     <td>{p.bezeichnung}</td>
-                    <td>{formatMenge(p.menge)}</td>
-                    <td>{formatCentMitWaehrung(p.einzelpreis_cent, vorschau.felder.waehrung)}</td>
-                    <td>{formatCentMitWaehrung(p.positionssumme_cent, vorschau.felder.waehrung)}</td>
+                    <td className="zahl">{formatMenge(p.menge)}</td>
+                    <td className="zahl nicht-umbrechen">{formatCentMitWaehrung(p.einzelpreis_cent, vorschau.felder.waehrung)}</td>
+                    <td className="zahl nicht-umbrechen">{formatCentMitWaehrung(p.positionssumme_cent, vorschau.felder.waehrung)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -308,8 +322,9 @@ export function Eingangsrechnungen({ onOeffnen }: EingangsrechnungenProps) {
               steuerzeilen={vorschau.felder.steuerzeilen}
             />
           )}
-
-          <button type="submit" className="btn btn-primaer">Speichern</button>
+          <div className="aktionen aktionen-formular">
+            <button type="submit" className="btn btn-primaer">Speichern</button>
+          </div>
         </form>
       )}
 

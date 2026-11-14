@@ -290,7 +290,7 @@ export function Belegvorlage() {
   }
 
   return (
-    <section className="karte" data-tour="belegvorlage">
+    <section className="abschnitt" data-tour="belegvorlage">
       <h2>Belegvorlage</h2>
       <Fehler fehler={fehler} />
       <p className="feld-hinweis hinweis-absatz">
@@ -307,80 +307,82 @@ export function Belegvorlage() {
             speichern();
           }}
         >
-          {SCHALTER.map((s) => {
-            const istLogoHoehe = s.schluessel === "vorlage.logo_hoehe_mm";
-            const effektiverMax = istLogoHoehe ? logoHoeheMaxMm : s.max;
-            const effektiverStandard = istLogoHoehe ? String(logoHoeheStandardMm) : s.standard;
+          <div className="gruppe">
+            {SCHALTER.map((s) => {
+              const istLogoHoehe = s.schluessel === "vorlage.logo_hoehe_mm";
+              const effektiverMax = istLogoHoehe ? logoHoeheMaxMm : s.max;
+              const effektiverStandard = istLogoHoehe ? String(logoHoeheStandardMm) : s.standard;
 
-            return s.art === "ja_nein" ? (
-              <div key={s.schluessel}>
-                <label className="feld-checkbox">
-                  <input
-                    type="checkbox"
-                    checked={istJa(s.schluessel)}
-                    onChange={(e) => aendere(s.schluessel, e.currentTarget.checked ? "ja" : "nein")}
-                  />
-                  {s.label}
-                </label>
-                {s.hinweis && <p className="feld-hinweis">{s.hinweis}</p>}
-              </div>
-            ) : (
-              <div key={s.schluessel}>
-                <label className="feld">
-                  {s.label}
-                  {s.art === "auswahl" && (
-                    <select
-                      value={werte[s.schluessel] ?? s.optionen![0][0]}
-                      onChange={(e) => aendere(s.schluessel, e.currentTarget.value)}
-                    >
-                      {s.optionen!.map(([wert, text]) => (
-                        <option key={wert} value={wert}>
-                          {text}
-                        </option>
-                      ))}
-                    </select>
+              return s.art === "ja_nein" ? (
+                <div key={s.schluessel}>
+                  <label className="feld-checkbox">
+                    <input
+                      type="checkbox"
+                      checked={istJa(s.schluessel)}
+                      onChange={(e) => aendere(s.schluessel, e.currentTarget.checked ? "ja" : "nein")}
+                    />
+                    {s.label}
+                  </label>
+                  {s.hinweis && <p className="feld-hinweis">{s.hinweis}</p>}
+                </div>
+              ) : (
+                <div key={s.schluessel}>
+                  <label className="feld">
+                    {s.label}
+                    {s.art === "auswahl" && (
+                      <select
+                        value={werte[s.schluessel] ?? s.optionen![0][0]}
+                        onChange={(e) => aendere(s.schluessel, e.currentTarget.value)}
+                      >
+                        {s.optionen!.map(([wert, text]) => (
+                          <option key={wert} value={wert}>
+                            {text}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                    {s.art === "zahl" && (
+                      /* Der Platzhalter zeigt die Vorgabe, nicht den erlaubten
+                         Bereich: Ein leeres Feld heißt „Vorgabe", und genau die
+                         stand vorher nirgends. Der Bereich steht im Hinweis. */
+                      <input
+                        type="number"
+                        min={s.min}
+                        max={effektiverMax}
+                        value={werte[s.schluessel] ?? ""}
+                        placeholder={effektiverStandard}
+                        onChange={(e) => aendere(s.schluessel, e.currentTarget.value)}
+                      />
+                    )}
+                    {s.art === "farbe" && (
+                      <input
+                        type="color"
+                        value={werte[s.schluessel] || s.standard}
+                        onChange={(e) => aendere(s.schluessel, e.currentTarget.value)}
+                      />
+                    )}
+                  </label>
+                  {s.art === "farbe" && (
+                    <FarbHilfe
+                      wert={werte[s.schluessel] || s.standard!}
+                      standard={s.standard!}
+                      faerbtText={
+                        (werte["vorlage.akzent_verwendung"] ?? "beides") !== "linien"
+                      }
+                      onWaehlen={(farbe) => aendere(s.schluessel, farbe)}
+                    />
                   )}
                   {s.art === "zahl" && (
-                    /* Der Platzhalter zeigt die Vorgabe, nicht den erlaubten
-                       Bereich: Ein leeres Feld heißt „Vorgabe", und genau die
-                       stand vorher nirgends. Der Bereich steht im Hinweis. */
-                    <input
-                      type="number"
-                      min={s.min}
-                      max={effektiverMax}
-                      value={werte[s.schluessel] ?? ""}
-                      placeholder={effektiverStandard}
-                      onChange={(e) => aendere(s.schluessel, e.currentTarget.value)}
-                    />
+                    <p className="feld-hinweis">
+                      Vorgabe {effektiverStandard} {s.einheit}, möglich {s.min}–{effektiverMax} {s.einheit}.
+                      {s.hinweis ? ` ${s.hinweis}` : ""}
+                    </p>
                   )}
-                  {s.art === "farbe" && (
-                    <input
-                      type="color"
-                      value={werte[s.schluessel] || s.standard}
-                      onChange={(e) => aendere(s.schluessel, e.currentTarget.value)}
-                    />
-                  )}
-                </label>
-                {s.art === "farbe" && (
-                  <FarbHilfe
-                    wert={werte[s.schluessel] || s.standard!}
-                    standard={s.standard!}
-                    faerbtText={
-                      (werte["vorlage.akzent_verwendung"] ?? "beides") !== "linien"
-                    }
-                    onWaehlen={(farbe) => aendere(s.schluessel, farbe)}
-                  />
-                )}
-                {s.art === "zahl" && (
-                  <p className="feld-hinweis">
-                    Vorgabe {effektiverStandard} {s.einheit}, möglich {s.min}–{effektiverMax} {s.einheit}.
-                    {s.hinweis ? ` ${s.hinweis}` : ""}
-                  </p>
-                )}
-                {s.hinweis && s.art !== "zahl" && <p className="feld-hinweis">{s.hinweis}</p>}
-              </div>
-            );
-          })}
+                  {s.hinweis && s.art !== "zahl" && <p className="feld-hinweis">{s.hinweis}</p>}
+                </div>
+              );
+            })}
+          </div>
 
           <div className="aktionen aktionen-formular">
             <button type="submit" className="btn btn-primaer" disabled={laeuft}>

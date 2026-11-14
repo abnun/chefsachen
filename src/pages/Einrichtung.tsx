@@ -6,6 +6,17 @@ import { formularFehler } from "../formularFehler";
 import { Fehler } from "../components/Fehler";
 import { PflichtLegende, PflichtMarker } from "../components/PflichtMarker";
 import { useXRechnungHilfe } from "../hooks/useXRechnungHilfe";
+import { aktuellePlattform } from "../plattform";
+
+/**
+ * Unter macOS ist die Titelleiste ausgeblendet; ohne diesen Streifen ließe
+ * sich das Fenster während der Einrichtung nirgends greifen, und die
+ * Ampelknöpfe lägen über dem Titel.
+ */
+function Ziehbereich() {
+  if (aktuellePlattform() !== "mac") return null;
+  return <div className="einrichtung-ziehbereich" data-tauri-drag-region="" aria-hidden="true" />;
+}
 
 interface EinrichtungProps {
   onFertig: (zielSeite?: "kunden" | "artikel") => void;
@@ -147,8 +158,9 @@ export function Einrichtung({ onFertig }: EinrichtungProps) {
   if (umzug) {
     return (
       <main className="einrichtung-main">
-        <h1 className="seiten-kopf">Ersteinrichtung</h1>
-        <section className="karte" role="status">
+        <Ziehbereich />
+        <h1>Ersteinrichtung</h1>
+        <section role="status">
           <h2>Die Sicherung ist eingespielt</h2>
           <p>
             Beim Neustart übernimmt Chefsachen die Daten daraus. Danach geht es dort weiter, wo
@@ -157,7 +169,7 @@ export function Einrichtung({ onFertig }: EinrichtungProps) {
           {umzug.belege_neu > 0 && (
             <p className="feld-hinweis">{umzug.belege_neu} Belegdatei(en) übernommen.</p>
           )}
-          <div className="aktionen aktionen-formular">
+          <div className="aktionen aktionen-formular aktionen-rechts">
             <button type="button" className="btn btn-primaer" onClick={() => api.neuStarten()}>
               Jetzt neu starten
             </button>
@@ -169,14 +181,15 @@ export function Einrichtung({ onFertig }: EinrichtungProps) {
 
   return (
     <main className="einrichtung-main">
-      <h1 className="seiten-kopf">Ersteinrichtung</h1>
+      <Ziehbereich />
+      <h1>Ersteinrichtung</h1>
       <Fehler fehler={bannerFehler} />
 
       {schritt === 1 && (
-        <section className="karte">
+        <section>
           <p className="schritt-fortschritt">Schritt 1 von 5</p>
           <h2>Firmendaten</h2>
-          <p>Diese Angaben erscheinen später auf deinen Angeboten und Rechnungen.</p>
+          <p className="einleitung">Diese Angaben erscheinen später auf deinen Angeboten und Rechnungen.</p>
           {/* Leise und vor dem Formular: Wer umzieht, soll es nicht erst
               ausfüllen, alle anderen stört ein Knopf in dieser Form nicht. */}
           <p className="feld-hinweis">
@@ -191,148 +204,164 @@ export function Einrichtung({ onFertig }: EinrichtungProps) {
                 : "Ich nutze Chefsachen schon: Sicherung einspielen …"}
             </button>
           </p>
-          <div className="feld">
-            <label>
-              <PflichtMarker art="pflicht">Name</PflichtMarker>
-              <input required value={firma.name} onChange={(e) => feldAendern({ name: e.currentTarget.value })} />
-            </label>
-            {feldFehler("name") && <div className="feld-fehler" role="alert">{feldFehler("name")}</div>}
+          <div className="gruppe">
+            <div className="feld">
+              <label>
+                <PflichtMarker art="pflicht">Name</PflichtMarker>
+                <input required value={firma.name} onChange={(e) => feldAendern({ name: e.currentTarget.value })} />
+              </label>
+              {feldFehler("name") && <div className="feld-fehler" role="alert">{feldFehler("name")}</div>}
+            </div>
+            <div className="feld">
+              <label>
+                <PflichtMarker art="pflicht">Straße</PflichtMarker>
+                <input
+                  value={firma.strasse}
+                  onChange={(e) => feldAendern({ strasse: e.currentTarget.value })}
+                />
+              </label>
+              {feldFehler("strasse") && <div className="feld-fehler" role="alert">{feldFehler("strasse")}</div>}
+            </div>
+            <div className="felder-reihe felder-plz-ort">
+              <div className="feld">
+                <label>
+                  <PflichtMarker art="pflicht">PLZ</PflichtMarker>
+                  <input value={firma.plz} onChange={(e) => feldAendern({ plz: e.currentTarget.value })} />
+                </label>
+                {feldFehler("plz") && <div className="feld-fehler" role="alert">{feldFehler("plz")}</div>}
+              </div>
+              <div className="feld">
+                <label>
+                  <PflichtMarker art="pflicht">Ort</PflichtMarker>
+                  <input value={firma.ort} onChange={(e) => feldAendern({ ort: e.currentTarget.value })} />
+                </label>
+                {feldFehler("ort") && <div className="feld-fehler" role="alert">{feldFehler("ort")}</div>}
+              </div>
+            </div>
           </div>
-          <div className="feld">
-            <label>
-              <PflichtMarker art="pflicht">Straße</PflichtMarker>
-              <input
-                value={firma.strasse}
-                onChange={(e) => feldAendern({ strasse: e.currentTarget.value })}
-              />
-            </label>
-            {feldFehler("strasse") && <div className="feld-fehler" role="alert">{feldFehler("strasse")}</div>}
+          <div className="gruppe">
+            <div className="felder-reihe">
+              <div className="feld">
+                <label>
+                  <PflichtMarker art="pflicht">Steuernummer</PflichtMarker>
+                  <input
+                    value={firma.steuernummer}
+                    onChange={(e) => feldAendern({ steuernummer: e.currentTarget.value })}
+                  />
+                </label>
+                {feldFehler("steuernummer") && <div className="feld-fehler" role="alert">{feldFehler("steuernummer")}</div>}
+              </div>
+              <div className="feld">
+                <label>
+                  USt-IdNr.
+                  <input
+                    value={firma.ust_idnr}
+                    onChange={(e) => feldAendern({ ust_idnr: e.currentTarget.value })}
+                  />
+                </label>
+                <p className="feld-hinweis">
+                  Optional, wenn die Steuernummer angegeben ist. Vor allem für Geschäfte
+                  innerhalb der EU nötig (z. B. innergemeinschaftliche Lieferungen).
+                </p>
+              </div>
+            </div>
+            <div className="felder-reihe felder-breit-schmal">
+              <div className="feld">
+                <label>
+                  IBAN
+                  <input value={firma.iban} onChange={(e) => feldAendern({ iban: e.currentTarget.value })} />
+                </label>
+              </div>
+              <div className="feld">
+                <label>
+                  BIC
+                  <input value={firma.bic} onChange={(e) => feldAendern({ bic: e.currentTarget.value })} />
+                </label>
+              </div>
+            </div>
           </div>
-          <div className="feld">
-            <label>
-              <PflichtMarker art="pflicht">PLZ</PflichtMarker>
-              <input value={firma.plz} onChange={(e) => feldAendern({ plz: e.currentTarget.value })} />
-            </label>
-            {feldFehler("plz") && <div className="feld-fehler" role="alert">{feldFehler("plz")}</div>}
-          </div>
-          <div className="feld">
-            <label>
-              <PflichtMarker art="pflicht">Ort</PflichtMarker>
-              <input value={firma.ort} onChange={(e) => feldAendern({ ort: e.currentTarget.value })} />
-            </label>
-            {feldFehler("ort") && <div className="feld-fehler" role="alert">{feldFehler("ort")}</div>}
-          </div>
-          <div className="feld">
-            <label>
-              <PflichtMarker art="pflicht">Steuernummer</PflichtMarker>
-              <input
-                value={firma.steuernummer}
-                onChange={(e) => feldAendern({ steuernummer: e.currentTarget.value })}
-              />
-            </label>
-            {feldFehler("steuernummer") && <div className="feld-fehler" role="alert">{feldFehler("steuernummer")}</div>}
-          </div>
-          <div className="feld">
-            <label>
-              USt-IdNr.
-              <input
-                value={firma.ust_idnr}
-                onChange={(e) => feldAendern({ ust_idnr: e.currentTarget.value })}
-              />
-            </label>
-            <p className="feld-hinweis">
-              Optional, wenn die Steuernummer angegeben ist. Vor allem für Geschäfte
-              innerhalb der EU nötig (z. B. innergemeinschaftliche Lieferungen).
-            </p>
-          </div>
-          <div className="feld">
-            <label>
-              IBAN
-              <input value={firma.iban} onChange={(e) => feldAendern({ iban: e.currentTarget.value })} />
-            </label>
-          </div>
-          <div className="feld">
-            <label>
-              BIC
-              <input value={firma.bic} onChange={(e) => feldAendern({ bic: e.currentTarget.value })} />
-            </label>
-          </div>
-          {/* E-Mail, Telefon und Ansprechpartner sind für eine gültige XRechnung
-              Pflicht (BT-34, BG-6). Fehlten sie hier, liefe der erste
-              XRechnung-Export ins Leere, ohne dass etwas darauf hinweist. */}
-          <div className="feld">
-            <label>
-              <PflichtMarker art="xrechnung">E-Mail</PflichtMarker>
-              <input
-                type="email"
-                value={firma.email}
-                onChange={(e) => feldAendern({ email: e.currentTarget.value })}
-              />
-            </label>
-            <p className="feld-hinweis">Wird für den XRechnung-Export benötigt.</p>
-            {feldFehler("email") && <div className="feld-fehler" role="alert">{feldFehler("email")}</div>}
-          </div>
-          <div className="feld">
-            <label>
-              <PflichtMarker art="xrechnung">Telefon</PflichtMarker>
-              <input
-                value={firma.telefon}
-                onChange={(e) => feldAendern({ telefon: e.currentTarget.value })}
-              />
-            </label>
-            <p className="feld-hinweis">Wird für den XRechnung-Export benötigt.</p>
-            {feldFehler("telefon") && <div className="feld-fehler" role="alert">{feldFehler("telefon")}</div>}
-          </div>
-          <div className="feld">
-            <label>
-              Fax
-              <input
-                value={firma.fax}
-                onChange={(e) => feldAendern({ fax: e.currentTarget.value })}
-              />
-            </label>
-            <p className="feld-hinweis">Optional — nicht vorgeschrieben, manche Kunden verlangen sie trotzdem.</p>
-            {feldFehler("fax") && <div className="feld-fehler" role="alert">{feldFehler("fax")}</div>}
-          </div>
-          <div className="feld">
-            <label>
-              Ansprechpartner
-              <input
-                value={firma.kontakt_name}
-                onChange={(e) => feldAendern({ kontakt_name: e.currentTarget.value })}
-              />
-            </label>
-            <p className="feld-hinweis">Ohne Angabe wird der Firmenname verwendet.</p>
-          </div>
-          <div className="feld">
-            <label>
-              Gründungsjahr
-              {/* Grenzen am Feld, damit das Zahlenrad gar nicht erst ins
-                  Negative läuft. Die verbindliche Prüfung steht im Backend —
-                  ein Attribut im Formular lässt sich umgehen. */}
-              <input
-                type="number"
-                min={1900}
-                max={new Date().getFullYear()}
-                step={1}
-                value={firma.gruendungsjahr ?? ""}
-                onChange={(e) =>
-                  feldAendern({
-                    gruendungsjahr:
-                      e.currentTarget.value === "" ? null : Number(e.currentTarget.value),
-                  })
-                }
-              />
-            </label>
-            <p className="feld-hinweis">
-              Im Gründungsjahr gilt für die Kleinunternehmergrenze bereits das laufende Jahr.
-            </p>
+          <div className="gruppe">
+            {/* E-Mail, Telefon und Ansprechpartner sind für eine gültige XRechnung
+                Pflicht (BT-34, BG-6). Fehlten sie hier, liefe der erste
+                XRechnung-Export ins Leere, ohne dass etwas darauf hinweist. */}
+            <div className="felder-reihe">
+              <div className="feld">
+                <label>
+                  <PflichtMarker art="xrechnung">E-Mail</PflichtMarker>
+                  <input
+                    type="email"
+                    value={firma.email}
+                    onChange={(e) => feldAendern({ email: e.currentTarget.value })}
+                  />
+                </label>
+                <p className="feld-hinweis">Wird für den XRechnung-Export benötigt.</p>
+                {feldFehler("email") && <div className="feld-fehler" role="alert">{feldFehler("email")}</div>}
+              </div>
+              <div className="feld">
+                <label>
+                  <PflichtMarker art="xrechnung">Telefon</PflichtMarker>
+                  <input
+                    value={firma.telefon}
+                    onChange={(e) => feldAendern({ telefon: e.currentTarget.value })}
+                  />
+                </label>
+                <p className="feld-hinweis">Wird für den XRechnung-Export benötigt.</p>
+                {feldFehler("telefon") && <div className="feld-fehler" role="alert">{feldFehler("telefon")}</div>}
+              </div>
+            </div>
+            <div className="felder-reihe">
+              <div className="feld">
+                <label>
+                  Fax
+                  <input
+                    value={firma.fax}
+                    onChange={(e) => feldAendern({ fax: e.currentTarget.value })}
+                  />
+                </label>
+                <p className="feld-hinweis">Optional — nicht vorgeschrieben, manche Kunden verlangen sie trotzdem.</p>
+                {feldFehler("fax") && <div className="feld-fehler" role="alert">{feldFehler("fax")}</div>}
+              </div>
+              <div className="feld">
+                <label>
+                  Ansprechpartner
+                  <input
+                    value={firma.kontakt_name}
+                    onChange={(e) => feldAendern({ kontakt_name: e.currentTarget.value })}
+                  />
+                </label>
+                <p className="feld-hinweis">Ohne Angabe wird der Firmenname verwendet.</p>
+              </div>
+            </div>
+            <div className="feld feld-schmal">
+              <label>
+                Gründungsjahr
+                {/* Grenzen am Feld, damit das Zahlenrad gar nicht erst ins
+                    Negative läuft. Die verbindliche Prüfung steht im Backend —
+                    ein Attribut im Formular lässt sich umgehen. */}
+                <input
+                  type="number"
+                  min={1900}
+                  max={new Date().getFullYear()}
+                  step={1}
+                  value={firma.gruendungsjahr ?? ""}
+                  onChange={(e) =>
+                    feldAendern({
+                      gruendungsjahr:
+                        e.currentTarget.value === "" ? null : Number(e.currentTarget.value),
+                    })
+                  }
+                />
+              </label>
+              <p className="feld-hinweis">
+                Im Gründungsjahr gilt für die Kleinunternehmergrenze bereits das laufende Jahr.
+              </p>
+            </div>
           </div>
           <PflichtLegende zeigtXrechnung />
           <button type="button" className="feld-hinweis-link" onClick={zeigeXRechnungHilfe}>
             Was ist die XRechnung?
           </button>
-          <div className="aktionen aktionen-formular">
+          <div className="aktionen aktionen-formular aktionen-rechts">
             <button
               type="button"
               className="btn btn-primaer"
@@ -346,15 +375,19 @@ export function Einrichtung({ onFertig }: EinrichtungProps) {
       )}
 
       {schritt === 2 && (
-        <section className="karte">
+        <section>
           <p className="schritt-fortschritt">Schritt 2 von 5</p>
           <h2>Logo</h2>
-          <p>Optional — kann auch später in den Einstellungen hinzugefügt werden.</p>
-          <button type="button" className="btn" onClick={logoWaehlen}>
-            Datei wählen
-          </button>
-          {logoBytes && <p>Logo ausgewählt ({logoBytes.length} Bytes).</p>}
-          <div className="aktionen aktionen-formular">
+          <p className="einleitung">Optional — kann auch später in den Einstellungen hinzugefügt werden.</p>
+          <div className="gruppe">
+            <div className="aktionen">
+              <button type="button" className="btn" onClick={logoWaehlen}>
+                Datei wählen
+              </button>
+              {logoBytes && <span>Logo ausgewählt ({logoBytes.length} Bytes).</span>}
+            </div>
+          </div>
+          <div className="aktionen aktionen-formular aktionen-rechts">
             <button type="button" className="btn btn-leise" onClick={() => setSchritt(1)}>
               Zurück
             </button>
@@ -366,28 +399,30 @@ export function Einrichtung({ onFertig }: EinrichtungProps) {
       )}
 
       {schritt === 3 && (
-        <section className="karte">
+        <section>
           <p className="schritt-fortschritt">Schritt 3 von 5</p>
           <h2>Kleinunternehmer-Bestätigung</h2>
-          <p>
+          <p className="einleitung">
             Nach § 19 UStG müssen Kleinunternehmer keine Umsatzsteuer ausweisen, solange der
             Vorjahresumsatz 25.000 € und der voraussichtliche Umsatz des laufenden Jahres 100.000 € nicht
             übersteigt.
           </p>
-          <label className="feld-checkbox">
-            <input
-              type="checkbox"
-              checked={firma.kleinunternehmer}
-              onChange={(e) => feldAendern({ kleinunternehmer: e.currentTarget.checked })}
-            />
-            Ich falle unter die Kleinunternehmerregelung
-          </label>
-          <p className="feld-hinweis">
-            Ohne Häkchen gilt Regelbesteuerung: Belege weisen die enthaltene
-            Umsatzsteuer aus, der Steuersatz wird je Artikel gewählt (19/7/0 %),
-            die Preise bleiben Bruttopreise.
-          </p>
-          <div className="aktionen aktionen-formular">
+          <div className="gruppe">
+            <label className="feld-checkbox">
+              <input
+                type="checkbox"
+                checked={firma.kleinunternehmer}
+                onChange={(e) => feldAendern({ kleinunternehmer: e.currentTarget.checked })}
+              />
+              Ich falle unter die Kleinunternehmerregelung
+            </label>
+            <p className="feld-hinweis">
+              Ohne Häkchen gilt Regelbesteuerung: Belege weisen die enthaltene
+              Umsatzsteuer aus, der Steuersatz wird je Artikel gewählt (19/7/0 %),
+              die Preise bleiben Bruttopreise.
+            </p>
+          </div>
+          <div className="aktionen aktionen-formular aktionen-rechts">
             <button type="button" className="btn btn-leise" onClick={() => setSchritt(2)}>
               Zurück
             </button>
@@ -399,18 +434,22 @@ export function Einrichtung({ onFertig }: EinrichtungProps) {
       )}
 
       {schritt === 4 && (
-        <section className="karte">
+        <section>
           <p className="schritt-fortschritt">Schritt 4 von 5</p>
           <h2>Nummernkreise</h2>
-          <p>Legt fest, wie deine Kunden-, Artikel-, Angebots- und Rechnungsnummern aufgebaut sind — änderbar in den Einstellungen.</p>
+          <p className="einleitung">Legt fest, wie deine Kunden-, Artikel-, Angebots- und Rechnungsnummern aufgebaut sind — änderbar in den Einstellungen.</p>
           <p>Die vorbelegten Formate können später jederzeit in den Einstellungen angepasst werden.</p>
-          <ul>
-            <li>Kunden: KD-0001</li>
-            <li>Artikel: ART-0001</li>
-            <li>Angebote: AN-{new Date().getFullYear()}-0001</li>
-            <li>Rechnungen: RE-{new Date().getFullYear()}-0001</li>
-          </ul>
-          <div className="aktionen aktionen-formular">
+          <dl className="angaben gruppe">
+            <dt>Kunden</dt>
+            <dd className="tabelle-num">KD-0001</dd>
+            <dt>Artikel</dt>
+            <dd className="tabelle-num">ART-0001</dd>
+            <dt>Angebote</dt>
+            <dd className="tabelle-num">AN-{new Date().getFullYear()}-0001</dd>
+            <dt>Rechnungen</dt>
+            <dd className="tabelle-num">RE-{new Date().getFullYear()}-0001</dd>
+          </dl>
+          <div className="aktionen aktionen-formular aktionen-rechts">
             <button type="button" className="btn btn-leise" onClick={() => setSchritt(3)}>
               Zurück
             </button>
@@ -422,10 +461,10 @@ export function Einrichtung({ onFertig }: EinrichtungProps) {
       )}
 
       {schritt === 5 && (
-        <section className="karte">
+        <section>
           <h2>Fertig!</h2>
-          <p>Womit möchtest du starten?</p>
-          <div className="aktionen aktionen-formular">
+          <p className="einleitung">Womit möchtest du starten?</p>
+          <div className="aktionen aktionen-formular aktionen-rechts">
             <button type="button" className="btn btn-primaer" onClick={() => onFertig("kunden")}>
               Ersten Kunden anlegen
             </button>
@@ -433,7 +472,7 @@ export function Einrichtung({ onFertig }: EinrichtungProps) {
               Ersten Artikel anlegen
             </button>
           </div>
-          <p>Firmendaten und Nummernkreise kannst du jederzeit in den Einstellungen ändern.</p>
+          <p className="feld-hinweis">Firmendaten und Nummernkreise kannst du jederzeit in den Einstellungen ändern.</p>
         </section>
       )}
     </main>

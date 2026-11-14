@@ -130,8 +130,8 @@ export function Einstellungen() {
 function SpendenAbschnitt() {
   if (!useIstGithubFassung()) return null;
   return (
-    <section className="abschnitt-abstand">
-      <div className="hinweis-karte">
+    <section className="abschnitt spenden">
+      <div className="gruppe inhalt-schmal">
         <p>Gefällt dir Chefsachen? Über eine kleine Unterstützung würde ich mich freuen — muss aber nicht.</p>
         <p className="feld-hinweis">
           Eine freiwillige Zuwendung ohne Gegenleistung — keine Spende im steuerlichen Sinn, nicht
@@ -283,197 +283,217 @@ function FirmendatenAbschnitt() {
   }
 
   return (
-    <section data-tour="firmendaten">
+    <section className="abschnitt" data-tour="firmendaten">
       <h2>Firmendaten</h2>
       <Fehler fehler={bannerFehler} />
       <form
-        className="karte"
+        className="inhalt-schmal"
         onSubmit={(e) => {
           e.preventDefault();
           speichern();
         }}
       >
-        <div className="feld">
-          <label>
-            <PflichtMarker art="pflicht">Name</PflichtMarker>
-            <input required value={firma.name} onChange={(e) => setFirma({ ...firma, name: e.currentTarget.value })} />
-          </label>
-          {feldFehler("name") && <div role="alert" className="feld-fehler">{feldFehler("name")}</div>}
-        </div>
-        <div className="feld">
-          <label>
-            <PflichtMarker art="pflicht">Straße</PflichtMarker>
-            <input
-              value={firma.strasse}
-              onChange={(e) => setFirma({ ...firma, strasse: e.currentTarget.value })}
-            />
-          </label>
-          {feldFehler("strasse") && <div role="alert" className="feld-fehler">{feldFehler("strasse")}</div>}
-        </div>
-        <div className="feld">
-          <label>
-            <PflichtMarker art="pflicht">PLZ</PflichtMarker>
-            <input value={firma.plz} onChange={(e) => setFirma({ ...firma, plz: e.currentTarget.value })} />
-          </label>
-          {feldFehler("plz") && <div role="alert" className="feld-fehler">{feldFehler("plz")}</div>}
-        </div>
-        <div className="feld">
-          <label>
-            <PflichtMarker art="pflicht">Ort</PflichtMarker>
-            <input value={firma.ort} onChange={(e) => setFirma({ ...firma, ort: e.currentTarget.value })} />
-          </label>
-          {feldFehler("ort") && <div role="alert" className="feld-fehler">{feldFehler("ort")}</div>}
-        </div>
-        <div className="feld">
-          <label>
-            <PflichtMarker art="pflicht">Land</PflichtMarker>
-            <input value={firma.land} onChange={(e) => setFirma({ ...firma, land: e.currentTarget.value })} />
-          </label>
-          {feldFehler("land") && <div role="alert" className="feld-fehler">{feldFehler("land")}</div>}
-        </div>
-        <div className="feld">
-          <label>
-            <PflichtMarker art="pflicht">Steuernummer</PflichtMarker>
-            <input
-              value={firma.steuernummer}
-              onChange={(e) => setFirma({ ...firma, steuernummer: e.currentTarget.value })}
-            />
-          </label>
-          {feldFehler("steuernummer") && <div role="alert" className="feld-fehler">{feldFehler("steuernummer")}</div>}
-        </div>
-        <div className="feld">
-          <label>
-            USt-IdNr.
-            <input
-              value={firma.ust_idnr}
-              onChange={(e) => setFirma({ ...firma, ust_idnr: e.currentTarget.value })}
-            />
-          </label>
-          <p className="feld-hinweis">
-            Optional, wenn die Steuernummer angegeben ist. Vor allem für Geschäfte
-            innerhalb der EU nötig (z. B. innergemeinschaftliche Lieferungen).
-          </p>
-          {feldFehler("ust_idnr") && <div role="alert" className="feld-fehler">{feldFehler("ust_idnr")}</div>}
-        </div>
-        <div className="feld">
-          <label>
-            IBAN
-            <input value={firma.iban} onChange={(e) => setFirma({ ...firma, iban: e.currentTarget.value })} />
-          </label>
-          {feldFehler("iban") && <div role="alert" className="feld-fehler">{feldFehler("iban")}</div>}
-        </div>
-        <div className="feld">
-          <label>
-            BIC
-            <input value={firma.bic} onChange={(e) => setFirma({ ...firma, bic: e.currentTarget.value })} />
-          </label>
-          {feldFehler("bic") && <div role="alert" className="feld-fehler">{feldFehler("bic")}</div>}
-        </div>
-        <div className="feld">
-          <label>
-            <PflichtMarker art="xrechnung">E-Mail</PflichtMarker>
-            <input
-              type="email"
-              value={firma.email}
-              onChange={(e) => setFirma({ ...firma, email: e.currentTarget.value })}
-            />
-          </label>
-          <p className="feld-hinweis">Pflichtangabe für den XRechnung-Export.</p>
-          {feldFehler("email") && <div role="alert" className="feld-fehler">{feldFehler("email")}</div>}
-        </div>
-        <div className="feld">
-          <label>
-            <PflichtMarker art="xrechnung">Telefon</PflichtMarker>
-            <input
-              value={firma.telefon}
-              onChange={(e) => setFirma({ ...firma, telefon: e.currentTarget.value })}
-            />
-          </label>
-          <p className="feld-hinweis">Pflichtangabe für den XRechnung-Export.</p>
-          {feldFehler("telefon") && <div role="alert" className="feld-fehler">{feldFehler("telefon")}</div>}
-        </div>
-        <div className="feld">
-          <label>
-            Fax
-            <input
-              value={firma.fax}
-              onChange={(e) => setFirma({ ...firma, fax: e.currentTarget.value })}
-            />
-          </label>
-          <p className="feld-hinweis">Optional — nicht vorgeschrieben, manche Kunden verlangen sie trotzdem.</p>
-          {feldFehler("fax") && <div role="alert" className="feld-fehler">{feldFehler("fax")}</div>}
-        </div>
-        <div className="feld">
-          <label>
-            Ansprechpartner
-            <input
-              value={firma.kontakt_name}
-              onChange={(e) => setFirma({ ...firma, kontakt_name: e.currentTarget.value })}
-            />
-          </label>
-          <p className="feld-hinweis">Ohne Angabe wird der Firmenname verwendet.</p>
-          {feldFehler("kontakt_name") && <div role="alert" className="feld-fehler">{feldFehler("kontakt_name")}</div>}
-        </div>
-        <div className="feld">
-          <span className="feld-beschriftung">Logo</span>
-          <p className="feld-hinweis">
-            {logoGroesse === null
-              ? "Kein Logo hinterlegt — die Rechnungen erscheinen ohne."
-              : `Logo hinterlegt (${logoGroesse < 1024 ? `${logoGroesse} Bytes` : `${Math.round(logoGroesse / 1024)} KB`}).`}
-          </p>
-          {logoDataUrl && (
-            // Ohne diese Vorschau ließ sich nur an der Dateigröße erahnen, ob
-            // das gewählte Bild auch wirklich das gewünschte Logo ist — sicher
-            // wusste man es erst auf dem fertigen Beleg.
-            <img src={logoDataUrl} alt="Hinterlegtes Logo" className="logo-vorschau" />
-          )}
-          <div className="werkzeugleiste">
-            <button type="button" className="btn" onClick={logoWaehlen}>
-              {logoGroesse === null ? "Logo wählen" : "Logo ersetzen"}
-            </button>
-            {logoGroesse !== null && (
-              <button type="button" className="btn btn-gefahr" onClick={logoEntfernen}>
-                Logo entfernen
-              </button>
-            )}
-            {logo.rueckmeldung}
+        <div className="gruppe">
+          <div className="feld">
+            <label>
+              <PflichtMarker art="pflicht">Name</PflichtMarker>
+              <input required value={firma.name} onChange={(e) => setFirma({ ...firma, name: e.currentTarget.value })} />
+            </label>
+            {feldFehler("name") && <div role="alert" className="feld-fehler">{feldFehler("name")}</div>}
+          </div>
+          <div className="feld">
+            <label>
+              <PflichtMarker art="pflicht">Straße</PflichtMarker>
+              <input
+                value={firma.strasse}
+                onChange={(e) => setFirma({ ...firma, strasse: e.currentTarget.value })}
+              />
+            </label>
+            {feldFehler("strasse") && <div role="alert" className="feld-fehler">{feldFehler("strasse")}</div>}
+          </div>
+          <div className="felder-reihe felder-plz-ort">
+            <div className="feld">
+              <label>
+                <PflichtMarker art="pflicht">PLZ</PflichtMarker>
+                <input value={firma.plz} onChange={(e) => setFirma({ ...firma, plz: e.currentTarget.value })} />
+              </label>
+              {feldFehler("plz") && <div role="alert" className="feld-fehler">{feldFehler("plz")}</div>}
+            </div>
+            <div className="feld">
+              <label>
+                <PflichtMarker art="pflicht">Ort</PflichtMarker>
+                <input value={firma.ort} onChange={(e) => setFirma({ ...firma, ort: e.currentTarget.value })} />
+              </label>
+              {feldFehler("ort") && <div role="alert" className="feld-fehler">{feldFehler("ort")}</div>}
+            </div>
+          </div>
+          <div className="feld feld-schmal">
+            <label>
+              <PflichtMarker art="pflicht">Land</PflichtMarker>
+              <input value={firma.land} onChange={(e) => setFirma({ ...firma, land: e.currentTarget.value })} />
+            </label>
+            {feldFehler("land") && <div role="alert" className="feld-fehler">{feldFehler("land")}</div>}
           </div>
         </div>
-        <div className="feld">
-          <label>
-            Gründungsjahr
+        <div className="gruppe">
+          <div className="felder-reihe">
+            <div className="feld">
+              <label>
+                <PflichtMarker art="pflicht">Steuernummer</PflichtMarker>
+                <input
+                  value={firma.steuernummer}
+                  onChange={(e) => setFirma({ ...firma, steuernummer: e.currentTarget.value })}
+                />
+              </label>
+              {feldFehler("steuernummer") && <div role="alert" className="feld-fehler">{feldFehler("steuernummer")}</div>}
+            </div>
+            <div className="feld">
+              <label>
+                USt-IdNr.
+                <input
+                  value={firma.ust_idnr}
+                  onChange={(e) => setFirma({ ...firma, ust_idnr: e.currentTarget.value })}
+                />
+              </label>
+              <p className="feld-hinweis">
+                Optional, wenn die Steuernummer angegeben ist. Vor allem für Geschäfte
+                innerhalb der EU nötig (z. B. innergemeinschaftliche Lieferungen).
+              </p>
+              {feldFehler("ust_idnr") && <div role="alert" className="feld-fehler">{feldFehler("ust_idnr")}</div>}
+            </div>
+          </div>
+          <div className="felder-reihe felder-breit-schmal">
+            <div className="feld">
+              <label>
+                IBAN
+                <input value={firma.iban} onChange={(e) => setFirma({ ...firma, iban: e.currentTarget.value })} />
+              </label>
+              {feldFehler("iban") && <div role="alert" className="feld-fehler">{feldFehler("iban")}</div>}
+            </div>
+            <div className="feld">
+              <label>
+                BIC
+                <input value={firma.bic} onChange={(e) => setFirma({ ...firma, bic: e.currentTarget.value })} />
+              </label>
+              {feldFehler("bic") && <div role="alert" className="feld-fehler">{feldFehler("bic")}</div>}
+            </div>
+          </div>
+        </div>
+        <div className="gruppe">
+          <div className="felder-reihe">
+            <div className="feld">
+              <label>
+                <PflichtMarker art="xrechnung">E-Mail</PflichtMarker>
+                <input
+                  type="email"
+                  value={firma.email}
+                  onChange={(e) => setFirma({ ...firma, email: e.currentTarget.value })}
+                />
+              </label>
+              <p className="feld-hinweis">Pflichtangabe für den XRechnung-Export.</p>
+              {feldFehler("email") && <div role="alert" className="feld-fehler">{feldFehler("email")}</div>}
+            </div>
+            <div className="feld">
+              <label>
+                <PflichtMarker art="xrechnung">Telefon</PflichtMarker>
+                <input
+                  value={firma.telefon}
+                  onChange={(e) => setFirma({ ...firma, telefon: e.currentTarget.value })}
+                />
+              </label>
+              <p className="feld-hinweis">Pflichtangabe für den XRechnung-Export.</p>
+              {feldFehler("telefon") && <div role="alert" className="feld-fehler">{feldFehler("telefon")}</div>}
+            </div>
+          </div>
+          <div className="felder-reihe">
+            <div className="feld">
+              <label>
+                Fax
+                <input
+                  value={firma.fax}
+                  onChange={(e) => setFirma({ ...firma, fax: e.currentTarget.value })}
+                />
+              </label>
+              <p className="feld-hinweis">Optional — nicht vorgeschrieben, manche Kunden verlangen sie trotzdem.</p>
+              {feldFehler("fax") && <div role="alert" className="feld-fehler">{feldFehler("fax")}</div>}
+            </div>
+            <div className="feld">
+              <label>
+                Ansprechpartner
+                <input
+                  value={firma.kontakt_name}
+                  onChange={(e) => setFirma({ ...firma, kontakt_name: e.currentTarget.value })}
+                />
+              </label>
+              <p className="feld-hinweis">Ohne Angabe wird der Firmenname verwendet.</p>
+              {feldFehler("kontakt_name") && <div role="alert" className="feld-fehler">{feldFehler("kontakt_name")}</div>}
+            </div>
+          </div>
+        </div>
+        <div className="gruppe">
+          <div className="feld">
+            <span className="feld-beschriftung">Logo</span>
+            <p className="feld-hinweis">
+              {logoGroesse === null
+                ? "Kein Logo hinterlegt — die Rechnungen erscheinen ohne."
+                : `Logo hinterlegt (${logoGroesse < 1024 ? `${logoGroesse} Bytes` : `${Math.round(logoGroesse / 1024)} KB`}).`}
+            </p>
+            {logoDataUrl && (
+              // Ohne diese Vorschau ließ sich nur an der Dateigröße erahnen, ob
+              // das gewählte Bild auch wirklich das gewünschte Logo ist — sicher
+              // wusste man es erst auf dem fertigen Beleg.
+              <img src={logoDataUrl} alt="Hinterlegtes Logo" className="logo-vorschau" />
+            )}
+            <div className="aktionen">
+              <button type="button" className="btn" onClick={logoWaehlen}>
+                {logoGroesse === null ? "Logo wählen" : "Logo ersetzen"}
+              </button>
+              {logoGroesse !== null && (
+                <button type="button" className="btn btn-gefahr" onClick={logoEntfernen}>
+                  Logo entfernen
+                </button>
+              )}
+              {logo.rueckmeldung}
+            </div>
+          </div>
+        </div>
+        <div className="gruppe">
+          <div className="feld feld-schmal">
+            <label>
+              Gründungsjahr
+              <input
+                type="number"
+                value={firma.gruendungsjahr ?? ""}
+                onChange={(e) =>
+                  setFirma({
+                    ...firma,
+                    gruendungsjahr: e.currentTarget.value === "" ? null : Number(e.currentTarget.value),
+                  })
+                }
+              />
+            </label>
+            <p className="feld-hinweis">
+              Im Gründungsjahr gibt es kein Vorjahr — dann gilt die 25.000-€-Grenze bereits
+              für das laufende Jahr. Ohne Angabe wird vom Regelfall ausgegangen.
+            </p>
+            {feldFehler("gruendungsjahr") && (
+              <div role="alert" className="feld-fehler">{feldFehler("gruendungsjahr")}</div>
+            )}
+          </div>
+          <label className="feld-checkbox">
             <input
-              type="number"
-              value={firma.gruendungsjahr ?? ""}
-              onChange={(e) =>
-                setFirma({
-                  ...firma,
-                  gruendungsjahr: e.currentTarget.value === "" ? null : Number(e.currentTarget.value),
-                })
-              }
+              type="checkbox"
+              checked={firma.kleinunternehmer}
+              onChange={(e) => setFirma({ ...firma, kleinunternehmer: e.currentTarget.checked })}
             />
+            Kleinunternehmer (§19 UStG)
           </label>
           <p className="feld-hinweis">
-            Im Gründungsjahr gibt es kein Vorjahr — dann gilt die 25.000-€-Grenze bereits
-            für das laufende Jahr. Ohne Angabe wird vom Regelfall ausgegangen.
+            Abgewählt gilt Regelbesteuerung: Neue Belege weisen die Umsatzsteuer aus
+            (Satz je Artikel, Preise bleiben brutto). Bereits festgeschriebene Belege
+            behalten ihren damaligen Steuermodus.
           </p>
-          {feldFehler("gruendungsjahr") && (
-            <div role="alert" className="feld-fehler">{feldFehler("gruendungsjahr")}</div>
-          )}
         </div>
-        <label className="feld-checkbox">
-          <input
-            type="checkbox"
-            checked={firma.kleinunternehmer}
-            onChange={(e) => setFirma({ ...firma, kleinunternehmer: e.currentTarget.checked })}
-          />
-          Kleinunternehmer (§19 UStG)
-        </label>
-        <p className="feld-hinweis">
-          Abgewählt gilt Regelbesteuerung: Neue Belege weisen die Umsatzsteuer aus
-          (Satz je Artikel, Preise bleiben brutto). Bereits festgeschriebene Belege
-          behalten ihren damaligen Steuermodus.
-        </p>
         <PflichtLegende zeigtXrechnung />
         <button type="button" className="feld-hinweis-link" onClick={zeigeXRechnungHilfe}>
           Was ist die XRechnung?
@@ -638,26 +658,28 @@ function SicherungenAbschnitt() {
   }
 
   return (
-    <section className="karte" data-tour="sicherungen">
+    <section className="abschnitt" data-tour="sicherungen">
       <h2>Sicherungen</h2>
       <Fehler fehler={fehler} />
       {hinweis}
       {dialog}
-      <p className="feld-hinweis">
-        Bei jedem Programmstart wird die Datenbank kopiert, bevor Änderungen an ihrer
-        Struktur vorgenommen werden. Die zehn jüngsten Kopien bleiben erhalten.
-      </p>
-      <p className="feld-hinweis">
-        Diese Kopien liegen neben der Datenbank, also auf derselben Festplatte. Bei einem
-        Defekt sind sie mit weg — sichere zusätzlich woandershin, etwa mit „Speichern
-        unter". Die dabei entstehende Datei enthält auch das Belegarchiv (erzeugte PDFs,
-        XRechnungen, ZUGFeRD-Dateien), nicht nur die Datenbank.
-      </p>
-      <p className="feld-hinweis">
-        {zuletztExportiert
-          ? `Zuletzt extern gesichert: ${zeitpunktDeutsch(zuletztExportiert)}.`
-          : "Noch nie extern gesichert."}
-      </p>
+      <div className="inhalt-schmal">
+        <p className="feld-hinweis">
+          Bei jedem Programmstart wird die Datenbank kopiert, bevor Änderungen an ihrer
+          Struktur vorgenommen werden. Die zehn jüngsten Kopien bleiben erhalten.
+        </p>
+        <p className="feld-hinweis">
+          Diese Kopien liegen neben der Datenbank, also auf derselben Festplatte. Bei einem
+          Defekt sind sie mit weg — sichere zusätzlich woandershin, etwa mit „Speichern
+          unter". Die dabei entstehende Datei enthält auch das Belegarchiv (erzeugte PDFs,
+          XRechnungen, ZUGFeRD-Dateien), nicht nur die Datenbank.
+        </p>
+        <p className="feld-hinweis">
+          {zuletztExportiert
+            ? `Zuletzt extern gesichert: ${zeitpunktDeutsch(zuletztExportiert)}.`
+            : "Noch nie extern gesichert."}
+        </p>
+      </div>
 
       {neustartNoetig && (
         <div className="hinweis-karte" role="status">
@@ -672,7 +694,7 @@ function SicherungenAbschnitt() {
           </button>
         </div>
       )}
-      <div className="aktionen">
+      <div className="aktionen aktionen-ueber-tabelle">
         <button type="button" className="btn" disabled={laeuft} onClick={jetztSichern}>
           Jetzt sichern
         </button>
@@ -775,7 +797,7 @@ function EinheitenAbschnitt() {
   }
 
   return (
-    <section className="karte">
+    <section className="abschnitt">
       <h2>Einheiten</h2>
       <Fehler fehler={fehler} />
       {hinweis}
@@ -793,7 +815,7 @@ function EinheitenAbschnitt() {
             <tr key={e.id}>
               <td>{e.name}</td>
               <td>{e.kuerzel}</td>
-              <td>
+              <td className="aktionen">
                 <button type="button" className="btn" onClick={() => bearbeiten(e)}>
                   Bearbeiten
                 </button>
@@ -806,19 +828,24 @@ function EinheitenAbschnitt() {
         </tbody>
       </table>
       <form
+        className="inhalt-schmal"
         onSubmit={(e) => {
           e.preventDefault();
           speichern();
         }}
       >
-        <label className="feld">
-          <PflichtMarker art="pflicht">Name</PflichtMarker>
-          <input value={name} onChange={(e) => setName(e.currentTarget.value)} />
-        </label>
-        <label className="feld">
-          Kürzel
-          <input value={kuerzel} onChange={(e) => setKuerzel(e.currentTarget.value)} />
-        </label>
+        <div className="gruppe">
+          <div className="felder-reihe felder-breit-schmal">
+            <label className="feld">
+              <PflichtMarker art="pflicht">Name</PflichtMarker>
+              <input value={name} onChange={(e) => setName(e.currentTarget.value)} />
+            </label>
+            <label className="feld">
+              Kürzel
+              <input value={kuerzel} onChange={(e) => setKuerzel(e.currentTarget.value)} />
+            </label>
+          </div>
+        </div>
         <PflichtLegende />
         <div className="aktionen aktionen-formular">
           <button type="submit" className="btn btn-primaer">
@@ -872,14 +899,17 @@ function NummernkreiseAbschnitt() {
   }
 
   return (
-    <section data-tour="nummernkreise">
+    <section className="abschnitt" data-tour="nummernkreise">
       <h2>Nummernkreise</h2>
       <Fehler fehler={fehler} />
       {hinweis}
       {nummernkreise.map((nk) => (
+        /* Eine Zeile je Nummernkreis: Format, Rücksetzen, Zähler und
+           Speichern nebeneinander. Vorher stand jeder Kreis in einer eigenen
+           Karte mit vier Zeilen übereinander. */
         <form
           key={nk.art}
-          className="karte"
+          className="gruppe inhalt-schmal nummernkreis"
           onSubmit={(e) => {
             e.preventDefault();
             speichern(nk);
@@ -897,10 +927,8 @@ function NummernkreiseAbschnitt() {
             />
             Jährlicher Reset
           </label>
-          <p>Aktueller Zähler: {nk.zaehler}</p>
-          <div className="aktionen aktionen-formular">
-            <button type="submit" className="btn btn-primaer">Speichern</button>
-          </div>
+          <p className="nummernkreis-zaehler">Aktueller Zähler: {nk.zaehler}</p>
+          <button type="submit" className="btn">Speichern</button>
         </form>
       ))}
     </section>
@@ -959,29 +987,31 @@ function AngeboteAbschnitt() {
   }
 
   return (
-    <section>
+    <section className="abschnitt">
       <h2>Angebote</h2>
       <Fehler fehler={fehler} />
       <form
-        className="karte"
+        className="inhalt-schmal"
         onSubmit={(e) => {
           e.preventDefault();
           speichern();
         }}
       >
-        <label className="feld">
-          Angebotsgültigkeit (Tage)
-          <input
-            type="number"
-            min={0}
-            value={tage}
-            onChange={(e) => setTage(e.currentTarget.value)}
-          />
-        </label>
-        <p className="feld-hinweis">
-          Neu angelegte Angebote bekommen dieses Gültigkeitsdatum vorgeschlagen — am
-          einzelnen Angebot lässt es sich jederzeit ändern.
-        </p>
+        <div className="gruppe">
+          <label className="feld feld-schmal">
+            Angebotsgültigkeit (Tage)
+            <input
+              type="number"
+              min={0}
+              value={tage}
+              onChange={(e) => setTage(e.currentTarget.value)}
+            />
+          </label>
+          <p className="feld-hinweis">
+            Neu angelegte Angebote bekommen dieses Gültigkeitsdatum vorgeschlagen — am
+            einzelnen Angebot lässt es sich jederzeit ändern.
+          </p>
+        </div>
         <div className="aktionen aktionen-formular">
           <button type="submit" className="btn btn-primaer" disabled={laeuft}>
             {laeuft ? "Speichert …" : "Speichern"}
@@ -1026,14 +1056,14 @@ function TextbausteineAbschnitt() {
   }
 
   return (
-    <section data-tour="textbausteine">
+    <section className="abschnitt" data-tour="textbausteine">
       <h2>Textbausteine</h2>
       <Fehler fehler={fehler} />
       {hinweis}
       {TEXTBAUSTEIN_KEYS.map((key) => (
         <form
           key={key}
-          className="karte"
+          className="gruppe inhalt-schmal textbaustein"
           onSubmit={(e) => {
             e.preventDefault();
             speichern(key);
@@ -1043,8 +1073,8 @@ function TextbausteineAbschnitt() {
             {TEXTBAUSTEIN_LABEL[key]}
             <textarea value={werte[key] ?? ""} onChange={(e) => aendere(key, e.currentTarget.value)} />
           </label>
-          <div className="aktionen aktionen-formular">
-            <button type="submit" className="btn btn-primaer">Speichern</button>
+          <div className="aktionen aktionen-rechts">
+            <button type="submit" className="btn">Speichern</button>
           </div>
         </form>
       ))}

@@ -218,7 +218,7 @@ export function KundenpreiseDialog({
 
       {zeigeFormular && (
         <form
-          className="kundenpreis-formular"
+          className="gruppe"
           onSubmit={(e) => {
             e.preventDefault();
             speichern();
@@ -258,7 +258,7 @@ export function KundenpreiseDialog({
           <p className="feld-hinweis">Leer lassen heißt: gilt ab sofort.</p>
 
           <PflichtLegende />
-          <div className="aktionen aktionen-formular">
+          <div className="aktionen aktionen-formular aktionen-rechts">
             <button type="submit" className="btn btn-primaer">
               Speichern
             </button>

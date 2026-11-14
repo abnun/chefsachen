@@ -30,32 +30,38 @@ export function BelegAnlegen({
 }: BelegAnlegenProps) {
   return (
     <form
-      className="karte"
+      className="inhalt-schmal"
       onSubmit={(e) => {
         e.preventDefault();
         onAnlegen();
       }}
     >
       {fehler && <Fehler fehler={fehler} />}
-      <label className="feld">
-        <PflichtMarker art="pflicht">Kunde</PflichtMarker>
-        <select value={kundeId} onChange={(e) => onKundeId(e.currentTarget.value)}>
-          <option value="">– wählen –</option>
-          {kunden.map((k) => (
-            <option key={k.id} value={k.id}>
-              {k.name}
-            </option>
-          ))}
-        </select>
-      </label>
-      <label className="feld">
-        Datum
-        <input type="date" value={datum} onChange={(e) => onDatum(e.currentTarget.value)} />
-      </label>
+      <div className="gruppe">
+        <div className="felder-reihe felder-breit-schmal">
+          <label className="feld">
+            <PflichtMarker art="pflicht">Kunde</PflichtMarker>
+            <select value={kundeId} onChange={(e) => onKundeId(e.currentTarget.value)}>
+              <option value="">– wählen –</option>
+              {kunden.map((k) => (
+                <option key={k.id} value={k.id}>
+                  {k.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="feld">
+            Datum
+            <input type="date" value={datum} onChange={(e) => onDatum(e.currentTarget.value)} />
+          </label>
+        </div>
+      </div>
       <PflichtLegende />
-      <button type="submit" className="btn btn-primaer">
-        Anlegen
-      </button>
+      <div className="aktionen aktionen-formular">
+        <button type="submit" className="btn btn-primaer">
+          Anlegen
+        </button>
+      </div>
     </form>
   );
 }
