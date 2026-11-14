@@ -45,6 +45,10 @@ Deshalb hier in der Sprache der Anwender, nicht in der der Commits.
 - Das Feld heißt jetzt „Firmenname" statt „Name".
 
 **Kleinigkeiten**
+- War die IBAN mit Leerzeichen gespeichert, standen diese auch in der
+  XRechnung und im ZUGFeRD-Anhang, was bei der Prüfung durch den Empfänger
+  scheitern konnte. IBAN und BIC werden dort jetzt ohne Leerzeichen
+  geschrieben, ebenso im Girocode.
 - Daten bei Zahlungen, Kundenbelegen und Eingangsrechnungen stehen in
   deutscher Schreibweise (06.11.2026 statt 2026-11-06).
 - Im Reiter „Belege" eines Kunden heißen Gutschriften jetzt Gutschrift.
