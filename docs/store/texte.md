@@ -50,8 +50,11 @@ EINGANGSRECHNUNGEN
 DEINE DATEN BLEIBEN BEI DIR
 Chefsachen braucht kein Konto und keine Internetverbindung. Alle Daten
 liegen ausschließlich auf deinem Rechner. Die App sammelt nichts und
-sendet nichts. Sicherungen entstehen automatisch bei jedem Start und
-lassen sich als Datei exportieren und wieder einspielen.
+sendet nichts. Postleitzahl und Ort schlägt sie aus einer mitgelieferten
+Liste vor. Wer möchte, schaltet zusätzlich Straßenvorschläge aus dem
+Internet ein; nur dann geht das Getippte an den Dienst Photon von komoot.
+Sicherungen entstehen automatisch bei jedem Start und lassen sich als
+Datei exportieren und wieder einspielen.
 
 EHRLICH
 Chefsachen verschickt keine E-Mails: Du exportierst den Beleg und
@@ -89,5 +92,9 @@ Keine der abgefragten Inhalte: 4+ (Apple), IARC „Ab 0" bzw. USK 0.
 
 ## Datenschutzangaben (App Store Connect)
 
-„Keine Daten erfasst". Begründung: kein Netzwerkzugriff, keine Analyse,
-keine Absturzberichte an Dritte; das Protokoll bleibt lokal.
+„Keine Daten erfasst", sofern der Betreiber nach Prüfung dabei bleibt
+(siehe docs/store/checkliste.md). Begründung: keine Analyse, keine
+Absturzberichte an Dritte, das Protokoll bleibt lokal. Einziger
+Netzwerkzugriff sind die Straßenvorschläge über Photon von komoot: nach
+der Installation aus, nur nach ausdrücklichem Einschalten, Abfrage in
+Echtzeit, nichts davon erreicht den Entwickler.

@@ -35,7 +35,16 @@ Texte: `docs/store/texte.md`. Screenshots: `node vorschau/screenshots.mjs`.
       `productName` **nicht** ändern (nur der Store-Name weicht ab).
 - [ ] App-Informationen: Kategorie Wirtschaft/Finanzen, Altersfreigabe
       (alles „Nein" → 4+), Datenschutzrichtlinien-URL.
-- [ ] App-Datenschutz: „Keine Daten erfasst".
+- [ ] App-Datenschutz: „Keine Daten erfasst" prüfen. Seit den
+      Straßenvorschlägen gehen auf ausdrücklichen Wunsch des Nutzers
+      Eingaben in Echtzeit an einen Dritten (Photon von komoot: getippter
+      Text, PLZ/Ort, IP-Adresse). Die Funktion ist nach der Installation
+      aus, und der Entwickler erhält nichts davon. Apple zählt Daten, die
+      nur in Echtzeit zur Beantwortung einer Anfrage verarbeitet und nicht
+      gespeichert werden, nicht als „erfasst"; ob das für komoot gilt,
+      entscheidet der Betreiber anhand der Datenschutzerklärung von komoot.
+      Sonst „Daten nicht mit dir verknüpft" › Standort (grob, über die
+      IP-Adresse) bzw. „Andere Daten" angeben.
 - [ ] Preise und Verfügbarkeit: kostenlos; Länder nach Wunsch (sinnvoll:
       Deutschland, Österreich, Schweiz, Luxemburg).
 - [ ] Optional für `--hochladen`: Benutzer und Zugriff › Integrationen ›
@@ -67,7 +76,10 @@ Texte: `docs/store/texte.md`. Screenshots: `node vorschau/screenshots.mjs`.
       Support-URL, Build auswählen.
 - [ ] Hinweise für die Prüfung (App Review Information): „Kein Konto
       nötig. Beim ersten Start führt ein Assistent durch die Firmendaten;
-      beliebige Testdaten genügen. Die App arbeitet vollständig offline."
+      beliebige Testdaten genügen. Die App arbeitet vollständig offline.
+      Einzige Ausnahme sind die Straßenvorschläge (Einstellungen ›
+      Adressvorschläge), die nach der Installation aus sind; dafür das
+      Recht network.client."
 - [ ] Exportkonformität: Die Frage nach Verschlüsselung beantwortet
       `ITSAppUsesNonExemptEncryption = false` in `Info.plist` bereits.
 - [ ] Zur Prüfung einreichen.
@@ -76,7 +88,7 @@ Texte: `docs/store/texte.md`. Screenshots: `node vorschau/screenshots.mjs`.
 
 | Richtlinie | Umsetzung |
 |---|---|
-| 2.4.5(i) Sandbox | `Entitlements.appstore.plist`: `app-sandbox`, nur `files.user-selected.read-write` |
+| 2.4.5(i) Sandbox | `Entitlements.appstore.plist`: `app-sandbox`, `files.user-selected.read-write` und `network.client` (nur für die Straßenvorschläge, die nach der Installation aus sind) |
 | 2.4.5(vii) Updates nur über den Store | Updater-Crate im Store-Bau nicht enthalten, keine Suche in der Oberfläche |
 | 3.1.1/3.2.2 keine Spendenaufrufe außerhalb des In-App-Kaufs | Spendenhinweis und -abschnitt im Store-Bau ausgeblendet |
 | 5.1.1 Datenschutz | Datenschutzerklärung mit App-Abschnitt; `PrivacyInfo.xcprivacy` |

@@ -14,6 +14,12 @@
   runFullTrust mit Windows.FullTrustApplication: Chefsachen ist ein
   gewöhnliches Win32-Programm (Tauri mit WebView2), keine UWP-App. Mindestens
   Windows 10 1809 (Build 17763), ab dort nimmt der Store MSIX-Pakete an.
+
+  internetClient für die Straßenvorschläge (Photon von komoot). Sie sind nach
+  der Installation aus; erst nach Einschalten in den Einstellungen geht eine
+  Anfrage hinaus. Als Vollvertrauens-Programm bräuchte Chefsachen die
+  Capability technisch nicht, sie macht im Store aber sichtbar, dass das
+  Programm ins Netz gehen kann.
 -->
 <Package
   xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
@@ -53,6 +59,7 @@
   </Applications>
 
   <Capabilities>
+    <Capability Name="internetClient" />
     <rescap:Capability Name="runFullTrust" />
   </Capabilities>
 </Package>

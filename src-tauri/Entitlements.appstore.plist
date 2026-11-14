@@ -8,9 +8,14 @@
   ein; hier bleibt der Platzhalter stehen, damit nichts Kontogebundenes im
   Repository liegt.
 
-  Bewusst ohne network.client: Die Store-Fassung enthält keinen Updater, und
-  Links öffnet der Browser, nicht das Programm. Ein Recht, das nicht gebraucht
-  wird, muss bei der Prüfung begründet werden.
+  network.client nur für die Straßenvorschläge (Photon von komoot). Sie sind
+  nach der Installation aus und gehen erst ins Netz, wenn der Nutzer sie in
+  den Einstellungen einschaltet; das Programm prüft die Einwilligung vor jeder
+  Anfrage selbst (src-tauri/src/commands/adressen.rs). Ohne das Recht schlüge
+  die Anfrage in der Sandbox stumm fehl, und der Schalter täte nichts. Einen
+  Updater enthält die Store-Fassung weiterhin nicht, und Links öffnet der
+  Browser, nicht das Programm. Kein network.server: Das Programm nimmt keine
+  Verbindungen an.
 -->
 <plist version="1.0">
 <dict>
@@ -21,6 +26,10 @@
 	<!-- Import, Export und Sicherungen gehen ausschließlich über die
 	     Dateidialoge; jede gewählte Datei wird damit lesbar bzw. beschreibbar. -->
 	<key>com.apple.security.files.user-selected.read-write</key>
+	<true/>
+	<!-- Ausgehende Verbindungen, nur für die optionalen Straßenvorschläge
+	     (siehe Kommentar oben). -->
+	<key>com.apple.security.network.client</key>
 	<true/>
 	<key>com.apple.application-identifier</key>
 	<string>TEAM_ID.de.chefsachen.app</string>

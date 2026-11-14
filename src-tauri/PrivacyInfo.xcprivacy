@@ -4,7 +4,11 @@
   Datenschutzmanifest für den Mac App Store.
 
   Chefsachen erfasst keine Daten und verfolgt niemanden: Alles bleibt lokal in
-  der Datenbank im Container der App.
+  der Datenbank im Container der App. Einzige Ausnahme sind die
+  Straßenvorschläge, nach der Installation aus: Eingeschaltet geht der
+  getippte Text in Echtzeit an Photon von komoot, nicht an den Entwickler.
+  Deshalb bleibt NSPrivacyCollectedDataTypes leer; ob das so bleibt,
+  entscheidet der Betreiber (docs/store/checkliste.md).
 
   Begründet werden nur die Schnittstellen, die Apple als „required reason API"
   führt und die das Programm tatsächlich berührt:

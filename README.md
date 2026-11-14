@@ -68,6 +68,11 @@ kein Konto, keine Cloud.
   Belegarchiv als Zip und lässt sich in der App wieder einspielen
 - **Tastenkürzel** auf den Listenseiten: ⌘N/Strg+N legt einen neuen Eintrag
   an, ⌘F/Strg+F springt ins Suchfeld
+- **Adressvorschläge**: Zur Postleitzahl der Ort und umgekehrt, offline aus
+  einer mitgelieferten Liste (GeoNames, CC BY 4.0). Straßenvorschläge über
+  Photon von komoot gibt es zusätzlich, aber nur nach ausdrücklichem
+  Einschalten in den Einstellungen; erst dann geht das Getippte ins Netz.
+  Ohne Internetverbindung funktioniert alles andere unverändert
 - **Aktualisierung** über signierte Update-Pakete, angestoßen vom Nutzer
 - **Protokolldatei** für die Ferndiagnose — bewusst ohne Kunden- und
   Rechnungsdaten, damit sie sich weitergeben lässt
@@ -225,3 +230,5 @@ Die Anwendung ist noch nicht fertig. Die offenen Punkte stehen priorisiert in
 ## Lizenz
 
 [MIT](LICENSE) — © 2026 Markus Müller
+
+Mitgelieferte Daten Dritter stehen in [docs/DRITTANBIETER.md](docs/DRITTANBIETER.md).
