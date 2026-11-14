@@ -179,6 +179,70 @@ label.feld textarea {
   margin: -6px 0 var(--abstand-m);
 }
 
+/* Vorschlagsliste an einem Eingabefeld (Combobox)
+   Wie ein Menü unter macOS: schwebende Fläche mit Radius 8 und Schatten, die
+   aktive Zeile in Akzentfarbe mit heller Schrift. Die Liste liegt über dem
+   Formular statt es zu verschieben; sonst sprängen die Felder darunter bei
+   jedem Tastendruck. */
+.combobox {
+  position: relative;
+}
+
+/* Im label streckt die Spalte das Feld; in der Hülle hier muss es das selbst. */
+.combobox input {
+  width: 100%;
+}
+
+.combobox-liste {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 4px);
+  left: 0;
+  min-width: 100%;
+  max-height: 260px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 5px;
+  list-style: none;
+  background: var(--flaeche);
+  border: 1px solid var(--rand);
+  border-radius: var(--radius-m);
+  box-shadow: var(--schatten-dialog);
+  font-size: var(--text-m);
+  font-weight: 400;
+  color: var(--text);
+}
+
+.combobox-option {
+  padding: 4px 8px;
+  border-radius: 5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: default;
+}
+
+.combobox-zusatz {
+  color: var(--text-leise);
+}
+
+.combobox-option[aria-selected="true"] {
+  background: var(--akzent-flaeche);
+  color: var(--auf-akzent);
+}
+
+/* Auf der Akzentfläche wäre das leise Grau kaum lesbar; die Zeile ist ohnehin
+   hervorgehoben, der Zusatz muss nicht noch zurücktreten. */
+.combobox-option[aria-selected="true"] .combobox-zusatz {
+  color: inherit;
+}
+
+@media (forced-colors: active) {
+  .combobox-option[aria-selected="true"] {
+    outline: 2px solid Highlight;
+  }
+}
+
 /* Tabellen
    Wie die Listenansicht im Finder oder in Numbers: keine umrandete Karte,
    Zeilen im Wechsel ganz leicht getönt, Kopf klein und ohne Versalien. Die

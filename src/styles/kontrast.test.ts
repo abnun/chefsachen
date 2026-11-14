@@ -126,6 +126,9 @@ const PAARE: [string, string, string, string?][] = [
   ["Akzent-Text auf Seitenleiste", "--akzent", "--seitenleiste"],
   ["Schrift auf Akzentfläche", "--auf-akzent", "--akzent-flaeche"],
   ["Schrift auf Akzentfläche (Hover)", "--auf-akzent", "--akzent-flaeche-hover"],
+  // Vorschlagsliste der Adressfelder: Zusatz (PLZ) leise, aktive Zeile in Akzent.
+  ["Vorschlagsliste: Zusatz", "--text-leise", "--flaeche"],
+  ["Vorschlagsliste: aktive Zeile", "--auf-akzent", "--akzent-flaeche"],
   ["Fehlermeldung", "--fehler-text", "--fehler-bg"],
   ["Fehlertext auf Inhaltsfläche", "--fehler-text", "--bg"],
   ["Hinweis", "--hinweis-text", "--hinweis-bg"],

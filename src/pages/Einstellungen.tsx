@@ -11,6 +11,8 @@ import {
 } from "../api";
 import { formularFehler } from "../formularFehler";
 import { Fehler } from "../components/Fehler";
+import { AdressFelder } from "../components/AdressFelder";
+import { useOnlineAdressvorschlaege } from "../hooks/useOnlineAdressvorschlaege";
 import { PflichtLegende, PflichtMarker } from "../components/PflichtMarker";
 import { useXRechnungHilfe } from "../hooks/useXRechnungHilfe";
 // Beide nebeneinander mit Absicht: `useSpeichern` meldet neben dem Knopf und
@@ -108,6 +110,7 @@ export function Einstellungen() {
     <div>
       <Werkzeugleiste titel="Einstellungen" rundgang={schritte} />
       <FirmendatenAbschnitt />
+      <AdressvorschlaegeAbschnitt />
       <SicherungenAbschnitt />
       <EinheitenAbschnitt />
       <NummernkreiseAbschnitt />
@@ -122,6 +125,58 @@ export function Einstellungen() {
     </div>
   );
 }
+
+/**
+ * Die einzige Funktion, für die Chefsachen ins Internet geht, und deshalb
+ * ausdrücklich zum Einschalten. Die Beschreibung sagt vorher, was dabei wohin
+ * geht: Wer Kundenadressen erfasst, gibt sonst ohne es zu wissen Daten Dritter
+ * weiter.
+ *
+ * Gespeichert wird sofort beim Umschalten, wie bei der Aktualisierungssuche:
+ * Ein eigener Speichern-Knopf für ein einziges Häkchen wäre ein Schritt, den
+ * man vergisst.
+ */
+function AdressvorschlaegeAbschnitt() {
+  const [online, setzen] = useOnlineAdressvorschlaege();
+  const [fehler, setFehler] = useState<AppFehler | null>(null);
+
+  async function umschalten(an: boolean) {
+    setFehler(null);
+    try {
+      await setzen(an);
+    } catch (e) {
+      setFehler(e as AppFehler);
+    }
+  }
+
+  return (
+    <section className="abschnitt inhalt-schmal">
+      <h2>Adressvorschläge</h2>
+      <Fehler fehler={fehler} />
+      <p>
+        Zur Postleitzahl schlägt Chefsachen den Ort vor und umgekehrt, aus einer mitgelieferten
+        Liste. Dafür verlässt nichts den Rechner.
+      </p>
+      <label className="feld-checkbox">
+        <input type="checkbox" checked={online} onChange={(e) => umschalten(e.currentTarget.checked)} />
+        Adressvorschläge aus dem Internet
+      </label>
+      <p className="feld-hinweis">
+        Schlägt beim Tippen auch Straßen vor. Dazu geht, was du ins Straßenfeld tippst, an den
+        Dienst Photon von komoot (komoot GmbH, Deutschland), zusammen mit PLZ und Ort, sofern sie
+        schon eingetragen sind. Dabei erfährt komoot auch deine IP-Adresse. Das gilt ebenso für
+        Kundenadressen: Deren Straße, PLZ und Ort gehen dann auch an komoot. Ausgeschaltet wird
+        nichts übertragen. Mehr dazu in der{" "}
+        <a href={KOMOOT_DATENSCHUTZ} target="_blank" rel="noopener noreferrer">
+          Datenschutzerklärung von komoot
+        </a>
+        .
+      </p>
+    </section>
+  );
+}
+
+const KOMOOT_DATENSCHUTZ = "https://www.komoot.com/de-de/privacy";
 
 /**
  * Nur in der GitHub-Fassung: Spendenaufrufe außerhalb des In-App-Kaufs sind
@@ -301,32 +356,14 @@ function FirmendatenAbschnitt() {
             </label>
             {feldFehler("name") && <div role="alert" className="feld-fehler">{feldFehler("name")}</div>}
           </div>
-          <div className="feld">
-            <label>
-              <PflichtMarker art="pflicht">Straße</PflichtMarker>
-              <input
-                value={firma.strasse}
-                onChange={(e) => setFirma({ ...firma, strasse: e.currentTarget.value })}
-              />
-            </label>
-            {feldFehler("strasse") && <div role="alert" className="feld-fehler">{feldFehler("strasse")}</div>}
-          </div>
-          <div className="felder-reihe felder-plz-ort">
-            <div className="feld">
-              <label>
-                <PflichtMarker art="pflicht">PLZ</PflichtMarker>
-                <input value={firma.plz} onChange={(e) => setFirma({ ...firma, plz: e.currentTarget.value })} />
-              </label>
-              {feldFehler("plz") && <div role="alert" className="feld-fehler">{feldFehler("plz")}</div>}
-            </div>
-            <div className="feld">
-              <label>
-                <PflichtMarker art="pflicht">Ort</PflichtMarker>
-                <input value={firma.ort} onChange={(e) => setFirma({ ...firma, ort: e.currentTarget.value })} />
-              </label>
-              {feldFehler("ort") && <div role="alert" className="feld-fehler">{feldFehler("ort")}</div>}
-            </div>
-          </div>
+          <AdressFelder
+            strasse={firma.strasse}
+            plz={firma.plz}
+            ort={firma.ort}
+            land={firma.land}
+            onAendern={(aenderung) => setFirma({ ...firma, ...aenderung })}
+            feldFehler={feldFehler}
+          />
           <div className="feld feld-schmal">
             <label>
               <PflichtMarker art="pflicht">Land</PflichtMarker>

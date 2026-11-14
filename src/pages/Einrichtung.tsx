@@ -4,6 +4,7 @@ import { readFile } from "@tauri-apps/plugin-fs";
 import { api, istValidierungsfehler, type AppFehler, type Firma, type ZipImport } from "../api";
 import { formularFehler } from "../formularFehler";
 import { Fehler } from "../components/Fehler";
+import { AdressFelder } from "../components/AdressFelder";
 import { PflichtLegende, PflichtMarker } from "../components/PflichtMarker";
 import { useXRechnungHilfe } from "../hooks/useXRechnungHilfe";
 import { aktuellePlattform } from "../plattform";
@@ -212,32 +213,14 @@ export function Einrichtung({ onFertig }: EinrichtungProps) {
               </label>
               {feldFehler("name") && <div className="feld-fehler" role="alert">{feldFehler("name")}</div>}
             </div>
-            <div className="feld">
-              <label>
-                <PflichtMarker art="pflicht">Straße</PflichtMarker>
-                <input
-                  value={firma.strasse}
-                  onChange={(e) => feldAendern({ strasse: e.currentTarget.value })}
-                />
-              </label>
-              {feldFehler("strasse") && <div className="feld-fehler" role="alert">{feldFehler("strasse")}</div>}
-            </div>
-            <div className="felder-reihe felder-plz-ort">
-              <div className="feld">
-                <label>
-                  <PflichtMarker art="pflicht">PLZ</PflichtMarker>
-                  <input value={firma.plz} onChange={(e) => feldAendern({ plz: e.currentTarget.value })} />
-                </label>
-                {feldFehler("plz") && <div className="feld-fehler" role="alert">{feldFehler("plz")}</div>}
-              </div>
-              <div className="feld">
-                <label>
-                  <PflichtMarker art="pflicht">Ort</PflichtMarker>
-                  <input value={firma.ort} onChange={(e) => feldAendern({ ort: e.currentTarget.value })} />
-                </label>
-                {feldFehler("ort") && <div className="feld-fehler" role="alert">{feldFehler("ort")}</div>}
-              </div>
-            </div>
+            <AdressFelder
+              strasse={firma.strasse}
+              plz={firma.plz}
+              ort={firma.ort}
+              land={firma.land}
+              onAendern={feldAendern}
+              feldFehler={feldFehler}
+            />
           </div>
           <div className="gruppe">
             <div className="felder-reihe">

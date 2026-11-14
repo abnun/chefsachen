@@ -595,3 +595,37 @@ describe("Einstellungen", () => {
     expect(screen.getByText(/Aktualisierungen kommen über den App Store\./, { selector: "p:not(.feld-hinweis)" })).toBeTruthy();
   });
 });
+
+describe("Einstellungen: Adressvorschläge", () => {
+  it("sind nach der Installation aus und erklären, was bei komoot ankäme", async () => {
+    render(<EinstellungenMitAnbieter />);
+    const schalter = await screen.findByRole("checkbox", { name: "Adressvorschläge aus dem Internet" });
+    expect(schalter).not.toBeChecked();
+    const abschnitt = schalter.closest("section") as HTMLElement;
+    expect(within(abschnitt).getByText(/Photon von komoot/)).toBeTruthy();
+    expect(within(abschnitt).getByText(/IP-Adresse/)).toBeTruthy();
+    expect(within(abschnitt).getByText(/Kundenadressen/)).toBeTruthy();
+    expect(within(abschnitt).getByRole("link", { name: /Datenschutzerklärung von komoot/ })).toHaveAttribute(
+      "href",
+      "https://www.komoot.com/de-de/privacy",
+    );
+  });
+
+  it("speichert das Einschalten und macht das Straßenfeld sofort zur Vorschlagsliste", async () => {
+    render(<EinstellungenMitAnbieter />);
+    await waitFor(() => expect(screen.getByDisplayValue("Musterfirma")).toBeTruthy());
+    expect(screen.queryByRole("combobox", { name: /Straße/ })).toBeNull();
+    fireEvent.click(await screen.findByRole("checkbox", { name: "Adressvorschläge aus dem Internet" }));
+    await waitFor(() =>
+      expect(api.einstellungen.set).toHaveBeenCalledWith("adressen.online_vorschlaege", "true"),
+    );
+    expect(await screen.findByRole("combobox", { name: /Straße/ })).toBeTruthy();
+  });
+
+  it("nennt die Quelle der Postleitzahlen unter Programmversion", async () => {
+    render(<EinstellungenMitAnbieter />);
+    const quelle = await screen.findByRole("link", { name: "GeoNames" });
+    expect(quelle).toHaveAttribute("href", "https://www.geonames.org");
+    expect(screen.getByText(/CC BY 4\.0/)).toBeTruthy();
+  });
+});

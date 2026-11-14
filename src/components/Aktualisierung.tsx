@@ -126,6 +126,17 @@ export function Aktualisierung() {
           </button>
         </>
       )}
+      {/* CC BY 4.0 verlangt die Namensnennung dort, wo die Daten genutzt
+          werden. Hier steht sie, weil die Programmversion der Ort ist, an dem
+          man nach Herkunft und Stand fragt. */}
+      <h3>Quellen</h3>
+      <p>
+        Postleitzahlen und Orte:{" "}
+        <a href="https://www.geonames.org" target="_blank" rel="noopener noreferrer">
+          GeoNames
+        </a>
+        , Lizenz CC BY 4.0, für Chefsachen um Großkunden-Postleitzahlen gekürzt.
+      </p>
     </section>
   );
 }

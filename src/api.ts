@@ -31,6 +31,14 @@ export interface Adresse {
   land: string;
   ist_standard: boolean;
 }
+/** Ein Straßenvorschlag von Photon (komoot), nur nach Einwilligung. */
+export interface Adressvorschlag {
+  strasse: string;
+  /** Leer, wenn der Treffer die Straße als Ganzes meint. */
+  hausnummer: string;
+  plz: string;
+  ort: string;
+}
 export interface Ansprechpartner {
   id: string;
   kunde_id: string;
@@ -555,6 +563,14 @@ export const api = {
     pruefen: (firma: Firma) => invoke<void>("firma_pruefen", { firma }),
     logoSet: (bytes: number[]) => invoke<void>("firma_logo_set", { bytes }),
     logoGet: () => invoke<number[] | null>("firma_logo_get"),
+  },
+  adressen: {
+    /**
+     * Straßenvorschläge aus dem Internet. Das Backend prüft die Einwilligung
+     * selbst und liefert ohne sie eine leere Liste, ohne Anfrage.
+     */
+    vorschlagen: (text: string, plz: string | null, ort: string | null) =>
+      invoke<Adressvorschlag[]>("adresse_vorschlagen", { text, plz, ort }),
   },
   einstellungen: {
     get: (key: string) => invoke<string | null>("einstellung_get", { key }),

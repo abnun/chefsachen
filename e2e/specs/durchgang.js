@@ -18,8 +18,12 @@
  */
 
 async function feld(beschriftung) {
+  // Dritter Fall: Felder mit Vorschlagsliste (Straße, Ort) stehen neben ihrer
+  // Beschriftung, nicht darin, und hängen über `for` an ihr. Läge die Liste
+  // im label, gehörten alle Vorschläge zum Namen des Felds.
   return await $(
-    `//label[contains(., "${beschriftung}")]//input | //label[contains(., "${beschriftung}")]//select`,
+    `//label[contains(., "${beschriftung}")]//input | //label[contains(., "${beschriftung}")]//select` +
+      ` | //input[@id = //label[contains(., "${beschriftung}")]/@for]`,
   );
 }
 

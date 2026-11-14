@@ -159,6 +159,15 @@ function tageZwischen(von: string, bis: string): number {
 // Handler
 // ---------------------------------------------------------------------------
 
+/** Beispieltreffer für die Straßenvorschläge der Vorschau. */
+const BEISPIEL_STRASSEN = [
+  { strasse: "Hauptstraße", hausnummer: "12", plz: "74076", ort: "Heilbronn" },
+  { strasse: "Hauptstraße", hausnummer: "", plz: "74172", ort: "Neckarsulm" },
+  { strasse: "Hafenstraße", hausnummer: "3", plz: "20459", ort: "Hamburg" },
+  { strasse: "Paul-Göbel-Straße", hausnummer: "1", plz: "74076", ort: "Heilbronn" },
+  { strasse: "Parkstraße", hausnummer: "8", plz: "01069", ort: "Dresden" },
+];
+
 export function backendErstellen(b: Bestand) {
   function kundenName(id: string): string {
     return b.kunden.find((k) => k.id === id)?.name ?? "";
@@ -571,6 +580,15 @@ export function backendErstellen(b: Bestand) {
       return null;
     },
     nummernkreis_list: () => b.nummernkreise,
+
+    // Adressvorschläge: Wie im Backend nur nach Einwilligung, sonst leer. Die
+    // Vorschau geht nie ins Netz, sie filtert eine feste Beispielliste.
+    adresse_vorschlagen: (a) => {
+      if (b.einstellungen.get("adressen.online_vorschlaege") !== "true") return [];
+      const text = String(a.text ?? "").trim().toLowerCase();
+      if (text.length < 3) return [];
+      return BEISPIEL_STRASSEN.filter((s) => s.strasse.toLowerCase().startsWith(text)).slice(0, 5);
+    },
     nummernkreis_update: (a) => {
       const nk = b.nummernkreise.find((n) => n.art === a.art);
       if (nk) {

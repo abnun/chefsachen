@@ -11,6 +11,7 @@ import {
 } from "../api";
 import { formularFehler } from "../formularFehler";
 import { Fehler } from "../components/Fehler";
+import { AdressFelder } from "../components/AdressFelder";
 import { PflichtLegende, PflichtMarker } from "../components/PflichtMarker";
 import { useXRechnungHilfe } from "../hooks/useXRechnungHilfe";
 import { Laden } from "../components/Laden";
@@ -554,29 +555,14 @@ function AdressenReiter({ kundeId, adressen, onGeaendert }: AdressenReiterProps)
               <option value="lieferung">Lieferung</option>
             </select>
           </label>
-          <div className="feld">
-            <label>
-              <PflichtMarker art="pflicht">Straße</PflichtMarker>
-              <input value={form.strasse} onChange={(e) => setForm({ ...form, strasse: e.currentTarget.value })} />
-            </label>
-            {feldFehler("strasse") && <div className="feld-fehler" role="alert">{feldFehler("strasse")}</div>}
-          </div>
-          <div className="felder-reihe felder-plz-ort">
-            <div className="feld">
-              <label>
-                <PflichtMarker art="pflicht">PLZ</PflichtMarker>
-                <input value={form.plz} onChange={(e) => setForm({ ...form, plz: e.currentTarget.value })} />
-              </label>
-              {feldFehler("plz") && <div className="feld-fehler" role="alert">{feldFehler("plz")}</div>}
-            </div>
-            <div className="feld">
-              <label>
-                <PflichtMarker art="pflicht">Ort</PflichtMarker>
-                <input value={form.ort} onChange={(e) => setForm({ ...form, ort: e.currentTarget.value })} />
-              </label>
-              {feldFehler("ort") && <div className="feld-fehler" role="alert">{feldFehler("ort")}</div>}
-            </div>
-          </div>
+          <AdressFelder
+            strasse={form.strasse}
+            plz={form.plz}
+            ort={form.ort}
+            land={form.land}
+            onAendern={(aenderung) => setForm({ ...form, ...aenderung })}
+            feldFehler={feldFehler}
+          />
           <div className="feld feld-schmal">
             <label>
               <PflichtMarker art="pflicht">Land</PflichtMarker>
