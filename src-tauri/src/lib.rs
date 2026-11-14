@@ -202,6 +202,7 @@ fn mit_befehlen<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri::Builder
             commands::einstellungen::einstellung_list,
             commands::einstellungen::nummernkreis_list,
             commands::einstellungen::nummernkreis_update,
+            commands::adressen::adresse_vorschlagen,
             commands::eingangsrechnungen::eingangsrechnung_import_vorschau,
             commands::eingangsrechnungen::eingangsrechnung_speichern,
             commands::eingangsrechnungen::eingangsrechnung_list,

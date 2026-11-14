@@ -327,3 +327,20 @@ fn ein_export_landet_wirklich_auf_der_platte() {
 
     assert_eq!(std::fs::read(&ziel).unwrap(), b"%PDF");
 }
+
+#[test]
+fn adressvorschlaege_sind_erreichbar_und_ohne_einwilligung_leer() {
+    let (_dir, fenster) = test_app();
+
+    // Erreichbar mit genau den Argumentnamen, die die Oberfläche schickt. Ohne
+    // Einwilligung kommt eine leere Liste zurück, und zwar ohne Netzanfrage:
+    // Die Prüfung steht vor dem Abruf (siehe commands::adressen). Liefe der
+    // Test doch ins Netz, wäre das ein Fehler in genau dieser Prüfung.
+    let ergebnis = rufe(
+        &fenster,
+        "adresse_vorschlagen",
+        serde_json::json!({ "text": "Hauptstraße", "plz": "74076", "ort": null }),
+    )
+    .expect("adresse_vorschlagen abgelehnt");
+    assert_eq!(ergebnis, serde_json::json!([]));
+}

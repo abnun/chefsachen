@@ -51,6 +51,15 @@ zip = { version = "9", default-features = false, features = ["deflate"] }
 # nur die Modul-Matrix wird gebraucht, Typst zeichnet sie als Vektor-Rechtecke.
 qrcode = { version = "0.14", default-features = false }
 tauri-plugin-window-state = "2.4.1"
+# Für die optionalen Straßenvorschläge (Photon von komoot), nur nach
+# Einwilligung in den Einstellungen. Ohne Standard-Features, damit weder
+# OpenSSL noch ein zweiter Krypto-Anbieter (aws-lc) ins Programm kommt:
+# rustls mit ring, wie ihn der Updater ohnehin mitbringt. In den
+# Store-Fassungen fehlt der Updater, deshalb steht rustls hier selbst.
+reqwest = { version = "0.13", default-features = false, features = ["rustls-no-provider"] }
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
+# Baut die Anfrage-URL mit sauber kodierten Parametern.
+url = "2"
 
 [dev-dependencies]
 # "test" liefert mock_builder/get_ipc_response — damit lassen sich Befehle über

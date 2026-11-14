@@ -1,3 +1,4 @@
+pub mod adressen;
 pub mod artikel;
 pub mod auswertung;
 pub mod belege;
