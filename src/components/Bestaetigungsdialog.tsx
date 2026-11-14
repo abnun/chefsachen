@@ -39,6 +39,7 @@ export function Bestaetigungsdialog({
     <Dialog
       titel={text}
       breit={Boolean(zusatz)}
+      rueckfrage
       onSchliessen={onAbbrechen}
       aktionen={
         <>

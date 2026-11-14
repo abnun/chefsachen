@@ -13,10 +13,19 @@ interface DialogProps {
   onSchliessen: () => void;
   /** Breiter Zuschnitt für Inhalte mit einer Tabelle statt einer Rückfrage. */
   breit?: boolean;
+  /**
+   * Der Titel ist eine ausformulierte Rückfrage statt einer Überschrift und
+   * steht deshalb in normaler Schrift.
+   */
+  rueckfrage?: boolean;
 }
 
 /**
  * Modaler Dialog: Overlay, Fokusfalle, Escape.
+ *
+ * Dargestellt als Blatt wie unter macOS: oben am Fenster unter der
+ * Werkzeugleiste verankert, von dort eingeblendet, Schaltflächen rechts mit
+ * der Hauptaktion ganz außen. Am Verhalten ändert die Form nichts.
  *
  * Herausgelöst, als der zweite Dialog dazukam. Die Fokusbehandlung ein zweites
  * Mal abzuschreiben wäre in diesem Projekt schon zweimal schiefgegangen — die
@@ -27,7 +36,7 @@ interface DialogProps {
  * liest dann Inhalte vor, die das Overlay verdeckt (WCAG 2.4.3). Beim Schließen
  * geht der Fokus dorthin zurück, wo er herkam.
  */
-export function Dialog({ titel, children, aktionen, onSchliessen, breit }: DialogProps) {
+export function Dialog({ titel, children, aktionen, onSchliessen, breit, rueckfrage }: DialogProps) {
   const karte = useRef<HTMLDivElement>(null);
   const erstesZiel = useRef<HTMLButtonElement>(null);
   const titelId = useId();
@@ -94,7 +103,9 @@ export function Dialog({ titel, children, aktionen, onSchliessen, breit }: Dialo
         aria-labelledby={titelId}
         onClick={(e) => e.stopPropagation()}
       >
-        <p id={titelId}>{titel}</p>
+        <p id={titelId} className={rueckfrage ? "dialog-titel rueckfrage" : "dialog-titel"}>
+          {titel}
+        </p>
         {children}
         <div className="aktionen aktionen-rechts aktionen-formular">{aktionen}</div>
       </div>

@@ -26,6 +26,11 @@ const RUNDGANG_SCHRITTE: FuehrungsSchritt[] = [
     text: "Was in diesem Jahr tatsächlich bezahlt wurde — nicht was in Rechnung gestellt ist. Gezählt wird nach Zufluss: wann das Geld kam, nicht wann die Rechnung gestellt wurde.",
   },
   {
+    ziel: "[data-tour='kleinunternehmergrenzen']",
+    titel: "Kleinunternehmergrenzen",
+    text: "Wie nah der Umsatz an den beiden Grenzen aus § 19 UStG liegt — ein Frühwarnsystem, keine verbindliche Auskunft.",
+  },
+  {
     ziel: "[data-tour='offene-rechnungen']",
     titel: "Offene Rechnungen",
     text: "Gestellte Rechnungen, die noch nicht (vollständig) bezahlt sind, mit Fälligkeit — überfällige sind farblich markiert.",
@@ -39,11 +44,6 @@ const RUNDGANG_SCHRITTE: FuehrungsSchritt[] = [
     ziel: "[data-tour='zuletzt-bearbeitet']",
     titel: "Zuletzt bearbeitet",
     text: "Die letzten Angebote und Rechnungen, unabhängig vom Status — der schnellste Weg zurück zu etwas, an dem gerade gearbeitet wurde.",
-  },
-  {
-    ziel: "[data-tour='kleinunternehmergrenzen']",
-    titel: "Kleinunternehmergrenzen",
-    text: "Wie nah der Umsatz an den beiden Grenzen aus § 19 UStG liegt — ein Frühwarnsystem, keine verbindliche Auskunft.",
   },
 ];
 
@@ -199,17 +199,62 @@ export function Dashboard({
           vorbeiscrollen, die alle auf null stehen. */}
       <ErsteSchritte hatBelege={daten.letzte_belege.length > 0} onStarten={onErsterSchritt} />
 
-      <section className="karte" data-tour="umsatz">
-        <h2>Vereinnahmter Umsatz</h2>
-        <p className="kennzahl">{formatCent(daten.umsatz_laufendes_jahr_cent)}</p>
-        <p className="kennzahl-neben">
-          Vorjahr: {formatCent(daten.umsatz_vorjahr_cent)}
+      {/* Kopf der Übersicht: der Umsatz als Angabe, nicht als Kachel, und
+          gleich darunter die Grenzen, an denen er gemessen wird. Beides
+          gehört zusammen; vorher lagen drei Tabellen dazwischen. */}
+      <section className="umsatz-kopf" data-tour="umsatz" aria-labelledby="umsatz-titel">
+        <h2 id="umsatz-titel">Vereinnahmt {daten.jahr}</h2>
+        <p className="umsatz-zeile">
+          <span className="umsatz-betrag">{formatCent(daten.umsatz_laufendes_jahr_cent)}</span>
+          <span className="umsatz-vorjahr">Vorjahr: {formatCent(daten.umsatz_vorjahr_cent)}</span>
         </p>
         <p className="feld-hinweis">
           Gezählt wird, wann Geld geflossen ist, nicht wann eine Rechnung gestellt
           wurde (Zuflussprinzip). Erstattungen mindern den Betrag.
         </p>
       </section>
+
+      {g && (
+        <section className="grenzen" data-tour="kleinunternehmergrenzen">
+          <h2>
+            Kleinunternehmergrenzen
+            {g.ist_gruendungsjahr && <span className="marke"> Gründungsjahr</span>}
+          </h2>
+
+          <div className="grenzen-raster">
+            <GrenzenBalken
+              titel={`Laufendes Jahr gegen ${grenzeText(g.laufendes_jahr_gegen_jahresgrenze.grenze_cent)}`}
+              erlaeuterung="Wird diese Grenze überschritten, endet die Regelung sofort — mit dem Umsatz, der sie reißt."
+              grenze={g.laufendes_jahr_gegen_jahresgrenze}
+            />
+
+            {!g.ist_gruendungsjahr && (
+              <GrenzenBalken
+                titel={`Laufendes Jahr gegen ${grenzeText(g.laufendes_jahr_gegen_vorjahresgrenze.grenze_cent)}`}
+                erlaeuterung="Dieser Wert entscheidet, ob die Regelung im nächsten Jahr noch gilt."
+                grenze={g.laufendes_jahr_gegen_vorjahresgrenze}
+              />
+            )}
+
+            <GrenzenBalken
+              titel={`Vorjahr gegen ${grenzeText(g.vorjahr_gegen_vorjahresgrenze.grenze_cent)}`}
+              erlaeuterung="Dieser Wert entscheidet, ob die Regelung im laufenden Jahr überhaupt gilt."
+              grenze={g.vorjahr_gegen_vorjahresgrenze}
+            />
+          </div>
+
+          <p className="feld-hinweis">
+            Maßgeblich ist der Gesamtumsatz nach § 19 Abs. 2 UStG. Dieser umfasst alle
+            Umsätze — auch solche, die nicht über dieses Programm abgerechnet wurden — und
+            kennt Sonderfälle wie den Verkauf von Anlagevermögen. Die Anzeige ist ein
+            Frühwarnsystem, keine verbindliche Auskunft.
+          </p>
+        </section>
+      )}
+
+      {g?.hinweise.map((h, i) => (
+        <HinweisKarte key={i} hinweis={h} />
+      ))}
 
       <section className="abschnitt" data-tour="offene-rechnungen">
         <h2>Offene Rechnungen</h2>
@@ -319,48 +364,6 @@ export function Dashboard({
         )}
       </section>
 
-      {/* Ganz unten: wichtig, aber der tägliche Blick auf offene Rechnungen
-          und Angebote geht vor — die Grenzen ändern sich selten von einem Tag
-          auf den anderen. */}
-      {g && (
-        <section className="karte" data-tour="kleinunternehmergrenzen">
-          <h2>
-            Kleinunternehmergrenzen
-            {g.ist_gruendungsjahr && <span className="marke"> Gründungsjahr</span>}
-          </h2>
-
-          <GrenzenBalken
-            titel={`Laufendes Jahr gegen ${grenzeText(g.laufendes_jahr_gegen_jahresgrenze.grenze_cent)}`}
-            erlaeuterung="Wird diese Grenze überschritten, endet die Regelung sofort — mit dem Umsatz, der sie reißt."
-            grenze={g.laufendes_jahr_gegen_jahresgrenze}
-          />
-
-          {!g.ist_gruendungsjahr && (
-            <GrenzenBalken
-              titel={`Laufendes Jahr gegen ${grenzeText(g.laufendes_jahr_gegen_vorjahresgrenze.grenze_cent)}`}
-              erlaeuterung="Dieser Wert entscheidet, ob die Regelung im nächsten Jahr noch gilt."
-              grenze={g.laufendes_jahr_gegen_vorjahresgrenze}
-            />
-          )}
-
-          <GrenzenBalken
-            titel={`Vorjahr gegen ${grenzeText(g.vorjahr_gegen_vorjahresgrenze.grenze_cent)}`}
-            erlaeuterung="Dieser Wert entscheidet, ob die Regelung im laufenden Jahr überhaupt gilt."
-            grenze={g.vorjahr_gegen_vorjahresgrenze}
-          />
-
-          <p className="feld-hinweis">
-            Maßgeblich ist der Gesamtumsatz nach § 19 Abs. 2 UStG. Dieser umfasst alle
-            Umsätze — auch solche, die nicht über dieses Programm abgerechnet wurden — und
-            kennt Sonderfälle wie den Verkauf von Anlagevermögen. Die Anzeige ist ein
-            Frühwarnsystem, keine verbindliche Auskunft.
-          </p>
-        </section>
-      )}
-
-      {g?.hinweise.map((h, i) => (
-        <HinweisKarte key={i} hinweis={h} />
-      ))}
     </div>
   );
 }
