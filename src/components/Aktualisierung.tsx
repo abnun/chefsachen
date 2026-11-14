@@ -137,6 +137,12 @@ export function Aktualisierung() {
         </a>
         , Lizenz CC BY 4.0, für Chefsachen um Großkunden-Postleitzahlen gekürzt.
       </p>
+      {/* Die Nutzungsbedingungen der Bundesbank erlauben das Weitergeben nur
+          mit genau dieser Angabe. */}
+      <p>
+        Bankleitzahlen und BIC: Quelle: Deutsche Bundesbank, Bankleitzahlendatei, als Auszug
+        (je Bankleitzahl der BIC der Hauptstelle, Werte unverändert).
+      </p>
     </section>
   );
 }

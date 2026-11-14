@@ -128,6 +128,19 @@ Der Workflow `release.yml` baut Installer für macOS und Windows und legt einen
 veröffentlichte Releases. **Der Entwurf muss auf GitHub also noch
 veröffentlicht werden**, sonst erfährt kein Bestandsnutzer von der Version.
 
+Einmal im Quartal gehört die Bankleitzahlendatei dazu. Die Bundesbank gibt
+sie zu Anfang März, Juni, September und Dezember neu heraus; aus ihr trägt das
+IBAN-Feld den BIC ein. Auffrischen mit
+
+```bash
+node scripts/blz-daten.mjs --neue-pruefsumme
+```
+
+dann die ausgegebene Prüfsumme in `scripts/blz-daten.mjs` eintragen und
+`src/daten/blz-bic.txt` mit dem Skript zusammen einchecken. Ohne den Schalter
+bricht das Skript bei einem neuen Stand ab, damit niemand ihn ungesehen
+übernimmt.
+
 Voraussetzung dafür ist das Repository-Secret `TAURI_SIGNING_PRIVATE_KEY` mit
 dem privaten Signaturschlüssel. Er liegt **nicht** im Repository; geht er
 verloren, lassen sich für bestehende Installationen keine Updates mehr

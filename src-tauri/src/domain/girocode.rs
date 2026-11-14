@@ -26,14 +26,18 @@ pub fn epc_payload(name: &str, iban: &str, bic: &str, betrag_cent: Option<i64>, 
     let betrag = betrag_cent
         .map(|cent| format!("EUR{}.{:02}", cent / 100, cent % 100))
         .unwrap_or_default();
+    // IBAN und BIC ohne Leerzeichen: Die Oberfläche speichert die IBAN in
+    // Viererblöcken, und nicht jede Banking-App liest sie so aus dem Code.
+    let iban = crate::domain::bankverbindung::normalisieren(iban);
+    let bic = crate::domain::bankverbindung::normalisieren(bic);
     [
         "BCD",
         "002",
         "1",
         "SCT",
-        bic,
+        &bic,
         &kappe(name, 70),
-        iban,
+        &iban,
         &betrag,
         "",
         "",
@@ -69,6 +73,17 @@ mod tests {
             payload,
             "BCD\n002\n1\nSCT\n\nMax Mustermann\nDE89370400440532013000\nEUR25.50\n\n\nMitgliedsbeitrag"
         );
+    }
+
+    /// Die Oberfläche speichert die IBAN in Viererblöcken. Banking-Apps lesen
+    /// eine IBAN mit Leerzeichen im Girocode teils gar nicht, deshalb kommt
+    /// sie hier ohne an, ebenso der BIC.
+    #[test]
+    fn epc_payload_schreibt_iban_und_bic_ohne_leerzeichen() {
+        let payload = epc_payload("Max Mustermann", "DE89 3704 0044 0532 0130 00", " cobadeff xxx", Some(100), "");
+        let zeilen: Vec<&str> = payload.split('\n').collect();
+        assert_eq!(zeilen[4], "COBADEFFXXX");
+        assert_eq!(zeilen[6], "DE89370400440532013000");
     }
 
     #[test]

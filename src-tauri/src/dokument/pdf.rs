@@ -78,8 +78,7 @@ fn girocode_matrix_json(
     if !vorlage.zeigt_girocode || firma.iban.trim().is_empty() || betrag_cent <= 0 {
         return "[]".to_string();
     }
-    let iban = crate::domain::bankverbindung::normalisieren(&firma.iban);
-    let payload = crate::domain::girocode::epc_payload(&firma.name, &iban, &firma.bic, Some(betrag_cent), verwendungszweck);
+    let payload = crate::domain::girocode::epc_payload(&firma.name, &firma.iban, &firma.bic, Some(betrag_cent), verwendungszweck);
     match crate::domain::girocode::qr_matrix(&payload) {
         Ok(matrix) => serde_json::to_string(&matrix).unwrap_or_else(|_| "[]".to_string()),
         Err(_) => "[]".to_string(),

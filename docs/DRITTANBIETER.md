@@ -25,6 +25,40 @@ geht es um mitgelieferte Daten und um angesprochene Dienste.
 Geprüft am 14.11.2026 anhand von
 <https://download.geonames.org/export/zip/readme.txt>.
 
+## Bankleitzahlen und BIC: Deutsche Bundesbank
+
+- Datei: `src/daten/blz-bic.txt` (rund 50 KB), erzeugt von
+  `scripts/blz-daten.mjs`
+- Quelle: Bankleitzahlendatei der Deutschen Bundesbank, unverbindliche
+  Fassung im TXT-Format von
+  <https://www.bundesbank.de/de/aufgaben/unbarer-zahlungsverkehr/serviceangebot/bankleitzahlen/download-bankleitzahlen-602592>.
+  Eingecheckt ist der Stand gültig vom 07.09.2026 bis 06.12.2026.
+- Bedingungen: Die Downloadseite verweist für die Verwendung auf die
+  Hinweise im Impressum; dort gelten die „Nutzungsbedingungen für den
+  allgemeinen Gebrauch der Website" (Benutzerhinweise), Abschnitt 4.1:
+  „Es steht Ihnen frei, für Ihren persönlichen oder geschäftlichen Gebrauch
+  von der Deutschen Bundesbank erstellte Informationen in körperlicher oder
+  elektronischer Form zu speichern, weiterzugeben oder zu vervielfältigen.
+  Die Informationen dürfen nicht verändert oder verfälscht werden." Weitergabe
+  und Vervielfältigung „haben unter der folgenden Angabe zu erfolgen:
+  ‚Quelle: Deutsche Bundesbank'".
+- Umsetzung dieser Bedingungen: Die Datei ist ein Auszug. Übernommen werden
+  nur Bankleitzahl und BIC, beide Zeichen für Zeichen unverändert; je
+  Bankleitzahl der BIC der Hauptstelle (Merkmal 1), Filialen und Namen
+  fallen weg. Die Angabe „Quelle: Deutsche Bundesbank" steht im Kopf der
+  Datei, hier und im Programm unter Einstellungen › Programmversion.
+- Gewähr: Die Bundesbank stellt die Datei im Internet ausdrücklich
+  unverbindlich bereit (verbindlich ist nur der Abruf über ihre Plattform
+  NExt für Zahlungsdienstleister) und haftet nach Abschnitt 2 der
+  Nutzungsbedingungen nur für Vorsatz und grobe Fahrlässigkeit. Chefsachen
+  trägt den BIC deshalb nur als Vorschlag in ein leeres Feld ein.
+- Aktualität: vierteljährlich neu, Auffrischen siehe README, „Eine neue
+  Version veröffentlichen".
+
+Geprüft am 14.11.2026 anhand der Downloadseite und von
+<https://www.bundesbank.de/de/startseite/benutzerhinweise/benutzerhinweise-642874>
+(Eintrag „Nutzungsbedingungen - Für den allgemeinen Gebrauch der Website").
+
 ## Straßenvorschläge: Photon von komoot (Dienst, keine Daten im Programm)
 
 - Dienst: <https://photon.komoot.io>, betrieben von der komoot GmbH,

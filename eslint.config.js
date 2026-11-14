@@ -86,7 +86,7 @@ export default tseslint.config(
     },
   },
   {
-    // Hilfsskripte wie scripts/plz-daten.mjs laufen in Node.
+    // Hilfsskripte wie scripts/plz-daten.mjs und scripts/blz-daten.mjs laufen in Node.
     files: ["scripts/**/*.mjs"],
     languageOptions: {
       globals: {
@@ -94,6 +94,7 @@ export default tseslint.config(
         console: "readonly",
         Buffer: "readonly",
         fetch: "readonly",
+        URL: "readonly",
       },
     },
   },

@@ -402,11 +402,16 @@ pub fn xml_erzeugen(kontext: &BelegKontext) -> AppResult<String> {
         xml.auf("ram:SpecifiedTradeSettlementPaymentMeans");
         xml.feld( "ram:TypeCode", "58");
         xml.auf("ram:PayeePartyCreditorFinancialAccount");
-        xml.feld( "ram:IBANID", &kontext.firma.iban);
+        // Ohne Leerzeichen: Die Oberfläche speichert die IBAN in Viererblöcken,
+        // in der XRechnung ist sie ein Bezeichner (BT-84, BR-DE-19). Bereinigt
+        // wird hier und nicht beim Speichern, weil Belege die Firma als Abbild
+        // tragen und ältere Abbilder sonst unbereinigt blieben.
+        let bank = crate::domain::bankverbindung::normalisieren;
+        xml.feld( "ram:IBANID", &bank(&kontext.firma.iban));
         xml.zu("ram:PayeePartyCreditorFinancialAccount");
         if !kontext.firma.bic.trim().is_empty() {
             xml.auf("ram:PayeeSpecifiedCreditorFinancialInstitution");
-            xml.feld( "ram:BICID", &kontext.firma.bic);
+            xml.feld( "ram:BICID", &bank(&kontext.firma.bic));
             xml.zu("ram:PayeeSpecifiedCreditorFinancialInstitution");
         }
         xml.zu("ram:SpecifiedTradeSettlementPaymentMeans");
@@ -928,6 +933,20 @@ pub(crate) mod tests {
         assert!(xml.contains("<ram:TypeCode>58</ram:TypeCode>"));
         assert!(xml.contains("<ram:IBANID>DE02120300000000202051</ram:IBANID>"));
         assert!(xml.contains("<ram:BICID>BYLADEM1001</ram:BICID>"));
+    }
+
+    /// Die Oberfläche speichert die IBAN in Viererblöcken. In der XRechnung
+    /// ist sie ein Bezeichner (BT-84) ohne Leerzeichen; mit ihnen meldet der
+    /// amtliche Validator BR-DE-19. Ältere Belege tragen die Firma als
+    /// Abbild, deshalb wird beim Schreiben bereinigt, nicht beim Speichern.
+    #[test]
+    fn xml_erzeugen_schreibt_iban_und_bic_ohne_leerzeichen() {
+        let mut kontext = test_kontext(None, 9500);
+        kontext.firma.iban = "DE02 1203 0000 0000 2020 51".into();
+        kontext.firma.bic = "byladem1001 ".into();
+        let xml = xml_erzeugen(&kontext).unwrap();
+        assert!(xml.contains("<ram:IBANID>DE02120300000000202051</ram:IBANID>"), "{xml}");
+        assert!(xml.contains("<ram:BICID>BYLADEM1001</ram:BICID>"), "{xml}");
     }
 
     #[test]
