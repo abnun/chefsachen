@@ -86,6 +86,18 @@ export default tseslint.config(
     },
   },
   {
+    // Hilfsskripte wie scripts/plz-daten.mjs laufen in Node.
+    files: ["scripts/**/*.mjs"],
+    languageOptions: {
+      globals: {
+        process: "readonly",
+        console: "readonly",
+        Buffer: "readonly",
+        fetch: "readonly",
+      },
+    },
+  },
+  {
     // In Tests ist `any` beim Nachbauen von Fremdtypen manchmal der ehrlichste
     // Weg; der Aufwand einer vollständigen Nachbildung brächte dort nichts.
     files: ["**/*.test.{ts,tsx}"],
