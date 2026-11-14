@@ -1,5 +1,5 @@
 import "@testing-library/jest-dom/vitest";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 // Ohne dies zählen die Aufrufe der Attrappen über Testgrenzen hinweg weiter.
@@ -149,9 +149,12 @@ describe("EingangsrechnungDetail", () => {
     await waitFor(() => expect(screen.getByText("Änderungshistorie")).toBeTruthy());
     // Cent und ISO-Datum wären hier unverständlich; die Tabelle zeigt die
     // Werte so, wie sie in der Oberfläche sonst auch stehen.
-    expect(screen.getByText("250,00 €")).toBeTruthy();
-    expect(screen.getByText("16.07.2026")).toBeTruthy();
-    expect(screen.getByText("15.07.2026")).toBeTruthy();
+    // Eingegrenzt auf die Historie: Das Rechnungsdatum steht oben ebenfalls in
+    // deutscher Schreibweise und kann denselben Wert tragen.
+    const historie = within(screen.getByText("Änderungshistorie").closest("section")!);
+    expect(historie.getByText("250,00 €")).toBeTruthy();
+    expect(historie.getByText("16.07.2026")).toBeTruthy();
+    expect(historie.getByText("15.07.2026")).toBeTruthy();
   });
 
   it("zeigt ohne Korrekturen keine Änderungshistorie", async () => {

@@ -4,7 +4,7 @@ import { Fehler } from "./Fehler";
 import { useErfolgsHinweis } from "../hooks/useErfolgsHinweis";
 import { useBestaetigung } from "../hooks/useBestaetigung";
 import { formatCent, parseEuro } from "../geld";
-import { heuteIso } from "../datum";
+import { datumDeutsch, heuteIso } from "../datum";
 import { PflichtLegende, PflichtMarker } from "./PflichtMarker";
 
 interface ZahlungenAbschnittProps {
@@ -96,7 +96,7 @@ export function ZahlungenAbschnitt({ rechnungId, zahlungen, offenerBetragCent, o
         <tbody>
           {zahlungen.map((z) => (
             <tr key={z.id}>
-              <td>{z.datum}</td>
+              <td className="nicht-umbrechen">{datumDeutsch(z.datum)}</td>
               <td className="zahl nicht-umbrechen">{formatCent(z.betrag_cent)}</td>
               <td>{z.notiz}</td>
               <td className="aktionen">

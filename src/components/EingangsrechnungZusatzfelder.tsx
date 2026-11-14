@@ -1,4 +1,5 @@
 import type { EingangsrechnungSteuerzeile } from "../api";
+import { datumDeutsch } from "../datum";
 import { formatCentMitWaehrung } from "../geld";
 
 export interface EingangsrechnungZusatzfelderProps {
@@ -81,7 +82,7 @@ export function EingangsrechnungZusatzfelder(p: EingangsrechnungZusatzfelderProp
           <h3>Zahlung</h3>
           <dl className="angaben">
             <Feld label="Zahlungsbedingungen" wert={p.zahlungsbedingungen} />
-            <Feld label="Fälligkeitsdatum" wert={p.faelligkeitsdatum} />
+            <Feld label="Fälligkeitsdatum" wert={datumDeutsch(p.faelligkeitsdatum)} />
             <Feld label="IBAN" wert={p.iban} />
             <Feld label="BIC" wert={p.bic} />
             <Feld label="Bank" wert={p.bankname} />
@@ -101,7 +102,7 @@ export function EingangsrechnungZusatzfelder(p: EingangsrechnungZusatzfelderProp
         <section>
           <h3>Liefer-/Leistungsdatum</h3>
           <dl className="angaben">
-            <Feld label="Datum" wert={p.leistungsdatum} />
+            <Feld label="Datum" wert={datumDeutsch(p.leistungsdatum)} />
           </dl>
         </section>
       )}

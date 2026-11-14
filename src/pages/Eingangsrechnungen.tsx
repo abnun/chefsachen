@@ -221,7 +221,7 @@ export function Eingangsrechnungen({ onOeffnen }: EingangsrechnungenProps) {
                 <dt>Nummer</dt>
                 <dd>{vorschau.felder.rechnungsnummer}</dd>
                 <dt>Datum</dt>
-                <dd>{vorschau.felder.rechnungsdatum}</dd>
+                <dd>{datumDeutsch(vorschau.felder.rechnungsdatum)}</dd>
                 <dt>Betrag</dt>
                 <dd>{formatCentMitWaehrung(vorschau.felder.betrag_cent, vorschau.felder.waehrung)}</dd>
               </dl>

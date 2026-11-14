@@ -20,7 +20,7 @@ import { useErfolgsHinweis } from "../hooks/useErfolgsHinweis";
 import { useBestaetigung } from "../hooks/useBestaetigung";
 import { useUngespeichert } from "../hooks/useUngespeichert";
 import { formatCent } from "../geld";
-import { datumDeutschOder } from "../datum";
+import { datumDeutsch, datumDeutschOder } from "../datum";
 
 interface KundeDetailProps {
   id: string;
@@ -246,9 +246,9 @@ function BelegeReiter({ kundeId }: { kundeId: string }) {
         <tbody>
           {belege.map((b) => (
             <tr key={b.id}>
-              <td>{b.typ === "angebot" ? "Angebot" : "Rechnung"}</td>
+              <td>{b.typ === "angebot" ? "Angebot" : b.typ === "gutschrift" ? "Gutschrift" : "Rechnung"}</td>
               <td className="tabelle-num">{b.nummer ?? "Entwurf"}</td>
-              <td>{b.datum}</td>
+              <td className="nicht-umbrechen">{datumDeutsch(b.datum)}</td>
               <td>
                 <StatusMarke status={b.status} />
               </td>

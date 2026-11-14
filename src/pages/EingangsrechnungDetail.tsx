@@ -180,7 +180,7 @@ export function EingangsrechnungDetail({ id, onZurueck }: EingangsrechnungDetail
             <dt>Nummer</dt>
             <dd>{detail.eingangsrechnung.rechnungsnummer}</dd>
             <dt>Datum</dt>
-            <dd>{detail.eingangsrechnung.rechnungsdatum}</dd>
+            <dd>{datumDeutsch(detail.eingangsrechnung.rechnungsdatum)}</dd>
             <dt>Betrag</dt>
             <dd>{formatCentMitWaehrung(detail.eingangsrechnung.betrag_cent, detail.eingangsrechnung.waehrung)}</dd>
           </dl>
