@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { api, type AppFehler, type Artikel, type Belegposition } from "../api";
+import { api, type AppFehler, type Artikel, type Belegposition, type SteuerZeile } from "../api";
 import { ArtikelAuswahl } from "./ArtikelAuswahl";
 import { Fehler } from "./Fehler";
 import { PflichtLegende, PflichtMarker } from "./PflichtMarker";
@@ -13,6 +13,10 @@ interface PositionenAbschnittProps {
   kundeId: string;
   belegdatum: string;
   positionen: Belegposition[];
+  /** Summe des Belegs; steht als Fußzeile unter den Positionen. */
+  summeCent: number;
+  /** Enthaltene Umsatzsteuer je Satz, nur bei Regelbesteuerung gefüllt. */
+  steuerzeilen: SteuerZeile[];
   artikelListe: Artikel[];
   bearbeitbar: boolean;
   onGeaendert: () => void;
@@ -25,6 +29,8 @@ export function PositionenAbschnitt({
   belegdatum,
   artikelListe,
   positionen,
+  summeCent,
+  steuerzeilen,
   bearbeitbar,
   onGeaendert,
   onLoeschen,
@@ -185,7 +191,7 @@ export function PositionenAbschnitt({
   }
 
   return (
-    <section className="karte">
+    <section className="abschnitt">
       <h2>Positionen</h2>
       {fehler && <Fehler fehler={fehler} />}
       {hinweis}
@@ -194,10 +200,10 @@ export function PositionenAbschnitt({
         <thead>
           <tr>
             <th>Bezeichnung</th>
-            <th>Menge</th>
+            <th className="zahl">Menge</th>
             <th>Einheit</th>
-            <th>Einzelpreis</th>
-            <th>Summe</th>
+            <th className="zahl">Einzelpreis</th>
+            <th className="zahl">Summe</th>
             <th />
           </tr>
         </thead>
@@ -205,10 +211,10 @@ export function PositionenAbschnitt({
           {positionen.map((p, i) => (
             <tr key={p.id} className={p.id === bearbeiteId ? "zeile-bearbeitet" : undefined}>
               <td>{p.bezeichnung}</td>
-              <td>{formatMenge(p.menge)}</td>
+              <td className="zahl">{formatMenge(p.menge)}</td>
               <td>{p.einheit_kuerzel}</td>
-              <td>{formatCent(p.einzelpreis_cent)}</td>
-              <td>{formatCent(p.positionssumme_cent)}</td>
+              <td className="zahl nicht-umbrechen">{formatCent(p.einzelpreis_cent)}</td>
+              <td className="zahl nicht-umbrechen">{formatCent(p.positionssumme_cent)}</td>
               <td className="aktionen">
                 {bearbeitbar && (
                   <>
@@ -246,6 +252,28 @@ export function PositionenAbschnitt({
             </tr>
           ))}
         </tbody>
+        {/* Die Summe gehört zur Tabelle, nicht als loser Absatz darunter: So
+            steht sie unter der Summenspalte, Komma unter Komma. Die
+            Steueraufschlüsselung folgt leiser — sie erläutert die Summe, sie
+            ist keine zweite. */}
+        <tfoot>
+          <tr className="summenzeile">
+            <th scope="row" colSpan={4} className="zahl">
+              Summe
+            </th>
+            <td className="zahl nicht-umbrechen">{formatCent(summeCent)}</td>
+            <td />
+          </tr>
+          {steuerzeilen.map((z) => (
+            <tr key={z.satz_prozent} className="steuerzeile">
+              <td colSpan={4} className="zahl">
+                Enthaltene USt {z.satz_prozent} % (aus Nettobetrag {formatCent(z.netto_cent)})
+              </td>
+              <td className="zahl nicht-umbrechen">{formatCent(z.ust_cent)}</td>
+              <td />
+            </tr>
+          ))}
+        </tfoot>
       </table>
       {bearbeitbar && (
         <form
@@ -255,74 +283,78 @@ export function PositionenAbschnitt({
           }}
         >
           <h3>{bearbeiteId ? "Position ändern" : "Position hinzufügen"}</h3>
-          <label className="feld-checkbox">
-            <input
-              type="checkbox"
-              checked={freitext}
-              onChange={(e) => setFreitext(e.currentTarget.checked)}
-            />
-            Freitextposition
-          </label>
-          {freitext ? (
-            <>
-              <label className="feld">
-                <PflichtMarker art="pflicht">Bezeichnung</PflichtMarker>
-                <input value={bezeichnung} onChange={(e) => setBezeichnung(e.currentTarget.value)} />
-              </label>
-              <label className="feld">
-                Einheit
-                <input value={einheitKuerzel} onChange={(e) => setEinheitKuerzel(e.currentTarget.value)} />
-              </label>
-              <label className="feld">
-                <PflichtMarker art="pflicht">Einzelpreis</PflichtMarker>
-                <input value={einzelpreis} onChange={(e) => setEinzelpreis(e.currentTarget.value)} placeholder="95,00" />
-              </label>
-              <label className="feld">
-                Umsatzsteuersatz
-                <select value={ustSatz} onChange={(e) => setUstSatz(Number(e.currentTarget.value))}>
-                  <option value={19}>19 % (Regelsatz)</option>
-                  <option value={7}>7 % (ermäßigt)</option>
-                  <option value={0}>0 % (steuerfrei)</option>
-                </select>
-              </label>
-            </>
-          ) : (
-            <>
-              <ArtikelAuswahl
-                artikelListe={artikelListe}
-                artikelId={artikelId}
-                onArtikelId={setArtikelId}
+          <div className="gruppe">
+            <label className="feld-checkbox">
+              <input
+                type="checkbox"
+                checked={freitext}
+                onChange={(e) => setFreitext(e.currentTarget.checked)}
               />
-              {/* Welcher Preis gilt — und ob er vom Standardpreis abweicht.
-                  Ohne diese Zeile erfuhr man einen Kundenpreis erst, wenn die
-                  Position schon in der Liste stand. */}
-              {geltenderPreis !== null && gewaehlterArtikel && (
-                <p className={kundenpreisGreift ? "preis-herkunft kundenpreis" : "preis-herkunft"}>
-                  {kundenpreisGreift ? (
-                    <>
-                      <strong>Kundenpreis {formatCent(geltenderPreis)}</strong> statt{" "}
-                      {formatCent(gewaehlterArtikel.standardpreis_cent)} — für diesen Kunden
-                      hinterlegt.
-                    </>
-                  ) : (
-                    <>Standardpreis {formatCent(geltenderPreis)} — kein Kundenpreis hinterlegt.</>
-                  )}
-                </p>
-              )}
-              <label className="feld">
-                Preis überschreiben (optional)
-                <input value={einzelpreis} onChange={(e) => setEinzelpreis(e.currentTarget.value)} placeholder="automatisch" />
-              </label>
-            </>
-          )}
-          <label className="feld">
-            <PflichtMarker art="pflicht">Menge</PflichtMarker>
-            <input value={menge} onChange={(e) => setMenge(e.currentTarget.value)} />
-          </label>
+              Freitextposition
+            </label>
+            {freitext ? (
+              <>
+                <label className="feld">
+                  <PflichtMarker art="pflicht">Bezeichnung</PflichtMarker>
+                  <input value={bezeichnung} onChange={(e) => setBezeichnung(e.currentTarget.value)} />
+                </label>
+                <div className="felder-reihe">
+                  <label className="feld">
+                    Einheit
+                    <input value={einheitKuerzel} onChange={(e) => setEinheitKuerzel(e.currentTarget.value)} />
+                  </label>
+                  <label className="feld">
+                    <PflichtMarker art="pflicht">Einzelpreis</PflichtMarker>
+                    <input value={einzelpreis} onChange={(e) => setEinzelpreis(e.currentTarget.value)} placeholder="95,00" />
+                  </label>
+                  <label className="feld">
+                    Umsatzsteuersatz
+                    <select value={ustSatz} onChange={(e) => setUstSatz(Number(e.currentTarget.value))}>
+                      <option value={19}>19 % (Regelsatz)</option>
+                      <option value={7}>7 % (ermäßigt)</option>
+                      <option value={0}>0 % (steuerfrei)</option>
+                    </select>
+                  </label>
+                </div>
+              </>
+            ) : (
+              <>
+                <ArtikelAuswahl
+                  artikelListe={artikelListe}
+                  artikelId={artikelId}
+                  onArtikelId={setArtikelId}
+                />
+                {/* Welcher Preis gilt — und ob er vom Standardpreis abweicht.
+                    Ohne diese Zeile erfuhr man einen Kundenpreis erst, wenn die
+                    Position schon in der Liste stand. */}
+                {geltenderPreis !== null && gewaehlterArtikel && (
+                  <p className={kundenpreisGreift ? "preis-herkunft kundenpreis" : "preis-herkunft"}>
+                    {kundenpreisGreift ? (
+                      <>
+                        <strong>Kundenpreis {formatCent(geltenderPreis)}</strong> statt{" "}
+                        {formatCent(gewaehlterArtikel.standardpreis_cent)} — für diesen Kunden
+                        hinterlegt.
+                      </>
+                    ) : (
+                      <>Standardpreis {formatCent(geltenderPreis)} — kein Kundenpreis hinterlegt.</>
+                    )}
+                  </p>
+                )}
+                <label className="feld feld-mittel">
+                  Preis überschreiben (optional)
+                  <input value={einzelpreis} onChange={(e) => setEinzelpreis(e.currentTarget.value)} placeholder="automatisch" />
+                </label>
+              </>
+            )}
+            <label className="feld feld-schmal">
+              <PflichtMarker art="pflicht">Menge</PflichtMarker>
+              <input value={menge} onChange={(e) => setMenge(e.currentTarget.value)} />
+            </label>
 
-          <p className="positions-vorschau" aria-live="polite">
-            {vorschau.betrag === null ? vorschau.text : `Positionssumme: ${formatCent(vorschau.betrag)}`}
-          </p>
+            <p className="positions-vorschau" aria-live="polite">
+              {vorschau.betrag === null ? vorschau.text : `Positionssumme: ${formatCent(vorschau.betrag)}`}
+            </p>
+          </div>
 
           <PflichtLegende />
           <div className="aktionen aktionen-formular">

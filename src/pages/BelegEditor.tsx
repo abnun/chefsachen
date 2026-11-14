@@ -10,6 +10,7 @@ import { useErfolgsHinweis } from "../hooks/useErfolgsHinweis";
 import { useBestaetigung } from "../hooks/useBestaetigung";
 import { belegExportFunktionen } from "../belegExport";
 import { formatCent } from "../geld";
+import { Werkzeugleiste } from "../components/Werkzeugleiste";
 import { datumDeutsch, heuteIso } from "../datum";
 
 interface BelegEditorProps {
@@ -70,7 +71,7 @@ export function BelegEditor({ id, onZurueck, onGeaendert, onRechnungErstellt, on
   }, []);
 
   if (!detail) {
-    return <main>{fehler ? <Fehler fehler={fehler} /> : <Laden />}</main>;
+    return <div>{fehler ? <Fehler fehler={fehler} /> : <Laden />}</div>;
   }
 
   const { beleg, positionen, zahlungen, offener_betrag_cent, steuerzeilen } = detail;
@@ -311,84 +312,100 @@ export function BelegEditor({ id, onZurueck, onGeaendert, onRechnungErstellt, on
   const { pdfExportieren, xrechnungExportieren, zugferdExportieren, zahlungserinnerungExportieren } =
     belegExportFunktionen(beleg, setFehler, zeigen);
 
-  return (
-    <main>
-      {onZurueck && (
-        <button type="button" className="btn btn-leise" onClick={onZurueck}>
-          ← Zurück zur Liste
+  const art = istAngebot ? "Angebot" : istGutschrift ? "Gutschrift" : "Rechnung";
+  const istGestellteRechnung = istRechnung && beleg.status === "gestellt";
+  const exportierbar = beleg.status !== "entwurf";
+
+  /*
+   * Die Aktionen stehen in der Werkzeugleiste, nicht am Seitenende. Ein Beleg
+   * mit vielen Positionen ist lang; „Stellen" war dort erst nach mehrmaligem
+   * Scrollen zu finden.
+   *
+   * Geordnet nach Gewicht: zuerst der nächste Schritt (Stellen, Überführen),
+   * dann was aus dem Beleg entsteht (Gutschrift, Kopie), dann die Exporte als
+   * eine zusammenhängende Gruppe, ganz rechts und abgesetzt das, was sich
+   * nicht zurücknehmen lässt. Vorher standen sechs gleichrangige Knöpfe in
+   * einer Reihe, „Stornieren" direkt neben „ZUGFeRD".
+   */
+  const aktionen = (
+    <>
+      {istEntwurf && (
+        <button
+          type="button"
+          className="btn btn-primaer"
+          disabled={positionen.length === 0 || laeuft}
+          title={positionen.length === 0 ? "Erst eine Position hinzufügen" : undefined}
+          onClick={stellen}
+        >
+          {istRechnung ? "Stellen" : "Festschreiben"}
         </button>
       )}
-      <h1 className="seiten-kopf">
-        {istAngebot ? "Angebot" : istGutschrift ? "Gutschrift" : "Rechnung"}{" "}
-        {beleg.nummer ?? "(Entwurf)"}
-      </h1>
-      {istGutschrift && detail.gutschrift_zu_nummer && (
-        <p className="beleg-bezug">Gutschrift zu Rechnung {detail.gutschrift_zu_nummer}</p>
+
+      {beleg.typ === "angebot" && ["festgeschrieben", "angenommen"].includes(beleg.status) && (
+        <button
+          type="button"
+          className="btn btn-primaer"
+          disabled={laeuft}
+          onClick={inRechnungUeberfuehren}
+        >
+          In Rechnung überführen
+        </button>
       )}
-      {/* Die Aktionen stehen beim Status, nicht am Seitenende. Ein Beleg mit
-          vielen Positionen ist lang; „Stellen" war dort erst nach mehrmaligem
-          Scrollen zu finden — und daneben lagen Löschen und Stornieren. */}
-      <div className="beleg-kopfleiste">
-        <span className="beleg-status">
-          Status: <StatusMarke status={beleg.status} />
+
+      {beleg.typ === "angebot" && beleg.status === "festgeschrieben" && (
+        <span className="knopfgruppe" role="group" aria-label="Antwort des Kunden">
+          {ANGEBOT_ABSCHLUSS_STATUS.map((z) => (
+            <button
+              key={z.wert}
+              type="button"
+              className="btn"
+              disabled={laeuft}
+              onClick={() => angebotStatus(z.wert)}
+            >
+              {z.label}
+            </button>
+          ))}
         </span>
+      )}
 
-        <div className="aktionen">
-          {istEntwurf && (
-            <button
-              type="button"
-              className="btn btn-primaer"
-              disabled={positionen.length === 0 || laeuft}
-              title={positionen.length === 0 ? "Erst eine Position hinzufügen" : undefined}
-              onClick={stellen}
-            >
-              {istRechnung ? "Stellen" : "Festschreiben"}
-            </button>
-          )}
+      {istGestellteRechnung && beleg.storno_von_id === null && (
+        <button type="button" className="btn" disabled={laeuft} onClick={gutschriftErstellen}>
+          Gutschrift erstellen
+        </button>
+      )}
 
-          {istRechnung && beleg.status === "gestellt" && beleg.storno_von_id === null && (
-            <button
-              type="button"
-              className="btn"
-              disabled={laeuft}
-              onClick={gutschriftErstellen}
-            >
-              Gutschrift erstellen
-            </button>
-          )}
+      {/* Verfügbar bei jedem Status: Gerade ein festgeschriebener Beleg
+          eignet sich als Vorlage — er selbst lässt sich nur nicht mehr
+          ändern. */}
+      <button type="button" className="btn" disabled={laeuft} onClick={duplizieren}>
+        Als Kopie anlegen
+      </button>
 
-          {beleg.typ === "angebot" && ["festgeschrieben", "angenommen"].includes(beleg.status) && (
-            <button
-              type="button"
-              className="btn btn-primaer"
-              disabled={laeuft}
-              onClick={inRechnungUeberfuehren}
-            >
-              In Rechnung überführen
-            </button>
-          )}
+      {/* Nur solange noch etwas offen ist — für eine vollständig bezahlte
+          Rechnung gibt es nichts zu erinnern. Und erst ab dem Tag nach der
+          Fälligkeit: Vorher ist der Kunde nicht im Verzug, und der Brief
+          wiese eine negative Überfälligkeit aus. */}
+      {istGestellteRechnung && offener_betrag_cent > 0 &&
+        beleg.faellig_am != null && beleg.faellig_am < heuteIso() && (
+        <button type="button" className="btn" onClick={zahlungserinnerungExportieren}>
+          Zahlungserinnerung
+        </button>
+      )}
 
-          {/* Verfügbar bei jedem Status: Gerade ein festgeschriebener Beleg
-              eignet sich als Vorlage — er selbst lässt sich nur nicht mehr
-              ändern. */}
-          <button type="button" className="btn" disabled={laeuft} onClick={duplizieren}>
-            Als Kopie anlegen
+      {exportierbar && (
+        /* Sichtbar kurz, damit die Leiste nicht ausufert; der zugängliche
+           Name nennt die ganze Handlung. Er enthält das sichtbare Wort, wie
+           WCAG 2.5.3 es verlangt. */
+        <span className="knopfgruppe" role="group" aria-label="Exportieren">
+          <button
+            type="button"
+            className="btn"
+            aria-label="Als PDF exportieren"
+            onClick={pdfExportieren}
+          >
+            PDF
           </button>
-
-          {beleg.status !== "entwurf" && (
-            /* Sichtbar kurz, damit die Leiste nicht ausufert; der zugängliche
-               Name nennt die ganze Handlung. Er enthält das sichtbare Wort,
-               wie WCAG 2.5.3 es verlangt. */
-            <button
-              type="button"
-              className="btn"
-              aria-label="Als PDF exportieren"
-              onClick={pdfExportieren}
-            >
-              PDF
-            </button>
-          )}
-          {(istRechnung || istGutschrift) && beleg.status !== "entwurf" && (
+          {(istRechnung || istGutschrift) && (
             <>
               <button
                 type="button"
@@ -408,122 +425,108 @@ export function BelegEditor({ id, onZurueck, onGeaendert, onRechnungErstellt, on
               </button>
             </>
           )}
-
-          {/* Nur solange noch etwas offen ist — für eine vollständig bezahlte
-              Rechnung gibt es nichts zu erinnern. Und erst ab dem Tag nach der
-              Fälligkeit: Vorher ist der Kunde nicht im Verzug, und der Brief
-              wiese eine negative Überfälligkeit aus. */}
-          {beleg.typ === "rechnung" && beleg.status === "gestellt" && offener_betrag_cent > 0 &&
-            beleg.faellig_am != null && beleg.faellig_am < heuteIso() && (
-            <button type="button" className="btn" onClick={zahlungserinnerungExportieren}>
-              Zahlungserinnerung
-            </button>
-          )}
-
-          {beleg.typ === "angebot" && beleg.status === "festgeschrieben" &&
-            ANGEBOT_ABSCHLUSS_STATUS.map((z) => (
-              <button
-                key={z.wert}
-                type="button"
-                className="btn"
-                disabled={laeuft}
-                onClick={() => angebotStatus(z.wert)}
-              >
-                {z.label}
-              </button>
-            ))}
-
-          {/* Ohne diese Möglichkeit bleibt ein versehentlich angelegter Entwurf
-              für immer stehen — und blockiert zusätzlich das Löschen seines
-              Kunden. */}
-          {istEntwurf && (
-            <button
-              type="button"
-              className="btn btn-gefahr"
-              disabled={laeuft}
-              onClick={entwurfLoeschen}
-            >
-              Entwurf löschen
-            </button>
-          )}
-
-          {/* Ein Stornobeleg ist selbst eine gestellte Rechnung. Ohne die
-              Prüfung auf storno_von_id ließe er sich erneut stornieren — das
-              erzeugt eine Kaskade aus Gegenbelegen und verbraucht bei jedem
-              Schritt eine Rechnungsnummer. */}
-          {beleg.typ === "rechnung" && beleg.status === "gestellt" &&
-            beleg.storno_von_id === null && (
-              <button
-                type="button"
-                className="btn btn-gefahr"
-                disabled={laeuft}
-                onClick={stornieren}
-              >
-                Stornieren
-              </button>
-            )}
-        </div>
-      </div>
-
-      {fehler && <Fehler fehler={fehler} />}
-      {hinweis}
-      {dialog}
-
-      {/* key={beleg.id}: Beim Wechsel auf einen anderen Beleg (etwa nach „Als
-          Kopie anlegen") bleibt der Editor gemountet, nur die Id wechselt.
-          Ohne Remount behielten die Abschnitte ihren Formularzustand — im
-          schlimmsten Fall stand noch eine Position des *vorherigen* Belegs im
-          Bearbeiten-Modus, und „Speichern" hätte sie über die Beleggrenze
-          hinweg geändert. */}
-      <StammdatenAbschnitt
-        key={beleg.id}
-        beleg={beleg}
-        kunden={kunden}
-        bearbeitbar={istEntwurf}
-        onSpeichern={stammdatenSpeichern}
-      />
-
-      <PositionenAbschnitt
-        key={`${beleg.id}-positionen`}
-        belegId={beleg.id}
-        kundeId={beleg.kunde_id}
-        belegdatum={beleg.datum}
-        positionen={positionen}
-        artikelListe={artikelListe}
-        bearbeitbar={istEntwurf}
-        onGeaendert={laden}
-        onLoeschen={positionLoeschen}
-      />
-
-      <p className="beleg-summe">Summe: {formatCent(beleg.summe_cent)}</p>
-      {/* Aufschlüsselung nur bei Regelbesteuerung — bei Kleinunternehmer-Belegen
-          liefert das Backend keine Steuerzeilen. Die Beträge stehen so schon im
-          Editor, nicht erst auf dem exportierten PDF. */}
-      {steuerzeilen.map((z) => (
-        <p key={z.satz_prozent} className="beleg-steuerzeile">
-          Enthaltene USt {z.satz_prozent} % (aus Nettobetrag {formatCent(z.netto_cent)}):{" "}
-          {formatCent(z.ust_cent)}
-        </p>
-      ))}
-
-      {beleg.typ === "rechnung" && beleg.storno_von_id !== null && (
-        <p>Dies ist ein Stornobeleg.</p>
-      )}
-      {beleg.typ === "rechnung" && beleg.status === "storniert" && (
-        <p>Diese Rechnung wurde storniert.</p>
+        </span>
       )}
 
-      {((istRechnung && ["gestellt", "storniert"].includes(beleg.status)) ||
-        (istGutschrift && beleg.status === "festgeschrieben")) && (
-        <ZahlungenAbschnitt
-          key={`${beleg.id}-zahlungen`}
-          rechnungId={beleg.id}
-          zahlungen={zahlungen}
-          offenerBetragCent={offener_betrag_cent}
-          istErstattung={istGutschrift}
-          onGeaendert={laden}
+      {/* Ohne diese Möglichkeit bleibt ein versehentlich angelegter Entwurf
+          für immer stehen — und blockiert zusätzlich das Löschen seines
+          Kunden. */}
+      {istEntwurf && (
+        <button
+          type="button"
+          className="btn btn-gefahr leiste-abgesetzt"
+          disabled={laeuft}
+          onClick={entwurfLoeschen}
+        >
+          Entwurf löschen
+        </button>
+      )}
+
+      {/* Ein Stornobeleg ist selbst eine gestellte Rechnung. Ohne die
+          Prüfung auf storno_von_id ließe er sich erneut stornieren — das
+          erzeugt eine Kaskade aus Gegenbelegen und verbraucht bei jedem
+          Schritt eine Rechnungsnummer. */}
+      {istGestellteRechnung && beleg.storno_von_id === null && (
+        <button
+          type="button"
+          className="btn btn-gefahr leiste-abgesetzt"
+          disabled={laeuft}
+          onClick={stornieren}
+        >
+          Stornieren
+        </button>
+      )}
+    </>
+  );
+
+  return (
+    <div>
+      <Werkzeugleiste
+        titel={`${art} ${beleg.nummer ?? "(Entwurf)"}`}
+        zurueck={onZurueck && { beschriftung: "Zurück zur Liste", onClick: onZurueck }}
+        zusatz={<StatusMarke status={beleg.status} />}
+        aktion={aktionen}
+      />
+
+      <div className="inhalt-schmal">
+        {istGutschrift && detail.gutschrift_zu_nummer && (
+          <p className="beleg-bezug">Gutschrift zu Rechnung {detail.gutschrift_zu_nummer}</p>
+        )}
+        {beleg.typ === "rechnung" && beleg.storno_von_id !== null && (
+          <p className="beleg-bezug">Dies ist ein Stornobeleg.</p>
+        )}
+        {beleg.typ === "rechnung" && beleg.status === "storniert" && (
+          <p className="beleg-bezug">Diese Rechnung wurde storniert.</p>
+        )}
+
+        {fehler && <Fehler fehler={fehler} />}
+        {hinweis}
+        {dialog}
+
+        {/* key={beleg.id}: Beim Wechsel auf einen anderen Beleg (etwa nach „Als
+            Kopie anlegen") bleibt der Editor gemountet, nur die Id wechselt.
+            Ohne Remount behielten die Abschnitte ihren Formularzustand — im
+            schlimmsten Fall stand noch eine Position des *vorherigen* Belegs im
+            Bearbeiten-Modus, und „Speichern" hätte sie über die Beleggrenze
+            hinweg geändert. */}
+        <StammdatenAbschnitt
+          key={beleg.id}
+          beleg={beleg}
+          kunden={kunden}
+          bearbeitbar={istEntwurf}
+          onSpeichern={stammdatenSpeichern}
         />
-      )}
-    </main>
+
+        {/* Summe und Steueraufschlüsselung stehen als Fußzeilen in der
+            Positionstabelle, mit derselben rechten Kante wie die Beträge
+            darüber. Die Aufschlüsselung gibt es nur bei Regelbesteuerung — bei
+            Kleinunternehmer-Belegen liefert das Backend keine Steuerzeilen. */}
+        <PositionenAbschnitt
+          key={`${beleg.id}-positionen`}
+          belegId={beleg.id}
+          kundeId={beleg.kunde_id}
+          belegdatum={beleg.datum}
+          positionen={positionen}
+          summeCent={beleg.summe_cent}
+          steuerzeilen={steuerzeilen}
+          artikelListe={artikelListe}
+          bearbeitbar={istEntwurf}
+          onGeaendert={laden}
+          onLoeschen={positionLoeschen}
+        />
+
+        {((istRechnung && ["gestellt", "storniert"].includes(beleg.status)) ||
+          (istGutschrift && beleg.status === "festgeschrieben")) && (
+          <ZahlungenAbschnitt
+            key={`${beleg.id}-zahlungen`}
+            rechnungId={beleg.id}
+            zahlungen={zahlungen}
+            offenerBetragCent={offener_betrag_cent}
+            istErstattung={istGutschrift}
+            onGeaendert={laden}
+          />
+        )}
+      </div>
+    </div>
   );
 }

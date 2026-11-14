@@ -75,12 +75,12 @@ export function ZahlungenAbschnitt({ rechnungId, zahlungen, offenerBetragCent, o
   }
 
   return (
-    <section className="karte">
+    <section className="abschnitt">
       <h2>Zahlungen</h2>
       {fehler && <Fehler fehler={fehler} />}
       {hinweis}
       {dialog}
-      <p>
+      <p className="offener-betrag">
         {istErstattung ? "Noch zu erstatten" : "Offener Betrag"}:{" "}
         {formatCent(istErstattung ? Math.abs(offenerBetragCent) : offenerBetragCent)}
       </p>
@@ -88,7 +88,7 @@ export function ZahlungenAbschnitt({ rechnungId, zahlungen, offenerBetragCent, o
         <thead>
           <tr>
             <th>Datum</th>
-            <th>Betrag</th>
+            <th className="zahl">Betrag</th>
             <th>Notiz</th>
             <th />
           </tr>
@@ -97,9 +97,9 @@ export function ZahlungenAbschnitt({ rechnungId, zahlungen, offenerBetragCent, o
           {zahlungen.map((z) => (
             <tr key={z.id}>
               <td>{z.datum}</td>
-              <td>{formatCent(z.betrag_cent)}</td>
+              <td className="zahl nicht-umbrechen">{formatCent(z.betrag_cent)}</td>
               <td>{z.notiz}</td>
-              <td>
+              <td className="aktionen">
                 {/* Ohne diese Möglichkeit wäre eine vertippte Zahlung nur über
                     eine gegenläufige Erstattung zu heilen — die den
                     Zahlungsverlauf dauerhaft verfälscht. */}
@@ -121,24 +121,28 @@ export function ZahlungenAbschnitt({ rechnungId, zahlungen, offenerBetragCent, o
           erfassen();
         }}
       >
-        <label className="feld">
-          Datum
-          <input type="date" value={datum} onChange={(e) => setDatum(e.currentTarget.value)} />
-        </label>
-        <label className="feld">
-          <PflichtMarker art="pflicht">Betrag</PflichtMarker>
-          <input value={betrag} onChange={(e) => setBetrag(e.currentTarget.value)} placeholder="95,00" />
-        </label>
-        {!istErstattung && (
-          <label className="feld-checkbox">
-            <input type="checkbox" checked={erstattung} onChange={(e) => setErstattung(e.currentTarget.checked)} />
-            Erstattung (negativer Betrag)
+        <div className="gruppe">
+          <div className="felder-reihe">
+            <label className="feld">
+              Datum
+              <input type="date" value={datum} onChange={(e) => setDatum(e.currentTarget.value)} />
+            </label>
+            <label className="feld">
+              <PflichtMarker art="pflicht">Betrag</PflichtMarker>
+              <input value={betrag} onChange={(e) => setBetrag(e.currentTarget.value)} placeholder="95,00" />
+            </label>
+          </div>
+          {!istErstattung && (
+            <label className="feld-checkbox">
+              <input type="checkbox" checked={erstattung} onChange={(e) => setErstattung(e.currentTarget.checked)} />
+              Erstattung (negativer Betrag)
+            </label>
+          )}
+          <label className="feld">
+            Notiz
+            <input value={notiz} onChange={(e) => setNotiz(e.currentTarget.value)} />
           </label>
-        )}
-        <label className="feld">
-          Notiz
-          <input value={notiz} onChange={(e) => setNotiz(e.currentTarget.value)} />
-        </label>
+        </div>
         <PflichtLegende />
         <div className="aktionen aktionen-formular">
           <button type="submit" className="btn btn-primaer" disabled={laeuft}>

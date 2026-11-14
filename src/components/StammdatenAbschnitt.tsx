@@ -92,29 +92,43 @@ export function StammdatenAbschnitt({ beleg, kunden, bearbeitbar, onSpeichern }:
   const kunde = kunden.find((k) => k.id === beleg.kunde_id);
 
   if (!bearbeitbar) {
+    // Festgeschrieben: eine Liste aus Beschriftung und Wert statt loser
+    // Absätze. Die Beschriftung tritt zurück, gelesen wird der Wert.
     return (
-      <section className="karte">
+      <section className="abschnitt">
         <h2>Stammdaten</h2>
-        <p>Kunde: {beleg.kunde_snapshot_name ?? kunde?.name ?? beleg.kunde_id}</p>
-        <p>Datum: {datumDeutsch(beleg.datum)}</p>
-        <p>
-          {beleg.leistungsdatum_bis
-            ? `Leistungszeitraum: ${datumDeutsch(beleg.leistungsdatum)} – ${datumDeutsch(beleg.leistungsdatum_bis)}`
-            : `Leistungsdatum: ${datumDeutsch(beleg.leistungsdatum)}`}
-        </p>
-        {beleg.typ === "angebot" && (
-          <p>Gültig bis: {beleg.gueltig_bis ? datumDeutsch(beleg.gueltig_bis) : "unbefristet"}</p>
-        )}
-        <p>Zahlungsziel: {beleg.zahlungsziel_tage} Tage</p>
-        {beleg.gesamtauftragswert_cent != null && (
-          <p>Gesamt-Auftragswert: {formatCent(beleg.gesamtauftragswert_cent)}</p>
-        )}
+        <dl className="angaben">
+          <dt>Kunde</dt>
+          <dd>{beleg.kunde_snapshot_name ?? kunde?.name ?? beleg.kunde_id}</dd>
+          <dt>Datum</dt>
+          <dd>{datumDeutsch(beleg.datum)}</dd>
+          <dt>{beleg.leistungsdatum_bis ? "Leistungszeitraum" : "Leistungsdatum"}</dt>
+          <dd>
+            {beleg.leistungsdatum_bis
+              ? `${datumDeutsch(beleg.leistungsdatum)} – ${datumDeutsch(beleg.leistungsdatum_bis)}`
+              : datumDeutsch(beleg.leistungsdatum)}
+          </dd>
+          {beleg.typ === "angebot" && (
+            <>
+              <dt>Gültig bis</dt>
+              <dd>{beleg.gueltig_bis ? datumDeutsch(beleg.gueltig_bis) : "unbefristet"}</dd>
+            </>
+          )}
+          <dt>Zahlungsziel</dt>
+          <dd>{beleg.zahlungsziel_tage} Tage</dd>
+          {beleg.gesamtauftragswert_cent != null && (
+            <>
+              <dt>Gesamt-Auftragswert</dt>
+              <dd>{formatCent(beleg.gesamtauftragswert_cent)}</dd>
+            </>
+          )}
+        </dl>
       </section>
     );
   }
 
   return (
-    <section className="karte">
+    <section className="abschnitt">
       <h2>Stammdaten</h2>
       <form
         onSubmit={(e) => {
@@ -139,131 +153,141 @@ export function StammdatenAbschnitt({ beleg, kunden, bearbeitbar, onSpeichern }:
           });
         }}
       >
-        {/* Solange der Beleg Entwurf ist, muss sich der Kunde korrigieren lassen —
-            sonst bleibt bei einem Fehlgriff nur, den Entwurf zu verwerfen. */}
-        <label className="feld">
-          Kunde
-          <select value={kundeId} onChange={(e) => setKundeId(e.currentTarget.value)}>
-            {kunden.map((k) => (
-              <option key={k.id} value={k.id}>
-                {k.name}
-              </option>
-            ))}
-          </select>
-        </label>
+        <div className="gruppe">
+          <div className="felder-reihe">
+            {/* Solange der Beleg Entwurf ist, muss sich der Kunde korrigieren lassen —
+                sonst bleibt bei einem Fehlgriff nur, den Entwurf zu verwerfen. */}
+            <label className="feld">
+              Kunde
+              <select value={kundeId} onChange={(e) => setKundeId(e.currentTarget.value)}>
+                {kunden.map((k) => (
+                  <option key={k.id} value={k.id}>
+                    {k.name}
+                  </option>
+                ))}
+              </select>
+            </label>
 
-        {/* Ohne Wahl gilt die Standard-Rechnungsadresse des Kunden. Wer mehrere
-            Standorte beliefert, konnte das bisher nur erzwingen, indem er den
-            Standard beim Kunden umstellte — was alle künftigen Belege betrifft. */}
-        <label className="feld">
-          Rechnungsadresse
-          <select value={adresseId} onChange={(e) => setAdresseId(e.currentTarget.value)}>
-            <option value="">Standardadresse des Kunden</option>
-            {(kundeDetail?.adressen ?? [])
-              .filter((a) => a.typ === "rechnung")
-              .map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.strasse}, {a.plz} {a.ort}
-                  {a.ist_standard ? " (Standard)" : ""}
-                </option>
-              ))}
-          </select>
-        </label>
+            {/* Ohne Wahl gilt die Standard-Rechnungsadresse des Kunden. Wer mehrere
+                Standorte beliefert, konnte das bisher nur erzwingen, indem er den
+                Standard beim Kunden umstellte — was alle künftigen Belege betrifft. */}
+            <label className="feld">
+              Rechnungsadresse
+              <select value={adresseId} onChange={(e) => setAdresseId(e.currentTarget.value)}>
+                <option value="">Standardadresse des Kunden</option>
+                {(kundeDetail?.adressen ?? [])
+                  .filter((a) => a.typ === "rechnung")
+                  .map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.strasse}, {a.plz} {a.ort}
+                      {a.ist_standard ? " (Standard)" : ""}
+                    </option>
+                  ))}
+              </select>
+            </label>
 
-        {/* Bei größeren Kunden landet eine Rechnung ohne Namen in der
-            Poststelle und von dort irgendwo. */}
-        <label className="feld">
-          Ansprechpartner
-          <select
-            value={ansprechpartnerId}
-            onChange={(e) => setAnsprechpartnerId(e.currentTarget.value)}
-          >
-            <option value="">– keiner –</option>
-            {(kundeDetail?.ansprechpartner ?? []).map((a) => (
-              <option key={a.id} value={a.id}>
-                {a.name}
-                {a.rolle ? ` (${a.rolle})` : ""}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="feld">
-          Datum
-          <input type="date" value={datum} onChange={(e) => setDatum(e.currentTarget.value)} />
-        </label>
-        <label className="feld">
-          {leistungsdatumBis === "" ? "Leistungsdatum" : "Leistung von"}
-          <input type="date" value={leistungsdatum} onChange={(e) => setLeistungsdatum(e.currentTarget.value)} />
-        </label>
-        {/* § 14 Abs. 4 Nr. 6 UStG lässt Zeitpunkt „oder Zeitraum" zu. Leer heißt
-            Einzeldatum — der Regelfall; für Monatsabrechnungen und andere
-            Dauerleistungen wäre ein Einzeldatum sachlich falsch. */}
-        <label className="feld">
-          Leistung bis (bei Zeitraum)
-          <input
-            type="date"
-            min={leistungsdatum}
-            value={leistungsdatumBis}
-            onChange={(e) => setLeistungsdatumBis(e.currentTarget.value)}
-          />
-        </label>
-        {/* Nur bei Angeboten: Der Fußtext versprach bisher eine Frist ("Dieses
-            Angebot ist 30 Tage gültig"), ohne dass ein Datum dazu existierte —
-            die Übersicht führte Angebote deshalb unbefristet als „offen". Der
-            Wert kommt beim Anlegen automatisch aus einer Einstellung, lässt
-            sich hier aber jederzeit verlängern oder verkürzen. */}
-        {beleg.typ === "angebot" && (
+            {/* Bei größeren Kunden landet eine Rechnung ohne Namen in der
+                Poststelle und von dort irgendwo. */}
+            <label className="feld">
+              Ansprechpartner
+              <select
+                value={ansprechpartnerId}
+                onChange={(e) => setAnsprechpartnerId(e.currentTarget.value)}
+              >
+                <option value="">– keiner –</option>
+                {(kundeDetail?.ansprechpartner ?? []).map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.name}
+                    {a.rolle ? ` (${a.rolle})` : ""}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+          <div className="felder-reihe">
+            <label className="feld">
+              Datum
+              <input type="date" value={datum} onChange={(e) => setDatum(e.currentTarget.value)} />
+            </label>
+            <label className="feld">
+              {leistungsdatumBis === "" ? "Leistungsdatum" : "Leistung von"}
+              <input type="date" value={leistungsdatum} onChange={(e) => setLeistungsdatum(e.currentTarget.value)} />
+            </label>
+            {/* § 14 Abs. 4 Nr. 6 UStG lässt Zeitpunkt „oder Zeitraum" zu. Leer heißt
+                Einzeldatum — der Regelfall; für Monatsabrechnungen und andere
+                Dauerleistungen wäre ein Einzeldatum sachlich falsch. */}
+            <label className="feld">
+              Leistung bis (bei Zeitraum)
+              <input
+                type="date"
+                min={leistungsdatum}
+                value={leistungsdatumBis}
+                onChange={(e) => setLeistungsdatumBis(e.currentTarget.value)}
+              />
+            </label>
+          </div>
+          <div className="felder-reihe">
+            {/* Nur bei Angeboten: Der Fußtext versprach bisher eine Frist ("Dieses
+                Angebot ist 30 Tage gültig"), ohne dass ein Datum dazu existierte —
+                die Übersicht führte Angebote deshalb unbefristet als „offen". Der
+                Wert kommt beim Anlegen automatisch aus einer Einstellung, lässt
+                sich hier aber jederzeit verlängern oder verkürzen. */}
+            {beleg.typ === "angebot" && (
+              <label className="feld">
+                Gültig bis
+                <input
+                  type="date"
+                  min={datum}
+                  value={gueltigBis}
+                  onChange={(e) => setGueltigBis(e.currentTarget.value)}
+                />
+              </label>
+            )}
+            <div>
+              <label className="feld feld-schmal">
+                Zahlungsziel (Tage)
+                <input
+                  type="number"
+                  min={0}
+                  value={zahlungszielTage}
+                  onChange={(e) => setZahlungszielTage(Number(e.currentTarget.value))}
+                />
+              </label>
+              {/* Ohne diesen Satz ist „sofort" nicht auffindbar: Man müsste raten,
+                  dass eine Null dafür steht. Der genaue Wortlaut auf dem Beleg steht
+                  hier bewusst nicht — er entsteht im Rust-Teil, und ihn hier ein
+                  zweites Mal zu formulieren hieße, zwei Fassungen zu pflegen. */}
+              <p className="feld-hinweis">
+                {zahlungszielTage === 0
+                  ? "Die Rechnung weist den Betrag als sofort zahlbar aus."
+                  : "Die Rechnung nennt daraus ein Fälligkeitsdatum. 0 Tage heißt: sofort zahlbar."}
+              </p>
+            </div>
+          </div>
           <label className="feld">
-            Gültig bis
+            Kopftext
+            <textarea value={kopftext} onChange={(e) => setKopftext(e.currentTarget.value)} />
+          </label>
+          <label className="feld">
+            Fußtext
+            <textarea value={fusstext} onChange={(e) => setFusstext(e.currentTarget.value)} />
+          </label>
+          <label className="feld feld-mittel">
+            Gesamt-Auftragswert (€)
             <input
-              type="date"
-              min={datum}
-              value={gueltigBis}
-              onChange={(e) => setGueltigBis(e.currentTarget.value)}
+              value={gesamtauftragswertText}
+              onChange={(e) => setGesamtauftragswertText(e.currentTarget.value)}
+              placeholder="nur bei Abschlagsrechnungen"
             />
           </label>
-        )}
-        <label className="feld">
-          Zahlungsziel (Tage)
-          <input
-            type="number"
-            min={0}
-            value={zahlungszielTage}
-            onChange={(e) => setZahlungszielTage(Number(e.currentTarget.value))}
-          />
-        </label>
-        {/* Ohne diesen Satz ist „sofort" nicht auffindbar: Man müsste raten,
-            dass eine Null dafür steht. Der genaue Wortlaut auf dem Beleg steht
-            hier bewusst nicht — er entsteht im Rust-Teil, und ihn hier ein
-            zweites Mal zu formulieren hieße, zwei Fassungen zu pflegen. */}
-        <p className="feld-hinweis">
-          {zahlungszielTage === 0
-            ? "Die Rechnung weist den Betrag als sofort zahlbar aus."
-            : "Die Rechnung nennt daraus ein Fälligkeitsdatum. 0 Tage heißt: sofort zahlbar."}
-        </p>
-        <label className="feld">
-          Kopftext
-          <textarea value={kopftext} onChange={(e) => setKopftext(e.currentTarget.value)} />
-        </label>
-        <label className="feld">
-          Fußtext
-          <textarea value={fusstext} onChange={(e) => setFusstext(e.currentTarget.value)} />
-        </label>
-        <label className="feld">
-          Gesamt-Auftragswert (€)
-          <input
-            value={gesamtauftragswertText}
-            onChange={(e) => setGesamtauftragswertText(e.currentTarget.value)}
-            placeholder="nur bei Abschlagsrechnungen"
-          />
-        </label>
-        {gesamtauftragswertFehler && (
-          <div className="feld-fehler" role="alert">{gesamtauftragswertFehler}</div>
-        )}
-        <p className="feld-hinweis">
-          Nur für Abschlagsrechnungen: weist auf dem Beleg zusätzlich auf den Gesamtwert des
-          Auftrags hin, aus dem sich diese Teilrechnung ergibt.
-        </p>
+          {gesamtauftragswertFehler && (
+            <div className="feld-fehler" role="alert">{gesamtauftragswertFehler}</div>
+          )}
+          <p className="feld-hinweis">
+            Nur für Abschlagsrechnungen: weist auf dem Beleg zusätzlich auf den Gesamtwert des
+            Auftrags hin, aus dem sich diese Teilrechnung ergibt.
+          </p>
+        </div>
         <div className="aktionen aktionen-formular">
           <button type="submit" className="btn btn-primaer">Speichern</button>
         </div>

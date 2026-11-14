@@ -16,6 +16,10 @@
   --seitenleiste: oklch(0.955 0.006 290);
   /* Für die eingesetzten Formulargruppen wie in den Systemeinstellungen. */
   --gruppe: oklch(0.965 0.005 290);
+  --rand-gruppe: oklch(0.915 0.005 290);
+  /* Spur und gewähltes Segment eines Segmentschalters (Reiter). */
+  --segment-spur: oklch(0.93 0.006 290);
+  --segment-auswahl: oklch(0.995 0.002 290);
   --zebra: oklch(0.97 0.004 290);
   --bg-gedaempft: oklch(0.97 0.004 290);
   /* Erhöhte Fläche: Knöpfe, Karten, Dialoge. */
@@ -90,6 +94,7 @@
   --radius-s: 6px;
   --radius-m: 8px;
   --radius-gruppe: 10px;
+  --radius-sheet: 12px;
   --radius-pill: 999px;
 
   /* Schatten und Abdeckung */
@@ -113,10 +118,19 @@
   --dauer-kurz: 120ms;
   --dauer-mittel: 220ms;
   --ease-aus: cubic-bezier(0.25, 1, 0.5, 1);
+  /* Reines Ein- und Ausblenden ohne Weg. Bleibt bei reduzierter Bewegung
+     stehen: Ein Blatt, das schlagartig da ist, erschreckt eher, als dass es
+     schont. */
+  --dauer-blende: 160ms;
 
   /* Höhe der Fensterleiste: so hoch, dass die Ampelknöpfe unter macOS
      mittig darin sitzen. */
   --leiste-hoehe: 52px;
+
+  /* Formulare und Lesetext: Zeilen über 720 px liest niemand gern, und ein
+     PLZ-Feld über die ganze Fensterbreite sieht nach Behördenformular aus.
+     Listen nutzen dagegen die volle Breite. */
+  --inhalt-schmal: 720px;
 }
 
 /* Windows-Anwendungen setzen Grundtext in 14 px; 13 px wirkt dort zu klein,
@@ -141,10 +155,14 @@ html[data-plattform="win"] {
     --bg: oklch(0.19 0.006 290);
     --seitenleiste: oklch(0.235 0.008 290);
     --gruppe: oklch(0.235 0.008 290);
+    --rand-gruppe: oklch(0.29 0.008 290);
+    --segment-spur: oklch(0.15 0.006 290);
+    --segment-auswahl: oklch(0.36 0.01 290);
     --zebra: oklch(0.215 0.006 290);
     --bg-gedaempft: oklch(0.215 0.006 290);
     --flaeche: oklch(0.27 0.008 290);
-    --flaeche-eingabe: oklch(0.235 0.008 290);
+    /* Heller als die Gruppenfläche, sonst verschwindet ein Feld in ihr. */
+    --flaeche-eingabe: oklch(0.275 0.008 290);
     --zeile-hover: oklch(0.9 0.02 290 / 0.07);
 
     --rand: oklch(0.32 0.008 290);

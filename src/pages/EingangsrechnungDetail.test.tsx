@@ -128,7 +128,7 @@ describe("EingangsrechnungDetail", () => {
     const onZurueck = vi.fn();
     render(<EingangsrechnungDetail id="e1" onZurueck={onZurueck} />);
     await waitFor(() => expect(screen.getByText("Lieferant GmbH")).toBeTruthy());
-    fireEvent.click(screen.getByRole("button", { name: "← Zurück zur Liste" }));
+    fireEvent.click(screen.getByRole("button", { name: "Zurück zur Liste" }));
     expect(onZurueck).toHaveBeenCalledTimes(1);
   });
 

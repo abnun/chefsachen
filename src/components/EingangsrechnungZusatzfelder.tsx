@@ -26,9 +26,15 @@ export interface EingangsrechnungZusatzfelderProps {
   steuerzeilen: EingangsrechnungSteuerzeile[];
 }
 
+/** Eine Zeile der Beschriftung-Wert-Liste; leere Angaben entfallen. */
 function Feld({ label, wert }: { label: string; wert: string }) {
   if (!wert) return null;
-  return <p>{label}: <span>{wert}</span></p>;
+  return (
+    <>
+      <dt>{label}</dt>
+      <dd>{wert}</dd>
+    </>
+  );
 }
 
 function formatAdresse(strasse: string, plz: string, ort: string, land: string): string {
@@ -51,66 +57,75 @@ export function EingangsrechnungZusatzfelder(p: EingangsrechnungZusatzfelderProp
   return (
     <>
       {zeigtRechnungssteller && (
-        <div className="karte">
+        <section>
           <h3>Rechnungssteller</h3>
-          <Feld label="Anschrift" wert={verkaeuferAdresse} />
-          <Feld label="Steuernummer/USt-IdNr." wert={p.verkaeufer_steuernummer} />
-          <Feld label="E-Mail" wert={p.verkaeufer_email} />
-          <Feld label="Lieferantennummer" wert={p.lieferantennummer} />
-        </div>
+          <dl className="angaben">
+            <Feld label="Anschrift" wert={verkaeuferAdresse} />
+            <Feld label="Steuernummer/USt-IdNr." wert={p.verkaeufer_steuernummer} />
+            <Feld label="E-Mail" wert={p.verkaeufer_email} />
+            <Feld label="Lieferantennummer" wert={p.lieferantennummer} />
+          </dl>
+        </section>
       )}
       {zeigtRechnungsempfaenger && (
-        <div className="karte">
+        <section>
           <h3>Rechnungsempfänger</h3>
-          <Feld label="Name" wert={p.kaeufer_name} />
-          <Feld label="Anschrift" wert={kaeuferAdresse} />
-        </div>
+          <dl className="angaben">
+            <Feld label="Name" wert={p.kaeufer_name} />
+            <Feld label="Anschrift" wert={kaeuferAdresse} />
+          </dl>
+        </section>
       )}
       {zeigtZahlung && (
-        <div className="karte">
+        <section>
           <h3>Zahlung</h3>
-          <Feld label="Zahlungsbedingungen" wert={p.zahlungsbedingungen} />
-          <Feld label="Fälligkeitsdatum" wert={p.faelligkeitsdatum} />
-          <Feld label="IBAN" wert={p.iban} />
-          <Feld label="BIC" wert={p.bic} />
-          <Feld label="Bank" wert={p.bankname} />
-        </div>
+          <dl className="angaben">
+            <Feld label="Zahlungsbedingungen" wert={p.zahlungsbedingungen} />
+            <Feld label="Fälligkeitsdatum" wert={p.faelligkeitsdatum} />
+            <Feld label="IBAN" wert={p.iban} />
+            <Feld label="BIC" wert={p.bic} />
+            <Feld label="Bank" wert={p.bankname} />
+          </dl>
+        </section>
       )}
       {zeigtReferenzen && (
-        <div className="karte">
+        <section>
           <h3>Referenzen</h3>
-          <Feld label="Bestellnummer" wert={p.bestellnummer} />
-          <Feld label="Leitweg-ID" wert={p.leitweg_id} />
-        </div>
+          <dl className="angaben">
+            <Feld label="Bestellnummer" wert={p.bestellnummer} />
+            <Feld label="Leitweg-ID" wert={p.leitweg_id} />
+          </dl>
+        </section>
       )}
       {zeigtLeistungsdatum && (
-        <div className="karte">
+        <section>
           <h3>Liefer-/Leistungsdatum</h3>
-          <Feld label="Datum" wert={p.leistungsdatum} />
-        </div>
+          <dl className="angaben">
+            <Feld label="Datum" wert={p.leistungsdatum} />
+          </dl>
+        </section>
       )}
       {zeigtSteuern && (
-        <div className="karte">
+        <section>
           <h3>Steuern</h3>
           <table className="tabelle">
             <thead>
               <tr>
-                <th>Netto</th>
-                <th>Satz</th>
-                <th>Steuerbetrag</th>
+                <th className="zahl">Netto</th>
+                <th className="zahl">Satz</th>
+                <th className="zahl">Steuerbetrag</th>
               </tr>
             </thead>
             <tbody>
               {p.steuerzeilen.map((s, i) => (
                 <tr key={i}>
-                  <td>{formatCentMitWaehrung(s.nettobetrag_cent, p.waehrung)}</td>
-                  <td>{(s.steuersatz_promille / 10).toLocaleString("de-DE", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} %</td>
-                  <td>{formatCentMitWaehrung(s.steuerbetrag_cent, p.waehrung)}</td>
+                  <td className="zahl">{formatCentMitWaehrung(s.nettobetrag_cent, p.waehrung)}</td>
+                  <td className="zahl">{(s.steuersatz_promille / 10).toLocaleString("de-DE", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} %</td>
+                  <td className="zahl">{formatCentMitWaehrung(s.steuerbetrag_cent, p.waehrung)}</td>
                 </tr>
               ))}
             </tbody>
-          </table>
-        </div>
+          </table>        </section>
       )}
     </>
   );

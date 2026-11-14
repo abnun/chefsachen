@@ -113,23 +113,6 @@
   background-color: var(--akzent-leise);
 }
 
-/* Seitentitel einer Seite ohne Werkzeugleiste (Beleg, Kunde, Eingangs-
-   rechnung). Der obere Abstand setzt ihn auf dieselbe Höhe wie den Titel in
-   der Werkzeugleiste, damit er beim Seitenwechsel nicht springt. */
-.seiten-kopf {
-  display: flex;
-  align-items: baseline;
-  gap: var(--abstand-s);
-  margin-top: calc((var(--leiste-hoehe) - 1.2em) / 2);
-}
-
-.seiten-kopf small {
-  font-size: var(--text-m);
-  font-weight: 400;
-  letter-spacing: 0;
-  color: var(--text-leise);
-}
-
 /* Formularfelder */
 .feld,
 label.feld {
@@ -182,15 +165,17 @@ label.feld textarea {
 
 .feld-fehler {
   color: var(--fehler-text);
-  font-size: var(--text-s);
+  font-size: var(--text-m);
   margin: -6px 0 var(--abstand-m);
 }
 
 /* Erklärender Hinweis unter einem Eingabefeld — etwa warum ein Feld für den
-   XRechnung-Export benötigt wird. Zurückhaltender als eine Fehlermeldung. */
+   XRechnung-Export benötigt wird. Zurückhaltender als eine Fehlermeldung.
+   In Grundschriftgröße, nur leiser: Die meisten dieser Hinweise sind ganze
+   Sätze, und 11 px taugt nur für kurze Beischriften. */
 .feld-hinweis {
   color: var(--text-leise);
-  font-size: var(--text-s);
+  font-size: var(--text-m);
   margin: -6px 0 var(--abstand-m);
 }
 
@@ -247,8 +232,8 @@ label.feld textarea {
 /* Unter einer Werkzeugleiste bleiben die Spaltenköpfe beim Scrollen direkt
    darunter stehen, wie im Finder: Bei zwanzig Rechnungen weiß man sonst ab
    der Mitte nicht mehr, welche Spalte „Summe" und welche „Offen" ist. */
-.werkzeugleiste ~ .tabelle th,
-.werkzeugleiste ~ * .tabelle th {
+.werkzeugleiste ~ .tabelle thead th,
+.werkzeugleiste ~ * .tabelle thead th {
   position: sticky;
   top: var(--leiste-hoehe);
   z-index: 5;
@@ -257,7 +242,7 @@ label.feld textarea {
 
 /* In einem Dialog scrollt der Dialog selbst; dort gibt es keine Leiste,
    unter der der Kopf stehen bleiben könnte. */
-.bestaetigung-overlay .tabelle th {
+.bestaetigung-overlay .tabelle thead th {
   position: static;
 }
 
@@ -295,15 +280,6 @@ label.feld textarea {
   min-height: 22px;
   padding: 0 8px;
   font-size: var(--text-s);
-}
-
-/* Karte */
-.karte {
-  background: var(--flaeche);
-  border: 1px solid var(--rand);
-  border-radius: var(--radius-m);
-  padding: var(--abstand-l);
-  margin-bottom: var(--abstand-l);
 }
 
 /* Werkzeugleiste (Werkzeugleiste.tsx)
@@ -344,11 +320,80 @@ label.feld textarea {
 
 .werkzeugleiste-rechts {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: flex-end;
   gap: var(--abstand-s);
   flex: 1;
   min-width: 0;
+}
+
+/* Der Chevron steht optisch bündig mit der Inhaltskante; sein Kasten ragt
+   dafür ein Stück in den Rand. */
+.werkzeugleiste-zurueck {
+  flex-shrink: 0;
+  margin-left: -8px;
+  margin-right: -2px;
+}
+
+/* Status oder Kennung direkt neben dem Titel, auf dessen Mittellinie. */
+.werkzeugleiste-zusatz {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--abstand-s);
+  flex-shrink: 0;
+  color: var(--text-leise);
+  font-size: var(--text-m);
+}
+
+/* Unter macOS ohne Seitenleiste (Hilfeseite über dem ganzen Fenster) liegen
+   die Ampelknöpfe über der Leiste; sie braucht dann links Platz. */
+html[data-plattform="mac"] .ohne-seitenleiste .werkzeugleiste {
+  padding-left: 88px;
+}
+
+/* Zusammengehörige Knöpfe in einem gemeinsamen Rahmen, wie die
+   Segmentknöpfe in der Werkzeugleiste von Vorschau oder Mail. Der Trenner
+   ist der Rand des nächsten Knopfs, der um einen Pixel überlappt. */
+.knopfgruppe {
+  display: inline-flex;
+  border-radius: var(--radius-s);
+  box-shadow: var(--schatten-knopf);
+}
+
+.knopfgruppe > .btn {
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.knopfgruppe > .btn + .btn {
+  margin-left: -1px;
+}
+
+.knopfgruppe > .btn:first-child {
+  border-radius: var(--radius-s) 0 0 var(--radius-s);
+}
+
+.knopfgruppe > .btn:last-child {
+  border-radius: 0 var(--radius-s) var(--radius-s) 0;
+}
+
+.knopfgruppe > .btn:only-child {
+  border-radius: var(--radius-s);
+}
+
+/* Der Fokusring liegt über den Nachbarn, nicht darunter. */
+.knopfgruppe > .btn:focus-visible {
+  position: relative;
+  z-index: 1;
+  box-shadow: var(--fokusring);
+}
+
+/* Was sich nicht zurücknehmen lässt (Stornieren, Entwurf löschen), steht mit
+   Abstand am Ende der Leiste, damit es nicht neben einem Export landet, den
+   man eigentlich treffen wollte. */
+.leiste-abgesetzt {
+  margin-left: var(--abstand-m);
 }
 
 /* Suchfeld mit Lupe (Suchfeld.tsx). */
@@ -371,6 +416,172 @@ label.feld textarea {
   width: 100%;
   padding-left: 26px;
   border-radius: var(--radius-s);
+}
+
+/* Formulargruppen
+   Eingesetzte Gruppe wie in den Systemeinstellungen: eigene, leicht
+   abgesetzte Fläche, kein Schatten, die Überschrift steht darüber statt
+   darin. Löst die frühere `.karte` ab, die jeden Abschnitt mit Rahmen,
+   Schatten und rund 40 px Luft über der Überschrift umgab. Gruppen stehen
+   nur nebeneinander oder untereinander, nie ineinander. */
+.gruppe {
+  background: var(--gruppe);
+  border: 1px solid var(--rand-gruppe);
+  border-radius: var(--radius-gruppe);
+  padding: var(--abstand-m) var(--abstand-l);
+  margin: 0 0 var(--abstand-m);
+}
+
+.gruppe > :last-child,
+.gruppe > .felder-reihe:last-child > *,
+.gruppe > :last-child > .feld-hinweis:last-child {
+  margin-bottom: 0;
+}
+
+/* Ein Hinweis als letztes Kind eines Feldes: Der Abstand nach unten kommt
+   schon vom Feld, sonst stünde doppelt so viel Luft unter ihm wie über ihm. */
+.feld > .feld-hinweis:last-child {
+  margin-bottom: 0;
+}
+
+/* Formulare und Lesetext nicht breiter als eine bequeme Zeile. */
+.inhalt-schmal {
+  max-width: var(--inhalt-schmal);
+}
+
+/* Kurze Felder nebeneinander: Jedes Kind wird eine gleich breite Spalte.
+   Was nicht zusammenpasst, bekommt eine eigene Spaltenaufteilung. */
+.felder-reihe {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  gap: 0 var(--abstand-m);
+}
+
+.felder-plz-ort {
+  grid-template-columns: 7em minmax(0, 1fr);
+}
+
+.felder-breit-schmal {
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+}
+
+/* Feldbreite nach Inhalt: Eine Postleitzahl, ein Länderkürzel oder ein
+   Zahlungsziel in Tagen braucht keine 700 px. */
+.feld-schmal :is(input, select) {
+  align-self: flex-start;
+  width: 9em;
+}
+
+.feld-mittel :is(input, select) {
+  align-self: flex-start;
+  width: 100%;
+  max-width: 18em;
+}
+
+/* Beschriftung und Wert in zwei Spalten, etwa die Stammdaten eines
+   festgeschriebenen Belegs. Die Beschriftung tritt zurück. */
+.angaben {
+  display: grid;
+  /* Feste Breite statt max-content: Mehrere Listen untereinander (etwa bei
+     einer Eingangsrechnung) bekommen so dieselbe Wertekante. */
+  grid-template-columns: 12em minmax(0, 1fr);
+  gap: 6px var(--abstand-l);
+  margin: 0 0 var(--abstand-l);
+}
+
+.angaben dt {
+  color: var(--text-leise);
+}
+
+.angaben dd {
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.felder-schmal-breit {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+}
+
+/* Ein Formular unter einer Tabelle oder vor einer Liste braucht Luft nach
+   unten; sonst klebt die nächste Tabelle an „Speichern". */
+form.inhalt-schmal {
+  margin-bottom: var(--abstand-xl);
+}
+
+/* Knopfreihe direkt über einer Tabelle (Sicherungen). */
+.aktionen-ueber-tabelle {
+  margin: var(--abstand-m) 0;
+}
+
+/* Nummernkreis als eine Zeile: Format, Rücksetzen, Zähler, Speichern. */
+.nummernkreis {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
+  align-items: end;
+  gap: 0 var(--abstand-l);
+}
+
+.nummernkreis > *,
+.nummernkreis > label.feld {
+  margin-bottom: 0;
+}
+
+/* Mehrere gleichartige Gruppen untereinander (Nummernkreise, Textbausteine)
+   rücken zusammen; der große Abstand gehört zwischen die Abschnitte. */
+form.gruppe.inhalt-schmal {
+  margin-bottom: var(--abstand-s);
+}
+
+.nummernkreis > .feld-checkbox,
+.nummernkreis-zaehler {
+  min-height: 28px;
+  margin: 0;
+  color: var(--text-leise);
+  display: flex;
+  align-items: center;
+}
+
+.nummernkreis > .feld-checkbox {
+  color: var(--text);
+}
+
+.textbaustein .aktionen {
+  margin-top: var(--abstand-xs);
+}
+
+/* Segmentschalter wie in macOS: Reiter einer Detailseite. */
+.segment {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  padding: 2px;
+  margin: 0 0 var(--abstand-l);
+  border-radius: 8px;
+  background: var(--segment-spur);
+}
+
+.segment > button {
+  min-height: 24px;
+  padding: 0 12px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text);
+  font-size: var(--text-m);
+  font-weight: 400;
+  transition: background-color var(--dauer-kurz) var(--ease-aus);
+}
+
+.segment > button:hover:not([aria-current="page"]) {
+  background: var(--zeile-hover);
+}
+
+.segment > button[aria-current="page"] {
+  background: var(--segment-auswahl);
+  box-shadow: var(--schatten-knopf), 0 0 0 0.5px var(--rand-stark);
+  font-weight: 500;
 }
 
 /* Fehler-Box */
@@ -546,11 +757,41 @@ html[data-plattform="mac"] .app-nav-kopf {
   overflow: auto;
 }
 
-/* Einrichtungs-Assistent */
+/* Einrichtungs-Assistent
+   Ruhig und mittig wie der Einrichtungsassistent von macOS: schmale Spalte,
+   großzügiger Abstand nach oben, keine Seitenleiste. */
 .einrichtung-main {
-  max-width: 480px;
-  margin: 48px auto;
-  padding: 0 var(--abstand-l);
+  max-width: 560px;
+  margin: 0 auto;
+  padding: var(--abstand-xl) var(--abstand-l) 48px;
+}
+
+/* Unter macOS fehlt die Titelleiste; dieser Streifen hält den Ampelknöpfen
+   Platz frei und zieht das Fenster. */
+.einrichtung-ziehbereich {
+  position: fixed;
+  inset: 0 0 auto;
+  height: var(--leiste-hoehe);
+  z-index: 10;
+}
+
+html[data-plattform="mac"] .einrichtung-main {
+  padding-top: calc(var(--leiste-hoehe) + var(--abstand-s));
+}
+
+.einrichtung-main > h1 {
+  margin: 0 0 var(--abstand-xl);
+  text-align: center;
+}
+
+.einrichtung-main h2 {
+  margin: 0 0 var(--abstand-xs);
+  font-size: var(--text-xl);
+}
+
+.einrichtung-main .einleitung {
+  margin: 0 0 var(--abstand-l);
+  color: var(--text-leise);
 }
 
 /* Hinweis-Box */
@@ -588,8 +829,9 @@ html[data-plattform="mac"] .app-nav-kopf {
 /* Einrichtungs-Fortschritt */
 .schritt-fortschritt {
   font-size: var(--text-s);
+  font-weight: 500;
   color: var(--text-leise);
-  margin: 0 0 var(--abstand-s);
+  margin: 0 0 var(--abstand-xs);
 }
 
 /* Kundenpreise-Bereich (Artikel-Seite): zwei getrennte Boxen — Liste, dann Formular */
@@ -635,62 +877,137 @@ html[data-plattform="mac"] .app-nav-kopf {
   margin-bottom: var(--abstand-s);
 }
 
-/* Das Formular erscheint erst auf Verlangen und hebt sich dann ab, damit
-   erkennbar bleibt, was Eingabe ist und was Bestand. */
-.kundenpreis-formular {
-  padding: var(--abstand-m) var(--abstand-l) var(--abstand-s);
-  background: var(--bg-gedaempft);
-  border: 1px solid var(--rand);
-  border-radius: var(--radius-m);
-}
-
-/* Im Kundenpreis-Formular sitzt die Reihe innerhalb eines abgesetzten
-   Kastens; der Abstand nach unten gehört dort dazu. */
-.kundenpreis-formular .aktionen {
-  margin-bottom: var(--abstand-m);
-}
-
-/* Bestätigungsdialog */
+/* Dialog (Dialog.tsx) als Blatt wie unter macOS
+   Ein Sheet hängt oben am Fenster, direkt unter der Werkzeugleiste, und
+   gleitet von dort herab. In der Fenstermitte wirkte die Rückfrage wie ein
+   Web-Popup, das irgendwo über der App schwebt. Bewegt werden nur
+   Verschiebung und Deckkraft, nie Größe oder Lage im Fluss. */
 .bestaetigung-overlay {
   position: fixed;
   inset: 0;
   background: var(--abdeckung);
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
+  padding: var(--leiste-hoehe) var(--abstand-l) var(--abstand-l);
   z-index: 100;
+  animation: blende-ein var(--dauer-mittel) var(--ease-aus);
 }
 
 .bestaetigung-karte {
   background: var(--flaeche);
-  border-radius: var(--radius-m);
+  border: 1px solid var(--rand);
+  border-radius: var(--radius-sheet);
   box-shadow: var(--schatten-dialog);
-  padding: var(--abstand-l);
-  max-width: 360px;
-  width: calc(100% - var(--abstand-xl));
+  padding: var(--abstand-l) var(--abstand-l) var(--abstand-m);
+  max-width: 420px;
+  width: 100%;
+  max-height: calc(100vh - var(--leiste-hoehe) - var(--abstand-l));
+  overflow-y: auto;
+  animation: sheet-ein var(--dauer-mittel) var(--ease-aus) both;
 }
 
 /* Breiter Zuschnitt für Dialoge mit Tabelleninhalt. Der Inhalt scrollt in sich
    selbst, statt den Dialog über den Fensterrand hinauswachsen zu lassen. */
 .bestaetigung-karte-breit {
   max-width: 620px;
-  max-height: calc(100vh - 2 * var(--abstand-xl));
-  overflow-y: auto;
 }
 
+/* Titel eines Blatts wie die fette erste Zeile einer macOS-Rückfrage. */
+.dialog-titel {
+  margin: 0 0 var(--abstand-s);
+  font-weight: 600;
+}
 
+/* Eine Rückfrage ist ein ganzer Satz, oft zwei. Fett gesetzt wäre sie eine
+   Textwand; sie bleibt in normaler Schrift. */
+.dialog-titel.rueckfrage {
+  font-weight: 400;
+}
+
+@keyframes sheet-ein {
+  from {
+    opacity: 0;
+    transform: translateY(-12px);
+  }
+}
+
+@keyframes blende-ein {
+  from {
+    opacity: 0;
+  }
+}
+
+/* Bei reduzierter Bewegung nur einblenden. Die Dauer kommt nicht aus
+   --dauer-mittel, die dann auf null steht. */
+@media (prefers-reduced-motion: reduce) {
+  .bestaetigung-overlay,
+  .bestaetigung-karte {
+    animation: blende-ein var(--dauer-blende) var(--ease-aus) both;
+  }
+}
 
 /* ── Übersicht ───────────────────────────────────────────────────────────── */
 
-.kennzahl {
-  font-size: 28px;
-  font-weight: 600;
-  margin: var(--abstand-s) 0 0;
+/* Kopf der Übersicht: was in diesem Jahr eingegangen ist, daneben das
+   Vorjahr, darunter sofort die Grenzen. Bewusst keine eigene Karte und keine
+   Riesenzahl: Der Betrag ist eine Angabe unter anderen, kein Aushängeschild. */
+.umsatz-kopf {
+  margin-bottom: var(--abstand-l);
 }
 
-.kennzahl-neben {
+.umsatz-kopf h2 {
+  margin: 0 0 2px;
+  font-size: var(--text-m);
+  font-weight: 600;
   color: var(--text-leise);
-  margin: var(--abstand-xs) 0 var(--abstand-m);
+}
+
+.umsatz-zeile {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--abstand-xs) var(--abstand-m);
+  margin: 0 0 var(--abstand-xs);
+}
+
+.umsatz-betrag {
+  font-size: var(--text-titel);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+}
+
+.umsatz-vorjahr {
+  color: var(--text-leise);
+  font-variant-numeric: tabular-nums;
+}
+
+.umsatz-kopf .feld-hinweis {
+  margin: 0;
+  max-width: 65ch;
+}
+
+/* Die Grenzen stehen unter dem Umsatz nebeneinander, solange Platz ist: drei
+   Balken untereinander nahmen eine halbe Bildschirmhöhe ein. */
+.grenzen {
+  margin-bottom: var(--abstand-xl);
+}
+
+.grenzen h2 {
+  margin: 0 0 var(--abstand-s);
+  font-size: var(--text-m);
+}
+
+.grenzen-raster {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: var(--abstand-l) var(--abstand-xl);
+}
+
+.grenzen > .feld-hinweis {
+  margin: var(--abstand-m) 0 0;
+  max-width: 75ch;
 }
 
 /* Kennzeichnet einen Sonderzustand neben einer Überschrift, etwa das
@@ -710,7 +1027,7 @@ html[data-plattform="mac"] .app-nav-kopf {
 }
 
 .grenze {
-  margin-bottom: var(--abstand-xl);
+  min-width: 0;
 }
 
 .grenze-kopf {
@@ -731,7 +1048,7 @@ html[data-plattform="mac"] .app-nav-kopf {
 }
 
 .grenze-balken {
-  height: 10px;
+  height: 6px;
   border-radius: var(--radius-pill);
   background: var(--akzent-leise);
   overflow: hidden;
@@ -746,7 +1063,6 @@ html[data-plattform="mac"] .app-nav-kopf {
 .grenze-erlaeuterung {
   margin: var(--abstand-xs) 0 0;
   color: var(--text-leise);
-  font-size: var(--text-s);
 }
 
 /* Die Farbe sitzt am Container und wird über currentColor an die Füllung
@@ -755,13 +1071,6 @@ html[data-plattform="mac"] .app-nav-kopf {
 .grenze-annaeherung { color: var(--grenze-annaeherung); }
 .grenze-kritisch { color: var(--grenze-kritisch); }
 .grenze-ueberschritten { color: var(--fehler-text); }
-
-/* Abstand zum Vorherigen für Abschnitte ohne eigene Überschrift — sonst
-   fehlt der `h2`-Rand (margin-top), der sonst für Luft zwischen den
-   Abschnitten der Einstellungsseite sorgt. */
-.abschnitt-abstand {
-  margin-top: var(--abstand-xl);
-}
 
 /* Rundum gleich starker Rahmen. Vorher trug die linke Kante 4 px — ein
    Muster, das in erzeugten Oberflächen so oft auftaucht, dass es inzwischen
@@ -995,10 +1304,6 @@ html[data-plattform="mac"] .app-nav-kopf {
   margin-bottom: var(--abstand-l);
 }
 
-.seiten-kopf {
-  margin-bottom: var(--abstand-l);
-}
-
 /* Abschnitt ohne eigene Fläche, nur über Überschrift und Abstand gegliedert
    (etwa die Tabellen der Übersicht). */
 .abschnitt {
@@ -1009,42 +1314,45 @@ html[data-plattform="mac"] .app-nav-kopf {
   margin-top: 0;
 }
 
-/* Kopfleiste eines Belegs: Status links, Aktionen rechts.
-   Vorher lagen Stellen, Exporte, Abschluss und Stornieren über die ganze
-   Seitenlänge verstreut — bei einem Beleg mit vielen Positionen war „Stellen"
-   erst nach mehrmaligem Scrollen zu finden. */
-.beleg-kopfleiste {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: var(--abstand-m);
-  margin-bottom: var(--abstand-l);
-}
-
-.beleg-status {
+/* Bezug eines Belegs (Gutschrift zu …, Stornobeleg): eine leise Zeile
+   direkt unter der Werkzeugleiste. */
+.beleg-bezug {
+  margin: 0 0 var(--abstand-m);
   color: var(--text-leise);
 }
 
-.beleg-summe {
+/* Fußzeilen der Positionstabelle: Summe in der Summenspalte, darunter die
+   enthaltene Steuer je Satz, leiser. Die Linie trennt Posten von Ergebnis. */
+.tabelle tfoot th,
+.tabelle tfoot td {
+  padding: 5px 10px;
+  border-bottom: none;
+  font-size: var(--text-m);
+  font-weight: 400;
+  color: var(--text);
+  vertical-align: middle;
+}
+
+/* Knopfreihe unter einer Angabenliste, über einer Tabelle. */
+.angaben + .aktionen {
+  margin-bottom: var(--abstand-l);
+}
+
+.tabelle tfoot tr:first-child > * {
+  border-top: 1px solid var(--rand);
+}
+
+.tabelle tfoot .summenzeile > * {
+  height: 32px;
   font-weight: 600;
-  font-size: var(--text-l);
-  text-align: right;
-  margin-bottom: var(--abstand-l);
 }
 
-/* Steueraufschlüsselung direkt unter der Summe: gleiche rechte Kante,
-   aber leiser — sie erläutert die Summe, sie ist keine zweite Summe. */
-.beleg-steuerzeile {
+.tabelle tfoot .steuerzeile > * {
   color: var(--text-leise);
-  font-size: var(--text-s);
-  text-align: right;
-  margin-top: calc(-1 * var(--abstand-l) + var(--abstand-xs));
-  margin-bottom: var(--abstand-l);
 }
 
-.beleg-steuerzeile + .beleg-steuerzeile {
-  margin-top: calc(-1 * var(--abstand-l));
+.offener-betrag {
+  margin: 0 0 var(--abstand-s);
 }
 
 /* Erste Schritte */

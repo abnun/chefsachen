@@ -42,7 +42,7 @@ describe("XRechnungHilfeProvider", () => {
     fireEvent.click(screen.getByRole("button", { name: "Was ist die XRechnung?" }));
     expect(screen.getByRole("heading", { name: "Was ist die XRechnung?" })).toBeTruthy();
 
-    fireEvent.click(screen.getByRole("button", { name: "← Zurück" }));
+    fireEvent.click(screen.getByRole("button", { name: "Zurück" }));
     expect(screen.getByLabelText("Name")).toHaveValue("Musterfirma");
   });
 

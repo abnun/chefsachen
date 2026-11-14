@@ -94,6 +94,17 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
+
+/**
+ * Wert zu einer Beschriftung in der Angabenliste eines festgeschriebenen
+ * Belegs (dt/dd). Über die Beschriftung statt über einen zusammengesetzten
+ * Text, weil Beschriftung und Wert getrennte Elemente sind.
+ */
+function angabe(beschriftung: string): string | null {
+  const dt = screen.queryByText(beschriftung, { selector: "dt" });
+  return dt?.nextElementSibling?.textContent ?? null;
+}
+
 describe("BelegEditor", () => {
   it("zeigt Status eines Entwurfs und deaktiviert Stellen ohne Positionen", async () => {
     vi.mocked(api.belege.get).mockResolvedValue({
@@ -125,7 +136,7 @@ describe("BelegEditor", () => {
       positionen: [], zahlungen: [], bezahlt_cent: 0, offener_betrag_cent: 9550, steuerzeilen: [],
     });
     render(<BelegEditor id="b1" />);
-    await waitFor(() => expect(screen.getByText("Kunde: ACME GmbH (alter Name)")).toBeTruthy());
+    await waitFor(() => expect(angabe("Kunde")).toBe("ACME GmbH (alter Name)"));
   });
 });
 
@@ -241,7 +252,7 @@ describe("BelegEditor – Gültigkeit des Angebots", () => {
       positionen: [], zahlungen: [], bezahlt_cent: 0, offener_betrag_cent: 0, steuerzeilen: [],
     });
     render(<BelegEditor id="b1" />);
-    await waitFor(() => expect(screen.getByText("Gültig bis: unbefristet")).toBeTruthy());
+    await waitFor(() => expect(angabe("Gültig bis")).toBe("unbefristet"));
   });
 
   it("zeigt die Gültigkeit in der Vorschau vor dem Festschreiben", async () => {
@@ -1149,7 +1160,10 @@ describe("BelegEditor – Steueraufschlüsselung", () => {
       positionen: [], zahlungen: [], bezahlt_cent: 0, offener_betrag_cent: 9500, steuerzeilen: [],
     } as never);
     render(<BelegEditor id="b1" />);
-    await waitFor(() => expect(screen.getByText(/Summe: 95,00/)).toBeTruthy());
+    // Die Summe steht als Fußzeile der Positionstabelle.
+    await waitFor(() =>
+      expect(screen.getByRole("rowheader", { name: "Summe" }).nextElementSibling).toHaveTextContent("95,00 €"),
+    );
     expect(screen.queryByText(/Enthaltene USt/)).toBeNull();
   });
 });
@@ -1329,7 +1343,7 @@ describe("BelegEditor – Gesamt-Auftragswert", () => {
     } as never);
     render(<BelegEditor id="b1" />);
     await waitFor(() => expect(screen.getByText(/Gesamt-Auftragswert/)).toBeTruthy());
-    expect(screen.getByText("Gesamt-Auftragswert: 1.470,00 €")).toBeTruthy();
+    expect(angabe("Gesamt-Auftragswert")).toBe("1.470,00 €");
   });
 });
 

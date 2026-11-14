@@ -11,7 +11,20 @@ interface WerkzeugleisteProps {
   filter?: ReactNode;
   /** Die Hauptaktion der Seite, ganz rechts. */
   aktion?: ReactNode;
+  /**
+   * Rückweg zur Liste, als Chevron links vom Titel wie in den
+   * Systemeinstellungen. Die Beschriftung ist der zugängliche Name.
+   */
+  zurueck?: { beschriftung: string; onClick: () => void };
+  /** Steht direkt neben dem Titel: Status eines Belegs, Kundennummer. */
+  zusatz?: ReactNode;
 }
+
+const SYMBOL_ZURUECK = (
+  <svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+    <path d="M12.5 4.5 7 10l5.5 5.5" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
 
 const SYMBOL_HILFE = (
   <svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
@@ -35,12 +48,17 @@ const SYMBOL_HILFE = (
  * unsichtbarer Anker direkt davor meldet über einen IntersectionObserver,
  * ob schon gescrollt wurde. Das kostet keine Arbeit je Scrollschritt.
  *
+ * Detailseiten (Beleg, Kunde, Eingangsrechnung) nutzen dieselbe Leiste mit
+ * einem Chevron zurück zur Liste und dem Status neben dem Titel. Vorher
+ * hatten sie einen eigenen Seitenkopf, einen Textknopf „← Zurück zur Liste"
+ * darüber und die Aktionen eine Zeile tiefer.
+ *
  * Unter macOS ist die Leiste zugleich Ziehbereich des Fensters, weil die
  * Titelleiste dort ausgeblendet ist. Tauri zieht nur, wenn genau das
  * markierte Element getroffen wird; Knöpfe und Felder darin bleiben deshalb
  * normal bedienbar.
  */
-export function Werkzeugleiste({ titel, rundgang, filter, aktion }: WerkzeugleisteProps) {
+export function Werkzeugleiste({ titel, rundgang, filter, aktion, zurueck, zusatz }: WerkzeugleisteProps) {
   const [zeigtRundgang, setZeigtRundgang] = useState(false);
   const [gescrollt, setGescrollt] = useState(false);
   const anker = useRef<HTMLDivElement>(null);
@@ -59,9 +77,21 @@ export function Werkzeugleiste({ titel, rundgang, filter, aktion }: Werkzeugleis
     <>
       <div ref={anker} className="werkzeugleiste-anker" aria-hidden="true" />
       <header className={gescrollt ? "werkzeugleiste gescrollt" : "werkzeugleiste"} {...ziehbar}>
+        {zurueck && (
+          <button
+            type="button"
+            className="btn-symbol werkzeugleiste-zurueck"
+            aria-label={zurueck.beschriftung}
+            title={zurueck.beschriftung}
+            onClick={zurueck.onClick}
+          >
+            {SYMBOL_ZURUECK}
+          </button>
+        )}
         <h1 className="werkzeugleiste-titel" data-tour="titel" {...ziehbar}>
           {titel}
         </h1>
+        {zusatz && <span className="werkzeugleiste-zusatz">{zusatz}</span>}
         {rundgang && (
           <button
             type="button"

@@ -1,3 +1,5 @@
+import { Werkzeugleiste } from "../components/Werkzeugleiste";
+
 interface XRechnungHilfeSeiteProps {
   onZurueck: () => void;
 }
@@ -9,13 +11,13 @@ interface XRechnungHilfeSeiteProps {
  */
 export function XRechnungHilfeSeite({ onZurueck }: XRechnungHilfeSeiteProps) {
   return (
-    <div className="app-layout">
+    <div className="app-layout ohne-seitenleiste">
       <main className="app-main">
-        <button type="button" className="btn btn-leise" onClick={onZurueck}>
-          ← Zurück
-        </button>
-        <div className="karte">
-          <h1 className="seiten-kopf">Was ist die XRechnung?</h1>
+        <Werkzeugleiste
+          titel="Was ist die XRechnung?"
+          zurueck={{ beschriftung: "Zurück", onClick: onZurueck }}
+        />
+        <div className="inhalt-schmal">
           <p>
             Die XRechnung ist das amtliche Format für elektronische Rechnungen in
             Deutschland. Seit 2025 müssen auch Kleinunternehmer Rechnungen an andere

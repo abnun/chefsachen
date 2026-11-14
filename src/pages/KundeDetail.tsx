@@ -14,6 +14,8 @@ import { Fehler } from "../components/Fehler";
 import { PflichtLegende, PflichtMarker } from "../components/PflichtMarker";
 import { useXRechnungHilfe } from "../hooks/useXRechnungHilfe";
 import { Laden } from "../components/Laden";
+import { StatusMarke } from "../components/StatusMarke";
+import { Werkzeugleiste } from "../components/Werkzeugleiste";
 import { useErfolgsHinweis } from "../hooks/useErfolgsHinweis";
 import { useBestaetigung } from "../hooks/useBestaetigung";
 import { useUngespeichert } from "../hooks/useUngespeichert";
@@ -83,10 +85,12 @@ export function KundeDetail({ id, onZurueck, startReiter, onReiterUebernommen, o
 
   useEffect(laden, [id]);
 
+  const zurueck = onZurueck && { beschriftung: "Zurück zur Liste", onClick: onZurueck };
+
   if (!detail) {
     return (
       <div>
-        <h1>Kunde</h1>
+        <Werkzeugleiste titel="Kunde" zurueck={zurueck} />
         {fehler ? <Fehler fehler={fehler} /> : <Laden />}
       </div>
     );
@@ -94,17 +98,16 @@ export function KundeDetail({ id, onZurueck, startReiter, onReiterUebernommen, o
 
   return (
     <div>
-      {onZurueck && (
-        <button type="button" className="btn btn-leise" onClick={onZurueck}>
-          ← Zurück zur Liste
-        </button>
-      )}
-      <h1 className="seiten-kopf">
-        {detail.kunde.name} <small>{detail.kunde.kundennummer}</small>
-      </h1>
+      <Werkzeugleiste
+        titel={detail.kunde.name}
+        zurueck={zurueck}
+        zusatz={<span className="tabelle-num">{detail.kunde.kundennummer}</span>}
+      />
       {fehler && <Fehler fehler={fehler} />}
 
-      <nav className="werkzeugleiste">
+      {/* Reiter als Segmentschalter wie in macOS. Vorher trugen sie die Klasse
+          der Werkzeugleiste und klebten damit als zweite Leiste am Fensterrand. */}
+      <nav className="segment" aria-label="Bereiche des Kunden">
         {REITER.map((r) => (
           <button
             key={r.id}
@@ -176,8 +179,8 @@ function SonderpreiseReiter({ kundeId }: { kundeId: string }) {
           <thead>
             <tr>
               <th>Artikel</th>
-              <th>Standardpreis</th>
-              <th>Sonderpreis</th>
+              <th className="zahl">Standardpreis</th>
+              <th className="zahl">Sonderpreis</th>
               <th>Gültig ab</th>
             </tr>
           </thead>
@@ -187,8 +190,8 @@ function SonderpreiseReiter({ kundeId }: { kundeId: string }) {
                 <td>
                   {p.bezeichnung} <span className="tabelle-num">{p.artikelnummer}</span>
                 </td>
-                <td>{formatCent(p.standardpreis_cent)}</td>
-                <td>
+                <td className="zahl nicht-umbrechen">{formatCent(p.standardpreis_cent)}</td>
+                <td className="zahl">
                   {/* Dieselbe Auszeichnung wie auf der Artikel-Seite, damit ein
                       Sonderpreis überall gleich aussieht. */}
                   <span
@@ -229,7 +232,6 @@ function BelegeReiter({ kundeId }: { kundeId: string }) {
 
   return (
     <section>
-      <h2>Belege</h2>
       {fehler && <Fehler fehler={fehler} />}
       <table className="tabelle">
         <thead>
@@ -238,7 +240,7 @@ function BelegeReiter({ kundeId }: { kundeId: string }) {
             <th>Nummer</th>
             <th>Datum</th>
             <th>Status</th>
-            <th>Summe</th>
+            <th className="zahl">Summe</th>
           </tr>
         </thead>
         <tbody>
@@ -248,9 +250,9 @@ function BelegeReiter({ kundeId }: { kundeId: string }) {
               <td className="tabelle-num">{b.nummer ?? "Entwurf"}</td>
               <td>{b.datum}</td>
               <td>
-                <span className={`status ${STATUS_BADGE_KLASSE[b.status] ?? "status-entwurf"}`}>{b.status}</span>
+                <StatusMarke status={b.status} />
               </td>
-              <td>{formatCent(b.summe_cent)}</td>
+              <td className="zahl nicht-umbrechen">{formatCent(b.summe_cent)}</td>
             </tr>
           ))}
         </tbody>
@@ -258,16 +260,6 @@ function BelegeReiter({ kundeId }: { kundeId: string }) {
     </section>
   );
 }
-
-const STATUS_BADGE_KLASSE: Record<string, string> = {
-  entwurf: "status-entwurf",
-  abgelaufen: "status-entwurf",
-  festgeschrieben: "status-gestellt",
-  gestellt: "status-gestellt",
-  angenommen: "status-bezahlt",
-  abgelehnt: "status-storniert",
-  storniert: "status-storniert",
-};
 
 interface StammdatenReiterProps {
   kunde: Kunde;
@@ -324,103 +316,111 @@ function StammdatenReiter({ kunde, onGespeichert, onGeloescht }: StammdatenReite
       {hinweis}
       {dialog}
       <form
-        className="karte"
+        className="inhalt-schmal"
         onSubmit={(e) => {
           e.preventDefault();
           speichern();
         }}
       >
-        <div className="feld">
-          <label>
-            Typ
-            <select
-              value={form.typ}
-              onChange={(e) => setForm({ ...form, typ: e.currentTarget.value as "firma" | "privat" })}
-            >
-              <option value="firma">Firma</option>
-              <option value="privat">Privat</option>
-            </select>
-          </label>
-        </div>
-        <div className="feld">
-          <label>
-            <PflichtMarker art="pflicht">Name</PflichtMarker>
-            <input value={form.name} onChange={(e) => setForm({ ...form, name: e.currentTarget.value })} />
-          </label>
-          {feldFehler("name") && (
-            <div role="alert" className="feld-fehler">
-              {feldFehler("name")}
+        <div className="gruppe">
+          <div className="felder-reihe felder-schmal-breit">
+            <div className="feld">
+              <label>
+                Typ
+                <select
+                  value={form.typ}
+                  onChange={(e) => setForm({ ...form, typ: e.currentTarget.value as "firma" | "privat" })}
+                >
+                  <option value="firma">Firma</option>
+                  <option value="privat">Privat</option>
+                </select>
+              </label>
             </div>
-          )}
-        </div>
-        <div className="feld">
-          <label>
-            Zahlungsziel (Tage)
-            <input
-              type="number"
-              value={form.zahlungsziel_tage}
-              onChange={(e) => setForm({ ...form, zahlungsziel_tage: Number(e.currentTarget.value) })}
-            />
-          </label>
-        </div>
-        <div className="feld">
-          <label>
-            Notizen
-            <textarea
-              value={form.notizen}
-              onChange={(e) => setForm({ ...form, notizen: e.currentTarget.value })}
-            />
-          </label>
-        </div>
-        <div className="feld">
-          <label>
-            USt-IdNr.
-            <input
-              value={form.ust_idnr}
-              onChange={(e) => setForm({ ...form, ust_idnr: e.currentTarget.value })}
-            />
-          </label>
-          {feldFehler("ust_idnr") && (
-            <div role="alert" className="feld-fehler">
-              {feldFehler("ust_idnr")}
+            <div className="feld">
+              <label>
+                <PflichtMarker art="pflicht">Name</PflichtMarker>
+                <input value={form.name} onChange={(e) => setForm({ ...form, name: e.currentTarget.value })} />
+              </label>
+              {feldFehler("name") && (
+                <div role="alert" className="feld-fehler">
+                  {feldFehler("name")}
+                </div>
+              )}
             </div>
-          )}
-        </div>
-        <div className="feld">
-          <label>
-            E-Mail
-            <input value={form.email} onChange={(e) => setForm({ ...form, email: e.currentTarget.value })} />
-          </label>
-          {feldFehler("email") && (
-            <div role="alert" className="feld-fehler">
-              {feldFehler("email")}
+          </div>
+          <div className="feld feld-schmal">
+            <label>
+              Zahlungsziel (Tage)
+              <input
+                type="number"
+                value={form.zahlungsziel_tage}
+                onChange={(e) => setForm({ ...form, zahlungsziel_tage: Number(e.currentTarget.value) })}
+              />
+            </label>
+          </div>
+          <div className="feld">
+            <label>
+              Notizen
+              <textarea
+                value={form.notizen}
+                onChange={(e) => setForm({ ...form, notizen: e.currentTarget.value })}
+              />
+            </label>
+          </div>
+          <div className="felder-reihe">
+            <div className="feld">
+              <label>
+                USt-IdNr.
+                <input
+                  value={form.ust_idnr}
+                  onChange={(e) => setForm({ ...form, ust_idnr: e.currentTarget.value })}
+                />
+              </label>
+              {feldFehler("ust_idnr") && (
+                <div role="alert" className="feld-fehler">
+                  {feldFehler("ust_idnr")}
+                </div>
+              )}
             </div>
-          )}
-        </div>
-        <div className="feld">
-          <label>
-            <PflichtMarker art="xrechnung">Leitweg-ID</PflichtMarker>
-            <input
-              value={form.leitweg_id}
-              onChange={(e) => setForm({ ...form, leitweg_id: e.currentTarget.value })}
-            />
-          </label>
-          <p className="feld-hinweis">
-            Nur bei Rechnungen an Behörden — die Behörde gibt dir die Leitweg-ID vor.
-          </p>
-        </div>
-        <div className="feld">
-          <label>
-            <PflichtMarker art="xrechnung">Käuferreferenz</PflichtMarker>
-            <input
-              value={form.kaeuferreferenz}
-              onChange={(e) => setForm({ ...form, kaeuferreferenz: e.currentTarget.value })}
-            />
-          </label>
-          <p className="feld-hinweis">
-            Referenz, die manche Firmenkunden verlangen, z. B. eine Bestellnummer. Leitweg-ID
-            oder Käuferreferenz reicht für den XRechnung-Export.
-          </p>
+            <div className="feld">
+              <label>
+                E-Mail
+                <input value={form.email} onChange={(e) => setForm({ ...form, email: e.currentTarget.value })} />
+              </label>
+              {feldFehler("email") && (
+                <div role="alert" className="feld-fehler">
+                  {feldFehler("email")}
+                </div>
+              )}
+            </div>
+          </div>
+          <div className="felder-reihe">
+            <div className="feld">
+              <label>
+                <PflichtMarker art="xrechnung">Leitweg-ID</PflichtMarker>
+                <input
+                  value={form.leitweg_id}
+                  onChange={(e) => setForm({ ...form, leitweg_id: e.currentTarget.value })}
+                />
+              </label>
+              <p className="feld-hinweis">
+                Nur bei Rechnungen an Behörden — die Behörde gibt dir die Leitweg-ID vor.
+              </p>
+            </div>
+            <div className="feld">
+              <label>
+                <PflichtMarker art="xrechnung">Käuferreferenz</PflichtMarker>
+                <input
+                  value={form.kaeuferreferenz}
+                  onChange={(e) => setForm({ ...form, kaeuferreferenz: e.currentTarget.value })}
+                />
+              </label>
+              <p className="feld-hinweis">
+                Referenz, die manche Firmenkunden verlangen, z. B. eine Bestellnummer. Leitweg-ID
+                oder Käuferreferenz reicht für den XRechnung-Export.
+              </p>
+            </div>
+          </div>
         </div>
         <PflichtLegende zeigtXrechnung />
         <button type="button" className="feld-hinweis-link" onClick={zeigeXRechnungHilfe}>
@@ -430,16 +430,18 @@ function StammdatenReiter({ kunde, onGespeichert, onGeloescht }: StammdatenReite
           <button type="submit" className="btn btn-primaer">
             Speichern
           </button>
+          {/* Abgesetzt neben Speichern statt unter dem Formular: Löschen
+              gehört zum Kunden, ist aber kein Teil der Eingabe. */}
+          <button
+            type="button"
+            className="btn btn-gefahr leiste-abgesetzt"
+            disabled={kunde.hat_offene_entwuerfe}
+            onClick={loeschen}
+          >
+            Löschen
+          </button>
         </div>
       </form>
-      <button
-        type="button"
-        className="btn btn-gefahr"
-        disabled={kunde.hat_offene_entwuerfe}
-        onClick={loeschen}
-      >
-        Löschen
-      </button>
     </section>
   );
 }
@@ -518,7 +520,7 @@ function AdressenReiter({ kundeId, adressen, onGeaendert }: AdressenReiterProps)
               <td>{a.ort}</td>
               <td>{a.land}</td>
               <td>{a.ist_standard ? "Ja" : "Nein"}</td>
-              <td>
+              <td className="aktionen">
                 <button type="button" className="btn" onClick={() => setForm(a)}>
                   Bearbeiten
                 </button>
@@ -535,58 +537,62 @@ function AdressenReiter({ kundeId, adressen, onGeaendert }: AdressenReiterProps)
         </tbody>
       </table>
       <form
-        className="karte"
+        className="inhalt-schmal"
         onSubmit={(e) => {
           e.preventDefault();
           speichern();
         }}
       >
-        <label className="feld">
-          Typ
-          <select
-            value={form.typ}
-            onChange={(e) => setForm({ ...form, typ: e.currentTarget.value as "rechnung" | "lieferung" })}
-          >
-            <option value="rechnung">Rechnung</option>
-            <option value="lieferung">Lieferung</option>
-          </select>
-        </label>
-        <div className="feld">
-          <label>
-            <PflichtMarker art="pflicht">Straße</PflichtMarker>
-            <input value={form.strasse} onChange={(e) => setForm({ ...form, strasse: e.currentTarget.value })} />
+        <div className="gruppe">
+          <label className="feld feld-mittel">
+            Typ
+            <select
+              value={form.typ}
+              onChange={(e) => setForm({ ...form, typ: e.currentTarget.value as "rechnung" | "lieferung" })}
+            >
+              <option value="rechnung">Rechnung</option>
+              <option value="lieferung">Lieferung</option>
+            </select>
           </label>
-          {feldFehler("strasse") && <div className="feld-fehler" role="alert">{feldFehler("strasse")}</div>}
-        </div>
-        <div className="feld">
-          <label>
-            <PflichtMarker art="pflicht">PLZ</PflichtMarker>
-            <input value={form.plz} onChange={(e) => setForm({ ...form, plz: e.currentTarget.value })} />
+          <div className="feld">
+            <label>
+              <PflichtMarker art="pflicht">Straße</PflichtMarker>
+              <input value={form.strasse} onChange={(e) => setForm({ ...form, strasse: e.currentTarget.value })} />
+            </label>
+            {feldFehler("strasse") && <div className="feld-fehler" role="alert">{feldFehler("strasse")}</div>}
+          </div>
+          <div className="felder-reihe felder-plz-ort">
+            <div className="feld">
+              <label>
+                <PflichtMarker art="pflicht">PLZ</PflichtMarker>
+                <input value={form.plz} onChange={(e) => setForm({ ...form, plz: e.currentTarget.value })} />
+              </label>
+              {feldFehler("plz") && <div className="feld-fehler" role="alert">{feldFehler("plz")}</div>}
+            </div>
+            <div className="feld">
+              <label>
+                <PflichtMarker art="pflicht">Ort</PflichtMarker>
+                <input value={form.ort} onChange={(e) => setForm({ ...form, ort: e.currentTarget.value })} />
+              </label>
+              {feldFehler("ort") && <div className="feld-fehler" role="alert">{feldFehler("ort")}</div>}
+            </div>
+          </div>
+          <div className="feld feld-schmal">
+            <label>
+              <PflichtMarker art="pflicht">Land</PflichtMarker>
+              <input value={form.land} onChange={(e) => setForm({ ...form, land: e.currentTarget.value })} />
+            </label>
+            {feldFehler("land") && <div className="feld-fehler" role="alert">{feldFehler("land")}</div>}
+          </div>
+          <label className="feld-checkbox">
+            <input
+              type="checkbox"
+              checked={form.ist_standard}
+              onChange={(e) => setForm({ ...form, ist_standard: e.currentTarget.checked })}
+            />
+            Standardadresse
           </label>
-          {feldFehler("plz") && <div className="feld-fehler" role="alert">{feldFehler("plz")}</div>}
         </div>
-        <div className="feld">
-          <label>
-            <PflichtMarker art="pflicht">Ort</PflichtMarker>
-            <input value={form.ort} onChange={(e) => setForm({ ...form, ort: e.currentTarget.value })} />
-          </label>
-          {feldFehler("ort") && <div className="feld-fehler" role="alert">{feldFehler("ort")}</div>}
-        </div>
-        <div className="feld">
-          <label>
-            <PflichtMarker art="pflicht">Land</PflichtMarker>
-            <input value={form.land} onChange={(e) => setForm({ ...form, land: e.currentTarget.value })} />
-          </label>
-          {feldFehler("land") && <div className="feld-fehler" role="alert">{feldFehler("land")}</div>}
-        </div>
-        <label className="feld-checkbox">
-          <input
-            type="checkbox"
-            checked={form.ist_standard}
-            onChange={(e) => setForm({ ...form, ist_standard: e.currentTarget.checked })}
-          />
-          Standardadresse
-        </label>
         <PflichtLegende />
         <div className="aktionen aktionen-formular">
           <button type="submit" className="btn btn-primaer">
@@ -678,7 +684,7 @@ function AnsprechpartnerReiter({ kundeId, ansprechpartner, onGeaendert }: Anspre
               <td>{a.email}</td>
               <td>{a.telefon}</td>
               <td>{a.ist_standard ? "Ja" : "Nein"}</td>
-              <td>
+              <td className="aktionen">
                 <button type="button" className="btn" onClick={() => setForm(a)}>
                   Bearbeiten
                 </button>
@@ -691,36 +697,42 @@ function AnsprechpartnerReiter({ kundeId, ansprechpartner, onGeaendert }: Anspre
         </tbody>
       </table>
       <form
-        className="karte"
+        className="inhalt-schmal"
         onSubmit={(e) => {
           e.preventDefault();
           speichern();
         }}
       >
-        <label className="feld">
-          Name
-          <input value={form.name} onChange={(e) => setForm({ ...form, name: e.currentTarget.value })} />
-        </label>
-        <label className="feld">
-          Rolle
-          <input value={form.rolle} onChange={(e) => setForm({ ...form, rolle: e.currentTarget.value })} />
-        </label>
-        <label className="feld">
-          E-Mail
-          <input value={form.email} onChange={(e) => setForm({ ...form, email: e.currentTarget.value })} />
-        </label>
-        <label className="feld">
-          Telefon
-          <input value={form.telefon} onChange={(e) => setForm({ ...form, telefon: e.currentTarget.value })} />
-        </label>
-        <label className="feld-checkbox">
-          <input
-            type="checkbox"
-            checked={form.ist_standard}
-            onChange={(e) => setForm({ ...form, ist_standard: e.currentTarget.checked })}
-          />
-          Standard-Ansprechpartner
-        </label>
+        <div className="gruppe">
+          <div className="felder-reihe">
+            <label className="feld">
+              Name
+              <input value={form.name} onChange={(e) => setForm({ ...form, name: e.currentTarget.value })} />
+            </label>
+            <label className="feld">
+              Rolle
+              <input value={form.rolle} onChange={(e) => setForm({ ...form, rolle: e.currentTarget.value })} />
+            </label>
+          </div>
+          <div className="felder-reihe">
+            <label className="feld">
+              E-Mail
+              <input value={form.email} onChange={(e) => setForm({ ...form, email: e.currentTarget.value })} />
+            </label>
+            <label className="feld">
+              Telefon
+              <input value={form.telefon} onChange={(e) => setForm({ ...form, telefon: e.currentTarget.value })} />
+            </label>
+          </div>
+          <label className="feld-checkbox">
+            <input
+              type="checkbox"
+              checked={form.ist_standard}
+              onChange={(e) => setForm({ ...form, ist_standard: e.currentTarget.checked })}
+            />
+            Standard-Ansprechpartner
+          </label>
+        </div>
         <div className="aktionen aktionen-formular">
           <button type="submit" className="btn btn-primaer">
             {form.id ? "Aktualisieren" : "Hinzufügen"}
