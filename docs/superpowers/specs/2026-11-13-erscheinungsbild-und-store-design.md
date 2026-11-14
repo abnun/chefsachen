@@ -21,11 +21,14 @@ gleichwertig, die App folgt dem System, ohne eigenen Schalter.
 
 - Neutrale Töne in OKLCH, ganz leicht zum Akzent-Farbton getönt (Chroma
   0,003 bis 0,008). Kein reines Schwarz, kein reines Weiß.
-- Akzent: **Kopierstift-Violett** (Farbton um 290). Begründung: Der bisherige
-  Schieferblau-Akzent lag fast auf dem Farbton des Status „gestellt" und war
-  der Branchenreflex (Finanzen = Marineblau). Violett kollidiert mit keinem
-  Statusfarbton (Grau, Blau, Grün, Rot, Bernstein) und erinnert an den
-  Tintenstift, mit dem früher Belege und Durchschläge ausgefüllt wurden.
+- Akzent: **Petrol** (Farbton um 220, hell oklch(0.49 0.09 220)). Begründung:
+  Der bisherige Schieferblau-Akzent lag fast auf dem Farbton des Status
+  „gestellt" und war der Branchenreflex (Finanzen = Marineblau). Petrol
+  erinnert an Füllertinte, bleibt ruhig und hebt sich klar vom blauen
+  Status „offen" ab. Zuerst war Kopierstift-Violett (290) umgesetzt; der
+  Betreiber hat es nach Ansicht verworfen. Verglichen wurden außerdem
+  Apple-Blau (verschwimmt mit dem Status „offen"), Graphit (zu farblos) und
+  Terrakotta (wirkt neben dem Fehler-Rot wie ein Gefahr-Knopf).
 - Farbe trägt Bedeutung: Akzent nur für Hauptaktion, aktuelle Auswahl,
   Fokus und Verweise. Statusfarben nur für Status.
 - Systemakzent des Nutzers wird bewusst **nicht** übernommen: Bei Gelb oder

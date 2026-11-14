@@ -67,7 +67,7 @@ Reihenfolge: B1 bis B4 (Store-Grundlage) laufen parallel zu A1 bis A5
 ## Teil A: Erscheinungsbild
 
 ### A1 Tokens
-- `tokens.css` auf OKLCH, neue Palette (Kopierstift-Violett, getönte
+- `tokens.css` auf OKLCH, neue Palette (Petrol, getönte
   Neutrale, Seitenleistenfläche, Gruppenfläche, Fokusring, Statusfarben neu
   abgestimmt), Typo-Stufen 11/13/15/17/22, Plattformgröße über
   `[data-plattform]`, Bewegungs-Tokens (Dauer, ease-out-quart).
@@ -95,6 +95,6 @@ Reihenfolge: B1 bis B4 (Store-Grundlage) laufen parallel zu A1 bis A5
 
 ### A6 App-Icon
 - Neues Icon als SVG im macOS-Raster (abgerundetes Quadrat 824/1024 mit
-  Rand, Schatten), Motiv Beleg mit Kopierstift-Strich; `npm run tauri icon`
+  Rand, Schatten), Motiv Beleg mit Haken in Petrol; `npm run tauri icon`
   erzeugt alle Größen; `website/app-icon.png` und `public/app-icon.png`
   nachziehen.
