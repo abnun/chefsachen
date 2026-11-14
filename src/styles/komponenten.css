@@ -346,12 +346,6 @@ label.feld textarea {
   font-size: var(--text-m);
 }
 
-/* Unter macOS ohne Seitenleiste (Hilfeseite über dem ganzen Fenster) liegen
-   die Ampelknöpfe über der Leiste; sie braucht dann links Platz. */
-html[data-plattform="mac"] .ohne-seitenleiste .werkzeugleiste {
-  padding-left: 88px;
-}
-
 /* Zusammengehörige Knöpfe in einem gemeinsamen Rahmen, wie die
    Segmentknöpfe in der Werkzeugleiste von Vorschau oder Mail. Der Trenner
    ist der Rand des nächsten Knopfs, der um einen Pixel überlappt. */

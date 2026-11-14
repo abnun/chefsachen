@@ -40,28 +40,31 @@ describe("XRechnungHilfeProvider", () => {
 
     fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Musterfirma" } });
     fireEvent.click(screen.getByRole("button", { name: "Was ist die XRechnung?" }));
-    expect(screen.getByRole("heading", { name: "Was ist die XRechnung?" })).toBeTruthy();
+    expect(screen.getByRole("dialog", { name: "Was ist die XRechnung?" })).toBeTruthy();
 
-    fireEvent.click(screen.getByRole("button", { name: "Zurück" }));
+    fireEvent.click(screen.getByRole("button", { name: "Fertig" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
     expect(screen.getByLabelText("Name")).toHaveValue("Musterfirma");
   });
 
   /*
-   * Verborgen heißt auch für Tastatur und Vorleseprogramme verborgen — sonst
-   * ließe sich hinter der Hilfeseite weiter im Formular herumspringen.
+   * Als Blatt über der Anwendung statt als eigene Seite: Die Seite stand ohne
+   * Seitenleiste mit dem Zurück-Knopf gedrängt neben den Ampelknöpfen. Ein
+   * Dialog hält den Fokus ohnehin bei sich, die Anwendung dahinter muss dafür
+   * nicht verborgen werden.
    */
-  it("verbirgt die Anwendung, solange die Hilfe offen ist", () => {
+  it("zeigt die Hilfe als Dialog über der Anwendung und schließt mit Escape", () => {
     render(
       <XRechnungHilfeProvider>
         <Formular />
       </XRechnungHilfeProvider>,
     );
 
-    const feld = screen.getByLabelText("Name");
-    const umschlag = feld.closest("[hidden]");
-    expect(umschlag).toBeNull();
-
     fireEvent.click(screen.getByRole("button", { name: "Was ist die XRechnung?" }));
-    expect(feld.closest("[hidden]")).not.toBeNull();
+    expect(screen.getByRole("dialog", { name: "Was ist die XRechnung?" })).toBeTruthy();
+    expect(screen.getByText(/Leitweg-ID/, { selector: "dt" })).toBeTruthy();
+
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(screen.queryByRole("dialog")).toBeNull();
   });
 });

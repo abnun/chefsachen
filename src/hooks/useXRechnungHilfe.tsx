@@ -1,5 +1,5 @@
 import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
-import { XRechnungHilfeSeite } from "../pages/XRechnungHilfeSeite";
+import { XRechnungHilfeDialog } from "../components/XRechnungHilfeDialog";
 
 interface XRechnungHilfeApi {
   zeigen: () => void;
@@ -16,31 +16,27 @@ const STANDARD_API: XRechnungHilfeApi = { zeigen: () => {} };
 const Kontext = createContext<XRechnungHilfeApi>(STANDARD_API);
 
 /**
- * Legt beim Aufruf von `zeigen()` die Erklärseite zur XRechnung über die
- * Anwendung, mit einem „Zurück"-Link. Als eigene Seite statt als Dialog, damit
- * auch von der Ersteinrichtung aus verlinkt werden kann, die außerhalb des
- * normalen Layouts mit Seitenleiste liegt.
+ * Zeigt beim Aufruf von `zeigen()` die Erklärung zur XRechnung als Blatt über
+ * der Anwendung. Der Anbieter sitzt in `main.tsx` außerhalb von `App`, damit
+ * auch die Ersteinrichtung, die außerhalb des normalen Layouts liegt, darauf
+ * verlinken kann.
  *
- * Die Anwendung wird dabei **verborgen, nicht abgehängt**. Vorher stand hier
- * ein früher `return` ohne `children`: React baute damit den gesamten Baum ab
- * und mit ihm jeden Zustand, der noch nicht gespeichert war. Wer in der
- * Ersteinrichtung das halbe Formular ausgefüllt hatte, auf „Was ist die
- * XRechnung?" klickte und zurückkam, fand alle Felder leer.
+ * Die Anwendung bleibt dabei eingehängt. Früher stand hier ein früher
+ * `return` ohne `children`: React baute damit den gesamten Baum ab und mit ihm
+ * jeden Zustand, der noch nicht gespeichert war. Wer in der Ersteinrichtung
+ * das halbe Formular ausgefüllt hatte, fand nach der Hilfe alle Felder leer.
  */
 export function XRechnungHilfeProvider({ children }: { children: ReactNode }) {
   const [offen, setOffen] = useState(false);
   // Ohne `useMemo` bekäme jeder Verbraucher bei jedem Rendern des Anbieters
-  // ein neues Objekt und würde mit neu zeichnen — das ist hier der ganze
+  // ein neues Objekt und würde mit neu zeichnen, und das ist hier der ganze
   // Anwendungsbaum.
   const api = useMemo(() => ({ zeigen: () => setOffen(true) }), []);
 
   return (
     <Kontext.Provider value={api}>
-      {/* `hidden` statt Ausbauen: nimmt das Fenster aus Darstellung,
-          Tabulator-Reihenfolge und Vorlesebaum, lässt die Komponenten darunter
-          aber mitsamt ihrem Zustand am Leben. */}
-      <div hidden={offen}>{children}</div>
-      {offen && <XRechnungHilfeSeite onZurueck={() => setOffen(false)} />}
+      {children}
+      {offen && <XRechnungHilfeDialog onSchliessen={() => setOffen(false)} />}
     </Kontext.Provider>
   );
 }
