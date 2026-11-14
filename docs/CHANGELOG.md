@@ -7,6 +7,50 @@ auf GitHub ändert daran nichts mehr.
 
 Deshalb hier in der Sprache der Anwender, nicht in der der Commits.
 
+## 1.5.0
+
+**Neues Erscheinungsbild**
+- Chefsachen sieht jetzt aus wie eine Mac-App: Seitenleiste mit Gruppen
+  (Belege, Eingang, Stammdaten), Titel und Knöpfe in einer Leiste oben,
+  Listen über die volle Fensterbreite, Formulare in ruhigen Gruppen wie in
+  den Systemeinstellungen. Neue Akzentfarbe Petrol und ein neues App-Symbol.
+- Hell- und Dunkelmodus folgen der Systemeinstellung, beide sind
+  vollständig gestaltet.
+- Im Normalfall bleibt die Liste leise, nur was Aufmerksamkeit braucht, ist
+  farbig: offen, überfällig, storniert, Entwurf.
+- Auf einer Rechnung stehen die Exporte (PDF, XRechnung, ZUGFeRD) jetzt
+  zusammen, „Stornieren" ist abgesetzt. „Rechnung stellen" und
+  „Festschreiben" sind nicht mehr rot, das ist der normale Weg und keine
+  Warnung.
+- Rückfragen und die Erklärung zur XRechnung erscheinen als Blatt über dem
+  Formular, aus dem du kommst.
+
+**Adressen schneller eingeben**
+- Nach der Postleitzahl trägt Chefsachen den Ort ein oder bietet die
+  passenden Orte zur Auswahl an, im Ortsfeld umgekehrt Orte mit ihrer
+  Postleitzahl. Das läuft vollständig auf deinem Rechner, aus einer
+  mitgelieferten Liste.
+- Auf Wunsch schlägt Chefsachen beim Tippen auch Straßen vor. Dafür geht
+  das Getippte an den Dienst Photon von komoot. Das ist ausgeschaltet, bis
+  du es in der Ersteinrichtung oder unter Einstellungen › Adressvorschläge
+  einschaltest, und lässt sich jederzeit wieder abschalten.
+
+**Firmendaten**
+- Zur deutschen IBAN trägt Chefsachen den BIC selbst ein, sofern das Feld
+  leer ist. Die IBAN wird beim Tippen in Viererblöcken gegliedert, und
+  eine falsche Prüfziffer fällt sofort auf.
+- Der Ansprechpartner ist mit dem Firmennamen vorbelegt, das Gründungsjahr
+  in der Ersteinrichtung mit dem laufenden Jahr. Beides lässt sich
+  überschreiben.
+- Das Feld heißt jetzt „Firmenname" statt „Name".
+
+**Kleinigkeiten**
+- Daten bei Zahlungen, Kundenbelegen und Eingangsrechnungen stehen in
+  deutscher Schreibweise (06.11.2026 statt 2026-11-06).
+- Im Reiter „Belege" eines Kunden heißen Gutschriften jetzt Gutschrift.
+- Wer Chefsachen schon nutzt, kann in der Ersteinrichtung direkt eine
+  Sicherung einspielen, statt zuerst alles neu einzurichten.
+
 ## 1.4.2
 
 **Weitere Sicherheitsaktualisierung**
