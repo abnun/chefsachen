@@ -18,6 +18,7 @@ export function useBestaetigung() {
     text: string;
     bestaetigenLabel?: string;
     zusatz?: ReactNode;
+    art?: "gefahr" | "primaer";
     aufloesen: (ergebnis: boolean) => void;
   } | null>(null);
 
@@ -30,8 +31,11 @@ export function useBestaetigung() {
     text: string,
     bestaetigenLabel?: string,
     zusatz?: ReactNode,
+    art?: "gefahr" | "primaer",
   ): Promise<boolean> {
-    return new Promise((aufloesen) => setAnfrage({ text, bestaetigenLabel, zusatz, aufloesen }));
+    return new Promise((aufloesen) =>
+      setAnfrage({ text, bestaetigenLabel, zusatz, art, aufloesen }),
+    );
   }
 
   const dialog = anfrage && (
@@ -39,6 +43,7 @@ export function useBestaetigung() {
       text={anfrage.text}
       zusatz={anfrage.zusatz}
       bestaetigenLabel={anfrage.bestaetigenLabel}
+      art={anfrage.art}
       onAbbrechen={() => {
         anfrage.aufloesen(false);
         setAnfrage(null);

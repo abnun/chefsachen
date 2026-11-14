@@ -28,6 +28,26 @@ function Umgebung(props: { onAbbrechen?: () => void; onBestaetigen?: () => void 
 
 
 describe("Bestaetigungsdialog", () => {
+  it("zeigt den bestätigenden Knopf ohne Angabe als Gefahr", () => {
+    render(<Bestaetigungsdialog text="Löschen?" onAbbrechen={() => {}} onBestaetigen={() => {}} />);
+    expect(screen.getByRole("button", { name: "Löschen" })).toHaveClass("btn-gefahr");
+  });
+
+  it("zeigt einen nicht zerstörenden Schritt als Hauptaktion statt in Rot", () => {
+    render(
+      <Bestaetigungsdialog
+        text="Rechnung stellen?"
+        bestaetigenLabel="Stellen"
+        art="primaer"
+        onAbbrechen={() => {}}
+        onBestaetigen={() => {}}
+      />,
+    );
+    const knopf = screen.getByRole("button", { name: "Stellen" });
+    expect(knopf).toHaveClass("btn-primaer");
+    expect(knopf).not.toHaveClass("btn-gefahr");
+  });
+
   it("zeigt den übergebenen Text", () => {
     render(
       <Bestaetigungsdialog text='Adresse „Testadresse" löschen?' onAbbrechen={() => {}} onBestaetigen={() => {}} />,

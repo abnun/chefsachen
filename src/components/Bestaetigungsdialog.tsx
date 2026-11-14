@@ -13,6 +13,12 @@ interface BestaetigungsdialogProps {
    */
   zusatz?: ReactNode;
   bestaetigenLabel?: string;
+  /**
+   * Rot nur, wenn der Schritt etwas zerstört oder unwiderruflich versperrt.
+   * „Rechnung stellen" ist der gewollte Normalweg: In Rot sah die Hauptaktion
+   * wie eine Warnung aus, vor der man zurückschreckt.
+   */
+  art?: "gefahr" | "primaer";
   onAbbrechen: () => void;
   onBestaetigen: () => void;
 }
@@ -32,6 +38,7 @@ export function Bestaetigungsdialog({
   text,
   zusatz,
   bestaetigenLabel,
+  art = "gefahr",
   onAbbrechen,
   onBestaetigen,
 }: BestaetigungsdialogProps) {
@@ -46,7 +53,11 @@ export function Bestaetigungsdialog({
           <button type="button" className="btn" onClick={onAbbrechen}>
             Abbrechen
           </button>
-          <button type="button" className="btn btn-gefahr" onClick={onBestaetigen}>
+          <button
+            type="button"
+            className={art === "primaer" ? "btn btn-primaer" : "btn btn-gefahr"}
+            onClick={onBestaetigen}
+          >
             {bestaetigenLabel ?? "Löschen"}
           </button>
         </>

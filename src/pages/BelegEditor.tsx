@@ -158,7 +158,8 @@ export function BelegEditor({ id, onZurueck, onGeaendert, onRechnungErstellt, on
         <dd>{beleg.fusstext.trim() || <em>leer</em>}</dd>
       </dl>
     );
-    if (!(await bestaetigen(frage, istRechnung ? "Stellen" : "Festschreiben", vorschau))) return;
+    if (!(await bestaetigen(frage, istRechnung ? "Stellen" : "Festschreiben", vorschau, "primaer")))
+      return;
     setFehler(null);
     setLaeuft(true);
     try {
