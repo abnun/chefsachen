@@ -299,6 +299,20 @@ mod tests {
         assert_eq!(liste.len(), 2);
     }
 
+    /// Die Ersteinrichtung bietet die Vorschläge schon an, bevor die Firma
+    /// gespeichert ist. Weder das Speichern der Einwilligung noch der Abruf
+    /// dürfen dafür eine eingerichtete Firma voraussetzen.
+    #[tokio::test]
+    async fn einwilligung_wirkt_schon_vor_der_einrichtung() {
+        let (_dir, pool) = test_pool().await;
+        assert!(!crate::commands::firma::get(&pool).await.unwrap().eingerichtet);
+        crate::commands::einstellungen::set(&pool, SCHLUESSEL_ONLINE.into(), "true".into()).await.unwrap();
+        let zaehler = Arc::new(AtomicUsize::new(0));
+        let liste = vorschlagen_mit(&pool, "Paul-Göbel", None, None, attrappe(zaehler.clone(), Some(ANTWORT))).await;
+        assert_eq!(zaehler.load(Ordering::SeqCst), 1);
+        assert_eq!(liste.len(), 2);
+    }
+
     #[tokio::test]
     async fn zu_kurzer_text_loest_keinen_abruf_aus() {
         let (_dir, pool) = test_pool().await;

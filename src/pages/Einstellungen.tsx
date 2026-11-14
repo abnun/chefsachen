@@ -13,7 +13,7 @@ import { formularFehler } from "../formularFehler";
 import { Fehler } from "../components/Fehler";
 import { AdressFelder } from "../components/AdressFelder";
 import { IbanFeld } from "../components/IbanFeld";
-import { useOnlineAdressvorschlaege } from "../hooks/useOnlineAdressvorschlaege";
+import { OnlineVorschlaegeSchalter } from "../components/OnlineVorschlaegeSchalter";
 import { PflichtLegende, PflichtMarker } from "../components/PflichtMarker";
 import { useXRechnungHilfe } from "../hooks/useXRechnungHilfe";
 // Beide nebeneinander mit Absicht: `useSpeichern` meldet neben dem Knopf und
@@ -138,46 +138,17 @@ export function Einstellungen() {
  * man vergisst.
  */
 function AdressvorschlaegeAbschnitt() {
-  const [online, setzen] = useOnlineAdressvorschlaege();
-  const [fehler, setFehler] = useState<AppFehler | null>(null);
-
-  async function umschalten(an: boolean) {
-    setFehler(null);
-    try {
-      await setzen(an);
-    } catch (e) {
-      setFehler(e as AppFehler);
-    }
-  }
-
   return (
     <section className="abschnitt inhalt-schmal">
       <h2>Adressvorschläge</h2>
-      <Fehler fehler={fehler} />
       <p>
         Zur Postleitzahl schlägt Chefsachen den Ort vor und umgekehrt, aus einer mitgelieferten
         Liste. Dafür verlässt nichts den Rechner.
       </p>
-      <label className="feld-checkbox">
-        <input type="checkbox" checked={online} onChange={(e) => umschalten(e.currentTarget.checked)} />
-        Adressvorschläge aus dem Internet
-      </label>
-      <p className="feld-hinweis">
-        Schlägt beim Tippen auch Straßen vor. Dazu geht, was du ins Straßenfeld tippst, an den
-        Dienst Photon von komoot (komoot GmbH, Deutschland), zusammen mit PLZ und Ort, sofern sie
-        schon eingetragen sind. Dabei erfährt komoot auch deine IP-Adresse. Das gilt ebenso für
-        Kundenadressen: Deren Straße, PLZ und Ort gehen dann auch an komoot. Ausgeschaltet wird
-        nichts übertragen. Mehr dazu in der{" "}
-        <a href={KOMOOT_DATENSCHUTZ} target="_blank" rel="noopener noreferrer">
-          Datenschutzerklärung von komoot
-        </a>
-        .
-      </p>
+      <OnlineVorschlaegeSchalter beschriftung="Adressvorschläge aus dem Internet" />
     </section>
   );
 }
-
-const KOMOOT_DATENSCHUTZ = "https://www.komoot.com/de-de/privacy";
 
 /**
  * Nur in der GitHub-Fassung: Spendenaufrufe außerhalb des In-App-Kaufs sind

@@ -1,5 +1,5 @@
 import "@testing-library/jest-dom/vitest";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 // Ohne dies zählen die Aufrufe der Attrappen über Testgrenzen hinweg weiter.
@@ -327,6 +327,38 @@ describe("Einrichtung", () => {
       fireEvent.click(screen.getByRole("button", { name: "Weiter" }));
       const meldung = await screen.findByText(/Prüfsumme der IBAN/);
       expect(meldung.closest(".feld")).toBe(screen.getByLabelText("IBAN").closest(".feld"));
+    });
+  });
+
+  describe("Straßenvorschläge aus dem Internet", () => {
+    it("bietet sie an, ausgeschaltet und mit den Folgen", async () => {
+      render(<Einrichtung onFertig={() => {}} />);
+      const schalter = await screen.findByRole("checkbox", { name: "Straßen beim Tippen vorschlagen (Internet)" });
+      // Keine Vorauswahl: Die Einwilligung muss der Nutzer selbst geben.
+      expect(schalter).not.toBeChecked();
+      const block = schalter.closest(".gruppe") as HTMLElement;
+      expect(within(block).getByText(/Photon von komoot/)).toBeTruthy();
+      expect(within(block).getByText(/IP-Adresse/)).toBeTruthy();
+      expect(within(block).getByText(/Kundenadressen/)).toBeTruthy();
+      expect(within(block).getByText(/jederzeit in den Einstellungen/)).toBeTruthy();
+      expect(within(block).getByRole("link", { name: /Datenschutzerklärung von komoot/ })).toHaveAttribute(
+        "href",
+        "https://www.komoot.com/de-de/privacy",
+      );
+      expect(screen.queryByRole("combobox", { name: /Straße/ })).toBeNull();
+    });
+
+    it("speichert das Einschalten sofort und schlägt danach Straßen vor", async () => {
+      render(<Einrichtung onFertig={() => {}} />);
+      fireEvent.click(
+        await screen.findByRole("checkbox", { name: "Straßen beim Tippen vorschlagen (Internet)" }),
+      );
+      await waitFor(() =>
+        expect(api.einstellungen.set).toHaveBeenCalledWith("adressen.online_vorschlaege", "true"),
+      );
+      expect(await screen.findByRole("combobox", { name: /Straße/ })).toBeTruthy();
+      // Die Firma selbst bleibt dabei ungespeichert, wie sonst im Assistenten.
+      expect(api.firma.save).not.toHaveBeenCalled();
     });
   });
 });

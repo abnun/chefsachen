@@ -6,6 +6,7 @@ import { formularFehler } from "../formularFehler";
 import { Fehler } from "../components/Fehler";
 import { AdressFelder } from "../components/AdressFelder";
 import { IbanFeld } from "../components/IbanFeld";
+import { OnlineVorschlaegeSchalter } from "../components/OnlineVorschlaegeSchalter";
 import { PflichtLegende, PflichtMarker } from "../components/PflichtMarker";
 import { useXRechnungHilfe } from "../hooks/useXRechnungHilfe";
 import { aktuellePlattform } from "../plattform";
@@ -251,6 +252,12 @@ export function Einrichtung({ onFertig }: EinrichtungProps) {
               onAendern={feldAendern}
               feldFehler={feldFehler}
             />
+          </div>
+          {/* Gleich hinter den Adressfeldern, weil es um genau diese geht:
+              Wer es hier einschaltet, bekommt im Straßenfeld darüber sofort
+              Vorschläge. */}
+          <div className="gruppe">
+            <OnlineVorschlaegeSchalter beschriftung="Straßen beim Tippen vorschlagen (Internet)" abschaltenHinweis />
           </div>
           <div className="gruppe">
             <div className="felder-reihe">

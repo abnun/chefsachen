@@ -61,3 +61,22 @@ Entscheidung des Betreibers: ohne Schalter, weil nichts den Rechner verlässt.
 - Test: Vorbelegung vorhanden, überschreibbar, leerbar; gespeichert wird,
   was im Feld steht.
 
+## Straßenvorschläge schon in der Einrichtung (Nachtrag des Betreibers)
+
+- Schritt 1 (Firmendaten) bietet die Einstellung `adressen.online_vorschlaege`
+  direkt hinter den Adressfeldern an, als eigener kleiner Block in der
+  Gruppenoptik (kein Dialog, kein Banner). Beschriftung „Straßen beim Tippen
+  vorschlagen (Internet)".
+- Einwilligung aktiv: standardmäßig aus, keine Vorauswahl (DSGVO Art. 6
+  Abs. 1 lit. a).
+- Folgen darunter, derselbe Text wie in den Einstellungen aus einem
+  gemeinsamen Bauteil (`OnlineVorschlaegeSchalter`): Getipptes (auch
+  Kundenadressen) und IP-Adresse gehen an Photon von komoot; ausgeschaltet
+  verlässt nichts den Rechner; in der Einrichtung zusätzlich, dass es in den
+  Einstellungen jederzeit abschaltbar ist; Link zur Datenschutzerklärung von
+  komoot.
+- Wirkung sofort: Gespeichert wird beim Umschalten (`einstellung_set`, geht
+  auch vor abgeschlossener Einrichtung; Rust-Test belegt es), das Straßenfeld
+  derselben Seite bekommt sofort Vorschläge.
+- Tests: standardmäßig aus; Einschalten speichert `true` und aktiviert die
+  Vorschläge; der Text nennt komoot.
