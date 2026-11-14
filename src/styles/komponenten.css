@@ -518,7 +518,9 @@ form.inhalt-schmal {
 /* Nummernkreis als eine Zeile: Format, Rücksetzen, Zähler, Speichern. */
 .nummernkreis {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto auto;
+  /* Feste Spalten, damit Häkchen und Zähler über alle Kreise hinweg
+     untereinander stehen. */
+  grid-template-columns: minmax(0, 1fr) 9.5em 10.5em auto;
   align-items: end;
   gap: 0 var(--abstand-l);
 }
@@ -1018,7 +1020,7 @@ html[data-plattform="mac"] .einrichtung-main {
   padding: 2px var(--abstand-s);
   border-radius: var(--radius-pill);
   /* Neutral statt im Akzent: Die Marke ergänzt, sie ist weder Auswahl noch
-     Aktion, und Violett steht in dieser App nur für diese beiden. */
+     Aktion, und der Akzent steht in dieser App nur für diese beiden. */
   background: var(--st-entwurf-bg);
   color: var(--st-entwurf-text);
   font-size: var(--text-s);

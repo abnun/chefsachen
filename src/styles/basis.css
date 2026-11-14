@@ -6,6 +6,8 @@
    dem Modus folgen; ohne das erscheint im Dunkeln eine weiße Liste. */
 :root {
   color-scheme: light dark;
+  /* Häkchen, Optionsfelder und Regler im Akzent statt im Blau des Browsers. */
+  accent-color: var(--akzent-flaeche);
 }
 
 body {

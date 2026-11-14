@@ -3,8 +3,8 @@
  * stellen. Eine Stufe heller heißt hier wirklich nur heller, ohne dass der
  * Farbton wandert wie bei Hex- oder HSL-Werten.
  *
- * Alle Neutralen sind ganz leicht zum Akzent (Farbton 290, Kopierstift-
- * Violett) getönt. Reines Weiß und reines Schwarz kommen nicht vor; sie
+ * Alle Neutralen sind ganz leicht zum Akzent (Farbton 220, Petrol)
+ * getönt. Reines Weiß und reines Schwarz kommen nicht vor; sie
  * wirken neben dem Systemrahmen von macOS kalt und hart.
  *
  * Jedes Textpaar ist in kontrast.test.ts gegen WCAG AA geprüft. Wer hier
@@ -12,48 +12,48 @@
  */
 :root {
   /* Flächen, von hinten nach vorn */
-  --bg: oklch(0.99 0.003 290);
-  --seitenleiste: oklch(0.955 0.006 290);
+  --bg: oklch(0.99 0.003 220);
+  --seitenleiste: oklch(0.955 0.006 220);
   /* Für die eingesetzten Formulargruppen wie in den Systemeinstellungen. */
-  --gruppe: oklch(0.965 0.005 290);
-  --rand-gruppe: oklch(0.915 0.005 290);
+  --gruppe: oklch(0.965 0.005 220);
+  --rand-gruppe: oklch(0.915 0.005 220);
   /* Spur und gewähltes Segment eines Segmentschalters (Reiter). */
-  --segment-spur: oklch(0.93 0.006 290);
-  --segment-auswahl: oklch(0.995 0.002 290);
-  --zebra: oklch(0.97 0.004 290);
-  --bg-gedaempft: oklch(0.97 0.004 290);
+  --segment-spur: oklch(0.93 0.006 220);
+  --segment-auswahl: oklch(0.995 0.002 220);
+  --zebra: oklch(0.97 0.004 220);
+  --bg-gedaempft: oklch(0.97 0.004 220);
   /* Erhöhte Fläche: Knöpfe, Karten, Dialoge. */
-  --flaeche: oklch(0.995 0.002 290);
-  --flaeche-eingabe: oklch(0.995 0.002 290);
+  --flaeche: oklch(0.995 0.002 220);
+  --flaeche-eingabe: oklch(0.995 0.002 220);
   /* Hover über einer Tabellen- oder Navigationszeile: durchscheinend, damit
      er auf der Zebrazeile wie auf der hellen Zeile gleich stark wirkt. */
-  --zeile-hover: oklch(0.45 0.03 290 / 0.07);
+  --zeile-hover: oklch(0.45 0.03 220 / 0.07);
 
-  --rand: oklch(0.89 0.006 290);
-  --rand-stark: oklch(0.82 0.008 290);
+  --rand: oklch(0.89 0.006 220);
+  --rand-stark: oklch(0.82 0.008 220);
 
-  --text: oklch(0.22 0.012 290);
+  --text: oklch(0.22 0.012 220);
   /* Nur zwei Textstufen: Eine dritte, noch leisere Farbe kann auf dieser
      Palette nicht zugleich existieren und 4,5:1 erreichen. Siehe
      kontrast.test.ts. */
-  --text-leise: oklch(0.5 0.012 290);
+  --text-leise: oklch(0.5 0.012 220);
 
   /* Akzent für Text, Symbole, Verweise und den Fokusring. */
-  --akzent: oklch(0.48 0.15 290);
+  --akzent: oklch(0.49 0.09 220);
   /* Gefüllte Fläche der Hauptaktion; eigener Wert, weil er im Dunkeln
      anders liegen muss als die Textfarbe. */
-  --akzent-flaeche: oklch(0.48 0.15 290);
-  --akzent-flaeche-hover: oklch(0.43 0.15 290);
-  --auf-akzent: oklch(0.99 0.004 290);
+  --akzent-flaeche: oklch(0.49 0.09 220);
+  --akzent-flaeche-hover: oklch(0.44 0.09 220);
+  --auf-akzent: oklch(0.99 0.004 220);
   /* Auswahl in Seitenleiste und Tabelle. */
-  --akzent-leise: oklch(0.48 0.15 290 / 0.12);
-  --fokus: oklch(0.48 0.15 290 / 0.4);
+  --akzent-leise: oklch(0.49 0.09 220 / 0.12);
+  --fokus: oklch(0.49 0.09 220 / 0.4);
 
   /* Status: Der Normalfall bleibt leise, nur Ausnahmen tragen Farbe. */
-  --st-entwurf-bg: oklch(0.94 0.006 290);
-  --st-entwurf-text: oklch(0.45 0.012 290);
-  --st-gestellt-bg: oklch(0.94 0.03 245);
-  --st-gestellt-text: oklch(0.45 0.11 245);
+  --st-entwurf-bg: oklch(0.94 0.006 220);
+  --st-entwurf-text: oklch(0.45 0.012 220);
+  --st-gestellt-bg: oklch(0.94 0.03 258);
+  --st-gestellt-text: oklch(0.45 0.11 258);
   --st-bezahlt-bg: oklch(0.94 0.04 150);
   --st-bezahlt-text: oklch(0.43 0.1 150);
   --st-storniert-bg: oklch(0.94 0.03 27);
@@ -70,9 +70,9 @@
   --warnung-text: oklch(0.5 0.12 70);
   --erfolg-text: oklch(0.43 0.1 150);
 
-  --hinweis-bg: oklch(0.95 0.025 245);
-  --hinweis-text: oklch(0.43 0.1 245);
-  --hinweis-rand: oklch(0.86 0.05 245);
+  --hinweis-bg: oklch(0.95 0.025 258);
+  --hinweis-text: oklch(0.43 0.1 258);
+  --hinweis-rand: oklch(0.86 0.05 258);
 
   --preis-guenstiger-bg: oklch(0.94 0.04 150);
   --preis-guenstiger-text: oklch(0.43 0.1 150);
@@ -98,11 +98,11 @@
   --radius-pill: 999px;
 
   /* Schatten und Abdeckung */
-  --schatten: 0 1px 2px oklch(0.2 0.02 290 / 0.06);
-  --schatten-knopf: 0 0.5px 1px oklch(0.2 0.02 290 / 0.12);
-  --schatten-dialog: 0 10px 30px oklch(0.2 0.02 290 / 0.22);
-  --abdeckung: oklch(0.2 0.02 290 / 0.32);
-  --abdeckung-fuehrung: oklch(0.2 0.02 290 / 0.55);
+  --schatten: 0 1px 2px oklch(0.2 0.02 220 / 0.06);
+  --schatten-knopf: 0 0.5px 1px oklch(0.2 0.02 220 / 0.12);
+  --schatten-dialog: 0 10px 30px oklch(0.2 0.02 220 / 0.22);
+  --abdeckung: oklch(0.2 0.02 220 / 0.32);
+  --abdeckung-fuehrung: oklch(0.2 0.02 220 / 0.55);
   /* macOS-Fokusring: außen, drei Pixel, Akzent mit 40 % Deckkraft. */
   --fokusring: 0 0 0 3px var(--fokus);
 
@@ -152,36 +152,36 @@ html[data-plattform="win"] {
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: oklch(0.19 0.006 290);
-    --seitenleiste: oklch(0.235 0.008 290);
-    --gruppe: oklch(0.235 0.008 290);
-    --rand-gruppe: oklch(0.29 0.008 290);
-    --segment-spur: oklch(0.15 0.006 290);
-    --segment-auswahl: oklch(0.36 0.01 290);
-    --zebra: oklch(0.215 0.006 290);
-    --bg-gedaempft: oklch(0.215 0.006 290);
-    --flaeche: oklch(0.27 0.008 290);
+    --bg: oklch(0.19 0.006 220);
+    --seitenleiste: oklch(0.235 0.008 220);
+    --gruppe: oklch(0.235 0.008 220);
+    --rand-gruppe: oklch(0.29 0.008 220);
+    --segment-spur: oklch(0.15 0.006 220);
+    --segment-auswahl: oklch(0.36 0.01 220);
+    --zebra: oklch(0.215 0.006 220);
+    --bg-gedaempft: oklch(0.215 0.006 220);
+    --flaeche: oklch(0.27 0.008 220);
     /* Heller als die Gruppenfläche, sonst verschwindet ein Feld in ihr. */
-    --flaeche-eingabe: oklch(0.275 0.008 290);
-    --zeile-hover: oklch(0.9 0.02 290 / 0.07);
+    --flaeche-eingabe: oklch(0.275 0.008 220);
+    --zeile-hover: oklch(0.9 0.02 220 / 0.07);
 
-    --rand: oklch(0.32 0.008 290);
-    --rand-stark: oklch(0.4 0.01 290);
+    --rand: oklch(0.32 0.008 220);
+    --rand-stark: oklch(0.4 0.01 220);
 
-    --text: oklch(0.93 0.006 290);
-    --text-leise: oklch(0.7 0.012 290);
+    --text: oklch(0.93 0.006 220);
+    --text-leise: oklch(0.7 0.012 220);
 
-    --akzent: oklch(0.74 0.12 290);
-    --akzent-flaeche: oklch(0.52 0.15 290);
-    --akzent-flaeche-hover: oklch(0.57 0.15 290);
-    --auf-akzent: oklch(0.99 0.004 290);
-    --akzent-leise: oklch(0.62 0.14 290 / 0.24);
-    --fokus: oklch(0.74 0.12 290 / 0.45);
+    --akzent: oklch(0.75 0.09 215);
+    --akzent-flaeche: oklch(0.52 0.09 220);
+    --akzent-flaeche-hover: oklch(0.47 0.09 220);
+    --auf-akzent: oklch(0.99 0.004 220);
+    --akzent-leise: oklch(0.52 0.09 220 / 0.28);
+    --fokus: oklch(0.75 0.09 215 / 0.45);
 
-    --st-entwurf-bg: oklch(0.28 0.008 290);
-    --st-entwurf-text: oklch(0.78 0.012 290);
-    --st-gestellt-bg: oklch(0.3 0.05 245);
-    --st-gestellt-text: oklch(0.82 0.09 245);
+    --st-entwurf-bg: oklch(0.28 0.008 220);
+    --st-entwurf-text: oklch(0.78 0.012 220);
+    --st-gestellt-bg: oklch(0.3 0.05 258);
+    --st-gestellt-text: oklch(0.82 0.09 258);
     --st-bezahlt-bg: oklch(0.3 0.05 150);
     --st-bezahlt-text: oklch(0.82 0.12 150);
     --st-storniert-bg: oklch(0.3 0.06 27);
@@ -196,9 +196,9 @@ html[data-plattform="win"] {
     --warnung-text: oklch(0.8 0.12 70);
     --erfolg-text: oklch(0.8 0.13 150);
 
-    --hinweis-bg: oklch(0.27 0.04 245);
-    --hinweis-text: oklch(0.83 0.08 245);
-    --hinweis-rand: oklch(0.4 0.06 245);
+    --hinweis-bg: oklch(0.27 0.04 258);
+    --hinweis-text: oklch(0.83 0.08 258);
+    --hinweis-rand: oklch(0.4 0.06 258);
 
     --preis-guenstiger-bg: oklch(0.3 0.05 150);
     --preis-guenstiger-text: oklch(0.82 0.12 150);
@@ -211,7 +211,7 @@ html[data-plattform="win"] {
     --schatten: 0 1px 3px oklch(0 0 0 / 0.4);
     --schatten-knopf: 0 0.5px 1px oklch(0 0 0 / 0.35);
     --schatten-dialog: 0 12px 36px oklch(0 0 0 / 0.5);
-    --abdeckung: oklch(0.1 0.01 290 / 0.5);
-    --abdeckung-fuehrung: oklch(0.1 0.01 290 / 0.65);
+    --abdeckung: oklch(0.1 0.01 220 / 0.5);
+    --abdeckung-fuehrung: oklch(0.1 0.01 220 / 0.65);
   }
 }
