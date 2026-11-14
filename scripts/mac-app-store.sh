@@ -223,7 +223,16 @@ fi
 # Der Updater darf im Store-Bau nicht einmal als toter Code stecken
 # (Richtlinie 2.4.5). Das Feature sorgt dafür; diese Probe fängt ab, dass es
 # jemand versehentlich doch wieder hineinzieht.
-if strings "$app/Contents/MacOS/chefsachen" | grep -q "tauri_plugin_updater\|tauri-plugin-updater"; then
+#
+# Ohne Pipe: Unter `set -o pipefail` meldete `strings | grep -q` gerade einen
+# Treffer als Fehlschlag (grep beendet sich, strings stirbt an SIGPIPE), und
+# die Probe sagte „kein Updater". grep liest das Programm direkt als Text (-a).
+programm="$app/Contents/MacOS/chefsachen"
+if [[ ! -f "$programm" ]]; then
+  echo "Abbruch: Programm nicht gefunden: $programm" >&2
+  exit 1
+fi
+if grep -a -q -e "tauri_plugin_updater" -e "tauri-plugin-updater" "$programm"; then
   echo "Abbruch: Im Programm steckt der Updater. Mit --no-default-features gebaut?" >&2
   exit 1
 fi
