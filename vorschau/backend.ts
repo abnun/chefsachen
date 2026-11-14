@@ -382,7 +382,7 @@ export function backendErstellen(b: Bestand) {
     rechnungsdatum: HEUTE,
     betrag_cent: 112_30,
     waehrung: "EUR",
-    positionen: [{ bezeichnung: "Skizzenbücher A4, 3 Stück", menge: 3, einzelpreis_cent: 37_43, positionssumme_cent: 112_29 }],
+    positionen: [{ bezeichnung: "Skizzenbücher A4, 3 Stück", menge: 3000, einzelpreis_cent: 37_43, positionssumme_cent: 112_29 }],
     kaeufer_name: "Lena Hoffmann",
     kaeufer_strasse: "Karl-Heine-Straße 54",
     kaeufer_plz: "04229",
@@ -799,7 +799,13 @@ export function backendErstellen(b: Bestand) {
     "plugin:app|tauri_version": () => "2.11.1",
     "plugin:updater|check": () => null,
     "plugin:log|log": () => null,
-    "plugin:dialog|open": () => null,
+    // Der Import einer E-Rechnung bekommt eine erfundene Datei, damit sich
+    // die Importvorschau ansehen lässt. Alle anderen Dateidialoge kehren
+    // weiterhin ohne Auswahl zurück.
+    "plugin:dialog|open": (a) => {
+      const filter = JSON.stringify((a as { options?: unknown } | undefined)?.options ?? a ?? "");
+      return filter.includes('"xml"') ? "/Users/lena/Downloads/papierwerk-PW-49870.xml" : null;
+    },
     "plugin:dialog|save": () => null,
     "plugin:dialog|message": () => null,
     "plugin:dialog|ask": () => false,

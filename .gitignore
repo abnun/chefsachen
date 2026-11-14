@@ -19,3 +19,6 @@ e2e/node_modules/
 # App-Store-Connect-API-Schlüssel sind kontogebunden und gehören nie ins Repo.
 *.provisionprofile
 private_keys/
+
+# Store-Screenshots (siehe vorschau/screenshots.mjs): jederzeit neu erzeugbar.
+docs/store/screenshots/
