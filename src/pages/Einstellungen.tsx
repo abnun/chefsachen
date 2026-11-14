@@ -12,6 +12,7 @@ import {
 import { formularFehler } from "../formularFehler";
 import { Fehler } from "../components/Fehler";
 import { AdressFelder } from "../components/AdressFelder";
+import { IbanFeld } from "../components/IbanFeld";
 import { useOnlineAdressvorschlaege } from "../hooks/useOnlineAdressvorschlaege";
 import { PflichtLegende, PflichtMarker } from "../components/PflichtMarker";
 import { useXRechnungHilfe } from "../hooks/useXRechnungHilfe";
@@ -242,6 +243,12 @@ function FirmendatenAbschnitt() {
   // Abschnitts wäre bei diesem langen Formular außerhalb des Bildes.
   const logo = useSpeichern();
   const { laeuft, rueckmeldung, ausfuehren } = useSpeichern();
+  /**
+   * Ob der Ansprechpartner dem Firmennamen folgt. Ja, solange er leer
+   * gespeichert war oder dem Namen gleicht und niemand ihn angefasst hat;
+   * sonst stünde nach einer Umfirmierung der alte Name als Ansprechpartner da.
+   */
+  const [kontaktFolgt, setKontaktFolgt] = useState(false);
 
   useUngespeichert(
     firma !== null && gespeichert !== null && JSON.stringify(firma) !== JSON.stringify(gespeichert),
@@ -251,8 +258,15 @@ function FirmendatenAbschnitt() {
     api.firma
       .get()
       .then((f) => {
-        setFirma(f);
-        setGespeichert(f);
+        // Ein leerer Ansprechpartner wird als echter Wert vorbelegt, nicht
+        // als Platzhalter: Was im Feld steht, soll auch gespeichert werden.
+        // Als „gespeichert" gilt der vorbelegte Stand, damit das bloße Öffnen
+        // nicht als ungespeicherte Änderung zählt.
+        const folgt = f.kontakt_name.trim() === "" || f.kontakt_name === f.name;
+        const vorbelegt = f.kontakt_name.trim() === "" ? { ...f, kontakt_name: f.name } : f;
+        setKontaktFolgt(folgt);
+        setFirma(vorbelegt);
+        setGespeichert(vorbelegt);
       })
       .catch((e) => setFehler(e as AppFehler));
     api.firma.logoGet().then((b) => setLogoBytes(b && b.length > 0 ? b : null)).catch(() => {});
@@ -352,7 +366,14 @@ function FirmendatenAbschnitt() {
           <div className="feld">
             <label>
               <PflichtMarker art="pflicht">Firmenname</PflichtMarker>
-              <input required value={firma.name} onChange={(e) => setFirma({ ...firma, name: e.currentTarget.value })} />
+              <input
+                required
+                value={firma.name}
+                onChange={(e) => {
+                  const name = e.currentTarget.value;
+                  setFirma({ ...firma, name, ...(kontaktFolgt ? { kontakt_name: name } : {}) });
+                }}
+              />
             </label>
             {feldFehler("name") && <div role="alert" className="feld-fehler">{feldFehler("name")}</div>}
           </div>
@@ -399,22 +420,12 @@ function FirmendatenAbschnitt() {
               {feldFehler("ust_idnr") && <div role="alert" className="feld-fehler">{feldFehler("ust_idnr")}</div>}
             </div>
           </div>
-          <div className="felder-reihe felder-breit-schmal">
-            <div className="feld">
-              <label>
-                IBAN
-                <input value={firma.iban} onChange={(e) => setFirma({ ...firma, iban: e.currentTarget.value })} />
-              </label>
-              {feldFehler("iban") && <div role="alert" className="feld-fehler">{feldFehler("iban")}</div>}
-            </div>
-            <div className="feld">
-              <label>
-                BIC
-                <input value={firma.bic} onChange={(e) => setFirma({ ...firma, bic: e.currentTarget.value })} />
-              </label>
-              {feldFehler("bic") && <div role="alert" className="feld-fehler">{feldFehler("bic")}</div>}
-            </div>
-          </div>
+          <IbanFeld
+            iban={firma.iban}
+            bic={firma.bic}
+            onAendern={(aenderung) => setFirma({ ...firma, ...aenderung })}
+            feldFehler={feldFehler}
+          />
         </div>
         <div className="gruppe">
           <div className="felder-reihe">
@@ -459,10 +470,17 @@ function FirmendatenAbschnitt() {
                 Ansprechpartner
                 <input
                   value={firma.kontakt_name}
-                  onChange={(e) => setFirma({ ...firma, kontakt_name: e.currentTarget.value })}
+                  onChange={(e) => {
+                    // Auch Leeren zählt als eigene Entscheidung: Danach folgt
+                    // das Feld dem Namen nicht wieder von selbst.
+                    setKontaktFolgt(false);
+                    setFirma({ ...firma, kontakt_name: e.currentTarget.value });
+                  }}
                 />
               </label>
-              <p className="feld-hinweis">Ohne Angabe wird der Firmenname verwendet.</p>
+              <p className="feld-hinweis">
+                Vorbelegt mit dem Firmennamen. Bei Einzelunternehmen meist der eigene Name.
+              </p>
               {feldFehler("kontakt_name") && <div role="alert" className="feld-fehler">{feldFehler("kontakt_name")}</div>}
             </div>
           </div>

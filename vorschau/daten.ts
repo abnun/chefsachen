@@ -82,7 +82,7 @@ const FIRMA: Firma = {
   plz: "04229",
   ort: "Leipzig",
   steuernummer: "231/245/67890",
-  iban: "DE12 8605 5592 1090 4471 23",
+  iban: "DE39 8605 5592 1090 4471 23",
   bic: "WELADE8LXXX",
   email: "hallo@lenahoffmann.de",
   telefon: "0341 2479 3318",

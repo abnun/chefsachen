@@ -15,6 +15,11 @@ vi.mock("@tauri-apps/plugin-dialog", () => ({ open: vi.fn().mockResolvedValue(nu
 
 vi.mock("../api", () => ({
   api: {
+    einstellungen: {
+      get: vi.fn().mockResolvedValue(null),
+      set: vi.fn().mockResolvedValue(undefined),
+    },
+    adressen: { vorschlagen: vi.fn().mockResolvedValue([]) },
     neuStarten: vi.fn().mockResolvedValue(undefined),
     sicherungen: {
       ausDateiEinspielen: vi.fn().mockResolvedValue({
@@ -232,6 +237,96 @@ describe("Einrichtung", () => {
       expect(await screen.findByText(/keine Sicherung dieser Anwendung/)).toBeTruthy();
       expect(screen.getByText("Schritt 1 von 5")).toBeTruthy();
       expect(screen.queryByText("Die Sicherung ist eingespielt")).toBeNull();
+    });
+  });
+  /** Durch die Schritte 2 bis 4 bis zum Speichern. */
+  async function bisZumSpeichern() {
+    fireEvent.click(screen.getByRole("button", { name: "Weiter" }));
+    await waitFor(() => expect(screen.getByText("Schritt 2 von 5")).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Weiter" }));
+    fireEvent.click(screen.getByRole("button", { name: "Weiter" }));
+    fireEvent.click(screen.getByRole("button", { name: "Einrichtung abschließen" }));
+    await waitFor(() => expect(api.firma.save).toHaveBeenCalled());
+  }
+
+  describe("Ansprechpartner", () => {
+    it("folgt dem Firmennamen, solange er nicht selbst geändert wurde", async () => {
+      render(<Einrichtung onFertig={() => {}} />);
+      const name = await screen.findByLabelText(/Firmenname/);
+      fireEvent.change(name, { target: { value: "Muster GmbH" } });
+      expect(screen.getByLabelText("Ansprechpartner")).toHaveValue("Muster GmbH");
+      expect(screen.getByText(/Vorbelegt mit dem Firmennamen/)).toBeTruthy();
+    });
+
+    it("bleibt stehen, sobald er von Hand geändert wurde", async () => {
+      render(<Einrichtung onFertig={() => {}} />);
+      const name = await screen.findByLabelText(/Firmenname/);
+      fireEvent.change(name, { target: { value: "Muster" } });
+      fireEvent.change(screen.getByLabelText("Ansprechpartner"), { target: { value: "Erika Muster" } });
+      fireEvent.change(name, { target: { value: "Muster GmbH" } });
+      expect(screen.getByLabelText("Ansprechpartner")).toHaveValue("Erika Muster");
+    });
+
+    it("folgt nicht wieder, wenn er von Hand geleert wurde", async () => {
+      render(<Einrichtung onFertig={() => {}} />);
+      const name = await screen.findByLabelText(/Firmenname/);
+      fireEvent.change(name, { target: { value: "Muster" } });
+      fireEvent.change(screen.getByLabelText("Ansprechpartner"), { target: { value: "" } });
+      fireEvent.change(name, { target: { value: "Muster GmbH" } });
+      expect(screen.getByLabelText("Ansprechpartner")).toHaveValue("");
+    });
+  });
+
+  describe("Gründungsjahr", () => {
+    it("ist mit dem laufenden Jahr vorbelegt und sagt das dazu", async () => {
+      render(<Einrichtung onFertig={() => {}} />);
+      const feld = await screen.findByLabelText(/Gründungsjahr/);
+      expect(feld).toHaveValue(new Date().getFullYear());
+      expect(screen.getByText(/Vorbelegt mit dem laufenden Jahr/)).toBeTruthy();
+    });
+
+    it("speichert die Vorbelegung, wenn niemand sie ändert", async () => {
+      render(<Einrichtung onFertig={() => {}} />);
+      await screen.findByLabelText(/Gründungsjahr/);
+      await bisZumSpeichern();
+      expect(api.firma.save).toHaveBeenCalledWith(
+        expect.objectContaining({ gruendungsjahr: new Date().getFullYear() }),
+      );
+    });
+
+    it("speichert ein überschriebenes Jahr", async () => {
+      render(<Einrichtung onFertig={() => {}} />);
+      fireEvent.change(await screen.findByLabelText(/Gründungsjahr/), { target: { value: "2019" } });
+      await bisZumSpeichern();
+      expect(api.firma.save).toHaveBeenCalledWith(expect.objectContaining({ gruendungsjahr: 2019 }));
+    });
+
+    it("lässt sich leeren und speichert dann keins", async () => {
+      render(<Einrichtung onFertig={() => {}} />);
+      fireEvent.change(await screen.findByLabelText(/Gründungsjahr/), { target: { value: "" } });
+      await bisZumSpeichern();
+      expect(api.firma.save).toHaveBeenCalledWith(expect.objectContaining({ gruendungsjahr: null }));
+    });
+  });
+
+  describe("Bankverbindung", () => {
+    it("gruppiert die IBAN wie in den Einstellungen", async () => {
+      render(<Einrichtung onFertig={() => {}} />);
+      fireEvent.change(await screen.findByLabelText("IBAN"), { target: { value: "de02120300000000202051" } });
+      expect(screen.getByLabelText("IBAN")).toHaveValue("DE02 1203 0000 0000 2020 51");
+    });
+
+    it("zeigt einen Fehler zur IBAN am Feld", async () => {
+      vi.mocked(api.firma.pruefen).mockRejectedValueOnce({
+        typ: "validation",
+        feld: "iban",
+        meldung: "Die Prüfsumme der IBAN stimmt nicht",
+      });
+      render(<Einrichtung onFertig={() => {}} />);
+      await screen.findByLabelText("IBAN");
+      fireEvent.click(screen.getByRole("button", { name: "Weiter" }));
+      const meldung = await screen.findByText(/Prüfsumme der IBAN/);
+      expect(meldung.closest(".feld")).toBe(screen.getByLabelText("IBAN").closest(".feld"));
     });
   });
 });

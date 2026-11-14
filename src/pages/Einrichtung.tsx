@@ -5,6 +5,7 @@ import { api, istValidierungsfehler, type AppFehler, type Firma, type ZipImport 
 import { formularFehler } from "../formularFehler";
 import { Fehler } from "../components/Fehler";
 import { AdressFelder } from "../components/AdressFelder";
+import { IbanFeld } from "../components/IbanFeld";
 import { PflichtLegende, PflichtMarker } from "../components/PflichtMarker";
 import { useXRechnungHilfe } from "../hooks/useXRechnungHilfe";
 import { aktuellePlattform } from "../plattform";
@@ -35,8 +36,9 @@ type Schritt = 1 | 2 | 3 | 4 | 5;
  * Geprüft wird trotzdem schon nach Schritt 1: Wer sich in der IBAN vertippt,
  * erfuhr das früher erst nach fünf Schritten und wurde an den Anfang
  * zurückgeschickt. Die Prüfung läuft im Backend (`firma.pruefen`) — dieselbe
- * Funktion wie beim Speichern. Eine zweite Regelmenge hier liefe auseinander,
- * und die IBAN-Prüfsumme nachzubauen wäre ohnehin Unfug.
+ * Funktion wie beim Speichern. Eine zweite Regelmenge hier liefe auseinander.
+ * Das IBAN-Feld rechnet die Prüfziffer zwar nach, aber nur für einen leisen
+ * Hinweis beim Tippen; verbindlich bleibt die Prüfung im Backend.
  */
 export function Einrichtung({ onFertig }: EinrichtungProps) {
   const { zeigen: zeigeXRechnungHilfe } = useXRechnungHilfe();
@@ -49,9 +51,28 @@ export function Einrichtung({ onFertig }: EinrichtungProps) {
   /** Ergebnis eines Umzugs aus einer Sicherung; danach fehlt nur der Neustart. */
   const [umzug, setUmzug] = useState<ZipImport | null>(null);
   const [spieltEin, setSpieltEin] = useState(false);
+  /**
+   * Ob der Ansprechpartner dem Firmennamen folgt. Bis man ihn selbst anfasst:
+   * Wer ihn ändert oder leert, hat entschieden, und der Assistent schreibt
+   * nicht mehr hinein.
+   */
+  const [kontaktFolgt, setKontaktFolgt] = useState(true);
 
   useEffect(() => {
-    api.firma.get().then(setFirma).catch((e) => setFehler(e as AppFehler));
+    api.firma
+      .get()
+      .then((f) => {
+        setKontaktFolgt(f.kontakt_name.trim() === "" || f.kontakt_name === f.name);
+        // Das Gründungsjahr mit dem laufenden Jahr vorbelegt, auf Wunsch des
+        // Betreibers: Die meisten richten Chefsachen bei der Gründung ein.
+        // Wer schon länger besteht und die Vorbelegung übernimmt, bekäme
+        // falsche Grenzhinweise; deshalb der Hinweis am Feld. In den
+        // Einstellungen gibt es keine Vorbelegung, dort gilt der gespeicherte
+        // Wert. Ortszeit wie bei heuteIso(): Silvester um 23 Uhr ist noch
+        // das alte Jahr.
+        setFirma({ ...f, gruendungsjahr: f.gruendungsjahr ?? new Date().getFullYear() });
+      })
+      .catch((e) => setFehler(e as AppFehler));
   }, []);
 
   if (!firma) {
@@ -68,6 +89,8 @@ export function Einrichtung({ onFertig }: EinrichtungProps) {
     "plz",
     "ort",
     "steuernummer",
+    "iban",
+    "bic",
   ]);
 
   /**
@@ -209,7 +232,14 @@ export function Einrichtung({ onFertig }: EinrichtungProps) {
             <div className="feld">
               <label>
                 <PflichtMarker art="pflicht">Firmenname</PflichtMarker>
-                <input required value={firma.name} onChange={(e) => feldAendern({ name: e.currentTarget.value })} />
+                <input
+                  required
+                  value={firma.name}
+                  onChange={(e) => {
+                    const name = e.currentTarget.value;
+                    feldAendern({ name, ...(kontaktFolgt ? { kontakt_name: name } : {}) });
+                  }}
+                />
               </label>
               {feldFehler("name") && <div className="feld-fehler" role="alert">{feldFehler("name")}</div>}
             </div>
@@ -248,20 +278,7 @@ export function Einrichtung({ onFertig }: EinrichtungProps) {
                 </p>
               </div>
             </div>
-            <div className="felder-reihe felder-breit-schmal">
-              <div className="feld">
-                <label>
-                  IBAN
-                  <input value={firma.iban} onChange={(e) => feldAendern({ iban: e.currentTarget.value })} />
-                </label>
-              </div>
-              <div className="feld">
-                <label>
-                  BIC
-                  <input value={firma.bic} onChange={(e) => feldAendern({ bic: e.currentTarget.value })} />
-                </label>
-              </div>
-            </div>
+            <IbanFeld iban={firma.iban} bic={firma.bic} onAendern={feldAendern} feldFehler={feldFehler} />
           </div>
           <div className="gruppe">
             {/* E-Mail, Telefon und Ansprechpartner sind für eine gültige XRechnung
@@ -309,10 +326,15 @@ export function Einrichtung({ onFertig }: EinrichtungProps) {
                   Ansprechpartner
                   <input
                     value={firma.kontakt_name}
-                    onChange={(e) => feldAendern({ kontakt_name: e.currentTarget.value })}
+                    onChange={(e) => {
+                      setKontaktFolgt(false);
+                      feldAendern({ kontakt_name: e.currentTarget.value });
+                    }}
                   />
                 </label>
-                <p className="feld-hinweis">Ohne Angabe wird der Firmenname verwendet.</p>
+                <p className="feld-hinweis">
+                  Vorbelegt mit dem Firmennamen. Bei Einzelunternehmen meist der eigene Name.
+                </p>
               </div>
             </div>
             <div className="feld feld-schmal">
@@ -336,7 +358,9 @@ export function Einrichtung({ onFertig }: EinrichtungProps) {
                 />
               </label>
               <p className="feld-hinweis">
-                Im Gründungsjahr gilt für die Kleinunternehmergrenze bereits das laufende Jahr.
+                Vorbelegt mit dem laufenden Jahr. Gibt es dein Unternehmen schon länger, trag das
+                tatsächliche Jahr ein: Im Gründungsjahr gilt für die Kleinunternehmergrenze bereits
+                das laufende Jahr.
               </p>
             </div>
           </div>

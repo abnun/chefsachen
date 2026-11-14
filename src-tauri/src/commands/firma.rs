@@ -112,8 +112,9 @@ fn pruefe_gruendungsjahr(jahr: Option<i64>) -> AppResult<()> {
 /// Der Einrichtungsassistent fragt damit nach dem ersten Schritt nach, statt
 /// den Nutzer erst nach fünf Schritten mit einem Tippfehler in der IBAN
 /// zurückzuschicken. Absichtlich dieselbe Funktion wie beim Speichern: Eine
-/// zweite Regelmenge im Frontend liefe über kurz oder lang auseinander — und
-/// die IBAN-Prüfsumme dort nachzubauen wäre ohnehin Unfug.
+/// zweite Regelmenge im Frontend liefe über kurz oder lang auseinander. Das
+/// IBAN-Feld der Oberfläche rechnet die Prüfziffer zwar nach, aber nur für
+/// einen leisen Hinweis beim Tippen; verbindlich ist allein diese Prüfung.
 pub fn pruefen(firma: Firma) -> AppResult<()> {
     pruefe_firma(&firma)
 }

@@ -115,14 +115,14 @@ function EinstellungenMitAnbieter() {
 describe("Einstellungen", () => {
   it("startet den Rundgang über den Knopf im Seitenkopf", async () => {
     render(<EinstellungenMitAnbieter />);
-    await waitFor(() => expect(screen.getByDisplayValue("Musterfirma")).toBeTruthy());
+    await waitFor(() => expect(screen.getByLabelText(/Firmenname/)).toHaveValue("Musterfirma"));
     fireEvent.click(screen.getByRole("button", { name: "Rundgang" }));
     expect(screen.getByText("1 von 7")).toBeTruthy();
   });
 
   it("laedt und zeigt Firmendaten, Einheiten und Nummernkreise", async () => {
     render(<EinstellungenMitAnbieter />);
-    await waitFor(() => expect(screen.getByDisplayValue("Musterfirma")).toBeTruthy());
+    await waitFor(() => expect(screen.getByLabelText(/Firmenname/)).toHaveValue("Musterfirma"));
     expect(screen.getByText("Std")).toBeTruthy();
     expect(screen.getByDisplayValue("R-{jahr}-{nr}")).toBeTruthy();
     expect(screen.getByText(/Aktueller Zähler: 5/)).toBeTruthy();
@@ -150,7 +150,7 @@ describe("Einstellungen", () => {
       kleinunternehmer: true, eingerichtet: true,
     });
     render(<EinstellungenMitAnbieter />);
-    await waitFor(() => expect(screen.getByDisplayValue("Musterfirma")).toBeTruthy());
+    await waitFor(() => expect(screen.getByLabelText(/Firmenname/)).toHaveValue("Musterfirma"));
     // Index 0: Firmendaten ist der erste Abschnitt auf der Seite, dessen
     // "Speichern"-Button ist damit im DOM immer der erste unter diesem Namen.
     fireEvent.click(screen.getAllByRole("button", { name: "Speichern" })[0]);
@@ -171,7 +171,7 @@ describe("Einstellungen", () => {
       kleinunternehmer: true, eingerichtet: true,
     });
     render(<EinstellungenMitAnbieter />);
-    await waitFor(() => expect(screen.getByDisplayValue("Musterfirma")).toBeTruthy());
+    await waitFor(() => expect(screen.getByLabelText(/Firmenname/)).toHaveValue("Musterfirma"));
     const knopf = screen.getAllByRole("button", { name: "Speichern" })[0];
     fireEvent.click(knopf);
 
@@ -194,7 +194,7 @@ describe("Einstellungen", () => {
       typ: "validation", feld: "strasse", meldung: "Straße darf nicht leer sein",
     });
     render(<EinstellungenMitAnbieter />);
-    await waitFor(() => expect(screen.getByDisplayValue("Musterfirma")).toBeTruthy());
+    await waitFor(() => expect(screen.getByLabelText(/Firmenname/)).toHaveValue("Musterfirma"));
     const knopf = screen.getAllByRole("button", { name: "Speichern" })[0];
     fireEvent.click(knopf);
 
@@ -213,7 +213,7 @@ describe("Einstellungen", () => {
       typ: "validation", feld: "strasse", meldung: "Straße darf nicht leer sein",
     });
     render(<EinstellungenMitAnbieter />);
-    await waitFor(() => expect(screen.getByDisplayValue("Musterfirma")).toBeTruthy());
+    await waitFor(() => expect(screen.getByLabelText(/Firmenname/)).toHaveValue("Musterfirma"));
     fireEvent.click(screen.getAllByRole("button", { name: "Speichern" })[0]);
 
     const meldung = await screen.findByText("Straße darf nicht leer sein");
@@ -231,7 +231,7 @@ describe("Einstellungen", () => {
       kleinunternehmer: true, eingerichtet: true,
     });
     render(<EinstellungenMitAnbieter />);
-    await waitFor(() => expect(screen.getByDisplayValue("Musterfirma")).toBeTruthy());
+    await waitFor(() => expect(screen.getByLabelText(/Firmenname/)).toHaveValue("Musterfirma"));
 
     fireEvent.change(screen.getByLabelText("Fax"), { target: { value: "030 123456-9" } });
     fireEvent.click(screen.getAllByRole("button", { name: "Speichern" })[0]);
@@ -613,7 +613,7 @@ describe("Einstellungen: Adressvorschläge", () => {
 
   it("speichert das Einschalten und macht das Straßenfeld sofort zur Vorschlagsliste", async () => {
     render(<EinstellungenMitAnbieter />);
-    await waitFor(() => expect(screen.getByDisplayValue("Musterfirma")).toBeTruthy());
+    await waitFor(() => expect(screen.getByLabelText(/Firmenname/)).toHaveValue("Musterfirma"));
     expect(screen.queryByRole("combobox", { name: /Straße/ })).toBeNull();
     fireEvent.click(await screen.findByRole("checkbox", { name: "Adressvorschläge aus dem Internet" }));
     await waitFor(() =>
@@ -627,5 +627,74 @@ describe("Einstellungen: Adressvorschläge", () => {
     const quelle = await screen.findByRole("link", { name: "GeoNames" });
     expect(quelle).toHaveAttribute("href", "https://www.geonames.org");
     expect(screen.getByText(/CC BY 4\.0/)).toBeTruthy();
+  });
+});
+
+describe("Einstellungen: Quelle der Bankleitzahlen", () => {
+  it("nennt die Bundesbank unter Programmversion", async () => {
+    // Die Nutzungsbedingungen der Bundesbank verlangen beim Weitergeben die
+    // Angabe „Quelle: Deutsche Bundesbank".
+    render(<EinstellungenMitAnbieter />);
+    expect(await screen.findByText(/Quelle: Deutsche Bundesbank/)).toBeTruthy();
+  });
+});
+
+describe("Einstellungen: Ansprechpartner und Bankverbindung", () => {
+  const firma = {
+    id: "1", name: "Musterfirma", strasse: "Musterstr. 1", plz: "12345", ort: "Musterstadt",
+    land: "DE", steuernummer: "123/456/789", ust_idnr: "", iban: "", bic: "",
+    email: "", telefon: "", fax: "", kontakt_name: "", gruendungsjahr: null,
+    kleinunternehmer: true, eingerichtet: true,
+  };
+
+  it("belegt einen leeren Ansprechpartner mit dem Firmennamen vor und speichert ihn", async () => {
+    const { api } = await import("../api");
+    vi.mocked(api.firma.save).mockResolvedValueOnce({ ...firma, kontakt_name: "Musterfirma" });
+    render(<EinstellungenMitAnbieter />);
+    // Ein echter Wert, kein Platzhalter: Er landet so auf der XRechnung.
+    await waitFor(() => expect(screen.getByLabelText("Ansprechpartner")).toHaveValue("Musterfirma"));
+    expect(screen.getByText(/Vorbelegt mit dem Firmennamen/)).toBeTruthy();
+    fireEvent.click(screen.getAllByRole("button", { name: "Speichern" })[0]);
+    await waitFor(() =>
+      expect(api.firma.save).toHaveBeenCalledWith(expect.objectContaining({ kontakt_name: "Musterfirma" })),
+    );
+  });
+
+  it("lässt den vorbelegten Ansprechpartner dem Firmennamen folgen, bis man ihn selbst ändert", async () => {
+    render(<EinstellungenMitAnbieter />);
+    await waitFor(() => expect(screen.getByLabelText("Ansprechpartner")).toHaveValue("Musterfirma"));
+    fireEvent.change(screen.getByLabelText(/Firmenname/), { target: { value: "Musterfirma GmbH" } });
+    expect(screen.getByLabelText("Ansprechpartner")).toHaveValue("Musterfirma GmbH");
+    fireEvent.change(screen.getByLabelText("Ansprechpartner"), { target: { value: "Erika Muster" } });
+    fireEvent.change(screen.getByLabelText(/Firmenname/), { target: { value: "Muster AG" } });
+    expect(screen.getByLabelText("Ansprechpartner")).toHaveValue("Erika Muster");
+  });
+
+  it("lässt einen gespeicherten eigenen Ansprechpartner stehen, wenn sich der Firmenname ändert", async () => {
+    const { api } = await import("../api");
+    vi.mocked(api.firma.get).mockResolvedValueOnce({ ...firma, kontakt_name: "Max Mustermann" });
+    render(<EinstellungenMitAnbieter />);
+    await waitFor(() => expect(screen.getByLabelText("Ansprechpartner")).toHaveValue("Max Mustermann"));
+    fireEvent.change(screen.getByLabelText(/Firmenname/), { target: { value: "Muster AG" } });
+    expect(screen.getByLabelText("Ansprechpartner")).toHaveValue("Max Mustermann");
+  });
+
+  it("belegt das Gründungsjahr nicht vor: leer bleibt leer", async () => {
+    render(<EinstellungenMitAnbieter />);
+    await waitFor(() => expect(screen.getByLabelText("Ansprechpartner")).toHaveValue("Musterfirma"));
+    expect(screen.getByLabelText(/Gründungsjahr/)).toHaveValue(null);
+  });
+
+  it("gruppiert die IBAN und speichert sie so", async () => {
+    const { api } = await import("../api");
+    vi.mocked(api.firma.save).mockResolvedValueOnce({ ...firma, kontakt_name: "Musterfirma" });
+    render(<EinstellungenMitAnbieter />);
+    await waitFor(() => expect(screen.getByLabelText("Ansprechpartner")).toHaveValue("Musterfirma"));
+    fireEvent.change(screen.getByLabelText("IBAN"), { target: { value: "de02120300000000202051" } });
+    expect(screen.getByLabelText("IBAN")).toHaveValue("DE02 1203 0000 0000 2020 51");
+    fireEvent.click(screen.getAllByRole("button", { name: "Speichern" })[0]);
+    await waitFor(() =>
+      expect(api.firma.save).toHaveBeenCalledWith(expect.objectContaining({ iban: "DE02 1203 0000 0000 2020 51" })),
+    );
   });
 });

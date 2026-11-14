@@ -524,6 +524,12 @@ label.feld textarea {
   grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
 }
 
+/* IBAN und BIC vergleicht man Block für Block mit dem Kontoauszug. Mit
+   gleich breiten Ziffern stehen die Viererblöcke dafür ruhig. */
+.iban-eingabe {
+  font-variant-numeric: tabular-nums;
+}
+
 /* Feldbreite nach Inhalt: Eine Postleitzahl, ein Länderkürzel oder ein
    Zahlungsziel in Tagen braucht keine 700 px. */
 .feld-schmal :is(input, select) {
