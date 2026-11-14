@@ -81,7 +81,7 @@ describe("Ein Durchgang durch die Anwendung", () => {
     // Geprüft wird seit 0.2.1 schon nach Schritt 1, im Backend. Ohne
     // Steuernummer oder USt-IdNr. ist eine Rechnung nach § 14 UStG formell
     // fehlerhaft — das soll man erfahren, bevor man vier Schritte weitergeht.
-    const name = await feld("Name");
+    const name = await feld("Firmenname");
     await name.waitForDisplayed({ timeout: 20000 });
     await name.setValue("Durchstich GmbH");
     await klick("Weiter");

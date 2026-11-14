@@ -296,7 +296,7 @@ function FirmendatenAbschnitt() {
         <div className="gruppe">
           <div className="feld">
             <label>
-              <PflichtMarker art="pflicht">Name</PflichtMarker>
+              <PflichtMarker art="pflicht">Firmenname</PflichtMarker>
               <input required value={firma.name} onChange={(e) => setFirma({ ...firma, name: e.currentTarget.value })} />
             </label>
             {feldFehler("name") && <div role="alert" className="feld-fehler">{feldFehler("name")}</div>}

@@ -207,7 +207,7 @@ export function Einrichtung({ onFertig }: EinrichtungProps) {
           <div className="gruppe">
             <div className="feld">
               <label>
-                <PflichtMarker art="pflicht">Name</PflichtMarker>
+                <PflichtMarker art="pflicht">Firmenname</PflichtMarker>
                 <input required value={firma.name} onChange={(e) => feldAendern({ name: e.currentTarget.value })} />
               </label>
               {feldFehler("name") && <div className="feld-fehler" role="alert">{feldFehler("name")}</div>}
