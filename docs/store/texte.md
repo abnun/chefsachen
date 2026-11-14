@@ -49,8 +49,8 @@ EINGANGSRECHNUNGEN
 
 DEINE DATEN BLEIBEN BEI DIR
 Chefsachen braucht kein Konto und keine Internetverbindung. Alle Daten
-liegen ausschließlich auf deinem Rechner. Die App sammelt nichts und
-sendet nichts. Postleitzahl und Ort schlägt sie aus einer mitgelieferten
+liegen ausschließlich auf deinem Rechner. Die App sammelt nichts, und
+ohne dein Zutun sendet sie nichts. Postleitzahl und Ort schlägt sie aus einer mitgelieferten
 Liste vor. Wer möchte, schaltet zusätzlich Straßenvorschläge aus dem
 Internet ein; nur dann geht das Getippte an den Dienst Photon von komoot.
 Sicherungen entstehen automatisch bei jedem Start und lassen sich als
@@ -92,9 +92,9 @@ Keine der abgefragten Inhalte: 4+ (Apple), IARC „Ab 0" bzw. USK 0.
 
 ## Datenschutzangaben (App Store Connect)
 
-„Keine Daten erfasst", sofern der Betreiber nach Prüfung dabei bleibt
-(siehe docs/store/checkliste.md). Begründung: keine Analyse, keine
-Absturzberichte an Dritte, das Protokoll bleibt lokal. Einziger
-Netzwerkzugriff sind die Straßenvorschläge über Photon von komoot: nach
-der Installation aus, nur nach ausdrücklichem Einschalten, Abfrage in
-Echtzeit, nichts davon erreicht den Entwickler.
+„Daten nicht mit dir verknüpft" › Kontaktdaten › Physische Adresse,
+Zweck App-Funktionalität, kein Tracking (Einzelheiten in
+docs/store/checkliste.md). Hintergrund: Einziger Netzwerkzugriff sind die
+optionalen Straßenvorschläge über Photon von komoot, nach der Installation
+aus, nur nach ausdrücklichem Einschalten. Sonst keine Analyse, keine
+Absturzberichte an Dritte, das Protokoll bleibt lokal.

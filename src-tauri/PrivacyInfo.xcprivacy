@@ -3,12 +3,13 @@
 <!--
   Datenschutzmanifest für den Mac App Store.
 
-  Chefsachen erfasst keine Daten und verfolgt niemanden: Alles bleibt lokal in
-  der Datenbank im Container der App. Einzige Ausnahme sind die
-  Straßenvorschläge, nach der Installation aus: Eingeschaltet geht der
-  getippte Text in Echtzeit an Photon von komoot, nicht an den Entwickler.
-  Deshalb bleibt NSPrivacyCollectedDataTypes leer; ob das so bleibt,
-  entscheidet der Betreiber (docs/store/checkliste.md).
+  Chefsachen verfolgt niemanden: Alles bleibt lokal in der Datenbank im
+  Container der App. Einzige Ausnahme sind die Straßenvorschläge, nach der
+  Installation aus: Eingeschaltet geht der getippte Adresstext an Photon von
+  komoot. Apple zählt Daten, die ein Dritter erhält, als erfasst. Deshalb
+  steht hier die physische Adresse, nicht verknüpft, ohne Tracking, nur für
+  die App-Funktion. Muss mit den Angaben in App Store Connect übereinstimmen
+  (docs/store/checkliste.md).
 
   Begründet werden nur die Schnittstellen, die Apple als „required reason API"
   führt und die das Programm tatsächlich berührt:
@@ -25,7 +26,20 @@
 	<key>NSPrivacyTrackingDomains</key>
 	<array/>
 	<key>NSPrivacyCollectedDataTypes</key>
-	<array/>
+	<array>
+		<dict>
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypePhysicalAddress</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+			</array>
+		</dict>
+	</array>
 	<key>NSPrivacyAccessedAPITypes</key>
 	<array>
 		<dict>

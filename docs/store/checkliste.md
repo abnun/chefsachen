@@ -35,16 +35,20 @@ Texte: `docs/store/texte.md`. Screenshots: `node vorschau/screenshots.mjs`.
       `productName` **nicht** ändern (nur der Store-Name weicht ab).
 - [ ] App-Informationen: Kategorie Wirtschaft/Finanzen, Altersfreigabe
       (alles „Nein" → 4+), Datenschutzrichtlinien-URL.
-- [ ] App-Datenschutz: „Keine Daten erfasst" prüfen. Seit den
-      Straßenvorschlägen gehen auf ausdrücklichen Wunsch des Nutzers
-      Eingaben in Echtzeit an einen Dritten (Photon von komoot: getippter
-      Text, PLZ/Ort, IP-Adresse). Die Funktion ist nach der Installation
-      aus, und der Entwickler erhält nichts davon. Apple zählt Daten, die
-      nur in Echtzeit zur Beantwortung einer Anfrage verarbeitet und nicht
-      gespeichert werden, nicht als „erfasst"; ob das für komoot gilt,
-      entscheidet der Betreiber anhand der Datenschutzerklärung von komoot.
-      Sonst „Daten nicht mit dir verknüpft" › Standort (grob, über die
-      IP-Adresse) bzw. „Andere Daten" angeben.
+- [ ] App-Datenschutz (Entscheidung des Betreibers vom 2026-11-14: die
+      Straßenvorschläge werden angegeben, nicht „Keine Daten erfasst"):
+      - Erfasst die App Daten? **Ja.**
+      - Datentyp: **Kontaktdaten › Physische Adresse** (der getippte
+        Adresstext geht an Photon von komoot; Apple zählt Daten, die ein
+        eingebundener Dritter erhält, mit).
+      - Verwendung: **App-Funktionalität**, sonst nichts.
+      - Mit der Identität verknüpft? **Nein** (kein Konto, keine Kennung).
+      - Für Tracking verwendet? **Nein.**
+      - Weitere Datentypen: keine. Die IP-Adresse ist technisch nötig und
+        wird von uns nicht zur Standortbestimmung genutzt, deshalb kein
+        „Standort".
+      - Dieselbe Angabe steht maschinenlesbar in
+        `src-tauri/PrivacyInfo.xcprivacy`; beide müssen übereinstimmen.
 - [ ] Preise und Verfügbarkeit: kostenlos; Länder nach Wunsch (sinnvoll:
       Deutschland, Österreich, Schweiz, Luxemburg).
 - [ ] Optional für `--hochladen`: Benutzer und Zugriff › Integrationen ›
