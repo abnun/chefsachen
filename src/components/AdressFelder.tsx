@@ -82,6 +82,8 @@ export function AdressFelder({ strasse, plz, ort, land, onAendern, feldFehler }:
       .then((v) => {
         if (aktuell) setVerzeichnis(v);
       })
+      // Ohne Liste bleiben PLZ und Ort schlichte Felder. Den Fehler hat das
+      // Laden schon protokolliert, und der nächste Aufruf versucht es erneut.
       .catch(() => {});
     return () => {
       aktuell = false;

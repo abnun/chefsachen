@@ -9,6 +9,8 @@
  * und die deutsche Liste hätte zu beiden nichts Sinnvolles zu sagen.
  */
 
+import { einmalLaden } from "./einmalLaden";
+
 export interface PlzEintrag {
   plz: string;
   ort: string;
@@ -183,14 +185,11 @@ export function vorschlagText(v: OrtVorschlag): string {
   return `${name} (${v.plz || "mehrere PLZ"})`;
 }
 
-let geladen: Promise<PlzVerzeichnis> | null = null;
-
 /**
  * Lädt die Liste beim ersten Bedarf. Als eigener Teil des Bündels, damit sie
  * den Programmstart nicht verlängert: Gebraucht wird sie erst, wenn ein
  * Adressformular offen ist.
  */
-export function plzVerzeichnisLaden(): Promise<PlzVerzeichnis> {
-  geladen ??= import("./daten/plz-de.txt?raw").then((m) => plzDatenLesen(m.default));
-  return geladen;
-}
+export const plzVerzeichnisLaden = einmalLaden("Die PLZ-Liste", () =>
+  import("./daten/plz-de.txt?raw").then((m) => plzDatenLesen(m.default)),
+);

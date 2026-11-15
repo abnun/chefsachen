@@ -8,6 +8,7 @@
  * und eine falsche Vermutung wäre schlimmer als ein leeres Feld.
  */
 
+import { einmalLaden } from "./einmalLaden";
 import { ibanBefund, ibanKompakt } from "./iban";
 
 /** BLZ (achtstellig) → BIC. */
@@ -45,13 +46,10 @@ export function bicZurIban(v: BlzVerzeichnis, iban: string): string | null {
   return v.get(kompakt.slice(4, 12)) ?? null;
 }
 
-let geladen: Promise<BlzVerzeichnis> | null = null;
-
 /**
  * Lädt die Zuordnung beim ersten Bedarf, als eigener Teil des Bündels: Sie
  * wird erst gebraucht, wenn ein Formular mit IBAN offen ist.
  */
-export function blzVerzeichnisLaden(): Promise<BlzVerzeichnis> {
-  geladen ??= import("./daten/blz-bic.txt?raw").then((m) => blzDatenLesen(m.default));
-  return geladen;
-}
+export const blzVerzeichnisLaden = einmalLaden("Die Bankleitzahlendatei", () =>
+  import("./daten/blz-bic.txt?raw").then((m) => blzDatenLesen(m.default)),
+);

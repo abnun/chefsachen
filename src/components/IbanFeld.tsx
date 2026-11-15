@@ -82,7 +82,8 @@ export function IbanFeld({ iban, bic, onAendern, feldFehler }: IbanFeldProps) {
       .then((v) => {
         if (aktuell) setVerzeichnis(v);
       })
-      // Ohne Zuordnung bleibt das BIC-Feld ein schlichtes Textfeld.
+      // Ohne Zuordnung bleibt das BIC-Feld ein schlichtes Textfeld. Den
+      // Fehler hat das Laden schon protokolliert.
       .catch(() => {});
     return () => {
       aktuell = false;

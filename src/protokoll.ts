@@ -23,6 +23,20 @@ export function fehlerAufzeichnungEinrichten() {
   });
 }
 
+/**
+ * Schreibt einen Fehler ins Protokoll, den die Oberfläche selbst abfängt,
+ * weil sie ohne das Ergebnis weiterarbeiten kann. Abgefangen erreicht er die
+ * Ereignisse oben nicht mehr.
+ *
+ * Scheitert das Schreiben selbst, bleibt es dabei: Ein Fehler beim
+ * Protokollieren ist kein Grund für einen zweiten, unbehandelten.
+ */
+export function fehlerProtokollieren(anlass: string, grund: unknown) {
+  Promise.resolve()
+    .then(() => error(`Oberfläche: ${anlass}: ${beschreibe(grund)}`))
+    .catch(() => {});
+}
+
 /** Fehlergründe sind nicht immer Error-Objekte; JSON ist der brauchbare Rest. */
 function beschreibe(grund: unknown): string {
   if (grund instanceof Error) return `${grund.message}\n${grund.stack ?? ""}`;
