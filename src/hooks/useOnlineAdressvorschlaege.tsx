@@ -12,6 +12,14 @@ export const SCHLUESSEL_ONLINE_VORSCHLAEGE = "adressen.online_vorschlaege";
 const hoerer = new Set<(an: boolean) => void>();
 
 /**
+ * Zählt die Umschaltungen seit Programmstart. Das Laden des gespeicherten
+ * Stands kann länger dauern als ein Klick auf das Häkchen; kommt es danach
+ * zurück, wäre sein Wert älter als der gerade gesetzte. Ein Zähler für alle
+ * Nutzer, weil auch ein Umschalten an anderer Stelle das Laden überholt.
+ */
+let umschaltungen = 0;
+
+/**
  * Ob Straßenvorschläge aus dem Internet eingeschaltet sind, und wie man es
  * ändert.
  *
@@ -24,12 +32,13 @@ export function useOnlineAdressvorschlaege(): [boolean, (an: boolean) => Promise
 
   useEffect(() => {
     let aktuell = true;
+    const standBeimLaden = umschaltungen;
     // Über ein Promise, damit auch ein fehlender Eintrag in einer
     // Test-Attrappe zum „aus" wird statt zum Absturz.
     Promise.resolve()
       .then(() => api.einstellungen.get(SCHLUESSEL_ONLINE_VORSCHLAEGE))
       .then((wert) => {
-        if (aktuell) setAn(wert === "true");
+        if (aktuell && standBeimLaden === umschaltungen) setAn(wert === "true");
       })
       .catch(() => {});
     hoerer.add(setAn);
@@ -41,6 +50,7 @@ export function useOnlineAdressvorschlaege(): [boolean, (an: boolean) => Promise
 
   async function setzen(neu: boolean) {
     await api.einstellungen.set(SCHLUESSEL_ONLINE_VORSCHLAEGE, neu ? "true" : "false");
+    umschaltungen++;
     for (const h of hoerer) h(neu);
   }
 
