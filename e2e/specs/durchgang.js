@@ -18,13 +18,16 @@
  */
 
 async function feld(beschriftung) {
+  // Die Beschriftung muss am Anfang des Labels stehen und dort als ganzes
+  // Wort enden. `contains` traf sonst zu viel: „Straße" auch das Häkchen
+  // „Straßen beim Tippen vorschlagen", das im Dokument vor dem Feld steht.
+  // Danach darf noch etwas folgen: das Pflichtzeichen („Straße *") oder bei
+  // einem Auswahlfeld im Label der Text seiner Optionen.
+  const label = `label[normalize-space(.) = "${beschriftung}" or starts-with(normalize-space(.), "${beschriftung} ")]`;
   // Dritter Fall: Felder mit Vorschlagsliste (Straße, Ort) stehen neben ihrer
   // Beschriftung, nicht darin, und hängen über `for` an ihr. Läge die Liste
   // im label, gehörten alle Vorschläge zum Namen des Felds.
-  return await $(
-    `//label[contains(., "${beschriftung}")]//input | //label[contains(., "${beschriftung}")]//select` +
-      ` | //input[@id = //label[contains(., "${beschriftung}")]/@for]`,
-  );
+  return await $(`//${label}//input | //${label}//select | //input[@id = //${label}/@for]`);
 }
 
 async function klick(text) {
