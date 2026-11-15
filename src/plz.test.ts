@@ -3,11 +3,18 @@ import plzDatei from "./daten/plz-de.txt?raw";
 import {
   istDeutschland,
   orteZurPlz,
+  ortAnzeige,
   ortVorschlaege,
   plzBekannt,
   plzDatenLesen,
-  vorschlagText,
+  type OrtVorschlag,
 } from "./plz";
+
+/** So liest ein Bildschirmleser den Vorschlag in der Liste vor. */
+function vorschlagText(o: OrtVorschlag): string {
+  const { text, zusatz } = ortAnzeige(o);
+  return `${text} ${zusatz}`;
+}
 
 /**
  * Ausschnitt im Format von scripts/plz-daten.mjs. Abstände in Basis 36:
@@ -102,6 +109,19 @@ describe("ortVorschlaege", () => {
       Array.from({ length: 20 }, (_, i) => `1\tOrt${String(i).padStart(2, "0")}`).join("\n"),
     );
     expect(ortVorschlaege(viele, "or")).toHaveLength(8);
+  });
+});
+
+describe("ortAnzeige", () => {
+  it("trennt Name und PLZ, damit die Liste die PLZ zurücknehmen kann", () => {
+    expect(ortAnzeige({ ort: "Heilbronn", ortsteil: "", plz: "74076" })).toEqual({
+      text: "Heilbronn",
+      zusatz: "(74076)",
+    });
+    expect(ortAnzeige({ ort: "Dresden", ortsteil: "Innere Altstadt", plz: "" })).toEqual({
+      text: "Dresden, Innere Altstadt",
+      zusatz: "(mehrere PLZ)",
+    });
   });
 });
 

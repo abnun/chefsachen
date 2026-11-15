@@ -18,10 +18,20 @@ export interface PlzEintrag {
   ortsteil: string;
 }
 
+/** Ein Eintrag samt Vergleichsform seiner Namen, nur für die Suche. */
+interface SuchEintrag extends PlzEintrag {
+  ortVergleich: string;
+  ortsteilVergleich: string;
+}
+
 export interface PlzVerzeichnis {
   /** Nach PLZ geordnet; eine Großkunden-PLZ steht mit leerem Ort darin. */
   nachPlz: Map<string, PlzEintrag[]>;
-  eintraege: PlzEintrag[];
+  /**
+   * Die Vergleichsform steht schon beim Einlesen fest: Die Ortssuche läuft
+   * bei jedem Tastendruck über alle Einträge, und die Namen ändern sich nie.
+   */
+  eintraege: SuchEintrag[];
 }
 
 /**
@@ -46,7 +56,18 @@ const GRENZE = 8;
  */
 export function plzDatenLesen(text: string): PlzVerzeichnis {
   const nachPlz = new Map<string, PlzEintrag[]>();
-  const eintraege: PlzEintrag[] = [];
+  const eintraege: SuchEintrag[] = [];
+  // Dieselben Namen kommen bei vielen PLZ vor (Berlin rund zweihundertmal);
+  // so wird jeder nur einmal umgeformt.
+  const formen = new Map<string, string>();
+  const vergleichsform = (name: string) => {
+    let form = formen.get(name);
+    if (form === undefined) {
+      form = vergleichbar(name);
+      formen.set(name, form);
+    }
+    return form;
+  };
   let plzZahl = 0;
   let vorige: { ort: string; ortsteil: string }[] = [];
   for (const zeile of text.split("\n")) {
@@ -66,7 +87,12 @@ export function plzDatenLesen(text: string): PlzVerzeichnis {
         letzterOrt = ort;
       }
     }
-    const liste = vorige.map((o) => ({ plz, ...o }));
+    const liste = vorige.map((o) => ({
+      plz,
+      ...o,
+      ortVergleich: vergleichsform(o.ort),
+      ortsteilVergleich: vergleichsform(o.ortsteil),
+    }));
     nachPlz.set(plz, liste);
     eintraege.push(...liste);
   }
@@ -104,11 +130,11 @@ function vergleichbar(text: string): string {
 }
 
 /**
- * Wie gut ein Name zur Eingabe passt: 0 genau, 1 am Anfang, 2 am Anfang
- * eines späteren Worts („Main" in „Frankfurt am Main"), sonst gar nicht.
+ * Wie gut ein Name (schon in Vergleichsform) zur Eingabe passt: 0 genau,
+ * 1 am Anfang, 2 am Anfang eines späteren Worts („Main" in „Frankfurt am
+ * Main"), sonst gar nicht.
  */
-function passung(name: string, eingabe: string): number | null {
-  const n = vergleichbar(name);
+function passung(n: string, eingabe: string): number | null {
   if (n === eingabe) return 0;
   if (n.startsWith(eingabe)) return 1;
   if (n.split(/[\s\-/(]+/).some((wort) => wort.startsWith(eingabe))) return 2;
@@ -137,7 +163,7 @@ export function ortVorschlaege(v: PlzVerzeichnis, eingabe: string, plz = ""): Or
   return vorschlaegeAus(v.eintraege, suche);
 }
 
-function vorschlaegeAus(eintraege: PlzEintrag[], suche: string): OrtVorschlag[] {
+function vorschlaegeAus(eintraege: SuchEintrag[], suche: string): OrtVorschlag[] {
   // Je Ort (und je Ortsteil) ein Vorschlag mit allen seinen PLZ. Sonst
   // stünde Hamburg hundertmal da, und Hameln käme gar nicht mehr vor.
   const gruppen = new Map<string, { ort: string; ortsteil: string; plz: Set<string>; rang: number }>();
@@ -148,11 +174,11 @@ function vorschlaegeAus(eintraege: PlzEintrag[], suche: string): OrtVorschlag[] 
     if (suche === "") {
       rang = 0;
     } else {
-      rang = passung(e.ort, suche);
+      rang = passung(e.ortVergleich, suche);
       // Ortsteile nur, wenn die Eingabe zum Ortsteil passt, nicht zum Ort:
       // Wer „Dres" tippt, will Dresden, nicht jeden Stadtteil einzeln.
       if (rang === null && e.ortsteil) {
-        const r = passung(e.ortsteil, suche);
+        const r = passung(e.ortsteilVergleich, suche);
         if (r !== null) {
           rang = r + 3;
           ortsteil = e.ortsteil;
@@ -179,10 +205,15 @@ function vorschlaegeAus(eintraege: PlzEintrag[], suche: string): OrtVorschlag[] 
     .map((g) => ({ ort: g.ort, ortsteil: g.ortsteil, plz: g.plz.size === 1 ? [...g.plz][0] : "" }));
 }
 
-/** „Ort (PLZ)", „Ort, Ortsteil (PLZ)" oder „Ort (mehrere PLZ)". */
-export function vorschlagText(v: OrtVorschlag): string {
-  const name = v.ortsteil ? `${v.ort}, ${v.ortsteil}` : v.ort;
-  return `${name} (${v.plz || "mehrere PLZ"})`;
+/**
+ * Wie ein Ortsvorschlag in der Liste steht: der Name („Ort" oder „Ort,
+ * Ortsteil") und daneben, zurückgenommen, „(PLZ)" oder „(mehrere PLZ)".
+ */
+export function ortAnzeige(v: OrtVorschlag): { text: string; zusatz: string } {
+  return {
+    text: v.ortsteil ? `${v.ort}, ${v.ortsteil}` : v.ort,
+    zusatz: `(${v.plz || "mehrere PLZ"})`,
+  };
 }
 
 /**

@@ -3,6 +3,7 @@ import { api, type Adressvorschlag } from "../api";
 import { useOnlineAdressvorschlaege } from "../hooks/useOnlineAdressvorschlaege";
 import {
   istDeutschland,
+  ortAnzeige,
   orteZurPlz,
   ortVorschlaege,
   plzBekannt,
@@ -96,11 +97,7 @@ export function AdressFelder({ strasse, plz, ort, land, onAendern, feldFehler }:
 
   const ortOptionen = useMemo<ComboboxOption[]>(
     () =>
-      ortListe.map((o) => ({
-        schluessel: `${o.ort}|${o.ortsteil}|${o.plz}`,
-        text: o.ortsteil ? `${o.ort}, ${o.ortsteil}` : o.ort,
-        zusatz: `(${o.plz || "mehrere PLZ"})`,
-      })),
+      ortListe.map((o) => ({ schluessel: `${o.ort}|${o.ortsteil}|${o.plz}`, ...ortAnzeige(o) })),
     [ortListe],
   );
   const strassenOptionen = useMemo<ComboboxOption[]>(
