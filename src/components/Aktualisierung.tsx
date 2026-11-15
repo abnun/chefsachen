@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { relaunch } from "@tauri-apps/plugin-process";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { api } from "../api";
 import { useAktualisierung } from "../hooks/useAktualisierung";
@@ -73,7 +72,7 @@ export function Aktualisierung() {
             <div className="hinweis-karte">
               <h3>Die Aktualisierung ist eingespielt</h3>
               <p>Sie wird mit dem nächsten Start wirksam.</p>
-              <button type="button" className="btn btn-primaer" onClick={() => relaunch()}>
+              <button type="button" className="btn btn-primaer" onClick={() => api.neuStarten()}>
                 Jetzt neu starten
               </button>
             </div>

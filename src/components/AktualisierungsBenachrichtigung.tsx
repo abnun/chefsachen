@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
-import { relaunch } from "@tauri-apps/plugin-process";
+import { api } from "../api";
 import { useAktualisierung } from "../hooks/useAktualisierung";
 import { useIstGithubFassung } from "../hooks/useVertriebsweg";
 import { Dialog } from "./Dialog";
@@ -137,7 +137,7 @@ export function AktualisierungsBenachrichtigung() {
         titel="Die Aktualisierung ist eingespielt"
         onSchliessen={() => setAusgeblendet(true)}
         aktionen={
-          <button type="button" className="btn btn-primaer" onClick={() => relaunch()}>
+          <button type="button" className="btn btn-primaer" onClick={() => api.neuStarten()}>
             Jetzt neu starten
           </button>
         }

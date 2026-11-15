@@ -16,13 +16,13 @@ vi.mock("@tauri-apps/api/event", () => ({
   },
 }));
 vi.mock("@tauri-apps/plugin-updater", () => ({ check: vi.fn() }));
-vi.mock("@tauri-apps/plugin-process", () => ({ relaunch: vi.fn().mockResolvedValue(undefined) }));
 vi.mock("@tauri-apps/plugin-log", () => ({
   info: vi.fn().mockResolvedValue(undefined),
   warn: vi.fn().mockResolvedValue(undefined),
 }));
 vi.mock("../api", () => ({
   api: {
+    neuStarten: vi.fn().mockResolvedValue(undefined),
     einstellungen: {
       get: vi.fn().mockResolvedValue(null),
       set: vi.fn().mockResolvedValue(undefined),
@@ -31,7 +31,7 @@ vi.mock("../api", () => ({
 }));
 
 import { check } from "@tauri-apps/plugin-updater";
-import { relaunch } from "@tauri-apps/plugin-process";
+import { api } from "../api";
 import { AktualisierungProvider } from "../hooks/useAktualisierung";
 import { AktualisierungsBenachrichtigung } from "./AktualisierungsBenachrichtigung";
 
@@ -109,7 +109,7 @@ describe("AktualisierungsBenachrichtigung", () => {
     await waitFor(() => expect(screen.getByText("Die Aktualisierung ist eingespielt")).toBeTruthy());
 
     fireEvent.click(screen.getByRole("button", { name: "Jetzt neu starten" }));
-    expect(relaunch).toHaveBeenCalled();
+    expect(api.neuStarten).toHaveBeenCalled();
   });
 
   /*

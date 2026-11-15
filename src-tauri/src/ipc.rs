@@ -180,7 +180,6 @@ const PLUGIN_AUFRUFE: &[(&str, &str)] = &[
 const AKTUALISIERUNGS_AUFRUFE: &[(&str, &str)] = &[
     ("check — Suche nach einer Aktualisierung", "plugin:updater|check"),
     ("downloadAndInstall — Aktualisierung einspielen", "plugin:updater|download_and_install"),
-    ("relaunch — Neustart nach der Aktualisierung", "plugin:process|restart"),
 ];
 
 /// Ob das Hauptfenster einen Befehl laut den Berechtigungen im Kontext aufrufen
@@ -199,8 +198,8 @@ fn die_oberflaeche_darf_alles_aufrufen_was_sie_aufruft() {
     // Tests waren grün, im gebauten Programm ging kein einziger Export.
     //
     // Gefragt wird hier die Berechtigungsauflösung selbst, statt die Befehle
-    // aufzurufen: `process|restart` würde den Testprozess beenden und `dialog`
-    // auf ein Fenster warten, das es nicht gibt.
+    // aufzurufen: `updater|download_and_install` ginge ins Netz und `dialog`
+    // wartete auf ein Fenster, das es nicht gibt.
     let mut kontext = crate::kontext::<tauri::test::MockRuntime>();
     let autoritaet = kontext.runtime_authority_mut();
 

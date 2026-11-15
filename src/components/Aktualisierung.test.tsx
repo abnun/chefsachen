@@ -4,7 +4,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@tauri-apps/api/app", () => ({ getVersion: vi.fn().mockResolvedValue("0.1.0") }));
 vi.mock("@tauri-apps/plugin-updater", () => ({ check: vi.fn() }));
-vi.mock("@tauri-apps/plugin-process", () => ({ relaunch: vi.fn().mockResolvedValue(undefined) }));
 vi.mock("@tauri-apps/plugin-opener", () => ({ revealItemInDir: vi.fn().mockResolvedValue(undefined) }));
 vi.mock("@tauri-apps/plugin-log", () => ({
   info: vi.fn().mockResolvedValue(undefined),
@@ -12,6 +11,7 @@ vi.mock("@tauri-apps/plugin-log", () => ({
 }));
 vi.mock("../api", () => ({
   api: {
+    neuStarten: vi.fn().mockResolvedValue(undefined),
     protokoll: { pfad: vi.fn().mockResolvedValue("/Users/test/Library/Logs/app/app.log") },
     einstellungen: {
       get: vi.fn().mockResolvedValue(null),
@@ -21,7 +21,6 @@ vi.mock("../api", () => ({
 }));
 
 import { check } from "@tauri-apps/plugin-updater";
-import { relaunch } from "@tauri-apps/plugin-process";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { info, warn } from "@tauri-apps/plugin-log";
 import { api } from "../api";
@@ -119,7 +118,7 @@ describe("Aktualisierung", () => {
     await waitFor(() => expect(screen.getByText("Die Aktualisierung ist eingespielt")).toBeTruthy());
 
     fireEvent.click(screen.getByText("Jetzt neu starten"));
-    expect(relaunch).toHaveBeenCalled();
+    expect(api.neuStarten).toHaveBeenCalled();
   });
 
   it("erfindet keinen Fortschritt ohne bekannte Gesamtgröße", async () => {

@@ -72,7 +72,6 @@ tempfile = "3"
 # Optional, weil die Store-Fassungen keinen Selbstaktualisierungscode enthalten
 # dürfen (App-Store-Richtlinie 2.4.5): Updates kommen dort nur über den Store.
 # Fehlt das Crate ganz, kann auch kein vergessener Aufruf mehr hineinrutschen.
-tauri-plugin-process = { version = "2.3.1", optional = true }
 tauri-plugin-updater = { version = "2.10.1", optional = true }
 
 # Der Vertriebsweg wird beim Übersetzen festgelegt, nicht zur Laufzeit erkannt:
@@ -92,7 +91,7 @@ tauri-plugin-updater = { version = "2.10.1", optional = true }
 #     --no-default-features --features mac-app-store
 [features]
 default = ["selbst-aktualisierung"]
-selbst-aktualisierung = ["dep:tauri-plugin-updater", "dep:tauri-plugin-process"]
+selbst-aktualisierung = ["dep:tauri-plugin-updater"]
 mac-app-store = []
 microsoft-store = []
 

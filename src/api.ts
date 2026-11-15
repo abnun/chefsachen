@@ -477,8 +477,8 @@ export const api = {
   vertriebsweg: () => invoke<Vertriebsweg>("vertriebsweg"),
   /**
    * Startet das Programm neu, etwa damit eine vorgemerkte Wiederherstellung
-   * greift. Eigener Befehl statt `relaunch` aus dem Prozess-Plugin, weil das
-   * Plugin in den Store-Fassungen fehlt.
+   * greift, oder nach einer Aktualisierung. Eigener Befehl statt `relaunch`
+   * aus dem Prozess-Plugin, damit er in jeder Fassung gleich funktioniert.
    */
   neuStarten: () => invoke<void>("programm_neu_starten"),
   dashboard: {

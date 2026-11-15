@@ -31,7 +31,7 @@
           "identifier": "aktualisierung",
           "description": "Selbstaktualisierung der GitHub-Fassung. Steht hier statt in capabilities/, weil tauri-build jede Datei dort prüft und im Store-Bau ohne Updater-Plugin an diesen Berechtigungen scheitern würde. Die Store-Überlagerungen ersetzen diese Liste durch [\"default\"].",
           "windows": ["main"],
-          "permissions": ["updater:default", "process:allow-restart"]
+          "permissions": ["updater:default"]
         }
       ]
     }

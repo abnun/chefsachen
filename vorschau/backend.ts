@@ -832,8 +832,6 @@ export function backendErstellen(b: Bestand) {
     "plugin:fs|read_file": () => [],
     "plugin:opener|open_url": () => null,
     "plugin:opener|reveal_item_in_dir": () => null,
-    "plugin:process|restart": () => null,
-    "plugin:process|exit": () => null,
     "plugin:window-state|save_window_state": () => null,
     "plugin:window-state|restore_state": () => null,
   };

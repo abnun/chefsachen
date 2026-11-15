@@ -93,8 +93,10 @@ fn mit_plugins<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri::Builder<
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init());
 
-    // Aktualisierung und Neustart gibt es auf Mobilgeräten nicht, und in den
-    // Store-Fassungen nicht, weil dort allein der Store aktualisiert.
+    // Die Aktualisierung gibt es auf Mobilgeräten nicht, und in den
+    // Store-Fassungen nicht, weil dort allein der Store aktualisiert. Den
+    // Neustart danach übernimmt der eigene Befehl `programm_neu_starten`,
+    // den alle Fassungen brauchen; ein Prozess-Plugin ist dafür überflüssig.
     #[cfg(all(
         feature = "selbst-aktualisierung",
         not(any(target_os = "android", target_os = "ios"))
@@ -102,8 +104,7 @@ fn mit_plugins<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri::Builder<
     let builder = builder
         // Der Updater lädt und prüft in Rust, nicht im Webview — die
         // Inhaltsrichtlinie der Oberfläche muss GitHub deshalb nicht kennen.
-        .plugin(tauri_plugin_updater::Builder::new().build())
-        .plugin(tauri_plugin_process::init());
+        .plugin(tauri_plugin_updater::Builder::new().build());
 
     #[cfg(not(any(target_os = "android", target_os = "ios")))]
     let builder = builder

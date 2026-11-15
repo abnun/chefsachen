@@ -18,7 +18,6 @@ vi.mock("@tauri-apps/plugin-dialog", () => ({
 // stehen in Aktualisierung.test.tsx. Hier reicht es, ihn stumm zu stellen.
 vi.mock("@tauri-apps/api/app", () => ({ getVersion: vi.fn().mockResolvedValue("0.1.0") }));
 vi.mock("@tauri-apps/plugin-updater", () => ({ check: vi.fn().mockResolvedValue(null) }));
-vi.mock("@tauri-apps/plugin-process", () => ({ relaunch: vi.fn() }));
 vi.mock("@tauri-apps/plugin-opener", () => ({ revealItemInDir: vi.fn() }));
 vi.mock("@tauri-apps/plugin-log", () => ({
   info: vi.fn().mockResolvedValue(undefined),
@@ -545,8 +544,8 @@ describe("Einstellungen", () => {
   });
 
   it("startet nach einer vorgemerkten Wiederherstellung über den eigenen Befehl neu", async () => {
-    // Nicht über `relaunch` aus dem Prozess-Plugin: Das fehlt in den
-    // Store-Fassungen, der Knopf täte dort sonst nichts.
+    // Über den eigenen Befehl, der in allen Fassungen gleich vorhanden ist;
+    // ein Prozess-Plugin bringt das Programm nicht mit.
     vi.mocked(api.sicherungen.liste).mockResolvedValue([
       { zeitstempel: "2026-08-01_09-00-00", groesse_bytes: 2048, pfad: "/p/a.db" },
     ]);

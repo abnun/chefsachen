@@ -54,10 +54,11 @@ pub fn vertriebsweg() -> &'static str {
 
 /// Startet das Programm neu, damit eine vorgemerkte Wiederherstellung greift.
 ///
-/// Eigener Befehl statt `relaunch` aus dem Prozess-Plugin: Das Plugin gehört
-/// zur Selbstaktualisierung und fehlt in den Store-Fassungen. Der Knopf
-/// „Jetzt neu starten" nach dem Einspielen einer Sicherung muss dort aber
-/// genauso funktionieren, gerade beim Umzug in die Store-Fassung.
+/// Eigener Befehl statt `relaunch` aus dem Prozess-Plugin: Der Knopf „Jetzt
+/// neu starten" nach dem Einspielen einer Sicherung muss in den
+/// Store-Fassungen genauso funktionieren wie in der GitHub-Fassung, gerade
+/// beim Umzug in die Store-Fassung. Auch der Neustart nach einer
+/// Aktualisierung läuft hierüber, deshalb braucht keine Fassung das Plugin.
 ///
 /// `request_restart` statt `restart`: Es lässt Tauri erst sauber herunterfahren
 /// (Fensterzustand, Protokoll), wie es auch das Plugin tut.
