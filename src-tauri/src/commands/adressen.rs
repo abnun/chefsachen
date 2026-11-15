@@ -14,6 +14,7 @@
 use serde::{Deserialize, Serialize};
 use sqlx::SqlitePool;
 use std::future::Future;
+use std::sync::OnceLock;
 use std::time::Duration;
 
 /// Schlüssel der Einwilligung. Nur der Wert `"true"` erlaubt eine Anfrage.
@@ -60,6 +61,11 @@ struct PhotonTreffer {
 
 #[derive(Debug, Deserialize, Default)]
 struct PhotonAngaben {
+    /// Art des Treffers: `"street"` für eine Straße als Ganzes, `"house"`
+    /// für eine Anschrift mit Hausnummer, daneben Orte, Bezirke und mehr.
+    #[serde(rename = "type")]
+    art: Option<String>,
+    name: Option<String>,
     street: Option<String>,
     housenumber: Option<String>,
     postcode: Option<String>,
@@ -73,26 +79,44 @@ struct PhotonAngaben {
 /// Straße, PLZ oder Ort, und Treffer außerhalb Deutschlands (das Rechteck um
 /// Deutschland schneidet Teile der Nachbarländer an). Ungültiges JSON ergibt
 /// eine leere Liste statt eines Fehlers, wie jeder andere Fehlschlag hier.
+///
+/// Photon liefert dieselbe Straße oft mehrfach, je OSM-Abschnitt einmal, und
+/// für den Nutzer sähen die Einträge gleich aus. Doppelte fallen deshalb weg;
+/// die Reihenfolge bleibt, weil Photon die besten Treffer zuerst nennt.
 pub fn photon_lesen(json: &str) -> Vec<Adressvorschlag> {
     let Ok(antwort) = serde_json::from_str::<PhotonAntwort>(json) else {
         return Vec::new();
     };
-    antwort
-        .features
-        .into_iter()
-        .filter_map(|treffer| {
-            let a = treffer.properties;
-            if !a.countrycode.as_deref().is_some_and(|c| c.eq_ignore_ascii_case("DE")) {
-                return None;
-            }
-            Some(Adressvorschlag {
-                strasse: a.street?,
-                hausnummer: a.housenumber.unwrap_or_default(),
-                plz: a.postcode?,
-                ort: a.city?,
-            })
-        })
-        .collect()
+    let mut liste: Vec<Adressvorschlag> = Vec::new();
+    for treffer in antwort.features {
+        let a = treffer.properties;
+        if !a.countrycode.as_deref().is_some_and(|c| c.eq_ignore_ascii_case("DE")) {
+            continue;
+        }
+        // Eine Straße als Ganzes trägt ihren Namen in `name`, `street` ist dort
+        // leer. Bei allen anderen Arten ist `name` der Name des Gebäudes oder
+        // Geschäfts („Bäckerei Beispiel") und taugt nicht als Straße.
+        let strasse = if a.art.as_deref() == Some("street") {
+            a.street.or(a.name)
+        } else {
+            a.street
+        };
+        let (Some(strasse), Some(plz), Some(ort)) = (strasse, a.postcode, a.city) else {
+            continue;
+        };
+        let vorschlag = Adressvorschlag {
+            strasse,
+            hausnummer: a.housenumber.unwrap_or_default(),
+            plz,
+            ort,
+        };
+        // Höchstens fünf Treffer: Ein linearer Vergleich ist hier billiger
+        // und erhält die Reihenfolge ohne Umweg.
+        if !liste.contains(&vorschlag) {
+            liste.push(vorschlag);
+        }
+    }
+    liste
 }
 
 /// Baut die Anfrage-URL. Getrennt von der Anfrage selbst, damit sich prüfen
@@ -159,21 +183,32 @@ where
 /// Bequemlichkeit, und ohne ihn tippt man die Anschrift eben selbst. Eine
 /// Fehlermeldung beim Tippen wäre lästiger als der fehlende Vorschlag.
 async fn photon_abrufen(url: String) -> Option<String> {
-    // Derselbe Anbieter wie beim Updater. In der GitHub-Fassung hat ihn
-    // vielleicht schon der Updater eingerichtet; dann gilt dessen Wahl.
-    if rustls::crypto::CryptoProvider::get_default().is_none() {
-        let _ = rustls::crypto::ring::default_provider().install_default();
-    }
-    let client = reqwest::Client::builder()
-        .timeout(ZEITLIMIT)
-        .user_agent(USER_AGENT)
-        .build()
-        .ok()?;
-    let antwort = client.get(url).send().await.ok()?;
+    let antwort = photon_client()?.get(url).send().await.ok()?;
     if !antwort.status().is_success() {
         return None;
     }
     antwort.text().await.ok()
+}
+
+/// Ein Client für alle Anfragen: Er hält Verbindungen offen, und beim Tippen
+/// folgen die Anfragen dicht aufeinander. Ein neuer Client je Anfrage hieße
+/// jedes Mal einen neuen TLS-Handschlag mit komoot.
+fn photon_client() -> Option<&'static reqwest::Client> {
+    static CLIENT: OnceLock<Option<reqwest::Client>> = OnceLock::new();
+    CLIENT
+        .get_or_init(|| {
+            // Derselbe Anbieter wie beim Updater. In der GitHub-Fassung hat ihn
+            // vielleicht schon der Updater eingerichtet; dann gilt dessen Wahl.
+            if rustls::crypto::CryptoProvider::get_default().is_none() {
+                let _ = rustls::crypto::ring::default_provider().install_default();
+            }
+            reqwest::Client::builder()
+                .timeout(ZEITLIMIT)
+                .user_agent(USER_AGENT)
+                .build()
+                .ok()
+        })
+        .as_ref()
 }
 
 /// Straßenvorschläge zum getippten Text. Ohne Einwilligung leer, ohne dass
@@ -200,43 +235,70 @@ mod tests {
         (dir, p)
     }
 
+    /// Nachgebaut nach echten Photon-Antworten: Eine Straße als Ganzes kommt
+    /// als `type: "street"` mit dem Namen in `name` und ohne `street`, und
+    /// oft mehrfach, je OSM-Abschnitt einmal. Ein Haus trägt `street` und
+    /// `housenumber`; ein Geschäft darin hat seinen eigenen Namen in `name`,
+    /// der keine Straße ist.
     const ANTWORT: &str = r#"{
         "features": [
-            { "properties": { "street": "Paul-Göbel-Straße", "housenumber": "1",
+            { "properties": { "type": "street", "osm_key": "highway", "name": "Karl-Heine-Straße",
+                              "street": null, "housenumber": null,
+                              "postcode": "04229", "city": "Leipzig", "countrycode": "DE" } },
+            { "properties": { "type": "street", "osm_key": "highway", "name": "Karl-Heine-Straße",
+                              "street": null, "housenumber": null,
+                              "postcode": "04229", "city": "Leipzig", "countrycode": "DE" } },
+            { "properties": { "type": "house", "osm_key": "building", "street": "Paul-Göbel-Straße",
+                              "housenumber": "1", "postcode": "74076", "city": "Heilbronn",
+                              "countrycode": "DE" } },
+            { "properties": { "type": "house", "osm_key": "shop", "name": "Bäckerei Beispiel",
+                              "street": "Paul-Göbel-Straße", "housenumber": "3",
                               "postcode": "74076", "city": "Heilbronn", "countrycode": "DE" } },
-            { "properties": { "street": "Paul-Göbel-Straße",
-                              "postcode": "74076", "city": "Heilbronn", "countrycode": "DE" } },
-            { "properties": { "street": "Nur Straße", "countrycode": "DE" } },
-            { "properties": { "street": "Rue de Strasbourg", "housenumber": "3",
+            { "properties": { "type": "city", "osm_key": "place", "name": "Leipzig",
+                              "postcode": "04109", "city": "Leipzig", "countrycode": "DE" } },
+            { "properties": { "type": "street", "osm_key": "highway", "name": "Rue de Strasbourg",
                               "postcode": "67000", "city": "Strasbourg", "countrycode": "FR" } }
         ]
     }"#;
 
+    fn vorschlag(strasse: &str, hausnummer: &str, plz: &str, ort: &str) -> Adressvorschlag {
+        Adressvorschlag {
+            strasse: strasse.into(),
+            hausnummer: hausnummer.into(),
+            plz: plz.into(),
+            ort: ort.into(),
+        }
+    }
+
     #[test]
-    fn liest_strasse_hausnummer_plz_und_ort() {
-        let liste = photon_lesen(ANTWORT);
+    fn liest_strassen_und_haeuser_ohne_doppelte_in_der_reihenfolge_der_antwort() {
         assert_eq!(
-            liste[0],
-            Adressvorschlag {
-                strasse: "Paul-Göbel-Straße".into(),
-                hausnummer: "1".into(),
-                plz: "74076".into(),
-                ort: "Heilbronn".into(),
-            }
+            photon_lesen(ANTWORT),
+            vec![
+                vorschlag("Karl-Heine-Straße", "", "04229", "Leipzig"),
+                vorschlag("Paul-Göbel-Straße", "1", "74076", "Heilbronn"),
+                vorschlag("Paul-Göbel-Straße", "3", "74076", "Heilbronn"),
+            ]
         );
     }
 
     #[test]
-    fn fehlende_hausnummer_bleibt_leer() {
+    fn eine_strasse_als_ganzes_nimmt_den_namen_ohne_hausnummer() {
         let liste = photon_lesen(ANTWORT);
-        assert_eq!(liste[1].hausnummer, "");
+        assert_eq!(liste[0].strasse, "Karl-Heine-Straße");
+        assert_eq!(liste[0].hausnummer, "");
     }
 
     #[test]
-    fn unvollstaendige_und_auslaendische_treffer_fallen_weg() {
+    fn der_name_eines_geschaefts_wird_keine_strasse() {
         let liste = photon_lesen(ANTWORT);
-        assert_eq!(liste.len(), 2, "{liste:?}");
-        assert!(liste.iter().all(|v| v.ort == "Heilbronn"));
+        assert!(liste.iter().all(|v| v.strasse != "Bäckerei Beispiel"), "{liste:?}");
+    }
+
+    #[test]
+    fn orte_und_auslaendische_treffer_fallen_weg() {
+        let liste = photon_lesen(ANTWORT);
+        assert!(liste.iter().all(|v| v.strasse != "Leipzig" && v.ort != "Strasbourg"), "{liste:?}");
     }
 
     #[test]
@@ -296,7 +358,7 @@ mod tests {
         let zaehler = Arc::new(AtomicUsize::new(0));
         let liste = vorschlagen_mit(&pool, "Paul-Göbel", None, None, attrappe(zaehler.clone(), Some(ANTWORT))).await;
         assert_eq!(zaehler.load(Ordering::SeqCst), 1);
-        assert_eq!(liste.len(), 2);
+        assert_eq!(liste.len(), 3);
     }
 
     /// Die Ersteinrichtung bietet die Vorschläge schon an, bevor die Firma
@@ -310,7 +372,7 @@ mod tests {
         let zaehler = Arc::new(AtomicUsize::new(0));
         let liste = vorschlagen_mit(&pool, "Paul-Göbel", None, None, attrappe(zaehler.clone(), Some(ANTWORT))).await;
         assert_eq!(zaehler.load(Ordering::SeqCst), 1);
-        assert_eq!(liste.len(), 2);
+        assert_eq!(liste.len(), 3);
     }
 
     #[tokio::test]
