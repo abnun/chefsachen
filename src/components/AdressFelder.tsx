@@ -53,7 +53,9 @@ interface AdressFelderProps {
  *
  * Straßen gibt es nur online und nur, wenn der Nutzer das in den
  * Einstellungen eingeschaltet hat. Ohne Einwilligung bleibt das Straßenfeld
- * ein schlichtes Textfeld, und keine Eingabe verlässt den Rechner.
+ * ein schlichtes Textfeld, und keine Eingabe verlässt den Rechner. Ein
+ * gewählter Straßenvorschlag füllt PLZ und Ort nach derselben Regel: nur
+ * leere Felder oder solche, die ein Vorschlag eingetragen hat.
  */
 export function AdressFelder({ strasse, plz, ort, land, onAendern, feldFehler }: AdressFelderProps) {
   const id = useId();
@@ -66,8 +68,10 @@ export function AdressFelder({ strasse, plz, ort, land, onAendern, feldFehler }:
   const [strassenListe, setStrassenListe] = useState<Adressvorschlag[]>([]);
   const [strasseOffen, setStrasseOffen] = useState(false);
 
-  /** Der Ort, den zuletzt die PLZ eingetragen hat; null, wenn von Hand. */
+  /** Der Ort, den zuletzt ein Vorschlag eingetragen hat; null, wenn von Hand. */
   const automatischerOrt = useRef<string | null>(null);
+  /** Ebenso für die PLZ, die ein Orts- oder Straßenvorschlag eingetragen hat. */
+  const automatischePlz = useRef<string | null>(null);
   const strassenZeitgeber = useRef<ReturnType<typeof setTimeout> | null>(null);
   /** Zählt Anfragen, damit eine verspätete Antwort keine neuere überschreibt. */
   const strassenAnfrage = useRef(0);
@@ -108,6 +112,7 @@ export function AdressFelder({ strasse, plz, ort, land, onAendern, feldFehler }:
   );
 
   function plzAendern(neu: string) {
+    automatischePlz.current = null;
     const wert = neu.trim();
     if (!de || !verzeichnis || !/^\d{5}$/.test(wert)) {
       onAendern({ plz: neu });
@@ -149,7 +154,12 @@ export function AdressFelder({ strasse, plz, ort, land, onAendern, feldFehler }:
     if (!o) return;
     automatischerOrt.current = null;
     setOrtOffen(false);
-    onAendern(o.plz && plz.trim() === "" ? { ort: o.ort, plz: o.plz } : { ort: o.ort });
+    if (o.plz && plz.trim() === "") {
+      automatischePlz.current = o.plz;
+      onAendern({ ort: o.ort, plz: o.plz });
+    } else {
+      onAendern({ ort: o.ort });
+    }
   }
 
   function strasseAendern(neu: string) {
@@ -182,9 +192,20 @@ export function AdressFelder({ strasse, plz, ort, land, onAendern, feldFehler }:
     if (!s) return;
     // Eine noch ausstehende Anfrage öffnete die Liste sonst gleich wieder.
     strassenAnfrage.current++;
-    automatischerOrt.current = null;
     setStrasseOffen(false);
-    onAendern({ strasse: strasseMitNummer(s), plz: s.plz, ort: s.ort });
+    // PLZ und Ort nach derselben Regel wie überall: nur in ein leeres Feld
+    // oder über einen Wert, den ein Vorschlag eingetragen hat. Wer „Sontheim"
+    // selbst geschrieben hat, meint das, auch wenn komoot „Heilbronn" sagt.
+    const aenderung: AdressAenderung = { strasse: strasseMitNummer(s) };
+    if (plz.trim() === "" || plz === automatischePlz.current) {
+      automatischePlz.current = s.plz;
+      aenderung.plz = s.plz;
+    }
+    if (ort.trim() === "" || ort === automatischerOrt.current) {
+      automatischerOrt.current = s.ort;
+      aenderung.ort = s.ort;
+    }
+    onAendern(aenderung);
   }
 
   const plzWert = plz.trim();

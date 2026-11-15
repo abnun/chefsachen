@@ -184,6 +184,55 @@ describe("AdressFelder: Straßen online nur nach Einwilligung", () => {
     expect(ortFeld()).toHaveValue("Heilbronn");
   });
 
+  it("überschreibt von Hand eingetragene PLZ und Ort bei der Straßenwahl nicht", async () => {
+    // Wie beim Ort an der PLZ: Was jemand selbst geschrieben hat, bleibt.
+    // Die Straße samt Hausnummer kommt trotzdem aus dem Vorschlag.
+    einstellungGet.mockResolvedValue("true");
+    vorschlagen.mockResolvedValue([{ strasse: "Paul-Göbel-Straße", hausnummer: "1", plz: "74076", ort: "Heilbronn" }]);
+    const user = userEvent.setup();
+    render(<Formular />);
+    const strasse = await screen.findByRole("combobox", { name: /Straße/ });
+    await user.type(plzFeld(), "74000");
+    await user.type(ortFeld(), "Sontheim");
+    await user.keyboard("{Escape}");
+    await user.type(strasse, "Paul");
+    await user.click(await screen.findByRole("option", { name: /Paul-Göbel-Straße 1/ }));
+    expect(strasse).toHaveValue("Paul-Göbel-Straße 1");
+    expect(plzFeld()).toHaveValue("74000");
+    expect(ortFeld()).toHaveValue("Sontheim");
+  });
+
+  it("füllt nur das leere der beiden Felder, wenn eins schon von Hand dasteht", async () => {
+    einstellungGet.mockResolvedValue("true");
+    vorschlagen.mockResolvedValue([{ strasse: "Paul-Göbel-Straße", hausnummer: "", plz: "74076", ort: "Heilbronn" }]);
+    const user = userEvent.setup();
+    render(<Formular start={{ ort: "Heilbronn-Sontheim" }} />);
+    const strasse = await screen.findByRole("combobox", { name: /Straße/ });
+    await user.type(strasse, "Paul");
+    await user.click(await screen.findByRole("option", { name: /Paul-Göbel-Straße/ }));
+    expect(plzFeld()).toHaveValue("74076");
+    expect(ortFeld()).toHaveValue("Heilbronn-Sontheim");
+  });
+
+  it("ersetzt PLZ und Ort, die ein früherer Straßenvorschlag eingetragen hat", async () => {
+    einstellungGet.mockResolvedValue("true");
+    vorschlagen.mockResolvedValue([
+      { strasse: "Paul-Göbel-Straße", hausnummer: "1", plz: "74076", ort: "Heilbronn" },
+      { strasse: "Karl-Heine-Straße", hausnummer: "", plz: "04229", ort: "Leipzig" },
+    ]);
+    const user = userEvent.setup();
+    render(<Formular />);
+    const strasse = await screen.findByRole("combobox", { name: /Straße/ });
+    await user.type(strasse, "Paul");
+    await user.click(await screen.findByRole("option", { name: /Paul-Göbel-Straße 1/ }));
+    expect(ortFeld()).toHaveValue("Heilbronn");
+    await user.clear(strasse);
+    await user.type(strasse, "Karl");
+    await user.click(await screen.findByRole("option", { name: /Karl-Heine-Straße/ }));
+    expect(plzFeld()).toHaveValue("04229");
+    expect(ortFeld()).toHaveValue("Leipzig");
+  });
+
   it("schickt eingetragene PLZ und Ort zur Eingrenzung mit", async () => {
     einstellungGet.mockResolvedValue("true");
     const user = userEvent.setup();
