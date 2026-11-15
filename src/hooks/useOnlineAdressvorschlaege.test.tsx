@@ -1,5 +1,5 @@
 import "@testing-library/jest-dom/vitest";
-import { act, cleanup, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 const einstellungGet = vi.fn();
@@ -24,12 +24,23 @@ function aufgeschoben<T>() {
   return { promise, einloesen };
 }
 
-let umschalten: (an: boolean) => Promise<void> = async () => {};
-
 function Anzeige({ name }: { name: string }) {
   const [an, setzen] = useOnlineAdressvorschlaege();
-  if (name === "a") umschalten = setzen;
-  return <p data-testid={name}>{an ? "an" : "aus"}</p>;
+  return (
+    <>
+      <p data-testid={name}>{an ? "an" : "aus"}</p>
+      <button type="button" onClick={() => setzen(true)}>
+        {`${name} einschalten`}
+      </button>
+    </>
+  );
+}
+
+/** Klickt auf „einschalten" und wartet, bis das Speichern durch ist. */
+async function einschalten(name: string) {
+  await act(async () => {
+    fireEvent.click(screen.getByRole("button", { name: `${name} einschalten` }));
+  });
 }
 
 afterEach(() => {
@@ -52,7 +63,7 @@ describe("useOnlineAdressvorschlaege", () => {
     einstellungGet.mockReturnValue(laden.promise);
     einstellungSet.mockResolvedValue(undefined);
     render(<Anzeige name="a" />);
-    await act(() => umschalten(true));
+    await einschalten("a");
     expect(screen.getByTestId("a")).toHaveTextContent("an");
     await act(async () => laden.einloesen("false"));
     expect(screen.getByTestId("a")).toHaveTextContent("an");
@@ -68,7 +79,7 @@ describe("useOnlineAdressvorschlaege", () => {
         <Anzeige name="b" />
       </>,
     );
-    await act(() => umschalten(true));
+    await einschalten("a");
     await act(async () => laden.einloesen(null));
     expect(screen.getByTestId("a")).toHaveTextContent("an");
     expect(screen.getByTestId("b")).toHaveTextContent("an");
