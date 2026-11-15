@@ -146,6 +146,24 @@ describe("IbanFeld: BIC aus der Bankleitzahl", () => {
     await waitFor(() => expect(bicFeld()).toHaveValue("PBNKDEFFXXX"));
   });
 
+  it("nimmt den selbst eingetragenen BIC zurück, sobald die IBAN wieder unvollständig ist", async () => {
+    // Sonst stünde der BIC der eben gelöschten Bankleitzahl neben einer IBAN,
+    // zu der er vielleicht gar nicht gehört.
+    const user = userEvent.setup();
+    render(<Formular />);
+    await user.type(ibanFeld(), "DE02120300000000202051");
+    await waitFor(() => expect(bicFeld()).toHaveValue("BYLADEM1001"));
+    await user.type(ibanFeld(), "{Backspace}");
+    expect(bicFeld()).toHaveValue("");
+  });
+
+  it("lässt einen von Hand eingetragenen BIC stehen, auch wenn die IBAN unvollständig wird", async () => {
+    const user = userEvent.setup();
+    render(<Formular start={{ bic: "HANDDEFFXXX" }} />);
+    await user.type(ibanFeld(), "DE02120300000000202051{Backspace}{Backspace}");
+    expect(bicFeld()).toHaveValue("HANDDEFFXXX");
+  });
+
   it("lässt den BIC in Ruhe, wenn er nach dem Eintragen von Hand geändert wurde", async () => {
     const user = userEvent.setup();
     render(<Formular />);

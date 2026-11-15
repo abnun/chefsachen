@@ -61,7 +61,8 @@ function hinweisText(iban: string): string | null {
  * Bei einer vollständigen deutschen IBAN mit stimmender Prüfziffer trägt das
  * Feld den BIC aus der mitgelieferten Bankleitzahlendatei ein, aber nur in
  * ein leeres BIC-Feld oder über einen BIC, den es selbst eingetragen hat.
- * Einen von Hand geschriebenen überschreibt es nie. Bei unbekannter BLZ
+ * Einen von Hand geschriebenen überschreibt es nie. Wird die IBAN wieder
+ * unvollständig, nimmt es den selbst eingetragenen BIC zurück. Bei unbekannter BLZ
  * bleibt das Feld leer; ein Hinweis brächte nichts, weil der BIC bei
  * Inlandsüberweisungen ohnehin entbehrlich ist.
  */
@@ -107,12 +108,13 @@ export function IbanFeld({ iban, bic, onAendern, feldFehler }: IbanFeldProps) {
     cursorZiel.current = stelleNach(neu, zeichenVor(roh, cursor));
 
     const bicFrei = bic.trim() === "" || bic === automatischerBic.current;
-    if (!bicFrei || !verzeichnis || ibanBefund(neu) === "unvollstaendig") {
+    if (!bicFrei || !verzeichnis) {
       onAendern({ iban: neu });
       return;
     }
-    // Vollständig: Der BIC folgt der IBAN, auch zu „leer", wenn die neue
-    // Bankleitzahl unbekannt ist. Sonst stünde der BIC der vorigen Bank da.
+    // Der BIC folgt der IBAN, auch zu „leer": bei unbekannter Bankleitzahl,
+    // bei falscher Prüfziffer und sobald die IBAN wieder unvollständig ist.
+    // Sonst stünde der BIC einer Bank da, zu der die IBAN nicht mehr gehört.
     const gefunden = bicZurIban(verzeichnis, neu) ?? "";
     automatischerBic.current = gefunden || null;
     onAendern({ iban: neu, bic: gefunden });
