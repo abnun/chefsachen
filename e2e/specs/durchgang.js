@@ -128,6 +128,11 @@ describe("Ein Durchgang durch die Anwendung", () => {
     await formularOeffnen("Neuer Kunde", "Name");
     await (await feld("Name")).setValue("Lanius Natur");
     await klick("Speichern");
+    // Nach dem Anlegen bleibt man im neuen Kunden (dort steht der Hinweis, was
+    // noch fehlt) und kehrt nicht zur Liste zurück. Die Liste prüft der Test
+    // danach über die Navigation.
+    await (await $('//h1[contains(., "Lanius Natur")]')).waitForDisplayed({ timeout: 20000 });
+    await nav("Kunden");
     await (await $('//td[contains(., "Lanius Natur")]')).waitForDisplayed({ timeout: 20000 });
   });
 
@@ -293,7 +298,7 @@ describe("Ein Durchgang durch die Anwendung", () => {
 
     // Der Editor wechselt in den neuen Gutschrift-Entwurf.
     await browser.waitUntil(
-      async () => /Gutschrift/.test(await (await $("h1.seiten-kopf")).getText()),
+      async () => /Gutschrift/.test(await (await $("h1.werkzeugleiste-titel")).getText()),
       { timeout: 20000, timeoutMsg: "Der Gutschrift-Entwurf öffnet sich nicht." },
     );
     await expect(await $(".status")).toHaveText("Entwurf", { wait: 20000 });
@@ -308,7 +313,7 @@ describe("Ein Durchgang durch die Anwendung", () => {
     await dialogBestaetigen("Festschreiben");
     await expect(await $(".status")).toHaveText("Festgeschrieben", { wait: 20000 });
     await browser.waitUntil(
-      async () => /Gutschrift\s+GS-\d{4}-\d{4}/.test(await (await $("h1.seiten-kopf")).getText()),
+      async () => /Gutschrift\s+GS-\d{4}-\d{4}/.test(await (await $("h1.werkzeugleiste-titel")).getText()),
       { timeout: 20000, timeoutMsg: "Die Gutschrift bekommt keine GS-Nummer." },
     );
   });
