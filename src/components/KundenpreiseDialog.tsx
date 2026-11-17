@@ -61,6 +61,9 @@ export function KundenpreiseDialog({
   const [preisText, setPreisText] = useState("");
   const [preisFehlerText, setPreisFehlerText] = useState<string | null>(null);
   const [gueltigAb, setGueltigAb] = useState("");
+  const [gueltigBis, setGueltigBis] = useState("");
+  // Gesetzt, solange ein vorhandener Preis bearbeitet wird statt ein neuer angelegt.
+  const [bearbeiteId, setBearbeiteId] = useState<string | null>(null);
   // Rückfrage vor dem Entfernen — an der Zeile statt in einem zweiten Dialog.
   // Zwei übereinanderliegende Dialoge streiten sich um die Fokusfalle.
   const [entfernenId, setEntfernenId] = useState<string | null>(null);
@@ -84,6 +87,28 @@ export function KundenpreiseDialog({
     return kunden.find((k) => k.id === id)?.name ?? id;
   }
 
+  function formularZuruecksetzen() {
+    setKundeId("");
+    setPreisText("");
+    setGueltigAb("");
+    setGueltigBis("");
+    setBearbeiteId(null);
+    setPreisFehlerText(null);
+    setZeigeFormular(false);
+  }
+
+  function bearbeiten(kp: Kundenpreis) {
+    setFehler(null);
+    setPreisFehlerText(null);
+    setEntfernenId(null);
+    setBearbeiteId(kp.id);
+    setKundeId(kp.kunde_id);
+    setPreisText(formatCent(kp.preis_cent).replace(/[^\d,.-]/g, "").trim());
+    setGueltigAb(kp.gueltig_ab ?? "");
+    setGueltigBis(kp.gueltig_bis ?? "");
+    setZeigeFormular(true);
+  }
+
   async function speichern() {
     const cent = parseEuro(preisText);
     if (cent === null) {
@@ -94,16 +119,14 @@ export function KundenpreiseDialog({
     setFehler(null);
     try {
       await api.artikel.kundenpreisSave({
-        id: "",
+        id: bearbeiteId ?? "",
         artikel_id: artikelId,
         kunde_id: kundeId,
         preis_cent: cent,
         gueltig_ab: gueltigAb || null,
+        gueltig_bis: gueltigBis || null,
       });
-      setKundeId("");
-      setPreisText("");
-      setGueltigAb("");
-      setZeigeFormular(false);
+      formularZuruecksetzen();
       laden();
       onAenderung();
     } catch (e) {
@@ -151,9 +174,10 @@ export function KundenpreiseDialog({
             <tr>
               <th>Kunde</th>
               <th>Gültig ab</th>
+              <th>Gültig bis</th>
               <th>Preis</th>
               <th>
-                <span className="nur-vorlesen">Entfernen</span>
+                <span className="nur-vorlesen">Aktionen</span>
               </th>
             </tr>
           </thead>
@@ -166,6 +190,7 @@ export function KundenpreiseDialog({
                   {/* Ohne Datum gilt der Preis von Anfang an. „—" ließe offen,
                       ob er dann überhaupt gilt. */}
                   <td>{kp.gueltig_ab ? datumDeutsch(kp.gueltig_ab) : "sofort"}</td>
+                  <td>{kp.gueltig_bis ? datumDeutsch(kp.gueltig_bis) : "unbefristet"}</td>
                   <td className="tabelle-num">
                     {formatCent(kp.preis_cent)}
                     {ab && <span className={`kundenpreis-badge ${ab.klasse}`}>{ab.text}</span>}
@@ -189,14 +214,24 @@ export function KundenpreiseDialog({
                         </button>
                       </>
                     ) : (
-                      <button
-                        type="button"
-                        className="btn btn-leise"
-                        aria-label={`Kundenpreis für ${kundeName(kp.kunde_id)} entfernen`}
-                        onClick={() => setEntfernenId(kp.id)}
-                      >
-                        Entfernen
-                      </button>
+                      <>
+                        <button
+                          type="button"
+                          className="btn"
+                          aria-label={`Kundenpreis für ${kundeName(kp.kunde_id)} bearbeiten`}
+                          onClick={() => bearbeiten(kp)}
+                        >
+                          Bearbeiten
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-leise"
+                          aria-label={`Kundenpreis für ${kundeName(kp.kunde_id)} entfernen`}
+                          onClick={() => setEntfernenId(kp.id)}
+                        >
+                          Entfernen
+                        </button>
+                      </>
                     )}
                   </td>
                 </tr>
@@ -228,6 +263,9 @@ export function KundenpreiseDialog({
             <PflichtMarker art="pflicht">Kunde</PflichtMarker>
             <select
               required
+              // Beim Bearbeiten bleibt der Kunde fest: Ein anderer Kunde wäre
+              // ein anderer Sonderpreis. Dann den alten entfernen und neu anlegen.
+              disabled={bearbeiteId !== null}
               value={kundeId}
               onChange={(e) => setKundeId(e.currentTarget.value)}
             >
@@ -248,21 +286,35 @@ export function KundenpreiseDialog({
               {preisFehlerText}
             </div>
           )}
-          <label className="feld">
-            Gültig ab
-            <input type="date" value={gueltigAb} onChange={(e) => setGueltigAb(e.currentTarget.value)} />
-          </label>
+          <div className="felder-reihe">
+            <label className="feld">
+              Gültig ab
+              <input type="date" value={gueltigAb} onChange={(e) => setGueltigAb(e.currentTarget.value)} />
+            </label>
+            <label className="feld">
+              Gültig bis
+              <input
+                type="date"
+                value={gueltigBis}
+                min={gueltigAb || undefined}
+                onChange={(e) => setGueltigBis(e.currentTarget.value)}
+              />
+            </label>
+          </div>
           {/* Ein leeres Datumsfeld zeigt „TT.MM.JJJJ" in Grau — das sieht aus
               wie ein Wert und nicht wie eine leere Angabe. Der Hinweis sagt,
               was es bedeutet, nichts einzutragen. */}
-          <p className="feld-hinweis">Leer lassen heißt: gilt ab sofort.</p>
+          <p className="feld-hinweis">
+            Leer lassen heißt: gilt ab sofort und ohne Ende. Der letzte Tag bei „Gültig bis“ zählt noch mit,
+            etwa für einen Rabatt nur im Juli.
+          </p>
 
           <PflichtLegende />
           <div className="aktionen aktionen-formular aktionen-rechts">
             <button type="submit" className="btn btn-primaer">
               Speichern
             </button>
-            <button type="button" className="btn" onClick={() => setZeigeFormular(false)}>
+            <button type="button" className="btn" onClick={formularZuruecksetzen}>
               Abbrechen
             </button>
           </div>

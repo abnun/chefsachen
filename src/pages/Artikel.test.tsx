@@ -107,11 +107,11 @@ describe("Artikel", () => {
     expect(onZuKundenWechseln).toHaveBeenCalledTimes(1);
   });
 
-  it("sagt in der Kundenpreis-Spalte \u201ekeine\u201c, wenn es keine Ausnahmen gibt", async () => {
+  it("bietet in der Kundenpreis-Spalte „Hinzufügen“ an, wenn es keine Ausnahmen gibt", async () => {
     render(<Artikel />);
     await waitFor(() => expect(screen.getByText("Beratung")).toBeTruthy());
     expect(screen.getByRole("button", { name: "Kundenpreise für Beratung" })).toHaveTextContent(
-      "keine",
+      "Hinzufügen",
     );
   });
 

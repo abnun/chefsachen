@@ -64,12 +64,21 @@ export interface Artikel {
   ust_satz_prozent: number;
   kundenpreise_anzahl: number;
 }
+/** Ein Positionspreis, der beim Nachführen an Datum, Kunde oder Preisliste angepasst wurde. */
+export interface PreisAenderung {
+  position_id: string;
+  bezeichnung: string;
+  alt_cent: number;
+  neu_cent: number;
+}
 export interface Kundenpreis {
   id: string;
   artikel_id: string;
   kunde_id: string;
   preis_cent: number;
   gueltig_ab: string | null;
+  /** Letzter Tag, an dem der Preis gilt (einschließlich); null = unbefristet. */
+  gueltig_bis: string | null;
 }
 /** Sonderpreis samt Artikeldaten — für die Sicht vom Kunden aus. */
 export interface KundenpreisMitArtikel {
@@ -78,6 +87,7 @@ export interface KundenpreisMitArtikel {
   kunde_id: string;
   preis_cent: number;
   gueltig_ab: string | null;
+  gueltig_bis: string | null;
   artikelnummer: string;
   bezeichnung: string;
   /** Zum Vergleich: Was der Artikel ohne Sonderpreis kosten würde. */
@@ -593,6 +603,9 @@ export const api = {
     gutschriftAusRechnung: (rechnungId: string) =>
       invoke<Beleg>("gutschrift_aus_rechnung_anlegen", { rechnungId }),
     update: (daten: BelegUpdate) => invoke<Beleg>("beleg_update", { daten }),
+    /** Führt die Preise der Artikelpositionen eines Entwurfs nach und meldet Änderungen. */
+    positionspreiseAktualisieren: (belegId: string) =>
+      invoke<PreisAenderung[]>("beleg_positionspreise_aktualisieren", { belegId }),
     delete: (id: string) => invoke<void>("beleg_delete", { id }),
     /**
      * Legt eine Kopie als neuen Entwurf an — Kunde, Texte und Positionen

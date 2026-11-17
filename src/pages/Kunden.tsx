@@ -16,6 +16,7 @@ import { useBestaetigung } from "../hooks/useBestaetigung";
 import { useListenTastenkuerzel } from "../hooks/useListenTastenkuerzel";
 import { type FuehrungsSchritt } from "../components/Fuehrung";
 import type { Reiter } from "./KundeDetail";
+import { SCHLUESSEL_ZAHLUNGSZIEL, ZAHLUNGSZIEL_STANDARD, zahlungszielAusEinstellung } from "../zahlungsziel";
 
 /**
  * Statisch außerhalb der Komponente, wie auf der Übersicht: Ein je Rendern
@@ -44,11 +45,16 @@ const RUNDGANG_SCHRITTE: FuehrungsSchritt[] = [
   },
 ];
 
+export interface NeuAngelegt {
+  /** Es gibt noch keinen Artikel; die Meldung bietet dann den Wechsel an. */
+  artikelFehlen: boolean;
+}
+
 interface KundenProps {
-  onOeffnen: (id: string, startReiter?: Reiter) => void;
+  /** `neuAngelegt` gesetzt: Der Kunde ist gerade erst angelegt worden. */
+  onOeffnen: (id: string, startReiter?: Reiter, neuAngelegt?: NeuAngelegt) => void;
   zeigeFormularBeimStart?: boolean;
   onFormularUebernommen?: () => void;
-  onZuArtikelWechseln?: () => void;
 }
 
 const KUNDE_TYP_LABEL: Record<string, string> = {
@@ -84,22 +90,32 @@ export function Kunden({
   onOeffnen,
   zeigeFormularBeimStart,
   onFormularUebernommen,
-  onZuArtikelWechseln,
 }: KundenProps) {
   const { zeigen: zeigeXRechnungHilfe } = useXRechnungHilfe();
   const [kunden, setKunden] = useState<Kunde[]>([]);
   const [suche, setSuche] = useState("");
   const [leerHinweisVersteckt, setLeerHinweisVersteckt] = useState(false);
-  const [neuerKundeId, setNeuerKundeId] = useState<string | null>(null);
-  const [zeigtAdressHinweis, setZeigtAdressHinweis] = useState(false);
   const [fehler, setFehler] = useState<AppFehler | null>(null);
   // Eine leere Liste und eine noch ausstehende Antwort sehen sonst gleich aus.
   const [geladen, setGeladen] = useState(false);
   const [zeigeFormular, setZeigeFormular] = useState(zeigeFormularBeimStart ?? false);
   const [neuerKunde, setNeuerKunde] = useState<KundeNeu>(KUNDE_NEU_LEER);
+  // Vorgabe für das Zahlungsziel neuer Kunden (Einstellungen › Rechnungen).
+  const [standardZiel, setStandardZiel] = useState(ZAHLUNGSZIEL_STANDARD);
+  useEffect(() => {
+    api.einstellungen
+      .get(SCHLUESSEL_ZAHLUNGSZIEL)
+      .then((w) => {
+        const tage = zahlungszielAusEinstellung(w);
+        setStandardZiel(tage);
+        // Nur ein noch unberührtes Formular übernehmen; was man schon getippt
+        // hat, wird nicht überschrieben.
+        setNeuerKunde((k) => (k.zahlungsziel_tage === ZAHLUNGSZIEL_STANDARD ? { ...k, zahlungsziel_tage: tage } : k));
+      })
+      .catch(() => {});
+  }, []);
   const [formFehler, setFormFehler] = useState<AppFehler | null>(null);
   const [artikelLeer, setArtikelLeer] = useState(false);
-  const [zeigtArtikelHinweis, setZeigtArtikelHinweis] = useState(false);
   const { zeigen, hinweis } = useErfolgsHinweis();
   const { bestaetigen, dialog } = useBestaetigung();
   const sucheRef = useRef<HTMLInputElement>(null);
@@ -139,14 +155,10 @@ export function Kunden({
     try {
       const erstellt = await api.kunden.create(neuerKunde);
       setZeigeFormular(false);
-      setNeuerKunde(KUNDE_NEU_LEER);
+      setNeuerKunde({ ...KUNDE_NEU_LEER, zahlungsziel_tage: standardZiel });
       const liste = await api.kunden.list(suche || undefined);
       setKunden(liste);
-      setNeuerKundeId(erstellt.id);
-      setZeigtAdressHinweis(true);
-      if (artikelLeer) {
-        setZeigtArtikelHinweis(true);
-      }
+      onOeffnen(erstellt.id, "adressen", { artikelFehlen: artikelLeer });
     } catch (e) {
       setFormFehler(e as AppFehler);
     }
@@ -209,28 +221,6 @@ export function Kunden({
       <Fehler fehler={fehler} />
       {hinweis}
       {dialog}
-
-      {zeigtAdressHinweis && neuerKundeId && (
-        <Hinweis autoDismissMs={4000} onSchliessen={() => setZeigtAdressHinweis(false)}>
-          Kunde angelegt —{" "}
-          <button
-            type="button"
-            className="btn btn-leise"
-            onClick={() => onOeffnen(neuerKundeId, "adressen")}
-          >
-            jetzt Adresse und Ansprechpartner ergänzen?
-          </button>
-        </Hinweis>
-      )}
-
-      {zeigtArtikelHinweis && (
-        <Hinweis autoDismissMs={4000} onSchliessen={() => setZeigtArtikelHinweis(false)}>
-          Kunde angelegt —{" "}
-          <button type="button" className="btn btn-leise" onClick={() => onZuArtikelWechseln?.()}>
-            jetzt auch einen Artikel anlegen?
-          </button>
-        </Hinweis>
-      )}
 
       {zeigeFormular && (
         <form

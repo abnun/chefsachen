@@ -105,6 +105,17 @@ vi.mock("../api", () => ({
 }));
 import { KundeDetail } from "./KundeDetail";
 
+/** Ein Kunde ohne Adresse und ohne Ansprechpartner, optional mit einem von beiden. */
+async function kundeOhne(mit: { adresse?: boolean; ansprechpartner?: boolean } = {}) {
+  const { api } = await import("../api");
+  const standard = await vi.mocked(api.kunden.get)("1");
+  vi.mocked(api.kunden.get).mockResolvedValueOnce({
+    ...standard,
+    adressen: mit.adresse ? standard.adressen : [],
+    ansprechpartner: mit.ansprechpartner ? standard.ansprechpartner : [],
+  });
+}
+
 describe("KundeDetail", () => {
   it("laedt Kundendaten und zeigt Stammdaten", async () => {
     render(<KundeDetail id="1" />);
@@ -130,6 +141,123 @@ describe("KundeDetail", () => {
     const onReiterUebernommen = vi.fn();
     render(<KundeDetail id="1" startReiter="adressen" onReiterUebernommen={onReiterUebernommen} />);
     await waitFor(() => expect(onReiterUebernommen).toHaveBeenCalledTimes(1));
+  });
+
+  it("zeigt nach dem Anlegen eine Meldung, die bleibt, bis man sie schließt", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      render(<KundeDetail id="1" neuAngelegt={{ artikelFehlen: false }} />);
+      await waitFor(() => expect(screen.getByText(/Kunde angelegt/)).toBeTruthy());
+      await vi.advanceTimersByTimeAsync(30_000);
+      expect(screen.getByText(/Kunde angelegt/)).toBeTruthy();
+      expect(screen.queryByRole("button", { name: /Artikel anlegen/ })).toBeNull();
+      fireEvent.click(screen.getByRole("button", { name: /schließen/i }));
+      expect(screen.queryByText(/Kunde angelegt/)).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("verlinkt in der Meldung auf die Reiter Adressen und Ansprechpartner", async () => {
+    await kundeOhne();
+    render(<KundeDetail id="1" neuAngelegt={{ artikelFehlen: false }} />);
+    await waitFor(() => expect(screen.getByText(/Kunde angelegt/)).toBeTruthy());
+    const meldung = within(screen.getByText(/Kunde angelegt/).parentElement as HTMLElement);
+    fireEvent.click(meldung.getByRole("button", { name: "Ansprechpartner" }));
+    expect(screen.getByRole("navigation", { name: "Bereiche des Kunden" })).toBeTruthy();
+    expect(
+      within(screen.getByRole("navigation", { name: "Bereiche des Kunden" })).getByRole("button", {
+        name: "Ansprechpartner",
+      }),
+    ).toHaveAttribute("aria-current", "page");
+    fireEvent.click(meldung.getByRole("button", { name: "Adressen" }));
+    expect(
+      within(screen.getByRole("navigation", { name: "Bereiche des Kunden" })).getByRole("button", {
+        name: "Adressen",
+      }),
+    ).toHaveAttribute("aria-current", "page");
+  });
+
+  it("weist in der Meldung auf die Pflege der Sonderpreise hin", async () => {
+    const onZuArtikelnWechseln = vi.fn();
+    render(
+      <KundeDetail
+        id="1"
+        neuAngelegt={{ artikelFehlen: false }}
+        onZuArtikelnWechseln={onZuArtikelnWechseln}
+      />,
+    );
+    await waitFor(() => expect(screen.getByText(/Kunde angelegt/)).toBeTruthy());
+    expect(screen.getByText(/Sonderpreise für diesen Kunden pflegst du auf der/)).toBeTruthy();
+    fireEvent.click(
+      within(screen.getByText(/Kunde angelegt/).parentElement as HTMLElement).getByRole("button", {
+        name: "Artikel-Seite",
+      }),
+    );
+    expect(onZuArtikelnWechseln).toHaveBeenCalledTimes(1);
+  });
+
+  it("bietet für die Rolle eines Ansprechpartners Vorschläge an und erlaubt Freitext", async () => {
+    const user = userEvent.setup();
+    render(<KundeDetail id="1" startReiter="ansprechpartner" onReiterUebernommen={() => {}} />);
+    await waitFor(() => expect(screen.getByRole("button", { name: "Ansprechpartner" })).toBeTruthy());
+    const feld = (await screen.findAllByLabelText("Rolle"))[0] as HTMLInputElement;
+    const liste = document.getElementById(feld.getAttribute("list") as string) as HTMLElement;
+    const werte = Array.from(liste.querySelectorAll("option")).map((o) => o.getAttribute("value"));
+    expect(werte).toContain("Buchhaltung");
+    await user.type(feld, "Hausmeister");
+    expect(feld.value).toBe("Hausmeister");
+  });
+
+  it("erinnert dauerhaft an fehlende Adressen und Ansprechpartner, auch ohne frisches Anlegen", async () => {
+    await kundeOhne();
+    render(<KundeDetail id="1" />);
+    await waitFor(() => expect(screen.getByText(/Ergänze unter/)).toBeTruthy());
+    expect(screen.queryByText(/Kunde angelegt/)).toBeNull();
+    expect(screen.queryByRole("button", { name: "Hinweis schließen" })).toBeNull();
+    const hinweis = within(screen.getByRole("status"));
+    expect(hinweis.getByRole("button", { name: "Adressen" })).toBeTruthy();
+    expect(hinweis.getByRole("button", { name: "Ansprechpartner" })).toBeTruthy();
+  });
+
+  it("nennt nur noch den Ansprechpartner, wenn die Adresse schon da ist", async () => {
+    await kundeOhne({ adresse: true });
+    render(<KundeDetail id="1" />);
+    await waitFor(() => expect(screen.getByText(/Ergänze unter/)).toBeTruthy());
+    const hinweis = within(screen.getByRole("status"));
+    expect(hinweis.queryByRole("button", { name: "Adressen" })).toBeNull();
+    expect(hinweis.getByRole("button", { name: "Ansprechpartner" })).toBeTruthy();
+  });
+
+  it("nennt nur noch die Adresse, wenn der Ansprechpartner schon da ist", async () => {
+    await kundeOhne({ ansprechpartner: true });
+    render(<KundeDetail id="1" />);
+    await waitFor(() => expect(screen.getByText(/Ergänze unter/)).toBeTruthy());
+    const hinweis = within(screen.getByRole("status"));
+    expect(hinweis.getByRole("button", { name: "Adressen" })).toBeTruthy();
+    expect(hinweis.queryByRole("button", { name: "Ansprechpartner" })).toBeNull();
+  });
+
+  it("zeigt keine Erinnerung, wenn Adresse und Ansprechpartner vorhanden sind", async () => {
+    render(<KundeDetail id="1" />);
+    await waitFor(() => expect(screen.getByText("KD-0001")).toBeTruthy());
+    expect(screen.queryByText(/Ergänze unter/)).toBeNull();
+  });
+
+  it("bietet in der Meldung den Artikel an, wenn es noch keinen gibt", async () => {
+    const onZuArtikelAnlegen = vi.fn();
+    render(
+      <KundeDetail id="1" neuAngelegt={{ artikelFehlen: true }} onZuArtikelAnlegen={onZuArtikelAnlegen} />,
+    );
+    await waitFor(() => expect(screen.getByText(/Kunde angelegt/)).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: /Jetzt auch einen Artikel anlegen/ }));
+    expect(onZuArtikelAnlegen).toHaveBeenCalledTimes(1);
+  });
+
+  it("zeigt ohne neuAngelegt keine Meldung", async () => {
+    render(<KundeDetail id="1" />);
+    await waitFor(() => expect(screen.getByText("KD-0001")).toBeTruthy());
+    expect(screen.queryByText(/Kunde angelegt/)).toBeNull();
   });
 
   it("zeigt nach dem Speichern der Stammdaten einen Erfolgs-Hinweis", async () => {
@@ -288,7 +416,7 @@ describe("KundeDetail", () => {
     const { api } = await import("../api");
     vi.mocked(api.artikel.kundenpreiseFuerKunde).mockResolvedValue([
       {
-        id: "kp1", artikel_id: "a1", kunde_id: "k1", preis_cent: 9000, gueltig_ab: null,
+        id: "kp1", artikel_id: "a1", kunde_id: "k1", preis_cent: 9000, gueltig_ab: null, gueltig_bis: "2026-12-31",
         artikelnummer: "ART-0001", bezeichnung: "Beratung", standardpreis_cent: 12000,
       },
     ]);
@@ -298,6 +426,7 @@ describe("KundeDetail", () => {
     await waitFor(() => expect(screen.getByText("120,00 €")).toBeTruthy());
     expect(screen.getByText("90,00 €")).toBeTruthy();
     expect(screen.getByText("ART-0001")).toBeTruthy();
+    expect(screen.getByText("31.12.2026")).toBeTruthy();
   });
 
   it("erklärt beim leeren Reiter, wo Sonderpreise gepflegt werden", async () => {

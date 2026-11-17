@@ -303,9 +303,9 @@ const ARTIKEL_VORLAGEN: ArtikelVorlage[] = [
 ];
 
 const KUNDENPREISE: Kundenpreis[] = [
-  { id: "kp-1", artikel_id: "a-gestaltung", kunde_id: "k-bohnenwerk", preis_cent: 70_00, gueltig_ab: "2026-01-01" },
-  { id: "kp-2", artikel_id: "a-illu-gross", kunde_id: "k-ostwind", preis_cent: 350_00, gueltig_ab: null },
-  { id: "kp-3", artikel_id: "a-workshop", kunde_id: "k-plagwitz", preis_cent: 540_00, gueltig_ab: null },
+  { id: "kp-1", artikel_id: "a-gestaltung", kunde_id: "k-bohnenwerk", preis_cent: 70_00, gueltig_ab: "2026-01-01", gueltig_bis: null },
+  { id: "kp-2", artikel_id: "a-illu-gross", kunde_id: "k-ostwind", preis_cent: 350_00, gueltig_ab: null, gueltig_bis: null },
+  { id: "kp-3", artikel_id: "a-workshop", kunde_id: "k-plagwitz", preis_cent: 540_00, gueltig_ab: "2026-11-01", gueltig_bis: "2026-12-31" },
 ];
 
 // ---------------------------------------------------------------------------

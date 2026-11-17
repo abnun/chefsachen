@@ -486,7 +486,7 @@ export function Einrichtung({ onFertig }: EinrichtungProps) {
               Ersten Artikel anlegen
             </button>
           </div>
-          <p className="feld-hinweis">Firmendaten und Nummernkreise kannst du jederzeit in den Einstellungen ändern.</p>
+          <p className="feld-hinweis hinweis-absatz">Firmendaten und Nummernkreise kannst du jederzeit in den Einstellungen ändern.</p>
         </section>
       )}
     </main>

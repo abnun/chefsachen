@@ -21,6 +21,8 @@ interface PositionenAbschnittProps {
   bearbeitbar: boolean;
   onGeaendert: () => void;
   onLoeschen: (id: string) => void;
+  /** Meldet einen Speichervorgang der Leiste des Belegs; ohne sie wird einfach gespeichert. */
+  mitAnzeige?: <T,>(aktion: () => Promise<T>) => Promise<T>;
 }
 
 export function PositionenAbschnitt({
@@ -34,6 +36,7 @@ export function PositionenAbschnitt({
   bearbeitbar,
   onGeaendert,
   onLoeschen,
+  mitAnzeige = (aktion) => aktion(),
 }: PositionenAbschnittProps) {
   const [artikelId, setArtikelId] = useState("");
   const [freitext, setFreitext] = useState(false);
@@ -155,16 +158,18 @@ export function PositionenAbschnitt({
       return;
     }
     try {
-      await api.belege.positionSave({
-        id: bearbeiteId,
-        beleg_id: belegId,
-        artikel_id: freitext ? null : artikelId || null,
-        bezeichnung: freitext ? bezeichnung : "",
-        einheit_kuerzel: freitext ? einheitKuerzel : "",
-        einzelpreis_cent: einzelpreisCent,
-        menge: mengeX1000,
-        ust_satz_prozent: freitext ? ustSatz : null,
-      });
+      await mitAnzeige(() =>
+        api.belege.positionSave({
+          id: bearbeiteId,
+          beleg_id: belegId,
+          artikel_id: freitext ? null : artikelId || null,
+          bezeichnung: freitext ? bezeichnung : "",
+          einheit_kuerzel: freitext ? einheitKuerzel : "",
+          einzelpreis_cent: einzelpreisCent,
+          menge: mengeX1000,
+          ust_satz_prozent: freitext ? ustSatz : null,
+        }),
+      );
       const geaendert = bearbeiteId !== "";
       formularLeeren();
       onGeaendert();
@@ -177,7 +182,7 @@ export function PositionenAbschnitt({
   async function verschieben(id: string, richtung: "hoch" | "runter") {
     setFehler(null);
     try {
-      await api.belege.positionVerschieben(id, richtung);
+      await mitAnzeige(() => api.belege.positionVerschieben(id, richtung));
       onGeaendert();
     } catch (e) {
       setFehler(e as AppFehler);

@@ -12,6 +12,7 @@ import { Einrichtung } from "./pages/Einrichtung";
 import { Einstellungen } from "./pages/Einstellungen";
 import { Kunden } from "./pages/Kunden";
 import { KundeDetail, type Reiter } from "./pages/KundeDetail";
+import type { NeuAngelegt } from "./pages/Kunden";
 import { Artikel } from "./pages/Artikel";
 import { Angebote } from "./pages/Angebote";
 import { Rechnungen } from "./pages/Rechnungen";
@@ -31,6 +32,7 @@ function App() {
   const verlassenPruefen = useVerlassenPruefen();
   const [ausgewaehlterKunde, setAusgewaehlterKunde] = useState<string | null>(null);
   const [kundeDetailStartReiter, setKundeDetailStartReiter] = useState<Reiter | null>(null);
+  const [kundeNeuAngelegt, setKundeNeuAngelegt] = useState<NeuAngelegt | null>(null);
   const [ausgewaehltesAngebot, setAusgewaehltesAngebot] = useState<string | null>(null);
   const [ausgewaehlteRechnung, setAusgewaehlteRechnung] = useState<string | null>(null);
   const [ausgewaehlteGutschrift, setAusgewaehlteGutschrift] = useState<string | null>(null);
@@ -93,6 +95,7 @@ function App() {
     if (!(await verlassenPruefen())) return;
     setAusgewaehlterKunde(null);
     setKundeDetailStartReiter(null);
+    setKundeNeuAngelegt(null);
     setAusgewaehltesAngebot(null);
     setAusgewaehlteRechnung(null);
     setAusgewaehlteGutschrift(null);
@@ -139,17 +142,23 @@ function App() {
             startReiter={kundeDetailStartReiter}
             onReiterUebernommen={() => setKundeDetailStartReiter(null)}
             onGeloescht={() => setAusgewaehlterKunde(null)}
-            onZurueck={() => setAusgewaehlterKunde(null)}
+            onZurueck={() => {
+              setAusgewaehlterKunde(null);
+              setKundeNeuAngelegt(null);
+            }}
+            neuAngelegt={kundeNeuAngelegt}
+            onZuArtikelnWechseln={() => navigiere("artikel")}
+            onZuArtikelAnlegen={() => navigiereMitFormular("artikel")}
           />
         ) : (
           <Kunden
-            onOeffnen={(id, startReiter) => {
+            onOeffnen={(id, startReiter, neuAngelegt) => {
               setAusgewaehlterKunde(id);
               setKundeDetailStartReiter(startReiter ?? null);
+              setKundeNeuAngelegt(neuAngelegt ?? null);
             }}
             zeigeFormularBeimStart={formularBeimStartZiel === "kunden"}
             onFormularUebernommen={() => setFormularBeimStartZiel(null)}
-            onZuArtikelWechseln={() => navigiereMitFormular("artikel")}
           />
         ))}
       {seite === "artikel" && (

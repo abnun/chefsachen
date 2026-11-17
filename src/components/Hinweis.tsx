@@ -3,7 +3,8 @@ import type { ReactNode } from "react";
 
 interface HinweisProps {
   children: ReactNode;
-  onSchliessen: () => void;
+  /** Ohne `onSchliessen` bleibt der Hinweis stehen und hat kein ×. */
+  onSchliessen?: () => void;
   autoDismissMs?: number;
 }
 
@@ -17,7 +18,7 @@ interface HinweisProps {
  */
 export function Hinweis({ children, onSchliessen, autoDismissMs }: HinweisProps) {
   useEffect(() => {
-    if (autoDismissMs === undefined) return;
+    if (autoDismissMs === undefined || !onSchliessen) return;
     const timeout = setTimeout(onSchliessen, autoDismissMs);
     return () => clearTimeout(timeout);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -26,7 +27,7 @@ export function Hinweis({ children, onSchliessen, autoDismissMs }: HinweisProps)
   return (
     <div className="hinweis-box" role="status">
       <span>{children}</span>
-      {autoDismissMs === undefined && (
+      {autoDismissMs === undefined && onSchliessen && (
         <button type="button" className="hinweis-schliessen" onClick={onSchliessen} aria-label="Hinweis schließen">
           ×
         </button>

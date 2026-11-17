@@ -27,6 +27,7 @@ beforeEach(async () => {
 
 vi.mock("../api", () => ({
   api: {
+    einstellungen: { get: vi.fn().mockResolvedValue(null) },
     kunden: {
       list: vi.fn().mockResolvedValue([
         { id: "1", typ: "firma", name: "ACME GmbH", kundennummer: "KD-0001",
@@ -69,34 +70,37 @@ describe("Kunden", () => {
     await waitFor(() => expect(screen.getByText(/Noch keine Kunden/)).toBeTruthy());
   });
 
-  it("zeigt nach dem Anlegen einen Hinweis mit Link zu Adresse/Ansprechpartner", async () => {
+  it("belegt das Zahlungsziel eines neuen Kunden mit der Vorgabe aus den Einstellungen", async () => {
+    const { api } = await import("../api");
+    vi.mocked(api.einstellungen.get).mockResolvedValueOnce("30");
+    render(<Kunden onOeffnen={() => {}} />);
+    await waitFor(() => expect(screen.getByText("ACME GmbH")).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Neuer Kunde" }));
+    expect(screen.getByLabelText(/Zahlungsziel/)).toHaveValue(30);
+  });
+
+  it("öffnet den Kunden nach dem Anlegen im Reiter Adressen", async () => {
     const onOeffnen = vi.fn();
     render(<Kunden onOeffnen={onOeffnen} />);
     await waitFor(() => expect(screen.getByText("ACME GmbH")).toBeTruthy());
     fireEvent.click(screen.getByRole("button", { name: "Neuer Kunde" }));
     fireEvent.change(screen.getByLabelText("Name", { exact: false }), { target: { value: "Neu GmbH" } });
     fireEvent.click(screen.getByRole("button", { name: "Speichern" }));
-    await waitFor(() =>
-      expect(screen.getByRole("button", { name: /jetzt Adresse und Ansprechpartner ergänzen/ })).toBeTruthy(),
-    );
-    fireEvent.click(screen.getByRole("button", { name: /jetzt Adresse und Ansprechpartner ergänzen/ }));
-    expect(onOeffnen).toHaveBeenCalledWith("neu1", "adressen");
+    await waitFor(() => expect(onOeffnen).toHaveBeenCalled());
+    expect(onOeffnen).toHaveBeenCalledWith("neu1", "adressen", { artikelFehlen: false });
   });
 
-  it("zeigt nach dem Anlegen zusätzlich einen Artikel-Hinweis, wenn noch keine Artikel existieren", async () => {
+  it("meldet beim Anlegen, dass noch keine Artikel existieren", async () => {
     const { api } = await import("../api");
     vi.mocked(api.artikel.list).mockResolvedValueOnce([]);
-    const onZuArtikelWechseln = vi.fn();
-    render(<Kunden onOeffnen={() => {}} onZuArtikelWechseln={onZuArtikelWechseln} />);
+    const onOeffnen = vi.fn();
+    render(<Kunden onOeffnen={onOeffnen} />);
     await waitFor(() => expect(screen.getByText("ACME GmbH")).toBeTruthy());
     fireEvent.click(screen.getByRole("button", { name: "Neuer Kunde" }));
     fireEvent.change(screen.getByLabelText("Name", { exact: false }), { target: { value: "Neu GmbH" } });
     fireEvent.click(screen.getByRole("button", { name: "Speichern" }));
-    await waitFor(() =>
-      expect(screen.getByRole("button", { name: /jetzt auch einen Artikel anlegen/ })).toBeTruthy(),
-    );
-    fireEvent.click(screen.getByRole("button", { name: /jetzt auch einen Artikel anlegen/ }));
-    expect(onZuArtikelWechseln).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(onOeffnen).toHaveBeenCalled());
+    expect(onOeffnen).toHaveBeenCalledWith("neu1", "adressen", { artikelFehlen: true });
   });
 
   it("zeigt einen Hinweis, wenn die Suche keine Treffer liefert", async () => {

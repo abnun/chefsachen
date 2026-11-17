@@ -30,6 +30,7 @@ const preis = (zusatz: Partial<Kundenpreis> = {}): Kundenpreis => ({
   kunde_id: "k1",
   preis_cent: 6500,
   gueltig_ab: null,
+  gueltig_bis: null,
   ...zusatz,
 });
 
@@ -131,6 +132,72 @@ describe("KundenpreiseDialog", () => {
     // Nach dem Speichern schließt sich das Formular wieder — der neue Eintrag
     // in der Liste ist die Rückmeldung.
     await waitFor(() => expect(screen.queryByLabelText("Preis (€)", { exact: false })).toBeNull());
+  });
+
+  it("sagt „unbefristet“, wenn kein Ende gesetzt ist, und schreibt ein Ende deutsch", async () => {
+    zeige([preis(), preis({ id: "kp2", kunde_id: "k2", gueltig_bis: "2026-07-31" })]);
+    await waitFor(() => expect(screen.getByText("unbefristet")).toBeTruthy());
+    expect(screen.getByText("31.07.2026")).toBeTruthy();
+  });
+
+  it("legt einen befristeten Preis an", async () => {
+    vi.mocked(api.artikel.kundenpreisSave).mockResolvedValue(preis());
+    zeige([]);
+    await waitFor(() => expect(screen.getByRole("button", { name: "Preis hinzufügen" })).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Preis hinzufügen" }));
+    fireEvent.change(screen.getByLabelText(/^Kunde( |$)/), { target: { value: "k1" } });
+    fireEvent.change(screen.getByLabelText("Preis (€)", { exact: false }), { target: { value: "65,00" } });
+    fireEvent.change(screen.getByLabelText("Gültig ab"), { target: { value: "2026-07-01" } });
+    fireEvent.change(screen.getByLabelText("Gültig bis"), { target: { value: "2026-07-31" } });
+    fireEvent.click(screen.getByRole("button", { name: "Speichern" }));
+    await waitFor(() =>
+      expect(api.artikel.kundenpreisSave).toHaveBeenCalledWith(
+        expect.objectContaining({ id: "", gueltig_ab: "2026-07-01", gueltig_bis: "2026-07-31" }),
+      ),
+    );
+  });
+
+  it("bearbeitet einen vorhandenen Preis: Felder vorbelegt, Kunde fest, gleiche Id beim Speichern", async () => {
+    vi.mocked(api.artikel.kundenpreisSave).mockResolvedValue(preis());
+    const { onAenderung } = zeige([preis({ gueltig_ab: "2026-07-01", gueltig_bis: "2026-07-31" })]);
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Kundenpreis für ACME GmbH bearbeiten" })).toBeTruthy(),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Kundenpreis für ACME GmbH bearbeiten" }));
+
+    expect(screen.getByLabelText(/^Kunde( |$)/)).toBeDisabled();
+    expect((screen.getByLabelText("Preis (€)", { exact: false }) as HTMLInputElement).value).toBe("65,00");
+    expect((screen.getByLabelText("Gültig ab") as HTMLInputElement).value).toBe("2026-07-01");
+    expect((screen.getByLabelText("Gültig bis") as HTMLInputElement).value).toBe("2026-07-31");
+
+    fireEvent.change(screen.getByLabelText("Preis (€)", { exact: false }), { target: { value: "60,00" } });
+    fireEvent.change(screen.getByLabelText("Gültig bis"), { target: { value: "" } });
+    fireEvent.click(screen.getByRole("button", { name: "Speichern" }));
+
+    await waitFor(() =>
+      expect(api.artikel.kundenpreisSave).toHaveBeenCalledWith({
+        id: "kp1",
+        artikel_id: "a1",
+        kunde_id: "k1",
+        preis_cent: 6000,
+        gueltig_ab: "2026-07-01",
+        gueltig_bis: null,
+      }),
+    );
+    await waitFor(() => expect(onAenderung).toHaveBeenCalled());
+  });
+
+  it("legt nach dem Bearbeiten einen neuen Preis wieder ohne alte Id an", async () => {
+    vi.mocked(api.artikel.kundenpreisSave).mockResolvedValue(preis());
+    zeige([preis()]);
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Kundenpreis für ACME GmbH bearbeiten" })).toBeTruthy(),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Kundenpreis für ACME GmbH bearbeiten" }));
+    fireEvent.click(screen.getByRole("button", { name: "Abbrechen" }));
+    fireEvent.click(screen.getByRole("button", { name: "Preis hinzufügen" }));
+    expect(screen.getByLabelText(/^Kunde( |$)/)).not.toBeDisabled();
+    expect((screen.getByLabelText("Preis (€)", { exact: false }) as HTMLInputElement).value).toBe("");
   });
 
   it("weist einen unlesbaren Preis am Feld aus, statt still nichts zu tun", async () => {

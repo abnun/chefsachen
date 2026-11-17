@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { datumDeutsch, datumDeutschOder, heuteIso } from "./datum";
+import { datumDeutsch, datumDeutschOder, datumPlusTage, heuteIso } from "./datum";
 
 describe("datumDeutsch", () => {
   it("wandelt ISO in die deutsche Schreibweise", () => {
@@ -37,5 +37,25 @@ describe("datumDeutsch", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+describe("datumPlusTage", () => {
+  it("rechnet über Monats- und Jahresgrenzen", () => {
+    expect(datumPlusTage("2026-07-10", 30)).toBe("2026-08-09");
+    expect(datumPlusTage("2026-12-15", 30)).toBe("2027-01-14");
+    expect(datumPlusTage("2026-02-20", 10)).toBe("2026-03-02");
+  });
+
+  it("bleibt über die Zeitumstellung exakt", () => {
+    // Umstellung am 25.10.2026 (Tag mit 25 Stunden) und am 29.03.2026.
+    expect(datumPlusTage("2026-10-24", 2)).toBe("2026-10-26");
+    expect(datumPlusTage("2026-03-28", 2)).toBe("2026-03-30");
+  });
+
+  it("gibt bei 0 Tagen dasselbe Datum zurück und null bei unlesbarer Eingabe", () => {
+    expect(datumPlusTage("2026-07-10", 0)).toBe("2026-07-10");
+    expect(datumPlusTage("", 30)).toBeNull();
+    expect(datumPlusTage("morgen", 30)).toBeNull();
   });
 });

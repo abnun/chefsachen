@@ -17,6 +17,8 @@ import { useXRechnungHilfe } from "../hooks/useXRechnungHilfe";
 import { Laden } from "../components/Laden";
 import { StatusMarke } from "../components/StatusMarke";
 import { Werkzeugleiste } from "../components/Werkzeugleiste";
+import { Hinweis } from "../components/Hinweis";
+import type { NeuAngelegt } from "./Kunden";
 import { useErfolgsHinweis } from "../hooks/useErfolgsHinweis";
 import { useBestaetigung } from "../hooks/useBestaetigung";
 import { useUngespeichert } from "../hooks/useUngespeichert";
@@ -30,7 +32,25 @@ interface KundeDetailProps {
   onGeloescht?: () => void;
   /** Zurück zur Liste. Ohne diesen Weg kommt man nur über die Navigation raus. */
   onZurueck?: () => void;
+  /** Zur Artikel-Seite, wo die Sonderpreise gepflegt werden. */
+  onZuArtikelnWechseln?: () => void;
+  /** Der Kunde ist gerade angelegt worden: Meldung oben, bis man sie schließt. */
+  neuAngelegt?: NeuAngelegt | null;
+  /** Zur Artikel-Seite mit geöffnetem Anlage-Formular. */
+  onZuArtikelAnlegen?: () => void;
 }
+
+/** Häufige Rollen als Vorschlag; im Feld bleibt jeder Freitext möglich. */
+const ROLLEN_VORSCHLAEGE = [
+  "Geschäftsführung",
+  "Inhaber/in",
+  "Einkauf",
+  "Buchhaltung",
+  "Projektleitung",
+  "Assistenz",
+  "Technik",
+  "Vertrieb",
+];
 
 export type Reiter = "stammdaten" | "adressen" | "ansprechpartner" | "sonderpreise" | "belege";
 
@@ -62,10 +82,11 @@ const REITER: { id: Reiter; label: string; aktiv: boolean }[] = [
  * einsehbar, damit die Frage „Welche Sonderpreise hat dieser Kunde?"
  * beantwortbar ist; bislang war sie es nicht.
  */
-export function KundeDetail({ id, onZurueck, startReiter, onReiterUebernommen, onGeloescht }: KundeDetailProps) {
+export function KundeDetail({ id, onZurueck, startReiter, onReiterUebernommen, onGeloescht, onZuArtikelnWechseln, neuAngelegt, onZuArtikelAnlegen }: KundeDetailProps) {
   const [detail, setDetail] = useState<KundeDetailTyp | null>(null);
   const [fehler, setFehler] = useState<AppFehler | null>(null);
   const [reiter, setReiter] = useState<Reiter>(startReiter ?? "stammdaten");
+  const [neuMeldung, setNeuMeldung] = useState(neuAngelegt ?? null);
 
   useEffect(() => {
     if (startReiter) {
@@ -97,6 +118,9 @@ export function KundeDetail({ id, onZurueck, startReiter, onReiterUebernommen, o
     );
   }
 
+  const fehltAdresse = detail.adressen.length === 0;
+  const fehltAnsprechpartner = detail.ansprechpartner.length === 0;
+
   return (
     <div>
       <Werkzeugleiste
@@ -105,6 +129,54 @@ export function KundeDetail({ id, onZurueck, startReiter, onReiterUebernommen, o
         zusatz={<span className="tabelle-num">{detail.kunde.kundennummer}</span>}
       />
       {fehler && <Fehler fehler={fehler} />}
+
+      {(neuMeldung || fehltAdresse || fehltAnsprechpartner) && (
+        // Solange etwas fehlt, bleibt der Hinweis stehen und hat kein ×; er
+        // passt sich an, was noch offen ist. Die Meldung zum Anlegen kommt
+        // nur einmal hinzu und lässt sich schließen, sobald nichts mehr fehlt.
+        <Hinweis
+          onSchliessen={
+            neuMeldung && !fehltAdresse && !fehltAnsprechpartner ? () => setNeuMeldung(null) : undefined
+          }
+        >
+          {neuMeldung && "Kunde angelegt. "}
+          {(fehltAdresse || fehltAnsprechpartner) && (
+            <>
+              Ergänze unter{" "}
+              {fehltAdresse && (
+                <button type="button" className="btn btn-leise" onClick={() => setReiter("adressen")}>
+                  Adressen
+                </button>
+              )}
+              {fehltAdresse && fehltAnsprechpartner && " und "}
+              {fehltAnsprechpartner && (
+                <button type="button" className="btn btn-leise" onClick={() => setReiter("ansprechpartner")}>
+                  Ansprechpartner
+                </button>
+              )}{" "}
+              die Angaben, die auf Belege sollen.
+            </>
+          )}
+          {neuMeldung && (
+            <>
+              <br />
+              Sonderpreise für diesen Kunden pflegst du auf der{" "}
+              <button type="button" className="btn btn-leise" onClick={() => onZuArtikelnWechseln?.()}>
+                Artikel-Seite
+              </button>
+              .
+              {neuMeldung.artikelFehlen && (
+                <>
+                  {" "}
+                  <button type="button" className="btn btn-leise" onClick={() => onZuArtikelAnlegen?.()}>
+                    Jetzt auch einen Artikel anlegen?
+                  </button>
+                </>
+              )}
+            </>
+          )}
+        </Hinweis>
+      )}
 
       {/* Reiter als Segmentschalter wie in macOS. Vorher trugen sie die Klasse
           der Werkzeugleiste und klebten damit als zweite Leiste am Fensterrand. */}
@@ -136,7 +208,7 @@ export function KundeDetail({ id, onZurueck, startReiter, onReiterUebernommen, o
           onGeaendert={laden}
         />
       )}
-      {reiter === "sonderpreise" && <SonderpreiseReiter kundeId={id} />}
+      {reiter === "sonderpreise" && <SonderpreiseReiter kundeId={id} onZuArtikelnWechseln={onZuArtikelnWechseln} />}
       {reiter === "belege" && <BelegeReiter kundeId={id} />}
     </div>
   );
@@ -147,7 +219,13 @@ export function KundeDetail({ id, onZurueck, startReiter, onReiterUebernommen, o
  * auf der Artikel-Seite, wo der Zusammenhang zum Artikel sichtbar ist. Zwei
  * Pflegeorte für dieselben Daten würden nur Verwirrung stiften.
  */
-function SonderpreiseReiter({ kundeId }: { kundeId: string }) {
+function SonderpreiseReiter({
+  kundeId,
+  onZuArtikelnWechseln,
+}: {
+  kundeId: string;
+  onZuArtikelnWechseln?: () => void;
+}) {
   const [preise, setPreise] = useState<KundenpreisMitArtikel[]>([]);
   const [fehler, setFehler] = useState<AppFehler | null>(null);
   const [geladen, setGeladen] = useState(false);
@@ -172,8 +250,15 @@ function SonderpreiseReiter({ kundeId }: { kundeId: string }) {
       <Fehler fehler={fehler} />
       {preise.length === 0 ? (
         <p>
-          Für diesen Kunden sind keine Sonderpreise hinterlegt. Sie werden auf der
-          Artikel-Seite beim jeweiligen Artikel gepflegt.
+          Für diesen Kunden sind keine Sonderpreise hinterlegt. Sie werden auf der{" "}
+          {onZuArtikelnWechseln ? (
+            <button type="button" className="btn btn-leise" onClick={onZuArtikelnWechseln}>
+              Artikel-Seite
+            </button>
+          ) : (
+            "Artikel-Seite"
+          )}{" "}
+          beim jeweiligen Artikel gepflegt.
         </p>
       ) : (
         <table className="tabelle">
@@ -183,6 +268,7 @@ function SonderpreiseReiter({ kundeId }: { kundeId: string }) {
               <th className="zahl">Standardpreis</th>
               <th className="zahl">Sonderpreis</th>
               <th>Gültig ab</th>
+              <th>Gültig bis</th>
             </tr>
           </thead>
           <tbody>
@@ -204,6 +290,7 @@ function SonderpreiseReiter({ kundeId }: { kundeId: string }) {
                   </span>
                 </td>
                 <td>{datumDeutschOder(p.gueltig_ab, "immer")}</td>
+                <td>{datumDeutschOder(p.gueltig_bis, "unbefristet")}</td>
               </tr>
             ))}
           </tbody>
@@ -697,7 +784,17 @@ function AnsprechpartnerReiter({ kundeId, ansprechpartner, onGeaendert }: Anspre
             </label>
             <label className="feld">
               Rolle
-              <input value={form.rolle} onChange={(e) => setForm({ ...form, rolle: e.currentTarget.value })} />
+              <input
+                list="ansprechpartner-rollen"
+                value={form.rolle}
+                placeholder="auswählen oder selbst eintragen"
+                onChange={(e) => setForm({ ...form, rolle: e.currentTarget.value })}
+              />
+              <datalist id="ansprechpartner-rollen">
+                {ROLLEN_VORSCHLAEGE.map((r) => (
+                  <option key={r} value={r} />
+                ))}
+              </datalist>
             </label>
           </div>
           <div className="felder-reihe">

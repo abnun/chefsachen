@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { api, type Beleg, type Kunde, type KundeDetail as KundeDetailTyp } from "../api";
 import { useUngespeichert } from "../hooks/useUngespeichert";
-import { datumDeutsch } from "../datum";
+import { datumDeutsch, datumPlusTage } from "../datum";
 import { formatCent, parseEuro } from "../geld";
 
 interface StammdatenAbschnittProps {
@@ -20,15 +20,31 @@ interface StammdatenAbschnittProps {
     adresse_id: string | null;
     ansprechpartner_id: string | null;
     gesamtauftragswert_cent: number | null;
-  }) => void;
+  }) => Promise<boolean>;
+  /** Ein anderer Teil des Belegs (die Positionen) speichert gerade. */
+  fremdSpeichert?: boolean;
+  /** Zählt die erfolgreich beendeten Speichervorgänge der Positionen. */
+  fremdFertig?: number;
 }
 
-export function StammdatenAbschnitt({ beleg, kunden, bearbeitbar, onSpeichern }: StammdatenAbschnittProps) {
+/** So lange bleibt der drehende Ring mindestens sichtbar. */
+export const MINDESTDAUER_SPEICHERN_MS = 600;
+
+export function StammdatenAbschnitt({ beleg, kunden, bearbeitbar, onSpeichern, fremdSpeichert = false, fremdFertig = 0 }: StammdatenAbschnittProps) {
   const [kundeId, setKundeId] = useState(beleg.kunde_id);
   const [datum, setDatum] = useState(beleg.datum);
   const [leistungsdatum, setLeistungsdatum] = useState(beleg.leistungsdatum);
   const [leistungsdatumBis, setLeistungsdatumBis] = useState(beleg.leistungsdatum_bis ?? "");
   const [gueltigBis, setGueltigBis] = useState(beleg.gueltig_bis ?? "");
+  // Leistungsdatum und Gültigkeit folgen dem Belegdatum, solange sie nicht
+  // bewusst davon abweichen. Der Anfangswert ergibt sich aus dem gespeicherten
+  // Beleg: Steht das Leistungsdatum auf dem Belegdatum, folgt es weiter.
+  const [leistungFolgt, setLeistungFolgt] = useState(
+    beleg.leistungsdatum === beleg.datum && !beleg.leistungsdatum_bis,
+  );
+  const [gueltigFolgt, setGueltigFolgt] = useState(false);
+  // Frist neuer Angebote in Tagen (Einstellungen); null, bis sie geladen ist.
+  const [gueltigkeitTage, setGueltigkeitTage] = useState<number | null>(null);
   const [zahlungszielTage, setZahlungszielTage] = useState(beleg.zahlungsziel_tage);
   const [kopftext, setKopftext] = useState(beleg.kopftext);
   const [fusstext, setFusstext] = useState(beleg.fusstext);
@@ -37,7 +53,6 @@ export function StammdatenAbschnitt({ beleg, kunden, bearbeitbar, onSpeichern }:
   const [gesamtauftragswertText, setGesamtauftragswertText] = useState(
     beleg.gesamtauftragswert_cent != null ? formatCent(beleg.gesamtauftragswert_cent).replace(" €", "") : "",
   );
-  const [gesamtauftragswertFehler, setGesamtauftragswertFehler] = useState<string | null>(null);
   const gesamtauftragswertCent =
     gesamtauftragswertText.trim() === "" ? null : parseEuro(gesamtauftragswertText);
   /** Adressen und Ansprechpartner des gewählten Kunden. */
@@ -49,6 +64,35 @@ export function StammdatenAbschnitt({ beleg, kunden, bearbeitbar, onSpeichern }:
   // zurücksetzt, würde dagegen auch bei jedem laden() feuern — und damit
   // ungespeicherte Eingaben verwerfen, sobald nebenan eine Position
   // gespeichert wird.
+
+  const istAngebotEntwurf = bearbeitbar && beleg.typ === "angebot";
+  useEffect(() => {
+    if (!istAngebotEntwurf) return;
+    let aktuell = true;
+    // Wie im Backend: Ein unbrauchbarer Wert ergibt 30 Tage.
+    Promise.resolve(api.einstellungen.get("vorlage.angebot_gueltigkeit_tage"))
+      .catch(() => null)
+      .then((w) => {
+        if (!aktuell) return;
+        const t = Number.parseInt((w ?? "").trim(), 10);
+        const tage = Number.isFinite(t) && t >= 0 ? t : 30;
+        setGueltigkeitTage(tage);
+        // Ein Ablaufdatum, das genau der Regel entspricht (oder fehlt), folgt
+        // weiter dem Datum; ein bewusst gesetztes bleibt, wie es ist.
+        setGueltigFolgt(!beleg.gueltig_bis || beleg.gueltig_bis === datumPlusTage(beleg.datum, tage));
+      });
+    return () => {
+      aktuell = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [istAngebotEntwurf]);
+
+  function datumAendern(neu: string) {
+    setDatum(neu);
+    if (!neu) return;
+    if (leistungFolgt && leistungsdatumBis === "") setLeistungsdatum(neu);
+    if (gueltigFolgt && gueltigkeitTage !== null) setGueltigBis(datumPlusTage(neu, gueltigkeitTage) ?? "");
+  }
 
   useEffect(() => {
     // Nur im Entwurf: Bei einem festgeschriebenen Beleg gibt es nichts zu
@@ -88,6 +132,72 @@ export function StammdatenAbschnitt({ beleg, kunden, bearbeitbar, onSpeichern }:
       ansprechpartnerId !== (beleg.ansprechpartner_id ?? "") ||
       gesamtauftragswertCent !== (beleg.gesamtauftragswert_cent ?? null));
   useUngespeichert(geaendert);
+
+  const gesamtauftragswertGueltig = gesamtauftragswertText.trim() === "" || gesamtauftragswertCent !== null;
+  const felder = {
+    kunde_id: kundeId,
+    datum,
+    leistungsdatum,
+    leistungsdatum_bis: leistungsdatumBis === "" ? null : leistungsdatumBis,
+    gueltig_bis: gueltigBis === "" ? null : gueltigBis,
+    zahlungsziel_tage: zahlungszielTage,
+    kopftext,
+    fusstext,
+    adresse_id: adresseId === "" ? null : adresseId,
+    ansprechpartner_id: ansprechpartnerId === "" ? null : ansprechpartnerId,
+    gesamtauftragswert_cent: gesamtauftragswertCent,
+  };
+  // Der Beleg speichert sich selbst: kurz nach der letzten Eingabe, nicht erst
+  // auf einen Knopf. Wer Datum oder Kunde ändert und gleich darunter eine
+  // Position hinzufügt, bekäme sonst deren Preis noch zum alten Datum.
+  const [speicherStatus, setSpeicherStatus] = useState<"ruhe" | "speichert" | "gespeichert" | "fehler">("ruhe");
+  const feldSchluessel = JSON.stringify(felder);
+  async function speichernJetzt() {
+    if (!geaendert || !gesamtauftragswertGueltig) return;
+    setSpeicherStatus("speichert");
+    const start = Date.now();
+    const ok = await onSpeichern(felder);
+    // Eine lokale Datenbank speichert in wenigen Millisekunden. Ohne Mindestdauer
+    // blitzte der Ring so kurz auf, dass man nie sah, dass überhaupt etwas
+    // geschah, und nur das fertige Häkchen blieb.
+    const rest = MINDESTDAUER_SPEICHERN_MS - (Date.now() - start);
+    if (rest > 0) await new Promise((r) => setTimeout(r, rest));
+    setSpeicherStatus(ok ? "gespeichert" : "fehler");
+  }
+  useEffect(() => {
+    if (!geaendert || !gesamtauftragswertGueltig) return;
+    const timer = setTimeout(speichernJetzt, 600);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [feldSchluessel]);
+
+  // Ein Speichervorgang der Positionen zählt wie ein eigener: Die Leiste steht
+  // für den ganzen Entwurf, nicht nur für die Felder darüber.
+  useEffect(() => {
+    if (fremdFertig > 0) setSpeicherStatus((alt) => (alt === "fehler" ? alt : "gespeichert"));
+  }, [fremdFertig]);
+
+  const zustand: "ruhe" | "wartet" | "speichert" | "gespeichert" | "fehler" =
+    speicherStatus === "speichert" || fremdSpeichert
+      ? "speichert"
+      : !gesamtauftragswertGueltig
+      ? "fehler"
+      : geaendert && speicherStatus === "fehler"
+      ? "fehler"
+      : geaendert
+      ? "wartet"
+      : speicherStatus === "gespeichert"
+      ? "gespeichert"
+      : "ruhe";
+  const statusText = {
+    ruhe: "Änderungen werden automatisch gespeichert.",
+    wartet: "Änderungen werden gleich gespeichert …",
+    speichert: "Wird gespeichert …",
+    gespeichert: "Alle Änderungen gespeichert",
+    fehler: !gesamtauftragswertGueltig
+      ? "Noch nicht gespeichert: Der Gesamt-Auftragswert ist unklar."
+      : "Nicht gespeichert, siehe Meldung oben.",
+  }[zustand];
 
   const kunde = kunden.find((k) => k.id === beleg.kunde_id);
 
@@ -133,24 +243,7 @@ export function StammdatenAbschnitt({ beleg, kunden, bearbeitbar, onSpeichern }:
       <form
         onSubmit={(e) => {
           e.preventDefault();
-          if (gesamtauftragswertText.trim() !== "" && gesamtauftragswertCent === null) {
-            setGesamtauftragswertFehler("Bitte einen gültigen Betrag eingeben, z. B. 1.470,00");
-            return;
-          }
-          setGesamtauftragswertFehler(null);
-          onSpeichern({
-            kunde_id: kundeId,
-            datum,
-            leistungsdatum,
-            leistungsdatum_bis: leistungsdatumBis === "" ? null : leistungsdatumBis,
-            gueltig_bis: gueltigBis === "" ? null : gueltigBis,
-            zahlungsziel_tage: zahlungszielTage,
-            kopftext,
-            fusstext,
-            adresse_id: adresseId === "" ? null : adresseId,
-            ansprechpartner_id: ansprechpartnerId === "" ? null : ansprechpartnerId,
-            gesamtauftragswert_cent: gesamtauftragswertCent,
-          });
+          speichernJetzt();
         }}
       >
         <div className="gruppe">
@@ -207,11 +300,20 @@ export function StammdatenAbschnitt({ beleg, kunden, bearbeitbar, onSpeichern }:
           <div className="felder-reihe">
             <label className="feld">
               Datum
-              <input type="date" value={datum} onChange={(e) => setDatum(e.currentTarget.value)} />
+              <input type="date" value={datum} onChange={(e) => datumAendern(e.currentTarget.value)} />
             </label>
             <label className="feld">
               {leistungsdatumBis === "" ? "Leistungsdatum" : "Leistung von"}
-              <input type="date" value={leistungsdatum} onChange={(e) => setLeistungsdatum(e.currentTarget.value)} />
+              <input
+                type="date"
+                value={leistungsdatum}
+                onChange={(e) => {
+                  const neu = e.currentTarget.value;
+                  setLeistungsdatum(neu);
+                  // Wer das Datum wieder angleicht, will, dass es mitläuft.
+                  setLeistungFolgt(neu === datum);
+                }}
+              />
             </label>
             {/* § 14 Abs. 4 Nr. 6 UStG lässt Zeitpunkt „oder Zeitraum" zu. Leer heißt
                 Einzeldatum — der Regelfall; für Monatsabrechnungen und andere
@@ -233,15 +335,24 @@ export function StammdatenAbschnitt({ beleg, kunden, bearbeitbar, onSpeichern }:
                 Wert kommt beim Anlegen automatisch aus einer Einstellung, lässt
                 sich hier aber jederzeit verlängern oder verkürzen. */}
             {beleg.typ === "angebot" && (
-              <label className="feld">
-                Gültig bis
-                <input
-                  type="date"
-                  min={datum}
-                  value={gueltigBis}
-                  onChange={(e) => setGueltigBis(e.currentTarget.value)}
-                />
-              </label>
+              <div>
+                <label className="feld">
+                  Gültig bis
+                  <input
+                    type="date"
+                    min={datum}
+                    value={gueltigBis}
+                    onChange={(e) => {
+                      const neu = e.currentTarget.value;
+                      setGueltigBis(neu);
+                      setGueltigFolgt(gueltigkeitTage !== null && neu === datumPlusTage(datum, gueltigkeitTage));
+                    }}
+                  />
+                </label>
+                {gueltigFolgt && gueltigkeitTage !== null && (
+                  <p className="feld-hinweis">Datum plus {gueltigkeitTage} Tage (Einstellungen).</p>
+                )}
+              </div>
             )}
             <div>
               <label className="feld feld-schmal">
@@ -280,16 +391,28 @@ export function StammdatenAbschnitt({ beleg, kunden, bearbeitbar, onSpeichern }:
               placeholder="nur bei Abschlagsrechnungen"
             />
           </label>
-          {gesamtauftragswertFehler && (
-            <div className="feld-fehler" role="alert">{gesamtauftragswertFehler}</div>
+          {!gesamtauftragswertGueltig && (
+            <div className="feld-fehler" role="alert">Bitte einen gültigen Betrag eingeben, z. B. 1.470,00</div>
           )}
           <p className="feld-hinweis">
             Nur für Abschlagsrechnungen: weist auf dem Beleg zusätzlich auf den Gesamtwert des
             Auftrags hin, aus dem sich diese Teilrechnung ergibt.
           </p>
         </div>
-        <div className="aktionen aktionen-formular">
-          <button type="submit" className="btn btn-primaer">Speichern</button>
+        {/* Auto-Speichern und Knopf nebeneinander: Die Leiste sagt, was mit den
+            Eingaben geschieht, der Knopf erlaubt, es sofort zu erzwingen. Wer
+            die Anwendung kennt, vertraut dem Automatismus; wer sie nicht kennt,
+            sucht zuerst den Knopf. */}
+        <div className="speicherleiste" data-zustand={zustand}>
+          <p className="speicher-status" role="status">
+            <span className="speicher-symbol" aria-hidden="true">
+              {zustand === "speichert" ? "" : zustand === "fehler" ? "!" : zustand === "wartet" ? "…" : "✓"}
+            </span>
+            {statusText}
+          </p>
+          <button type="submit" className="btn btn-primaer" disabled={!geaendert || !gesamtauftragswertGueltig || speicherStatus === "speichert"}>
+            Speichern
+          </button>
         </div>
       </form>
     </section>

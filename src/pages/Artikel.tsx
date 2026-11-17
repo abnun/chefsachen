@@ -275,7 +275,7 @@ export function Artikel({ zeigeFormularBeimStart, onFormularUebernommen, onZuKun
       {dialog}
 
       {zeigtKundenHinweis && (
-        <Hinweis autoDismissMs={4000} onSchliessen={() => setZeigtKundenHinweis(false)}>
+        <Hinweis onSchliessen={() => setZeigtKundenHinweis(false)}>
           Artikel angelegt —{" "}
           <button type="button" className="btn btn-leise" onClick={() => onZuKundenWechseln?.()}>
             jetzt auch einen Kunden anlegen?
@@ -437,12 +437,12 @@ export function Artikel({ zeigeFormularBeimStart, onFormularUebernommen, onZuKun
                         anderen Angaben, nicht zwischen „Bearbeiten" und „Löschen". */}
                     <button
                       type="button"
-                      className="btn btn-leise"
+                      className="btn"
                       onClick={() => setPreiseFuer(a)}
                       aria-label={`Kundenpreise für ${a.bezeichnung}`}
                     >
                       {a.kundenpreise_anzahl === 0
-                        ? "keine"
+                        ? "Hinzufügen"
                         : `${a.kundenpreise_anzahl} ${a.kundenpreise_anzahl === 1 ? "Ausnahme" : "Ausnahmen"}`}
                     </button>
                   </td>

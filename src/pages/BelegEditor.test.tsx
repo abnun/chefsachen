@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../api", () => ({
   api: {
+    einstellungen: { get: vi.fn().mockResolvedValue(null) },
     belege: {
       get: vi.fn().mockResolvedValue({
         beleg: {
@@ -63,6 +64,7 @@ vi.mock("../api", () => ({
         kopftext: "", fusstext: "", summe_cent: -9550, ursprungsangebot_id: null,
         storno_von_id: null, gutschrift_zu_id: "b1",
       }),
+      positionspreiseAktualisieren: vi.fn().mockResolvedValue([]),
       pdfExportieren: vi.fn().mockResolvedValue([1, 2, 3]),
       xrechnungExportieren: vi.fn().mockResolvedValue([1, 2, 3]),
       zugferdExportieren: vi.fn().mockResolvedValue([1, 2, 3]),
@@ -103,6 +105,15 @@ afterEach(() => {
 function angabe(beschriftung: string): string | null {
   const dt = screen.queryByText(beschriftung, { selector: "dt" });
   return dt?.nextElementSibling?.textContent ?? null;
+}
+
+/** Nach `update` liefert `get` den gespeicherten Stand, wie das echte Backend. */
+function backendSpeichert() {
+  vi.mocked(api.belege.update).mockImplementation(async (daten) => {
+    const alt = await vi.mocked(api.belege.get)("b1");
+    vi.mocked(api.belege.get).mockResolvedValue({ ...alt, beleg: { ...alt.beleg, kopftext: daten.kopftext } });
+    return alt.beleg;
+  });
 }
 
 describe("BelegEditor", () => {
@@ -232,7 +243,6 @@ describe("BelegEditor – Gültigkeit des Angebots", () => {
     await waitFor(() => expect(screen.getByLabelText("Gültig bis")).toHaveValue("2026-08-09"));
 
     fireEvent.change(screen.getByLabelText("Gültig bis"), { target: { value: "2026-12-31" } });
-    fireEvent.click(screen.getByRole("button", { name: "Speichern" }));
 
     await waitFor(() =>
       expect(api.belege.update).toHaveBeenCalledWith(
@@ -731,7 +741,8 @@ describe("BelegEditor – Zahlungserinnerung", () => {
 });
 
 describe("BelegEditor – Erfolgs-Hinweis", () => {
-  it("zeigt nach dem Speichern der Stammdaten einen Erfolgs-Hinweis", async () => {
+  it("bestätigt nach dem automatischen Speichern der Stammdaten, dass alles gespeichert ist", async () => {
+    backendSpeichert();
     vi.mocked(api.belege.get).mockResolvedValue({
       beleg: {
         id: "b1", typ: "angebot", nummer: null, status: "entwurf", kunde_id: "k1",
@@ -741,9 +752,9 @@ describe("BelegEditor – Erfolgs-Hinweis", () => {
       positionen: [], zahlungen: [], bezahlt_cent: 0, offener_betrag_cent: 0, steuerzeilen: [],
     });
     render(<BelegEditor id="b1" />);
-    await waitFor(() => expect(screen.getByRole("button", { name: "Speichern" })).toBeTruthy());
-    fireEvent.click(screen.getByRole("button", { name: "Speichern" }));
-    await waitFor(() => expect(screen.getByText("Stammdaten gespeichert")).toBeTruthy());
+    await waitFor(() => expect(screen.getByLabelText("Kopftext")).toBeTruthy());
+    fireEvent.change(screen.getByLabelText("Kopftext"), { target: { value: "Hallo" } });
+    await waitFor(() => expect(screen.getByText("Alle Änderungen gespeichert")).toBeTruthy(), { timeout: 3000 });
   });
 
   it("zeigt nach dem Stellen einen Erfolgs-Hinweis", async () => {
@@ -996,7 +1007,6 @@ describe("BelegEditor – Erfolgs-Hinweis", () => {
     fireEvent.change(screen.getByLabelText("Leistung bis (bei Zeitraum)"), {
       target: { value: "2026-07-31" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Speichern" }));
     await waitFor(() =>
       expect(api.belege.update).toHaveBeenCalledWith(
         expect.objectContaining({ leistungsdatum_bis: "2026-07-31" }),
@@ -1009,8 +1019,8 @@ describe("BelegEditor – Erfolgs-Hinweis", () => {
   it("sendet ohne Zeitraum null statt eines leeren Textes", async () => {
     vi.mocked(api.belege.get).mockResolvedValue(rechnungGestellt({ status: "entwurf", nummer: null }));
     render(<BelegEditor id="b1" />);
-    await waitFor(() => expect(screen.getByRole("button", { name: "Speichern" })).toBeTruthy());
-    fireEvent.click(screen.getByRole("button", { name: "Speichern" }));
+    await waitFor(() => expect(screen.getByLabelText("Kopftext")).toBeTruthy());
+    fireEvent.change(screen.getByLabelText("Kopftext"), { target: { value: "Hallo" } });
     await waitFor(() =>
       expect(api.belege.update).toHaveBeenCalledWith(
         expect.objectContaining({ leistungsdatum_bis: null }),
@@ -1221,7 +1231,6 @@ describe("BelegEditor – Anschrift und Ansprechpartner", () => {
 
     fireEvent.change(auswahl, { target: { value: "adr2" } });
     fireEvent.change(screen.getByLabelText("Ansprechpartner"), { target: { value: "ap1" } });
-    fireEvent.click(screen.getByRole("button", { name: "Speichern" }));
 
     await waitFor(() =>
       expect(api.belege.update).toHaveBeenCalledWith(
@@ -1237,7 +1246,8 @@ describe("BelegEditor – Anschrift und Ansprechpartner", () => {
     render(<BelegEditor id="b1" />);
     await screen.findByLabelText("Rechnungsadresse");
 
-    fireEvent.click(screen.getByRole("button", { name: "Speichern" }));
+    fireEvent.change(screen.getByLabelText("Kopftext"), { target: { value: "Hallo" } });
+
     await waitFor(() =>
       expect(api.belege.update).toHaveBeenCalledWith(
         expect.objectContaining({ adresse_id: null, ansprechpartner_id: null }),
@@ -1311,7 +1321,6 @@ describe("BelegEditor – Gesamt-Auftragswert", () => {
     render(<BelegEditor id="b1" />);
     await waitFor(() => expect(screen.getByLabelText(/Gesamt-Auftragswert/)).toBeTruthy());
     fireEvent.change(screen.getByLabelText(/Gesamt-Auftragswert/), { target: { value: "1.470,00" } });
-    fireEvent.click(screen.getByRole("button", { name: "Speichern" }));
     await waitFor(() =>
       expect(api.belege.update).toHaveBeenCalledWith(
         expect.objectContaining({ gesamtauftragswert_cent: 147000 }),
@@ -1322,8 +1331,8 @@ describe("BelegEditor – Gesamt-Auftragswert", () => {
   it("lässt den Gesamt-Auftragswert leer, wenn nichts eingegeben wurde", async () => {
     entwurfOhneAuftragswert();
     render(<BelegEditor id="b1" />);
-    await waitFor(() => expect(screen.getByRole("button", { name: "Speichern" })).toBeTruthy());
-    fireEvent.click(screen.getByRole("button", { name: "Speichern" }));
+    await waitFor(() => expect(screen.getByLabelText("Kopftext")).toBeTruthy());
+    fireEvent.change(screen.getByLabelText("Kopftext"), { target: { value: "Hallo" } });
     await waitFor(() =>
       expect(api.belege.update).toHaveBeenCalledWith(
         expect.objectContaining({ gesamtauftragswert_cent: null }),
@@ -1454,5 +1463,217 @@ describe("BelegEditor – Gutschrift", () => {
     render(<BelegEditor id="r1" />);
     await waitFor(() => expect(screen.getByText(/R-2026-0002/)).toBeTruthy());
     expect(screen.queryByRole("button", { name: "Gutschrift erstellen" })).toBeNull();
+  });
+});
+
+describe("BelegEditor – Daten laufen mit dem Belegdatum", () => {
+  function beleg(typ: "angebot" | "rechnung", zusatz: Record<string, unknown> = {}) {
+    vi.mocked(api.belege.get).mockResolvedValue({
+      beleg: {
+        id: "b1", typ, nummer: null, status: "entwurf", kunde_id: "k1",
+        datum: "2026-07-10", leistungsdatum: "2026-07-10", zahlungsziel_tage: 14,
+        kopftext: "", fusstext: "", summe_cent: 0, ursprungsangebot_id: null, storno_von_id: null,
+        ...(typ === "angebot" ? { gueltig_bis: "2026-08-09" } : {}),
+        ...zusatz,
+      },
+      positionen: [], zahlungen: [], bezahlt_cent: 0, offener_betrag_cent: 0, steuerzeilen: [],
+    });
+  }
+
+  it("zieht das Leistungsdatum mit, wenn das Belegdatum geändert wird", async () => {
+    beleg("rechnung");
+    render(<BelegEditor id="b1" />);
+    await waitFor(() => expect(screen.getByLabelText("Datum")).toHaveValue("2026-07-10"));
+    fireEvent.change(screen.getByLabelText("Datum"), { target: { value: "2026-07-20" } });
+    expect(screen.getByLabelText("Leistungsdatum")).toHaveValue("2026-07-20");
+  });
+
+  it("lässt ein abweichendes Leistungsdatum in Ruhe", async () => {
+    beleg("rechnung", { leistungsdatum: "2026-07-01" });
+    render(<BelegEditor id="b1" />);
+    await waitFor(() => expect(screen.getByLabelText("Datum")).toHaveValue("2026-07-10"));
+    fireEvent.change(screen.getByLabelText("Datum"), { target: { value: "2026-07-20" } });
+    expect(screen.getByLabelText("Leistungsdatum")).toHaveValue("2026-07-01");
+  });
+
+  it("folgt nicht mehr, sobald das Leistungsdatum von Hand abweicht, und wieder, wenn es gleich ist", async () => {
+    beleg("rechnung");
+    render(<BelegEditor id="b1" />);
+    await waitFor(() => expect(screen.getByLabelText("Datum")).toHaveValue("2026-07-10"));
+    fireEvent.change(screen.getByLabelText("Leistungsdatum"), { target: { value: "2026-07-05" } });
+    fireEvent.change(screen.getByLabelText("Datum"), { target: { value: "2026-07-20" } });
+    expect(screen.getByLabelText("Leistungsdatum")).toHaveValue("2026-07-05");
+    fireEvent.change(screen.getByLabelText("Leistungsdatum"), { target: { value: "2026-07-20" } });
+    fireEvent.change(screen.getByLabelText("Datum"), { target: { value: "2026-07-25" } });
+    expect(screen.getByLabelText("Leistungsdatum")).toHaveValue("2026-07-25");
+  });
+
+  it("hält einen Leistungszeitraum fest, wenn das Belegdatum wechselt", async () => {
+    beleg("rechnung", { leistungsdatum_bis: "2026-07-31" });
+    render(<BelegEditor id="b1" />);
+    await waitFor(() => expect(screen.getByLabelText("Datum")).toHaveValue("2026-07-10"));
+    fireEvent.change(screen.getByLabelText("Datum"), { target: { value: "2026-07-20" } });
+    expect(screen.getByLabelText("Leistung von")).toHaveValue("2026-07-10");
+  });
+
+  it("berechnet Gültig bis aus dem Datum und der Frist aus den Einstellungen neu", async () => {
+    vi.mocked(api.einstellungen.get).mockResolvedValue("14");
+    beleg("angebot", { gueltig_bis: "2026-07-24" });
+    render(<BelegEditor id="b1" />);
+    await waitFor(() => expect(screen.getByText(/Datum plus 14 Tage/)).toBeTruthy());
+    fireEvent.change(screen.getByLabelText("Datum"), { target: { value: "2026-08-01" } });
+    expect(screen.getByLabelText("Gültig bis")).toHaveValue("2026-08-15");
+  });
+
+  it("lässt ein bewusst gesetztes Gültig bis stehen", async () => {
+    vi.mocked(api.einstellungen.get).mockResolvedValue("30");
+    beleg("angebot", { gueltig_bis: "2026-12-31" });
+    render(<BelegEditor id="b1" />);
+    await waitFor(() => expect(screen.getByLabelText("Gültig bis")).toHaveValue("2026-12-31"));
+    await waitFor(() => expect(api.einstellungen.get).toHaveBeenCalled());
+    fireEvent.change(screen.getByLabelText("Datum"), { target: { value: "2026-08-01" } });
+    expect(screen.getByLabelText("Gültig bis")).toHaveValue("2026-12-31");
+    expect(screen.queryByText(/Datum plus/)).toBeNull();
+  });
+
+  it("nimmt 30 Tage, wenn die Einstellung fehlt oder unbrauchbar ist", async () => {
+    vi.mocked(api.einstellungen.get).mockResolvedValue("viel");
+    beleg("angebot", { gueltig_bis: "2026-08-09" });
+    render(<BelegEditor id="b1" />);
+    await waitFor(() => expect(screen.getByText(/Datum plus 30 Tage/)).toBeTruthy());
+    fireEvent.change(screen.getByLabelText("Datum"), { target: { value: "2026-09-01" } });
+    expect(screen.getByLabelText("Gültig bis")).toHaveValue("2026-10-01");
+  });
+});
+
+describe("BelegEditor – automatisches Speichern und Preisabgleich", () => {
+  function entwurf(typ: "angebot" | "rechnung" = "rechnung") {
+    vi.mocked(api.belege.get).mockResolvedValue({
+      beleg: {
+        id: "b1", typ, nummer: null, status: "entwurf", kunde_id: "k1",
+        datum: "2026-07-10", leistungsdatum: "2026-07-10", zahlungsziel_tage: 14,
+        kopftext: "", fusstext: "", summe_cent: 0, ursprungsangebot_id: null, storno_von_id: null,
+      },
+      positionen: [], zahlungen: [], bezahlt_cent: 0, offener_betrag_cent: 0, steuerzeilen: [],
+    });
+  }
+
+  it("sagt, dass automatisch gespeichert wird, und bietet den Speichern-Knopf weiter an", async () => {
+    entwurf();
+    render(<BelegEditor id="b1" />);
+    await waitFor(() => expect(screen.getByLabelText("Kopftext")).toBeTruthy());
+    expect(screen.getByText("Änderungen werden automatisch gespeichert.")).toBeTruthy();
+    // Ohne Änderung gibt es nichts zu speichern.
+    expect(screen.getByRole("button", { name: "Speichern" })).toBeDisabled();
+  });
+
+  it("speichert auf Knopfdruck sofort, ohne die Wartezeit abzuwarten", async () => {
+    entwurf();
+    vi.mocked(api.belege.update).mockClear();
+    render(<BelegEditor id="b1" />);
+    await waitFor(() => expect(screen.getByLabelText("Kopftext")).toBeTruthy());
+    fireEvent.change(screen.getByLabelText("Kopftext"), { target: { value: "Hallo" } });
+    expect(screen.getByRole("button", { name: "Speichern" })).toBeEnabled();
+    fireEvent.click(screen.getByRole("button", { name: "Speichern" }));
+    await waitFor(() => expect(api.belege.update).toHaveBeenCalledWith(expect.objectContaining({ kopftext: "Hallo" })));
+  });
+
+  it("zeigt in der Leiste auch das Speichern einer Position: erst Ring, dann Häkchen", async () => {
+    entwurf("angebot");
+    vi.mocked(api.artikel.list).mockResolvedValue([
+      {
+        id: "a1", artikelnummer: "ART-0001", bezeichnung: "Beratung",
+        beschreibung: "", einheit_id: "e1", standardpreis_cent: 9550, ust_satz_prozent: 19, kundenpreise_anzahl: 0,
+      },
+    ]);
+    render(<BelegEditor id="b1" />);
+    await waitFor(() => expect(screen.getByLabelText("Artikel")).toBeTruthy());
+    const leiste = () => document.querySelector(".speicherleiste") as HTMLElement;
+    expect(leiste().dataset.zustand).toBe("ruhe");
+
+    fireEvent.change(screen.getByLabelText("Artikel"), { target: { value: "Beratung" } });
+    fireEvent.click(screen.getByRole("button", { name: "Position hinzufügen" }));
+
+    await waitFor(() => expect(leiste().dataset.zustand).toBe("speichert"));
+    await waitFor(() => expect(leiste().dataset.zustand).toBe("gespeichert"), { timeout: 3000 });
+    expect(screen.getByText("Alle Änderungen gespeichert")).toBeTruthy();
+  });
+
+  it("speichert nichts, solange nichts geändert wurde", async () => {
+    entwurf();
+    vi.mocked(api.belege.update).mockClear();
+    render(<BelegEditor id="b1" />);
+    await waitFor(() => expect(screen.getByLabelText("Kopftext")).toBeTruthy());
+    await new Promise((r) => setTimeout(r, 800));
+    expect(api.belege.update).not.toHaveBeenCalled();
+  });
+
+  it("kündigt das Speichern an und bestätigt es danach", async () => {
+    entwurf();
+    backendSpeichert();
+    render(<BelegEditor id="b1" />);
+    await waitFor(() => expect(screen.getByLabelText("Kopftext")).toBeTruthy());
+    fireEvent.change(screen.getByLabelText("Kopftext"), { target: { value: "Hallo" } });
+    expect(screen.getByText("Änderungen werden gleich gespeichert …")).toBeTruthy();
+    await waitFor(() => expect(screen.getByText("Alle Änderungen gespeichert")).toBeTruthy(), { timeout: 3000 });
+  });
+
+  it("speichert einen unklaren Gesamt-Auftragswert nicht und sagt warum", async () => {
+    entwurf();
+    vi.mocked(api.belege.update).mockClear();
+    render(<BelegEditor id="b1" />);
+    await waitFor(() => expect(screen.getByLabelText(/Gesamt-Auftragswert/)).toBeTruthy());
+    fireEvent.change(screen.getByLabelText(/Gesamt-Auftragswert/), { target: { value: "abc" } });
+    await new Promise((r) => setTimeout(r, 800));
+    expect(api.belege.update).not.toHaveBeenCalled();
+    expect(screen.getByText(/Noch nicht gespeichert: Der Gesamt-Auftragswert ist unklar/)).toBeTruthy();
+  });
+
+  it("meldet nach dem Speichern, wenn ein Preis an Datum und Kunde angepasst wurde", async () => {
+    entwurf();
+    vi.mocked(api.belege.positionspreiseAktualisieren).mockResolvedValueOnce([]);
+    render(<BelegEditor id="b1" />);
+    await waitFor(() => expect(screen.getByLabelText("Kopftext")).toBeTruthy());
+    vi.mocked(api.belege.positionspreiseAktualisieren).mockResolvedValueOnce([
+      { position_id: "p1", bezeichnung: "Beratung", alt_cent: 10000, neu_cent: 8000 },
+    ]);
+    fireEvent.change(screen.getByLabelText("Datum"), { target: { value: "2026-09-15" } });
+    await waitFor(() => expect(screen.getByText(/Ein Preis wurde an Datum und Kunde angepasst/)).toBeTruthy());
+    expect(screen.getByText(/Beratung 100,00 € → 80,00 €/)).toBeTruthy();
+  });
+
+  it("gleicht die Preise beim Öffnen eines Entwurfs ab", async () => {
+    entwurf();
+    vi.mocked(api.belege.positionspreiseAktualisieren).mockResolvedValueOnce([
+      { position_id: "p1", bezeichnung: "Beratung", alt_cent: 10000, neu_cent: 8000 },
+    ]);
+    render(<BelegEditor id="b1" />);
+    await waitFor(() => expect(screen.getByText(/Ein Preis wurde an Datum und Kunde angepasst/)).toBeTruthy());
+  });
+
+  it("schreibt nicht gleich fest, wenn der Abgleich vor dem Festschreiben einen Preis ändert", async () => {
+    vi.mocked(api.belege.get).mockResolvedValue({
+      beleg: {
+        id: "b1", typ: "angebot", nummer: null, status: "entwurf", kunde_id: "k1",
+        datum: "2026-07-10", leistungsdatum: "2026-07-10", zahlungsziel_tage: 14,
+        kopftext: "", fusstext: "", summe_cent: 9550, ursprungsangebot_id: null, storno_von_id: null,
+        gueltig_bis: "2026-08-09",
+      },
+      positionen: [{
+        id: "p1", beleg_id: "b1", artikel_id: "a1", bezeichnung: "Beratung", einheit_kuerzel: "Std.",
+        einzelpreis_cent: 9550, menge: 1000, positionssumme_cent: 9550, ust_satz_prozent: 19, reihenfolge: 0,
+      }],
+      zahlungen: [], bezahlt_cent: 0, offener_betrag_cent: 9550, steuerzeilen: [],
+    });
+    vi.mocked(api.belege.stellen).mockClear();
+    render(<BelegEditor id="b1" />);
+    await waitFor(() => expect(screen.getByRole("button", { name: /Festschreiben/ })).toBeTruthy());
+    vi.mocked(api.belege.positionspreiseAktualisieren).mockResolvedValueOnce([
+      { position_id: "p1", bezeichnung: "Beratung", alt_cent: 9550, neu_cent: 8000 },
+    ]);
+    fireEvent.click(screen.getByRole("button", { name: /Festschreiben/ }));
+    await waitFor(() => expect(screen.getByText(/Ein Preis wurde an Datum und Kunde angepasst/)).toBeTruthy());
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(api.belege.stellen).not.toHaveBeenCalled();
   });
 });

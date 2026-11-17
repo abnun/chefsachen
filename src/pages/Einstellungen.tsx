@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { open, save } from "@tauri-apps/plugin-dialog";
 import { readFile, writeFile } from "@tauri-apps/plugin-fs";
 import {
@@ -31,6 +31,12 @@ import { PAYPAL_LINK } from "../components/SpendenHinweis";
 import { zeitpunktDeutsch } from "../datum";
 import { type FuehrungsSchritt } from "../components/Fuehrung";
 import { Werkzeugleiste } from "../components/Werkzeugleiste";
+import { Suchfeld } from "../components/Suchfeld";
+import {
+  SCHLUESSEL_ZAHLUNGSZIEL,
+  ZAHLUNGSZIEL_AUSWAHL,
+  zahlungszielAusEinstellung,
+} from "../zahlungsziel";
 import { storeName, useIstGithubFassung, useVertriebsweg } from "../hooks/useVertriebsweg";
 
 /**
@@ -99,6 +105,39 @@ const RUNDGANG_MICROSOFT_STORE = rundgangFuerStore(storeName("microsoft_store"))
  * und speichert unabhängig von den anderen — ein Fehler in einem Abschnitt
  * blockiert die anderen nicht.
  */
+interface Eintrag {
+  id: string;
+  gruppe: string;
+  titel: string;
+  /** Wörter, unter denen man den Abschnitt sucht, ohne den Titel zu kennen. */
+  stichwoerter: string;
+  inhalt: ReactNode;
+}
+
+/** Reihenfolge der Gruppen; jede erscheint nur, wenn ein Abschnitt sichtbar ist. */
+const GRUPPEN = ["Unternehmen", "Belege", "Daten und Datenschutz", "Programm"];
+
+/**
+ * Kleinbuchstaben ohne Umlaut-Unterschiede: „strasse" soll „Straße" finden und
+ * „gruendung" „Gründung".
+ */
+function normalisiert(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/ß/g, "ss")
+    .replace(/ä/g, "ae")
+    .replace(/ö/g, "oe")
+    .replace(/ü/g, "ue");
+}
+
+/** Alle Suchwörter müssen vorkommen, in beliebiger Reihenfolge. */
+function passt(eintrag: Eintrag, suche: string): boolean {
+  const woerter = normalisiert(suche).split(/\s+/).filter(Boolean);
+  if (woerter.length === 0) return true;
+  const heu = normalisiert(`${eintrag.titel} ${eintrag.gruppe} ${eintrag.stichwoerter}`);
+  return woerter.every((w) => heu.includes(w));
+}
+
 export function Einstellungen() {
   const weg = useVertriebsweg();
   const schritte =
@@ -107,23 +146,235 @@ export function Einstellungen() {
       : weg === "microsoft_store"
         ? RUNDGANG_MICROSOFT_STORE
         : RUNDGANG_SCHRITTE;
+  const [suche, setSuche] = useState("");
+  const sucheRef = useRef<HTMLInputElement>(null);
+
+  // Alle Abschnitte bleiben immer eingehängt und werden bei der Suche nur
+  // ausgeblendet (`hidden`): Wer in einem Abschnitt schon etwas getippt hat,
+  // verliert es sonst, sobald er nach etwas anderem sucht.
+  const eintraege: Eintrag[] = [
+    {
+      id: "firmendaten", gruppe: "Unternehmen", titel: "Firmendaten",
+      stichwoerter: "firma name anschrift adresse strasse plz ort steuernummer ust-idnr umsatzsteuer iban bic bank konto logo telefon fax e-mail ansprechpartner gruendungsjahr kleinunternehmer",
+      inhalt: <FirmendatenAbschnitt />,
+    },
+    {
+      id: "einheiten", gruppe: "Unternehmen", titel: "Einheiten",
+      stichwoerter: "stunde stueck tag pauschale kilometer masseinheit",
+      inhalt: <EinheitenAbschnitt />,
+    },
+    {
+      id: "rechnungen", gruppe: "Belege", titel: "Rechnungen",
+      stichwoerter: "zahlungsziel zahlungsfrist faelligkeit sofort 7 14 30 tage standard",
+      inhalt: <RechnungenAbschnitt />,
+    },
+    {
+      id: "angebote", gruppe: "Belege", titel: "Angebote",
+      stichwoerter: "angebotsgueltigkeit gueltig bis frist tage",
+      inhalt: <AngeboteAbschnitt />,
+    },
+    {
+      id: "nummernkreise", gruppe: "Belege", titel: "Nummernkreise",
+      stichwoerter: "belegnummer rechnungsnummer angebotsnummer praefix format laufende nummer gobd",
+      inhalt: <NummernkreiseAbschnitt />,
+    },
+    {
+      id: "textbausteine", gruppe: "Belege", titel: "Textbausteine",
+      stichwoerter: "kopftext fusstext kleinunternehmer hinweis zahlungserinnerung mahnung vorgabe",
+      inhalt: <TextbausteineAbschnitt />,
+    },
+    {
+      id: "belegvorlage", gruppe: "Belege", titel: "Belegvorlage",
+      stichwoerter: "aussehen layout pdf logo farbe spalten raender schrift vorschau absenderzeile",
+      inhalt: <Belegvorlage />,
+    },
+    {
+      id: "adressvorschlaege", gruppe: "Daten und Datenschutz", titel: "Adressvorschläge",
+      stichwoerter: "adresse strasse plz ort internet photon komoot online autovervollstaendigen datenschutz",
+      inhalt: <AdressvorschlaegeAbschnitt />,
+    },
+    {
+      id: "sicherungen", gruppe: "Daten und Datenschutz", titel: "Sicherungen",
+      stichwoerter: "backup datensicherung export import wiederherstellen datenbank zip archiv",
+      inhalt: <SicherungenAbschnitt />,
+    },
+    {
+      id: "programmversion", gruppe: "Programm", titel: "Programmversion",
+      stichwoerter: "version update aktualisierung lizenz quellen drittanbieter",
+      inhalt: <Aktualisierung />,
+    },
+    {
+      id: "unterstuetzen", gruppe: "Programm", titel: "Unterstützen",
+      stichwoerter: "spende paypal unterstuetzen",
+      inhalt: <SpendenAbschnitt />,
+    },
+  ];
+  const sichtbar = new Set(eintraege.filter((e) => passt(e, suche)).map((e) => e.id));
+  const suchtGerade = suche.trim() !== "";
+
   return (
     <div>
-      <Werkzeugleiste titel="Einstellungen" rundgang={schritte} />
-      <FirmendatenAbschnitt />
-      <AdressvorschlaegeAbschnitt />
-      <SicherungenAbschnitt />
-      <EinheitenAbschnitt />
-      <NummernkreiseAbschnitt />
-      <TextbausteineAbschnitt />
-      <AngeboteAbschnitt />
-      {/* Nach den Textbausteinen: Die Vorschau zeigt sie mit, und wer beides
-          einstellt, arbeitet von innen nach außen — erst der Inhalt, dann das
-          Aussehen. */}
-      <Belegvorlage />
-      <Aktualisierung />
-      <SpendenAbschnitt />
+      <Werkzeugleiste
+        titel="Einstellungen"
+        rundgang={schritte}
+        filter={
+          <Suchfeld
+            ref={sucheRef}
+            wert={suche}
+            onAendern={setSuche}
+            platzhalter="Einstellungen durchsuchen"
+            dataTour="suche"
+          />
+        }
+      />
+
+      {/* Sprungleiste: Wer weiß, in welche Gruppe etwas gehört, springt hin,
+          statt eine lange Seite zu scrollen. Bei einer Suche überflüssig. */}
+      {!suchtGerade && (
+        <nav className="segment einstellungen-sprung" aria-label="Gruppen der Einstellungen">
+          {GRUPPEN.map((g) => (
+            <button
+              key={g}
+              type="button"
+              className="btn"
+              onClick={() =>
+                document.getElementById(gruppenId(g))?.scrollIntoView({ behavior: "smooth", block: "start" })
+              }
+            >
+              {g}
+            </button>
+          ))}
+        </nav>
+      )}
+
+      {GRUPPEN.map((gruppe) => {
+        const inGruppe = eintraege.filter((e) => e.gruppe === gruppe);
+        const zeigen = inGruppe.some((e) => sichtbar.has(e.id));
+        return (
+          <div key={gruppe} role="group" aria-label={gruppe} hidden={!zeigen}>
+            <p className="einstellungen-gruppe" id={gruppenId(gruppe)}>
+              {gruppe}
+            </p>
+            {inGruppe.map((e) => (
+              <div key={e.id} hidden={!sichtbar.has(e.id)}>
+                {e.inhalt}
+              </div>
+            ))}
+          </div>
+        );
+      })}
+
+      {suchtGerade && sichtbar.size === 0 && (
+        <p className="kundenpreis-leer">Keine Einstellung gefunden für „{suche.trim()}“.</p>
+      )}
     </div>
+  );
+}
+
+function gruppenId(gruppe: string): string {
+  return `einstellungen-gruppe-${normalisiert(gruppe).replace(/[^a-z]+/g, "-")}`;
+}
+
+/**
+ * Vorgabe für das Zahlungsziel neuer Kunden. Das Ziel selbst steht je Kunde
+ * und lässt sich im einzelnen Beleg ändern; hier steht nur, was ein neu
+ * angelegter Kunde bekommt.
+ */
+function RechnungenAbschnitt() {
+  const [tage, setTage] = useState<number | null>(null);
+  // „Anderes" bleibt gewählt, auch wenn der eingetippte Wert zufällig einer
+  // Auswahl entspricht: Sonst sprängen Auswahl und Feld während des Tippens.
+  const [frei, setFrei] = useState(false);
+  const [fehler, setFehler] = useState<AppFehler | null>(null);
+  const { laeuft, rueckmeldung, ausfuehren } = useSpeichern();
+
+  useEffect(() => {
+    api.einstellungen
+      .get(SCHLUESSEL_ZAHLUNGSZIEL)
+      .then((wert) => {
+        const t = zahlungszielAusEinstellung(wert);
+        setTage(t);
+        setFrei(!ZAHLUNGSZIEL_AUSWAHL.some((a) => a.tage === t));
+      })
+      .catch((e) => setFehler(e as AppFehler));
+  }, []);
+
+  async function speichern() {
+    if (tage === null) return;
+    setFehler(null);
+    try {
+      await ausfuehren(
+        () => api.einstellungen.set(SCHLUESSEL_ZAHLUNGSZIEL, String(tage)),
+        "Zahlungsziel gespeichert",
+      );
+    } catch (e) {
+      setFehler(e as AppFehler);
+    }
+  }
+
+  const auswahl = frei ? "frei" : String(tage ?? 14);
+
+  return (
+    <section className="abschnitt" data-tour="rechnungen">
+      <h2>Rechnungen</h2>
+      <Fehler fehler={fehler} />
+      <form
+        className="inhalt-schmal"
+        onSubmit={(e) => {
+          e.preventDefault();
+          speichern();
+        }}
+      >
+        <div className="gruppe">
+          <div className="felder-reihe">
+            <label className="feld">
+              Standard-Zahlungsziel
+              <select
+                value={auswahl}
+                onChange={(e) => {
+                  const wert = e.currentTarget.value;
+                  if (wert === "frei") {
+                    setFrei(true);
+                  } else {
+                    setFrei(false);
+                    setTage(Number(wert));
+                  }
+                }}
+              >
+                {ZAHLUNGSZIEL_AUSWAHL.map((a) => (
+                  <option key={a.tage} value={a.tage}>
+                    {a.label}
+                  </option>
+                ))}
+                <option value="frei">Anderes …</option>
+              </select>
+            </label>
+            {frei && (
+              <label className="feld feld-schmal">
+                Tage
+                <input
+                  type="number"
+                  min={0}
+                  value={tage ?? ""}
+                  onChange={(e) => setTage(e.currentTarget.value === "" ? 0 : Number(e.currentTarget.value))}
+                />
+              </label>
+            )}
+          </div>
+          <p className="feld-hinweis">
+            Gilt für neu angelegte Kunden. Jeder Kunde kann ein eigenes Zahlungsziel haben, und in
+            jedem Beleg lässt es sich ändern. „Sofort“ heißt: Die Rechnung weist den Betrag als
+            sofort zahlbar aus.
+          </p>
+        </div>
+        <div className="aktionen aktionen-formular">
+          <button type="submit" className="btn btn-primaer" disabled={laeuft || tage === null}>
+            {laeuft ? "Speichert …" : "Speichern"}
+          </button>
+          {rueckmeldung}
+        </div>
+      </form>
+    </section>
   );
 }
 

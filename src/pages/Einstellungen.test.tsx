@@ -277,8 +277,10 @@ describe("Einstellungen", () => {
   it("zeigt nach dem Speichern eines Nummernkreises einen Erfolgs-Hinweis", async () => {
     render(<EinstellungenMitAnbieter />);
     await waitFor(() => expect(screen.getByDisplayValue("R-{jahr}-{nr}")).toBeTruthy());
-    // Index 1: Firmendaten (0) steht im DOM vor dem einzigen Nummernkreis-Eintrag (1).
-    fireEvent.click(screen.getAllByRole("button", { name: "Speichern" })[1]);
+    // Über das Formular des Nummernkreises, nicht über die Nummer des Knopfes:
+    // Neue Abschnitte davor verschöben sonst den Index.
+    const formular = screen.getByDisplayValue("R-{jahr}-{nr}").closest("form")!;
+    fireEvent.click(within(formular).getByRole("button", { name: "Speichern" }));
     await waitFor(() => expect(screen.getByText("Nummernkreis gespeichert")).toBeTruthy());
   });
 
@@ -695,5 +697,86 @@ describe("Einstellungen: Ansprechpartner und Bankverbindung", () => {
     await waitFor(() =>
       expect(api.firma.save).toHaveBeenCalledWith(expect.objectContaining({ iban: "DE02 1203 0000 0000 2020 51" })),
     );
+  });
+
+  describe("Gruppen, Suche und Zahlungsziel", () => {
+    it("ordnet die Abschnitte unter Gruppen", async () => {
+      render(<EinstellungenMitAnbieter />);
+      await waitFor(() => expect(screen.getByLabelText(/Firmenname/)).toHaveValue("Musterfirma"));
+      for (const name of ["Unternehmen", "Belege", "Daten und Datenschutz", "Programm"]) {
+        expect(screen.getByRole("group", { name })).toBeTruthy();
+      }
+      expect(within(screen.getByRole("group", { name: "Belege" })).getByRole("heading", { name: "Textbausteine" })).toBeTruthy();
+      expect(within(screen.getByRole("group", { name: "Unternehmen" })).getByRole("heading", { name: "Firmendaten" })).toBeTruthy();
+    });
+
+    it("hat eine Sprungleiste zu den Gruppen", async () => {
+      render(<EinstellungenMitAnbieter />);
+      await waitFor(() => expect(screen.getByLabelText(/Firmenname/)).toHaveValue("Musterfirma"));
+      const leiste = screen.getByRole("navigation", { name: "Gruppen der Einstellungen" });
+      expect(within(leiste).getAllByRole("button")).toHaveLength(4);
+    });
+
+    it("blendet bei einer Suche alles andere aus und findet über Stichwörter", async () => {
+      render(<EinstellungenMitAnbieter />);
+      await waitFor(() => expect(screen.getByLabelText(/Firmenname/)).toHaveValue("Musterfirma"));
+      // „iban" steht nirgends im Titel, nur bei den Firmendaten.
+      fireEvent.change(screen.getByLabelText("Suche"), { target: { value: "iban" } });
+      expect(screen.getByRole("heading", { name: "Firmendaten" })).toBeVisible();
+      expect(screen.queryByRole("heading", { name: "Textbausteine" })).toBeNull();
+      expect(screen.queryByRole("navigation", { name: "Gruppen der Einstellungen" })).toBeNull();
+    });
+
+    it("sucht ohne Rücksicht auf Umlaute und Reihenfolge der Wörter", async () => {
+      render(<EinstellungenMitAnbieter />);
+      await waitFor(() => expect(screen.getByLabelText(/Firmenname/)).toHaveValue("Musterfirma"));
+      fireEvent.change(screen.getByLabelText("Suche"), { target: { value: "tage zahlungsziel" } });
+      expect(screen.getByRole("heading", { name: "Rechnungen" })).toBeVisible();
+      fireEvent.change(screen.getByLabelText("Suche"), { target: { value: "strasse" } });
+      expect(screen.getByRole("heading", { name: "Firmendaten" })).toBeVisible();
+    });
+
+    it("sagt, wenn nichts gefunden wird, und behält eingetippte Werte beim Suchen", async () => {
+      render(<EinstellungenMitAnbieter />);
+      await waitFor(() => expect(screen.getByLabelText(/Firmenname/)).toHaveValue("Musterfirma"));
+      fireEvent.change(screen.getByLabelText(/Firmenname/), { target: { value: "Neuer Name" } });
+      fireEvent.change(screen.getByLabelText("Suche"), { target: { value: "qqqq" } });
+      expect(screen.getByText(/Keine Einstellung gefunden für „qqqq“/)).toBeTruthy();
+      fireEvent.change(screen.getByLabelText("Suche"), { target: { value: "" } });
+      expect(screen.getByLabelText(/Firmenname/)).toHaveValue("Neuer Name");
+    });
+
+    it("zeigt das Standard-Zahlungsziel mit 14 Tagen, wenn nichts gespeichert ist", async () => {
+      render(<EinstellungenMitAnbieter />);
+      const select = await screen.findByLabelText("Standard-Zahlungsziel");
+      await waitFor(() => expect(select).toHaveValue("14"));
+      expect(within(select).getAllByRole("option").map((o) => o.textContent)).toEqual([
+        "Sofort", "7 Tage", "14 Tage", "30 Tage", "Anderes …",
+      ]);
+    });
+
+    it("speichert eine Auswahl und eine freie Zahl als Tage", async () => {
+      render(<EinstellungenMitAnbieter />);
+      const select = await screen.findByLabelText("Standard-Zahlungsziel");
+      const formular = select.closest("form")!;
+      fireEvent.change(select, { target: { value: "0" } });
+      fireEvent.click(within(formular).getByRole("button", { name: "Speichern" }));
+      await waitFor(() => expect(api.einstellungen.set).toHaveBeenCalledWith("beleg.zahlungsziel_tage", "0"));
+
+      fireEvent.change(select, { target: { value: "frei" } });
+      fireEvent.change(within(formular).getByLabelText("Tage"), { target: { value: "21" } });
+      fireEvent.click(within(formular).getByRole("button", { name: "Speichern" }));
+      await waitFor(() => expect(api.einstellungen.set).toHaveBeenCalledWith("beleg.zahlungsziel_tage", "21"));
+    });
+
+    it("zeigt einen gespeicherten ungewöhnlichen Wert als „Anderes“", async () => {
+      vi.mocked(api.einstellungen.get).mockImplementation((key: string) =>
+        Promise.resolve(key === "beleg.zahlungsziel_tage" ? "45" : null),
+      );
+      render(<EinstellungenMitAnbieter />);
+      const select = await screen.findByLabelText("Standard-Zahlungsziel");
+      await waitFor(() => expect(select).toHaveValue("frei"));
+      expect(within(select.closest("form")!).getByLabelText("Tage")).toHaveValue(45);
+    });
   });
 });

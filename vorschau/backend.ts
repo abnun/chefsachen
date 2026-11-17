@@ -381,6 +381,7 @@ export function backendErstellen(b: Bestand) {
     const sonder = b.kundenpreise
       .filter((p) => p.artikel_id === artikelId && p.kunde_id === kundeId)
       .filter((p) => !p.gueltig_ab || typeof belegdatum !== "string" || p.gueltig_ab <= belegdatum)
+      .filter((p) => !p.gueltig_bis || typeof belegdatum !== "string" || p.gueltig_bis >= belegdatum)
       .sort((x, y) => (y.gueltig_ab ?? "").localeCompare(x.gueltig_ab ?? ""))[0];
     return sonder ? sonder.preis_cent : a.standardpreis_cent;
   }
@@ -608,6 +609,7 @@ export function backendErstellen(b: Bestand) {
       ).map(ausgeben),
     beleg_get: (a) => belegDetail(a.id),
     beleg_create: (a) => ausgeben(belegAnlegen(a.daten as BelegNeu)),
+    beleg_positionspreise_aktualisieren: () => [],
     beleg_update: (a) => {
       const d = a.daten as BelegUpdate;
       const g = finde(b.belege, d.id);

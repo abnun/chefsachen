@@ -52,3 +52,18 @@ export function zeitpunktDeutsch(iso: string): string {
     day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit",
   });
 }
+
+/**
+ * `2026-07-01` plus 30 Tage → `2026-07-31`. Gerechnet wird mit Kalendertagen in
+ * Ortszeit, nicht mit Millisekunden: Über eine Zeitumstellung hinweg wäre ein
+ * Tag sonst 23 oder 25 Stunden lang und das Ergebnis um einen Tag verrutscht.
+ * Unlesbare Eingaben ergeben `null`.
+ */
+export function datumPlusTage(iso: string, tage: number): string | null {
+  const teile = iso.split("-").map(Number);
+  if (teile.length !== 3 || teile.some((t) => !Number.isInteger(t))) return null;
+  const [j, m, t] = teile;
+  const d = new Date(j, m - 1, t + tage);
+  if (Number.isNaN(d.getTime())) return null;
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}

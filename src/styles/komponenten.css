@@ -926,6 +926,11 @@ html[data-plattform="mac"] .einrichtung-main {
   margin: 0 0 var(--abstand-m);
 }
 
+/* Nach einer Knopfzeile braucht der Hinweis Luft nach oben. */
+.aktionen + .hinweis-absatz {
+  margin-top: var(--abstand-m);
+}
+
 .kundenpreis-leer {
   margin: 0 0 var(--abstand-m);
   color: var(--text-leise);
@@ -1737,4 +1742,114 @@ html[data-plattform="mac"] .einrichtung-main {
 .xrechnung-hilfe-liste dd {
   margin: var(--abstand-xs) 0 0;
   color: var(--text-leise);
+}
+
+/* Leiste unter den Stammdaten: Sie sagt in Worten und mit Symbol, was mit den
+   Eingaben geschieht, und trägt den Speichern-Knopf. Der Zustand steht in
+   data-zustand; farbig wird nur, was Aufmerksamkeit braucht (offen oder
+   fehlgeschlagen) oder Entwarnung gibt (gespeichert). */
+.speicherleiste {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--abstand-m);
+  margin-top: var(--abstand-l);
+  padding: var(--abstand-s) var(--abstand-m);
+  background: var(--gruppe);
+  border: 1px solid var(--rand-gruppe);
+  border-radius: var(--radius-m);
+}
+
+.speicher-status {
+  display: flex;
+  align-items: center;
+  gap: var(--abstand-s);
+  margin: 0;
+  color: var(--text-leise);
+  font-weight: 500;
+}
+
+.speicher-symbol {
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--segment-spur);
+  font-size: 12px;
+  line-height: 1;
+}
+
+/* Beim Speichern dreht sich ein Ring; sonst zeigt das Symbol nur den Stand.
+   Wer Bewegung abgeschaltet hat, bekommt statt der Drehung ein langsames
+   Pulsieren: Ein stehender Ring sähe aus wie ein Fehler oder ein Hänger. */
+.speicherleiste[data-zustand="speichert"] .speicher-symbol {
+  background: transparent;
+  border: 2px solid var(--rand-stark);
+  border-top-color: var(--akzent);
+  animation: speicher-drehen 0.8s linear infinite;
+}
+
+@keyframes speicher-drehen {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes speicher-pulsieren {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .speicherleiste[data-zustand="speichert"] .speicher-symbol {
+    animation: speicher-pulsieren 1s ease-in-out infinite;
+  }
+}
+
+.speicherleiste[data-zustand="gespeichert"] .speicher-status {
+  color: var(--erfolg-text);
+}
+
+.speicherleiste[data-zustand="gespeichert"] .speicher-symbol {
+  background: var(--st-bezahlt-bg);
+}
+
+.speicherleiste[data-zustand="wartet"] .speicher-status {
+  color: var(--warnung-text);
+}
+
+.speicherleiste[data-zustand="wartet"] .speicher-symbol {
+  background: var(--st-warnung-bg);
+}
+
+.speicherleiste[data-zustand="fehler"] {
+  background: var(--fehler-bg);
+  border-color: var(--fehler-rand);
+}
+
+.speicherleiste[data-zustand="fehler"] .speicher-status {
+  color: var(--fehler-text);
+}
+
+.speicherleiste[data-zustand="fehler"] .speicher-symbol {
+  background: var(--st-storniert-bg);
+}
+
+/* Einstellungen: Gruppenüberschrift über den Abschnitten und die Sprungleiste. */
+.einstellungen-gruppe {
+  margin: var(--abstand-xl, 32px) 0 var(--abstand-s);
+  padding-bottom: var(--abstand-xs);
+  border-bottom: 1px solid var(--rand);
+  color: var(--text-leise);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  scroll-margin-top: 64px;
+}
+
+.einstellungen-sprung {
+  margin-bottom: var(--abstand-m);
 }

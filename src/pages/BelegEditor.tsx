@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { api, type AppFehler, type Artikel, type BelegDetail, type Kunde } from "../api";
+import { api, type AppFehler, type Artikel, type BelegDetail, type Kunde, type PreisAenderung } from "../api";
+import { Hinweis } from "../components/Hinweis";
 import { Fehler } from "../components/Fehler";
 import { Laden } from "../components/Laden";
 import { StatusMarke } from "../components/StatusMarke";
@@ -10,6 +11,7 @@ import { useErfolgsHinweis } from "../hooks/useErfolgsHinweis";
 import { useBestaetigung } from "../hooks/useBestaetigung";
 import { belegExportFunktionen } from "../belegExport";
 import { formatCent } from "../geld";
+import { MINDESTDAUER_SPEICHERN_MS } from "../components/StammdatenAbschnitt";
 import { Werkzeugleiste } from "../components/Werkzeugleiste";
 import { datumDeutsch, heuteIso } from "../datum";
 
@@ -53,6 +55,14 @@ export function BelegEditor({ id, onZurueck, onGeaendert, onRechnungErstellt, on
   const [laeuft, setLaeuft] = useState(false);
   const { zeigen, hinweis } = useErfolgsHinweis();
   const { bestaetigen, dialog } = useBestaetigung();
+  // Preise, die beim Abgleich mit Datum, Kunde und Preisliste angepasst wurden.
+  // Bleibt stehen, bis man es schließt: Eine Zahl, die sich ändert, soll man
+  // nicht übersehen können.
+  const [preisAenderungen, setPreisAenderungen] = useState<PreisAenderung[]>([]);
+  // Alles, was am Entwurf gespeichert wird, zeigt sich in derselben Leiste:
+  // nicht nur die Stammdaten, sondern auch Positionen. `laufend` zählt die
+  // gerade laufenden Vorgänge, `fertig` die erfolgreich abgeschlossenen.
+  const [speichern, setSpeichern] = useState({ laufend: 0, fertig: 0 });
 
   function laden() {
     api.belege
@@ -65,6 +75,21 @@ export function BelegEditor({ id, onZurueck, onGeaendert, onRechnungErstellt, on
   }
 
   useEffect(laden, [id]);
+  useEffect(() => {
+    setPreisAenderungen([]);
+    // Beim Öffnen eines Entwurfs: Seit dem letzten Mal kann ein Sonderpreis
+    // hinzugekommen oder abgelaufen sein.
+    api.belege
+      .positionspreiseAktualisieren(id)
+      .then((a) => {
+        if (a.length > 0) {
+          setPreisAenderungen(a);
+          laden();
+        }
+      })
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]);
   useEffect(() => {
     api.kunden.list().then(setKunden).catch(() => {});
     api.artikel.list().then(setArtikelListe).catch(() => {});
@@ -80,6 +105,24 @@ export function BelegEditor({ id, onZurueck, onGeaendert, onRechnungErstellt, on
   const istRechnung = beleg.typ === "rechnung";
   const istGutschrift = beleg.typ === "gutschrift";
 
+  /**
+   * Gleicht die Preise der Positionen mit Datum, Kunde und Preisliste ab.
+   * Liefert `true`, wenn sich ein Preis geändert hat; dann steht die Meldung
+   * dazu über den Positionen.
+   */
+  async function preiseAbgleichen(): Promise<boolean> {
+    try {
+      const a = await api.belege.positionspreiseAktualisieren(id);
+      if (a.length === 0) return false;
+      setPreisAenderungen(a);
+      laden();
+      onGeaendert?.();
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   async function stammdatenSpeichern(felder: {
     kunde_id: string;
     datum: string;
@@ -92,18 +135,16 @@ export function BelegEditor({ id, onZurueck, onGeaendert, onRechnungErstellt, on
     adresse_id: string | null;
     ansprechpartner_id: string | null;
     gesamtauftragswert_cent: number | null;
-  }) {
+  }): Promise<boolean> {
     setFehler(null);
     try {
       await api.belege.update({ id: beleg.id, ...felder });
-      laden();
-      // Nicht „Angebot gespeichert": Der Knopf gehört zur Karte „Stammdaten"
-      // und speichert genau die. Der Beleg als Ganzes ist damit weder fertig
-      // noch festgeschrieben — die Positionen darunter haben ihre eigenen
-      // Knöpfe, und das Festschreiben ist ein eigener Schritt.
-      zeigen("Stammdaten gespeichert");
+      // Datum oder Kunde können einen anderen Preis bedeuten.
+      if (!(await preiseAbgleichen())) laden();
+      return true;
     } catch (e) {
       setFehler(e as AppFehler);
+      return false;
     }
   }
 
@@ -115,6 +156,9 @@ export function BelegEditor({ id, onZurueck, onGeaendert, onRechnungErstellt, on
    * Mailkonto, sie hält nur fest, dass *du* es verschickt hast.
    */
   async function stellen() {
+    // Letzter Abgleich vor dem Festschreiben. Hat sich ein Preis geändert, wird
+    // nicht gleich festgeschrieben: Die neue Summe soll man gesehen haben.
+    if (await preiseAbgleichen()) return;
     const frage = istAngebot
       ? "Angebot festschreiben? Es bekommt eine Nummer und lässt sich danach nicht mehr " +
         "ändern. Verschickt wird nichts — dafür exportierst du es als PDF und schickst es selbst."
@@ -299,10 +343,35 @@ export function BelegEditor({ id, onZurueck, onGeaendert, onRechnungErstellt, on
     }
   }
 
+  /**
+   * Führt einen Speichervorgang aus und meldet ihn der Leiste. Die Anzeige
+   * bleibt mindestens kurz stehen, auch wenn die Datenbank in Millisekunden
+   * fertig ist; der Aufrufer wartet darauf nicht.
+   */
+  async function mitAnzeige<T>(aktion: () => Promise<T>): Promise<T> {
+    const start = Date.now();
+    setSpeichern((s) => ({ ...s, laufend: s.laufend + 1 }));
+    const abschliessen = (ok: boolean) => {
+      const rest = Math.max(0, MINDESTDAUER_SPEICHERN_MS - (Date.now() - start));
+      setTimeout(
+        () => setSpeichern((s) => ({ laufend: s.laufend - 1, fertig: ok ? s.fertig + 1 : s.fertig })),
+        rest,
+      );
+    };
+    try {
+      const ergebnis = await aktion();
+      abschliessen(true);
+      return ergebnis;
+    } catch (e) {
+      abschliessen(false);
+      throw e;
+    }
+  }
+
   async function positionLoeschen(positionId: string) {
     setFehler(null);
     try {
-      await api.belege.positionDelete(positionId);
+      await mitAnzeige(() => api.belege.positionDelete(positionId));
       laden();
       zeigen("Position gelöscht");
     } catch (e) {
@@ -496,12 +565,24 @@ export function BelegEditor({ id, onZurueck, onGeaendert, onRechnungErstellt, on
           kunden={kunden}
           bearbeitbar={istEntwurf}
           onSpeichern={stammdatenSpeichern}
+          fremdSpeichert={speichern.laufend > 0}
+          fremdFertig={speichern.fertig}
         />
 
         {/* Summe und Steueraufschlüsselung stehen als Fußzeilen in der
             Positionstabelle, mit derselben rechten Kante wie die Beträge
             darüber. Die Aufschlüsselung gibt es nur bei Regelbesteuerung — bei
             Kleinunternehmer-Belegen liefert das Backend keine Steuerzeilen. */}
+        {preisAenderungen.length > 0 && (
+          <Hinweis onSchliessen={() => setPreisAenderungen([])}>
+            {preisAenderungen.length === 1 ? "Ein Preis wurde" : `${preisAenderungen.length} Preise wurden`} an Datum
+            und Kunde angepasst:{" "}
+            {preisAenderungen
+              .map((a) => `${a.bezeichnung} ${formatCent(a.alt_cent)} → ${formatCent(a.neu_cent)}`)
+              .join("; ")}
+            .
+          </Hinweis>
+        )}
         <PositionenAbschnitt
           key={`${beleg.id}-positionen`}
           belegId={beleg.id}
@@ -514,6 +595,7 @@ export function BelegEditor({ id, onZurueck, onGeaendert, onRechnungErstellt, on
           bearbeitbar={istEntwurf}
           onGeaendert={laden}
           onLoeschen={positionLoeschen}
+          mitAnzeige={mitAnzeige}
         />
 
         {((istRechnung && ["gestellt", "storniert"].includes(beleg.status)) ||
