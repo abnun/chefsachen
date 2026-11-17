@@ -7,7 +7,7 @@ auf GitHub ändert daran nichts mehr.
 
 Deshalb hier in der Sprache der Anwender, nicht in der der Commits.
 
-## 1.5.0
+## 2.0.0
 
 **Neues Erscheinungsbild**
 - Chefsachen sieht jetzt aus wie eine Mac-App: Seitenleiste mit Gruppen
@@ -43,6 +43,53 @@ Deshalb hier in der Sprache der Anwender, nicht in der der Commits.
   in der Ersteinrichtung mit dem laufenden Jahr. Beides lässt sich
   überschreiben.
 - Das Feld heißt jetzt „Firmenname" statt „Name".
+
+**Einstellungen**
+- Die Einstellungen sind in Gruppen geordnet (Unternehmen, Belege, Daten und
+  Datenschutz, Programm), mit einer Sprungleiste oben. Das Suchfeld findet
+  Abschnitte auch über Stichwörter, etwa „IBAN", „Zahlungsziel" oder „Backup".
+- Neu: Unter „Rechnungen" lässt sich ein Standard-Zahlungsziel wählen (sofort,
+  7, 14 oder 30 Tage, oder eine eigene Zahl). Es gilt für neu angelegte Kunden;
+  jeder Kunde und jeder Beleg kann davon abweichen.
+
+**Rechnungs-PDF**
+- Die kleine Absenderzeile über der Empfängeranschrift bricht nicht mehr um.
+  Ist sie zu lang für das Anschriftfenster, wird die Schrift etwas kleiner.
+
+**Kundenpreise**
+- Ein Sonderpreis kann befristet werden: „Gültig bis" nennt den letzten Tag,
+  an dem er noch gilt, etwa für einen Rabatt nur im Juli. Danach gilt wieder
+  der unbefristete Sonderpreis oder der Standardpreis. Leer heißt wie bisher
+  unbefristet.
+- Vorhandene Kundenpreise lassen sich jetzt bearbeiten (Preis und Zeitraum),
+  bisher ging nur Hinzufügen und Entfernen.
+- Beim Kunden zeigt der Reiter „Sonderpreise" die Befristung ebenfalls.
+- Im Reiter „Sonderpreise" und in der Meldung nach dem Anlegen eines Kunden
+  führt ein Link zur Artikel-Seite, wo Sonderpreise gepflegt werden.
+
+**Belege**
+- Die Stammdaten eines Entwurfs speichern sich selbst, kurz nach der letzten
+  Eingabe. Eine Leiste darunter zeigt, was gerade geschieht („Änderungen
+  werden gleich gespeichert", „Alle Änderungen gespeichert"); der
+  Auch das Hinzufügen, Ändern, Verschieben und Löschen von Positionen läuft
+  über diese Leiste. Der Speichern-Knopf bleibt für alle, die es sofort wollen.
+- Die Preise der Artikelpositionen folgen jetzt Datum, Kunde und Preisliste.
+  Datiert man ein Angebot in die Zukunft, ab der ein Kundenpreis gilt, oder
+  läuft ein befristeter Preis ab, passt sich der Preis an. Das geschieht beim
+  Öffnen, nach dem Speichern und vor dem Festschreiben. Hat sich dabei ein
+  Preis geändert, steht eine Meldung über den Positionen („Beratung 100,00 €
+  → 80,00 €"), und das Festschreiben wartet, bis du die neue Summe gesehen
+  hast. Ein von Hand gesetzter Preis bleibt, wie er ist.
+- Ändert man in einem Entwurf das Datum, zieht das Leistungsdatum mit, solange
+  es nicht bewusst davon abweicht. Bei einem Angebot rechnet sich „Gültig
+  bis" aus dem Datum und der eingestellten Frist neu. Ein von Hand gesetztes
+  Datum oder ein Leistungszeitraum bleibt unverändert.
+
+**Kunden**
+- Nach dem Anlegen bleibst du im Kunden. Eine Meldung erinnert an fehlende
+  Adressen und Ansprechpartner, solange sie fehlen.
+- Die Rolle eines Ansprechpartners lässt sich aus Vorschlägen wählen oder
+  frei eintragen.
 
 **Kleinigkeiten**
 - War die IBAN mit Leerzeichen gespeichert, standen diese auch in der
