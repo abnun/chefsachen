@@ -74,6 +74,28 @@ async function dialogBestaetigen(knopfText) {
   );
 }
 
+// Der Seitentitel steht in einer Leiste mit Auslassungspunkten: Ist daneben
+// wenig Platz, kürzt das Layout ihn, und getText() liefert nur den sichtbaren
+// Rest. Der DOM-Text ist davon unabhängig.
+async function seitentitel() {
+  const h1 = await $("h1.werkzeugleiste-titel");
+  return (await h1.getProperty("textContent")) ?? "";
+}
+
+// Wartet, bis der Seitentitel dem Muster entspricht. Scheitert es, steht der
+// zuletzt gesehene Titel in der Meldung, statt nur „öffnet sich nicht".
+async function warteAufTitel(muster, meldung) {
+  let titel = "";
+  try {
+    await browser.waitUntil(
+      async () => muster.test((titel = await seitentitel())),
+      { timeout: 20000 },
+    );
+  } catch {
+    throw new Error(`${meldung}. Titel war: "${titel}".`);
+  }
+}
+
 describe("Ein Durchgang durch die Anwendung", () => {
   it("zeigt die Ersteinrichtung statt eines leeren Fensters", async () => {
     // Ein blockiertes Skript oder ein Fehler beim ersten Aufbau ergäbe ein
@@ -297,10 +319,7 @@ describe("Ein Durchgang durch die Anwendung", () => {
     await klick("Gutschrift erstellen");
 
     // Der Editor wechselt in den neuen Gutschrift-Entwurf.
-    await browser.waitUntil(
-      async () => /Gutschrift/.test(await (await $("h1.werkzeugleiste-titel")).getText()),
-      { timeout: 20000, timeoutMsg: "Der Gutschrift-Entwurf öffnet sich nicht." },
-    );
+    await warteAufTitel(/Gutschrift/, "Der Gutschrift-Entwurf öffnet sich nicht");
     await expect(await $(".status")).toHaveText("Entwurf", { wait: 20000 });
     await expect(await $("p.beleg-bezug")).toHaveText(
       expect.stringContaining("Gutschrift zu Rechnung"),
@@ -312,10 +331,7 @@ describe("Ein Durchgang durch die Anwendung", () => {
     await klick("Festschreiben");
     await dialogBestaetigen("Festschreiben");
     await expect(await $(".status")).toHaveText("Festgeschrieben", { wait: 20000 });
-    await browser.waitUntil(
-      async () => /Gutschrift\s+GS-\d{4}-\d{4}/.test(await (await $("h1.werkzeugleiste-titel")).getText()),
-      { timeout: 20000, timeoutMsg: "Die Gutschrift bekommt keine GS-Nummer." },
-    );
+    await warteAufTitel(/Gutschrift\s+GS-\d{4}-\d{4}/, "Die Gutschrift bekommt keine GS-Nummer");
   });
 
   it("bietet PDF- und XRechnung-Export für die festgeschriebene Gutschrift an", async () => {
