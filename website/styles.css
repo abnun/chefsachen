@@ -346,6 +346,12 @@ header > p:last-of-type a:hover {
     color 0.2s ease;
 }
 
+.spenden-reihe {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--masz-2);
+}
+
 .spenden-knopf:hover {
   transform: translateY(-2px);
   background: var(--akzent);
