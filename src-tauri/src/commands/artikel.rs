@@ -49,6 +49,9 @@ pub struct Kundenpreis {
     pub kunde_id: String,
     pub preis_cent: i64,
     pub gueltig_ab: Option<String>,
+    /// Letzter Tag, an dem der Preis gilt (einschließlich); leer = unbefristet.
+    #[serde(default)]
+    pub gueltig_bis: Option<String>,
 }
 
 async fn pruefe_artikel(pool: &SqlitePool, bezeichnung: &str, standardpreis_cent: i64, einheit_id: &str, ust_satz_prozent: i64) -> AppResult<()> {
@@ -146,7 +149,7 @@ pub async fn delete(pool: &SqlitePool, id: String, kundenpreise_mitloeschen: boo
 
 pub async fn kundenpreis_liste(pool: &SqlitePool, artikel_id: String) -> AppResult<Vec<Kundenpreis>> {
     Ok(sqlx::query_as(
-        "SELECT id, artikel_id, kunde_id, preis_cent, gueltig_ab FROM kundenpreis \
+        "SELECT id, artikel_id, kunde_id, preis_cent, gueltig_ab, gueltig_bis FROM kundenpreis \
          WHERE artikel_id = ? AND deleted_at IS NULL ORDER BY gueltig_ab")
         .bind(&artikel_id).fetch_all(pool).await?)
 }
@@ -160,6 +163,7 @@ pub struct KundenpreisMitArtikel {
     pub kunde_id: String,
     pub preis_cent: i64,
     pub gueltig_ab: Option<String>,
+    pub gueltig_bis: Option<String>,
     pub artikelnummer: String,
     pub bezeichnung: String,
     /// Zum Vergleich: Was der Artikel ohne Sonderpreis kosten würde.
@@ -176,7 +180,7 @@ pub async fn kundenpreise_je_kunde(
     kunde_id: String,
 ) -> AppResult<Vec<KundenpreisMitArtikel>> {
     Ok(sqlx::query_as(
-        "SELECT kp.id, kp.artikel_id, kp.kunde_id, kp.preis_cent, kp.gueltig_ab, \
+        "SELECT kp.id, kp.artikel_id, kp.kunde_id, kp.preis_cent, kp.gueltig_ab, kp.gueltig_bis, \
                 a.artikelnummer, a.bezeichnung, a.standardpreis_cent \
          FROM kundenpreis kp JOIN artikel a ON a.id = kp.artikel_id \
          WHERE kp.kunde_id = ? AND kp.deleted_at IS NULL AND a.deleted_at IS NULL \
@@ -216,18 +220,32 @@ async fn pruefe_kundenpreis_eindeutig(
     Ok(())
 }
 
+/// Ein Ende vor dem Beginn ergäbe einen Preis, der nie gilt.
+fn pruefe_kundenpreis_zeitraum(kp: &Kundenpreis) -> AppResult<()> {
+    if let (Some(ab), Some(bis)) = (&kp.gueltig_ab, &kp.gueltig_bis) {
+        if bis < ab {
+            return Err(AppError::Validation {
+                feld: "gueltig_bis".into(),
+                meldung: "„Gültig bis“ darf nicht vor „Gültig ab“ liegen".into(),
+            });
+        }
+    }
+    Ok(())
+}
+
 pub async fn kundenpreis_speichern(pool: &SqlitePool, mut kp: Kundenpreis) -> AppResult<Kundenpreis> {
+    pruefe_kundenpreis_zeitraum(&kp)?;
     if kp.id.is_empty() {
         pruefe_kundenpreis_eindeutig(pool, &kp, None).await?;
         kp.id = Uuid::new_v4().to_string();
-        sqlx::query("INSERT INTO kundenpreis (id, artikel_id, kunde_id, preis_cent, gueltig_ab, created_at, updated_at) VALUES (?,?,?,?,?,?,?)")
+        sqlx::query("INSERT INTO kundenpreis (id, artikel_id, kunde_id, preis_cent, gueltig_ab, gueltig_bis, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?)")
             .bind(&kp.id).bind(&kp.artikel_id).bind(&kp.kunde_id).bind(kp.preis_cent)
-            .bind(&kp.gueltig_ab).bind(jetzt()).bind(jetzt())
+            .bind(&kp.gueltig_ab).bind(&kp.gueltig_bis).bind(jetzt()).bind(jetzt())
             .execute(pool).await?;
     } else {
         pruefe_kundenpreis_eindeutig(pool, &kp, Some(&kp.id)).await?;
-        let r = sqlx::query("UPDATE kundenpreis SET preis_cent=?, gueltig_ab=?, updated_at=? WHERE id=? AND deleted_at IS NULL")
-            .bind(kp.preis_cent).bind(&kp.gueltig_ab).bind(jetzt()).bind(&kp.id)
+        let r = sqlx::query("UPDATE kundenpreis SET preis_cent=?, gueltig_ab=?, gueltig_bis=?, updated_at=? WHERE id=? AND deleted_at IS NULL")
+            .bind(kp.preis_cent).bind(&kp.gueltig_ab).bind(&kp.gueltig_bis).bind(jetzt()).bind(&kp.id)
             .execute(pool).await?;
         if r.rows_affected() == 0 {
             return Err(AppError::NichtGefunden);
@@ -404,11 +422,11 @@ mod tests {
         let k = kunde(&pool, "ACME GmbH").await;
         kundenpreis_speichern(&pool, Kundenpreis {
             id: "".into(), artikel_id: a.id.clone(), kunde_id: k.clone(),
-            preis_cent: 8000, gueltig_ab: Some("2026-01-01".into()),
+            preis_cent: 8000, gueltig_ab: Some("2026-01-01".into()), gueltig_bis: None,
         }).await.unwrap();
         let err = kundenpreis_speichern(&pool, Kundenpreis {
             id: "".into(), artikel_id: a.id.clone(), kunde_id: k.clone(),
-            preis_cent: 7000, gueltig_ab: Some("2026-01-01".into()),
+            preis_cent: 7000, gueltig_ab: Some("2026-01-01".into()), gueltig_bis: None,
         }).await.unwrap_err();
         assert!(matches!(err, AppError::Validation { feld, .. } if feld == "gueltig_ab"));
     }
@@ -420,11 +438,11 @@ mod tests {
         let k = kunde(&pool, "ACME GmbH").await;
         let kp = kundenpreis_speichern(&pool, Kundenpreis {
             id: "".into(), artikel_id: a.id.clone(), kunde_id: k.clone(),
-            preis_cent: 8000, gueltig_ab: None,
+            preis_cent: 8000, gueltig_ab: None, gueltig_bis: None,
         }).await.unwrap();
         let kp2 = kundenpreis_speichern(&pool, Kundenpreis {
             id: kp.id.clone(), artikel_id: a.id.clone(), kunde_id: k.clone(),
-            preis_cent: 8500, gueltig_ab: None,
+            preis_cent: 8500, gueltig_ab: None, gueltig_bis: None,
         }).await.unwrap();
         assert_eq!(kp2.id, kp.id);
         assert_eq!(kp2.preis_cent, 8500);
@@ -441,16 +459,16 @@ mod tests {
         let k = kunde(&pool, "ACME GmbH").await;
         kundenpreis_speichern(&pool, Kundenpreis {
             id: "".into(), artikel_id: a.id.clone(), kunde_id: k.clone(),
-            preis_cent: 8000, gueltig_ab: Some("2026-01-01".into()),
+            preis_cent: 8000, gueltig_ab: Some("2026-01-01".into()), gueltig_bis: None,
         }).await.unwrap();
         let zweiter = kundenpreis_speichern(&pool, Kundenpreis {
             id: "".into(), artikel_id: a.id.clone(), kunde_id: k.clone(),
-            preis_cent: 9000, gueltig_ab: Some("2026-06-01".into()),
+            preis_cent: 9000, gueltig_ab: Some("2026-06-01".into()), gueltig_bis: None,
         }).await.unwrap();
 
         let err = kundenpreis_speichern(&pool, Kundenpreis {
             id: zweiter.id, artikel_id: a.id.clone(), kunde_id: k.clone(),
-            preis_cent: 9000, gueltig_ab: Some("2026-01-01".into()),
+            preis_cent: 9000, gueltig_ab: Some("2026-01-01".into()), gueltig_bis: None,
         }).await.unwrap_err();
 
         assert!(
@@ -466,7 +484,7 @@ mod tests {
         let k = kunde(&pool, "ACME GmbH").await;
         let err = kundenpreis_speichern(&pool, Kundenpreis {
             id: "gibt-es-nicht".into(), artikel_id: a.id, kunde_id: k,
-            preis_cent: 100, gueltig_ab: None,
+            preis_cent: 100, gueltig_ab: None, gueltig_bis: None,
         }).await.unwrap_err();
         assert!(matches!(err, AppError::NichtGefunden));
     }
@@ -479,11 +497,11 @@ mod tests {
         let k = kunde(&pool, "ACME GmbH").await;
         kundenpreis_speichern(&pool, Kundenpreis {
             id: "".into(), artikel_id: a1.id.clone(), kunde_id: k.clone(),
-            preis_cent: 8000, gueltig_ab: None,
+            preis_cent: 8000, gueltig_ab: None, gueltig_bis: None,
         }).await.unwrap();
         let kp2 = kundenpreis_speichern(&pool, Kundenpreis {
             id: "".into(), artikel_id: a1.id.clone(), kunde_id: k.clone(),
-            preis_cent: 8500, gueltig_ab: Some("2026-01-01".into()),
+            preis_cent: 8500, gueltig_ab: Some("2026-01-01".into()), gueltig_bis: None,
         }).await.unwrap();
         kundenpreis_entfernen(&pool, kp2.id).await.unwrap();
 
@@ -511,7 +529,7 @@ mod tests {
         let a = create(&pool, neu("Beratung")).await.unwrap();
         let k = kunde(&pool, "ACME GmbH").await;
         kundenpreis_speichern(&pool, Kundenpreis {
-            id: "".into(), artikel_id: a.id.clone(), kunde_id: k, preis_cent: 4000, gueltig_ab: None,
+            id: "".into(), artikel_id: a.id.clone(), kunde_id: k, preis_cent: 4000, gueltig_ab: None, gueltig_bis: None,
         }).await.unwrap();
 
         let err = delete(&pool, a.id, false).await.unwrap_err();
@@ -524,7 +542,7 @@ mod tests {
         let a = create(&pool, neu("Beratung")).await.unwrap();
         let k = kunde(&pool, "ACME GmbH").await;
         let kp = kundenpreis_speichern(&pool, Kundenpreis {
-            id: "".into(), artikel_id: a.id.clone(), kunde_id: k, preis_cent: 4000, gueltig_ab: None,
+            id: "".into(), artikel_id: a.id.clone(), kunde_id: k, preis_cent: 4000, gueltig_ab: None, gueltig_bis: None,
         }).await.unwrap();
 
         delete(&pool, a.id.clone(), true).await.unwrap();
@@ -554,7 +572,7 @@ mod tests {
         }).await.unwrap();
         kundenpreis_speichern(&pool, Kundenpreis {
             id: "".into(), artikel_id: artikel.id.clone(), kunde_id: kunde_id.clone(),
-            preis_cent: 9_000, gueltig_ab: None,
+            preis_cent: 9_000, gueltig_ab: None, gueltig_bis: None,
         }).await.unwrap();
 
         let preise = kundenpreise_je_kunde(&pool, kunde_id).await.unwrap();
@@ -581,7 +599,7 @@ mod tests {
         }).await.unwrap();
         kundenpreis_speichern(&pool, Kundenpreis {
             id: "".into(), artikel_id: artikel.id.clone(), kunde_id: kunde_id.clone(),
-            preis_cent: 500, gueltig_ab: None,
+            preis_cent: 500, gueltig_ab: None, gueltig_bis: None,
         }).await.unwrap();
         delete(&pool, artikel.id, true).await.unwrap();
 

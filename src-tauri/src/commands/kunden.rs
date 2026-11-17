@@ -430,7 +430,7 @@ mod tests {
             einheit_id: "e0000000-0000-0000-0000-000000000001".into(), standardpreis_cent: 5000, ust_satz_prozent: 19,
         }).await.unwrap().id;
         crate::commands::artikel::kundenpreis_speichern(pool, crate::commands::artikel::Kundenpreis {
-            id: "".into(), artikel_id, kunde_id: kunde_id.into(), preis_cent: 4000, gueltig_ab: None,
+            id: "".into(), artikel_id, kunde_id: kunde_id.into(), preis_cent: 4000, gueltig_ab: None, gueltig_bis: None,
         }).await.unwrap();
     }
 

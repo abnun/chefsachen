@@ -202,9 +202,17 @@
 // trotz `measure()` um genau diesen Abstand zu wenig verschoben.
 #let absenderzeile_block = block(width: 85mm, above: 0pt, below: 0pt)[
   #if ja(sys.inputs.v_absenderzeile) [
-    #text(size: 7pt)[
-      #sys.inputs.firma_name · #sys.inputs.firma_strasse · #sys.inputs.firma_plz #sys.inputs.firma_ort
-    ]
+    // Eine Zeile, nie zwei: Ein Umbruch ließe das Rücksendefeld über der
+    // Anschrift ausfranzen. Passt die Angabe bei 7 pt nicht in die 85 mm,
+    // wird die Schrift kleiner (bis 5 pt), statt umzubrechen.
+    #layout(größe => {
+      let zeile(groesse) = box(text(size: groesse)[
+        #sys.inputs.firma_name · #sys.inputs.firma_strasse · #sys.inputs.firma_plz #sys.inputs.firma_ort
+      ])
+      let breite = measure(zeile(7pt)).width
+      let groesse = if breite > größe.width { calc.max(5pt, 7pt * (größe.width / breite)) } else { 7pt }
+      zeile(groesse)
+    })
     #v(0.4cm)
   ]
 ]

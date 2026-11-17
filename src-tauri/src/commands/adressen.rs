@@ -32,7 +32,7 @@ const ZEITLIMIT: Duration = Duration::from_secs(5);
 const USER_AGENT: &str = concat!(
     "Chefsachen/",
     env!("CARGO_PKG_VERSION"),
-    " (+https://abnun.github.io/chefsachen/)"
+    " (+https://www.chef-sachen.de/)"
 );
 
 /// Rechteck um Deutschland (Länge/Breite links unten, rechts oben). Begrenzt

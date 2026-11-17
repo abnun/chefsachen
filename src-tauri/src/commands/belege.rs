@@ -420,6 +420,69 @@ pub async fn get(pool: &SqlitePool, id: String) -> AppResult<BelegDetail> {
     Ok(BelegDetail { beleg, positionen, zahlungen, bezahlt_cent, offener_betrag_cent, steuerzeilen, gutschrift_zu_nummer })
 }
 
+/// Ein Preis, der sich beim Nachführen geändert hat.
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
+pub struct PreisAenderung {
+    pub position_id: String,
+    pub bezeichnung: String,
+    pub alt_cent: i64,
+    pub neu_cent: i64,
+}
+
+/// Führt die Preise der Artikelpositionen eines Entwurfs nach und meldet, was
+/// sich geändert hat.
+///
+/// Der Preis einer Position wird beim Hinzufügen festgehalten. Änderte sich
+/// danach das Datum (ein Angebot in der Zukunft, ab der ein Kundenpreis
+/// gilt), der Kunde oder die Preisliste, bliebe die Position still auf dem
+/// alten Preis, und der Kunde bekäme einen Preis, der laut Preisliste gar nicht
+/// mehr gilt.
+///
+/// Nachgeführt werden nur Positionen, deren Preis der Preisliste folgt
+/// (`preis_manuell = 0`). Ein von Hand gesetzter Preis ist eine Entscheidung
+/// und bleibt. Freitextpositionen haben keine Preisliste.
+///
+/// Außerhalb eines Entwurfs ändert die Funktion nichts: Festgeschriebene
+/// Belege sind unveränderbar.
+pub async fn positionspreise_aktualisieren(pool: &SqlitePool, beleg_id: &str) -> AppResult<Vec<PreisAenderung>> {
+    let beleg = lade_beleg(pool, beleg_id).await?;
+    if beleg.status != "entwurf" {
+        return Ok(vec![]);
+    }
+    let positionen: Vec<(String, String, String, i64, i64)> = sqlx::query_as(
+        "SELECT id, artikel_id, bezeichnung, einzelpreis_cent, menge FROM belegposition \
+         WHERE beleg_id = ? AND artikel_id IS NOT NULL AND preis_manuell = 0 AND deleted_at IS NULL \
+         ORDER BY reihenfolge")
+        .bind(beleg_id).fetch_all(pool).await?;
+    let vorzeichen: i64 = if beleg.typ == "gutschrift" { -1 } else { 1 };
+
+    // Erst alles ermitteln, dann in einer Transaktion schreiben: Die Preisabfrage
+    // braucht eine eigene Verbindung, und die Transaktion hält eine.
+    let mut aenderungen = Vec::new();
+    for (id, artikel_id, bezeichnung, einzelpreis_cent, menge) in &positionen {
+        let neu = effektiver_preis(pool, artikel_id, &beleg.kunde_id, &beleg.datum).await?;
+        if neu != einzelpreis_cent.abs() {
+            let summe = positionssumme_cent(*menge, neu)? * vorzeichen;
+            aenderungen.push((id.clone(), bezeichnung.clone(), einzelpreis_cent.abs(), neu, summe));
+        }
+    }
+    if aenderungen.is_empty() {
+        return Ok(vec![]);
+    }
+    let mut tx = pool.begin().await?;
+    for (id, _, _, neu, summe) in &aenderungen {
+        sqlx::query("UPDATE belegposition SET einzelpreis_cent = ?, positionssumme_cent = ?, updated_at = ? WHERE id = ?")
+            .bind(neu * vorzeichen).bind(summe).bind(jetzt()).bind(id)
+            .execute(&mut *tx).await?;
+    }
+    beleg_summe_neu_berechnen(&mut tx, beleg_id).await?;
+    tx.commit().await?;
+    Ok(aenderungen
+        .into_iter()
+        .map(|(position_id, bezeichnung, alt_cent, neu_cent, _)| PreisAenderung { position_id, bezeichnung, alt_cent, neu_cent })
+        .collect())
+}
+
 pub async fn update(pool: &SqlitePool, d: BelegUpdate) -> AppResult<Beleg> {
     let beleg = lade_beleg(pool, &d.id).await?;
     pruefe_ist_entwurf(&beleg)?;
@@ -622,6 +685,7 @@ pub async fn position_speichern(pool: &SqlitePool, d: BelegpositionNeu) -> AppRe
         return Err(AppError::Validation { feld: "menge".into(), meldung: "Menge muss größer als 0 sein".into() });
     }
 
+    let mut manuell = false;
     let (bezeichnung, einheit_kuerzel, einzelpreis_cent, ust_satz_prozent) = if let Some(artikel_id) = &d.artikel_id {
         // Der Steuersatz wird wie Bezeichnung und Preis vom Artikel übernommen
         // und eingefroren: Ein späterer Satzwechsel am Artikel darf einen
@@ -631,10 +695,13 @@ pub async fn position_speichern(pool: &SqlitePool, d: BelegpositionNeu) -> AppRe
              WHERE a.id = ? AND a.deleted_at IS NULL")
             .bind(artikel_id).fetch_optional(pool).await?
             .ok_or_else(|| AppError::Validation { feld: "artikel_id".into(), meldung: "Artikel existiert nicht".into() })?;
-        let preis = match d.einzelpreis_cent {
-            Some(p) => p,
-            None => effektiver_preis(pool, artikel_id, &beleg.kunde_id, &beleg.datum).await?,
-        };
+        let listenpreis = effektiver_preis(pool, artikel_id, &beleg.kunde_id, &beleg.datum).await?;
+        let preis = d.einzelpreis_cent.unwrap_or(listenpreis);
+        // Ein Preis, der vom Listenpreis abweicht, ist eine bewusste Eingabe
+        // und wird nicht nachgeführt. Entspricht er dem Listenpreis, folgt er
+        // ihm weiter. So bleibt „Bearbeiten" einer Position ohne Wirkung auf
+        // die Frage, ob ihr Preis von Hand stammt.
+        manuell = preis.abs() != listenpreis;
         (artikel.0, artikel.1, preis, artikel.2)
     } else {
         let preis = d.einzelpreis_cent.ok_or_else(|| AppError::Validation {
@@ -673,10 +740,10 @@ pub async fn position_speichern(pool: &SqlitePool, d: BelegpositionNeu) -> AppRe
             bezeichnung, einheit_kuerzel, einzelpreis_cent, menge: d.menge,
             positionssumme_cent: summe, ust_satz_prozent, reihenfolge,
         };
-        sqlx::query("INSERT INTO belegposition (id, beleg_id, artikel_id, bezeichnung, einheit_kuerzel, einzelpreis_cent, menge, positionssumme_cent, ust_satz_prozent, reihenfolge, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)")
+        sqlx::query("INSERT INTO belegposition (id, beleg_id, artikel_id, bezeichnung, einheit_kuerzel, einzelpreis_cent, menge, positionssumme_cent, ust_satz_prozent, reihenfolge, preis_manuell, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)")
             .bind(&pos.id).bind(&pos.beleg_id).bind(&pos.artikel_id).bind(&pos.bezeichnung)
             .bind(&pos.einheit_kuerzel).bind(pos.einzelpreis_cent).bind(pos.menge)
-            .bind(pos.positionssumme_cent).bind(pos.ust_satz_prozent).bind(pos.reihenfolge).bind(jetzt()).bind(jetzt())
+            .bind(pos.positionssumme_cent).bind(pos.ust_satz_prozent).bind(pos.reihenfolge).bind(manuell).bind(jetzt()).bind(jetzt())
             .execute(&mut *tx).await?;
         pos
     } else {
@@ -688,9 +755,9 @@ pub async fn position_speichern(pool: &SqlitePool, d: BelegpositionNeu) -> AppRe
         // unveränderter Summe.
         let bestehende: (i64,) = sqlx::query_as("SELECT reihenfolge FROM belegposition WHERE id = ? AND beleg_id = ? AND deleted_at IS NULL")
             .bind(&d.id).bind(&d.beleg_id).fetch_optional(&mut *tx).await?.ok_or(AppError::NichtGefunden)?;
-        sqlx::query("UPDATE belegposition SET artikel_id=?, bezeichnung=?, einheit_kuerzel=?, einzelpreis_cent=?, menge=?, positionssumme_cent=?, ust_satz_prozent=?, updated_at=? WHERE id=?")
+        sqlx::query("UPDATE belegposition SET artikel_id=?, bezeichnung=?, einheit_kuerzel=?, einzelpreis_cent=?, menge=?, positionssumme_cent=?, ust_satz_prozent=?, preis_manuell=?, updated_at=? WHERE id=?")
             .bind(&d.artikel_id).bind(&bezeichnung).bind(&einheit_kuerzel).bind(einzelpreis_cent)
-            .bind(d.menge).bind(summe).bind(ust_satz_prozent).bind(jetzt()).bind(&d.id)
+            .bind(d.menge).bind(summe).bind(ust_satz_prozent).bind(manuell).bind(jetzt()).bind(&d.id)
             .execute(&mut *tx).await?;
         Belegposition {
             id: d.id.clone(), beleg_id: d.beleg_id.clone(), artikel_id: d.artikel_id.clone(),
@@ -851,6 +918,12 @@ pub async fn stellen(pool: &SqlitePool, id: String) -> AppResult<Beleg> {
     if anzahl_positionen.0 == 0 {
         return Err(AppError::Validation { feld: "positionen".into(), meldung: "Beleg benötigt mindestens eine Position".into() });
     }
+    // Letzte Gelegenheit, die Preise an Datum, Kunde und Preisliste anzupassen.
+    // Die Oberfläche fragt vorher selbst nach und zeigt die Änderungen an; das
+    // hier fängt jeden anderen Weg ab, auf dem ein veralteter Preis festgeschrieben
+    // würde. Danach mit dem frischen Stand weiterarbeiten.
+    positionspreise_aktualisieren(pool, &id).await?;
+    let beleg = lade_beleg(pool, &id).await?;
     // Zwischen dem Setzen des Gesamt-Auftragswerts (per update()) und dem
     // Stellen können Positionen hinzugekommen sein, die summe_cent über den
     // damals geprüften Wert heben. stellen() ist die letzte Gelegenheit, das
@@ -1009,7 +1082,7 @@ pub async fn angebot_ueberfuehren(pool: &SqlitePool, angebot_id: String) -> AppR
         &format!("SELECT {BELEGPOSITION_SPALTEN} FROM belegposition WHERE beleg_id = ? AND deleted_at IS NULL ORDER BY reihenfolge"))
         .bind(&angebot_id).fetch_all(&mut *tx).await?;
     for pos in positionen {
-        sqlx::query("INSERT INTO belegposition (id, beleg_id, artikel_id, bezeichnung, einheit_kuerzel, einzelpreis_cent, menge, positionssumme_cent, ust_satz_prozent, reihenfolge, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)")
+        sqlx::query("INSERT INTO belegposition (id, beleg_id, artikel_id, bezeichnung, einheit_kuerzel, einzelpreis_cent, menge, positionssumme_cent, ust_satz_prozent, reihenfolge, preis_manuell, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,1,?,?)")
             .bind(Uuid::new_v4().to_string()).bind(&rechnung.id).bind(&pos.artikel_id).bind(&pos.bezeichnung)
             .bind(&pos.einheit_kuerzel).bind(pos.einzelpreis_cent).bind(pos.menge)
             .bind(pos.positionssumme_cent).bind(pos.ust_satz_prozent).bind(pos.reihenfolge).bind(jetzt()).bind(jetzt())
@@ -1080,7 +1153,7 @@ pub async fn storniere_rechnung(pool: &SqlitePool, id: String) -> AppResult<Bele
         .bind(&id).fetch_all(&mut *tx).await?;
     for pos in positionen {
         // Der Steuersatz bleibt unnegiert: negativ ist der Betrag, nicht der Satz.
-        sqlx::query("INSERT INTO belegposition (id, beleg_id, artikel_id, bezeichnung, einheit_kuerzel, einzelpreis_cent, menge, positionssumme_cent, ust_satz_prozent, reihenfolge, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)")
+        sqlx::query("INSERT INTO belegposition (id, beleg_id, artikel_id, bezeichnung, einheit_kuerzel, einzelpreis_cent, menge, positionssumme_cent, ust_satz_prozent, reihenfolge, preis_manuell, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,1,?,?)")
             .bind(Uuid::new_v4().to_string()).bind(&storno.id).bind(&pos.artikel_id).bind(&pos.bezeichnung)
             .bind(&pos.einheit_kuerzel).bind(-pos.einzelpreis_cent).bind(pos.menge)
             .bind(-pos.positionssumme_cent).bind(pos.ust_satz_prozent).bind(pos.reihenfolge).bind(jetzt()).bind(jetzt())
@@ -1161,7 +1234,7 @@ pub async fn gutschrift_aus_rechnung(pool: &SqlitePool, rechnung_id: String) -> 
 
     for pos in &positionen {
         // Der Steuersatz bleibt unnegiert: negativ ist der Betrag, nicht der Satz.
-        sqlx::query("INSERT INTO belegposition (id, beleg_id, artikel_id, bezeichnung, einheit_kuerzel, einzelpreis_cent, menge, positionssumme_cent, ust_satz_prozent, reihenfolge, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)")
+        sqlx::query("INSERT INTO belegposition (id, beleg_id, artikel_id, bezeichnung, einheit_kuerzel, einzelpreis_cent, menge, positionssumme_cent, ust_satz_prozent, reihenfolge, preis_manuell, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,1,?,?)")
             .bind(Uuid::new_v4().to_string()).bind(&id).bind(&pos.artikel_id).bind(&pos.bezeichnung)
             .bind(&pos.einheit_kuerzel).bind(-pos.einzelpreis_cent.abs()).bind(pos.menge)
             .bind(-pos.positionssumme_cent.abs()).bind(pos.ust_satz_prozent).bind(pos.reihenfolge)
@@ -1290,6 +1363,10 @@ pub async fn beleg_get(pool: tauri::State<'_, SqlitePool>, id: String) -> AppRes
 #[tauri::command]
 pub async fn beleg_create(pool: tauri::State<'_, SqlitePool>, daten: BelegNeu) -> AppResult<Beleg> {
     create(&pool, daten).await
+}
+#[tauri::command]
+pub async fn beleg_positionspreise_aktualisieren(pool: tauri::State<'_, SqlitePool>, beleg_id: String) -> AppResult<Vec<PreisAenderung>> {
+    positionspreise_aktualisieren(&pool, &beleg_id).await
 }
 #[tauri::command]
 pub async fn beleg_update(pool: tauri::State<'_, SqlitePool>, daten: BelegUpdate) -> AppResult<Beleg> {
@@ -3495,5 +3572,214 @@ mod tests {
 
         let geladen = get(&pool, gestellt.id).await.unwrap();
         assert_eq!(geladen.beleg.kunde_snapshot_name, Some("ACME GmbH".to_string()));
+    }
+
+    // --- Preise folgen Datum und Kunde -------------------------------------
+
+    fn update_mit(beleg: &Beleg, kunde_id: &str, datum: &str) -> BelegUpdate {
+        BelegUpdate {
+            id: beleg.id.clone(), kunde_id: kunde_id.into(), datum: datum.into(),
+            leistungsdatum: datum.into(), leistungsdatum_bis: None, gueltig_bis: None,
+            zahlungsziel_tage: 14, kopftext: "".into(), fusstext: "".into(),
+            adresse_id: None, ansprechpartner_id: None, gesamtauftragswert_cent: None,
+        }
+    }
+
+    async fn sonderpreis(pool: &sqlx::SqlitePool, artikel: &str, kunde: &str, cent: i64, ab: &str, bis: Option<&str>) {
+        crate::commands::artikel::kundenpreis_speichern(pool, crate::commands::artikel::Kundenpreis {
+            id: "".into(), artikel_id: artikel.into(), kunde_id: kunde.into(), preis_cent: cent,
+            gueltig_ab: Some(ab.into()), gueltig_bis: bis.map(String::from),
+        }).await.unwrap();
+    }
+
+    async fn artikelposition(pool: &sqlx::SqlitePool, beleg: &str, artikel: &str, preis: Option<i64>) -> Belegposition {
+        position_speichern(pool, BelegpositionNeu {
+            id: "".into(), beleg_id: beleg.into(), artikel_id: Some(artikel.into()),
+            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: preis, menge: 2000, ust_satz_prozent: None,
+        }).await.unwrap()
+    }
+
+    async fn positionen_von(pool: &sqlx::SqlitePool, beleg: &str) -> Vec<Belegposition> {
+        get(pool, beleg.into()).await.unwrap().positionen
+    }
+
+    /// Ein Angebot in die Zukunft datiert, ab der ein Sonderpreis gilt: Der
+    /// Preis der Position muss mitwandern.
+    #[tokio::test]
+    async fn datum_in_die_zukunft_zieht_den_ab_dann_geltenden_kundenpreis_nach() {
+        let (_d, pool) = test_pool().await;
+        let kunde = kunde_anlegen(&pool).await;
+        let artikel = artikel_anlegen(&pool, 10000).await;
+        sonderpreis(&pool, &artikel, &kunde, 8000, "2026-09-01", None).await;
+        let angebot = create(&pool, beleg_neu("angebot", &kunde)).await.unwrap();
+        let pos = artikelposition(&pool, &angebot.id, &artikel, None).await;
+        assert_eq!(pos.einzelpreis_cent, 10000);
+
+        update(&pool, update_mit(&angebot, &kunde, "2026-09-15")).await.unwrap();
+        positionspreise_aktualisieren(&pool, &angebot.id).await.unwrap();
+
+        let danach = positionen_von(&pool, &angebot.id).await;
+        assert_eq!(danach[0].einzelpreis_cent, 8000);
+        assert_eq!(danach[0].positionssumme_cent, 16000);
+        assert_eq!(get(&pool, angebot.id.clone()).await.unwrap().beleg.summe_cent, 16000);
+    }
+
+    #[tokio::test]
+    async fn datum_zurueck_vor_den_kundenpreis_stellt_den_standardpreis_wieder_her() {
+        let (_d, pool) = test_pool().await;
+        let kunde = kunde_anlegen(&pool).await;
+        let artikel = artikel_anlegen(&pool, 10000).await;
+        sonderpreis(&pool, &artikel, &kunde, 8000, "2026-09-01", None).await;
+        let mut neu = beleg_neu("angebot", &kunde);
+        neu.datum = "2026-09-15".into();
+        neu.leistungsdatum = "2026-09-15".into();
+        let angebot = create(&pool, neu).await.unwrap();
+        assert_eq!(artikelposition(&pool, &angebot.id, &artikel, None).await.einzelpreis_cent, 8000);
+
+        update(&pool, update_mit(&angebot, &kunde, "2026-08-01")).await.unwrap();
+        positionspreise_aktualisieren(&pool, &angebot.id).await.unwrap();
+
+        assert_eq!(positionen_von(&pool, &angebot.id).await[0].einzelpreis_cent, 10000);
+    }
+
+    #[tokio::test]
+    async fn ein_befristeter_preis_endet_mit_dem_datum() {
+        let (_d, pool) = test_pool().await;
+        let kunde = kunde_anlegen(&pool).await;
+        let artikel = artikel_anlegen(&pool, 10000).await;
+        sonderpreis(&pool, &artikel, &kunde, 8000, "2026-07-01", Some("2026-07-31")).await;
+        let angebot = create(&pool, beleg_neu("angebot", &kunde)).await.unwrap();
+        assert_eq!(artikelposition(&pool, &angebot.id, &artikel, None).await.einzelpreis_cent, 8000);
+
+        update(&pool, update_mit(&angebot, &kunde, "2026-08-01")).await.unwrap();
+        positionspreise_aktualisieren(&pool, &angebot.id).await.unwrap();
+
+        assert_eq!(positionen_von(&pool, &angebot.id).await[0].einzelpreis_cent, 10000);
+    }
+
+    /// Ein Preis, den jemand von Hand gesetzt hat, ist eine Entscheidung und
+    /// darf sich nicht still ändern.
+    #[tokio::test]
+    async fn von_hand_ueberschriebener_preis_bleibt() {
+        let (_d, pool) = test_pool().await;
+        let kunde = kunde_anlegen(&pool).await;
+        let artikel = artikel_anlegen(&pool, 10000).await;
+        sonderpreis(&pool, &artikel, &kunde, 8000, "2026-09-01", None).await;
+        let angebot = create(&pool, beleg_neu("angebot", &kunde)).await.unwrap();
+        artikelposition(&pool, &angebot.id, &artikel, Some(9100)).await;
+
+        update(&pool, update_mit(&angebot, &kunde, "2026-09-15")).await.unwrap();
+        positionspreise_aktualisieren(&pool, &angebot.id).await.unwrap();
+
+        assert_eq!(positionen_von(&pool, &angebot.id).await[0].einzelpreis_cent, 9100);
+    }
+
+    #[tokio::test]
+    async fn freitextpositionen_bleiben_unberuehrt() {
+        let (_d, pool) = test_pool().await;
+        let kunde = kunde_anlegen(&pool).await;
+        let angebot = create(&pool, beleg_neu("angebot", &kunde)).await.unwrap();
+        position_speichern(&pool, BelegpositionNeu {
+            id: "".into(), beleg_id: angebot.id.clone(), artikel_id: None,
+            bezeichnung: "Sonderleistung".into(), einheit_kuerzel: "Std.".into(),
+            einzelpreis_cent: Some(5000), menge: 1000, ust_satz_prozent: Some(19),
+        }).await.unwrap();
+
+        update(&pool, update_mit(&angebot, &kunde, "2026-09-15")).await.unwrap();
+        positionspreise_aktualisieren(&pool, &angebot.id).await.unwrap();
+
+        assert_eq!(positionen_von(&pool, &angebot.id).await[0].einzelpreis_cent, 5000);
+    }
+
+    #[tokio::test]
+    async fn kundenwechsel_zieht_den_preis_des_neuen_kunden_nach() {
+        let (_d, pool) = test_pool().await;
+        let kunde_a = kunde_anlegen(&pool).await;
+        let kunde_b = kunde_anlegen(&pool).await;
+        let artikel = artikel_anlegen(&pool, 10000).await;
+        sonderpreis(&pool, &artikel, &kunde_b, 7000, "2026-01-01", None).await;
+        let angebot = create(&pool, beleg_neu("angebot", &kunde_a)).await.unwrap();
+        assert_eq!(artikelposition(&pool, &angebot.id, &artikel, None).await.einzelpreis_cent, 10000);
+
+        update(&pool, update_mit(&angebot, &kunde_b, &angebot.datum)).await.unwrap();
+        positionspreise_aktualisieren(&pool, &angebot.id).await.unwrap();
+
+        assert_eq!(positionen_von(&pool, &angebot.id).await[0].einzelpreis_cent, 7000);
+    }
+
+    /// Wird nachträglich ein Sonderpreis hinterlegt, zieht der Entwurf ihn nach,
+    /// und die Änderung wird gemeldet.
+    #[tokio::test]
+    async fn aktualisieren_meldet_geaenderte_preise_mit_alt_und_neu() {
+        let (_d, pool) = test_pool().await;
+        let kunde = kunde_anlegen(&pool).await;
+        let artikel = artikel_anlegen(&pool, 10000).await;
+        let angebot = create(&pool, beleg_neu("angebot", &kunde)).await.unwrap();
+        let pos = artikelposition(&pool, &angebot.id, &artikel, None).await;
+        assert!(positionspreise_aktualisieren(&pool, &angebot.id).await.unwrap().is_empty());
+
+        sonderpreis(&pool, &artikel, &kunde, 8000, "2026-01-01", None).await;
+        let meldung = positionspreise_aktualisieren(&pool, &angebot.id).await.unwrap();
+
+        assert_eq!(meldung, vec![PreisAenderung {
+            position_id: pos.id, bezeichnung: "Beratung".into(), alt_cent: 10000, neu_cent: 8000,
+        }]);
+        // Ein zweiter Lauf findet nichts mehr.
+        assert!(positionspreise_aktualisieren(&pool, &angebot.id).await.unwrap().is_empty());
+    }
+
+    /// Bearbeitet man eine Position und lässt den Preis stehen, wie er ist,
+    /// gilt er nicht plötzlich als von Hand gesetzt.
+    #[tokio::test]
+    async fn bearbeiten_mit_unveraendertem_listenpreis_bleibt_nachfuehrbar() {
+        let (_d, pool) = test_pool().await;
+        let kunde = kunde_anlegen(&pool).await;
+        let artikel = artikel_anlegen(&pool, 10000).await;
+        let angebot = create(&pool, beleg_neu("angebot", &kunde)).await.unwrap();
+        let pos = artikelposition(&pool, &angebot.id, &artikel, None).await;
+        position_speichern(&pool, BelegpositionNeu {
+            id: pos.id.clone(), beleg_id: angebot.id.clone(), artikel_id: Some(artikel.clone()),
+            bezeichnung: "".into(), einheit_kuerzel: "".into(), einzelpreis_cent: Some(10000),
+            menge: 3000, ust_satz_prozent: None,
+        }).await.unwrap();
+
+        sonderpreis(&pool, &artikel, &kunde, 8000, "2026-01-01", None).await;
+        positionspreise_aktualisieren(&pool, &angebot.id).await.unwrap();
+
+        let danach = positionen_von(&pool, &angebot.id).await;
+        assert_eq!(danach[0].einzelpreis_cent, 8000);
+        assert_eq!(danach[0].positionssumme_cent, 24000);
+    }
+
+    #[tokio::test]
+    async fn festgeschriebene_belege_werden_nicht_nachgefuehrt() {
+        let (_d, pool) = test_pool().await;
+        let kunde = kunde_anlegen(&pool).await;
+        let artikel = artikel_anlegen(&pool, 10000).await;
+        let angebot = create(&pool, beleg_neu("angebot", &kunde)).await.unwrap();
+        artikelposition(&pool, &angebot.id, &artikel, None).await;
+        stellen(&pool, angebot.id.clone()).await.unwrap();
+
+        sonderpreis(&pool, &artikel, &kunde, 8000, "2026-01-01", None).await;
+
+        assert!(positionspreise_aktualisieren(&pool, &angebot.id).await.unwrap().is_empty());
+        assert_eq!(positionen_von(&pool, &angebot.id).await[0].einzelpreis_cent, 10000);
+    }
+
+    /// Letzte Gelegenheit: Auch wenn niemand vorher nachgeführt hat, wird beim
+    /// Festschreiben der geltende Preis eingefroren.
+    #[tokio::test]
+    async fn festschreiben_friert_den_aktuellen_listenpreis_ein() {
+        let (_d, pool) = test_pool().await;
+        let kunde = kunde_anlegen(&pool).await;
+        let artikel = artikel_anlegen(&pool, 10000).await;
+        let angebot = create(&pool, beleg_neu("angebot", &kunde)).await.unwrap();
+        artikelposition(&pool, &angebot.id, &artikel, None).await;
+        sonderpreis(&pool, &artikel, &kunde, 8000, "2026-01-01", None).await;
+
+        let gestellt = stellen(&pool, angebot.id.clone()).await.unwrap();
+
+        assert_eq!(positionen_von(&pool, &angebot.id).await[0].einzelpreis_cent, 8000);
+        assert_eq!(gestellt.summe_cent, 16000);
     }
 }

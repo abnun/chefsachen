@@ -747,6 +747,44 @@ pub(crate) mod tests {
         );
     }
 
+    /// Die Absenderzeile steht in einer Zeile, auch wenn Firmenname und
+    /// Anschrift lang sind: Die Schrift wird kleiner, statt umzubrechen. Ein
+    /// Umbruch ließe eine zweite Zeile über dem Empfänger stehen und schöbe ihn
+    /// aus dem Fenster des Umschlags.
+    #[test]
+    fn lange_absenderzeile_bricht_nicht_um() {
+        const MM: f32 = 72.0 / 25.4;
+        const SEITENHOEHE: f32 = 297.0 * MM;
+        const SEITENBREITE: f32 = 210.0 * MM;
+        let vorlage = crate::dokument::vorlage::Vorlage { absenderzeile: true, ..Default::default() };
+
+        let hoehen = |kontext: &crate::dokument::kontext::BelegKontext| {
+            let positionen = textpositionen(&rendern(kontext, None, &vorlage).unwrap());
+            let mut ys: Vec<f32> = positionen
+                .iter()
+                .filter(|(x, _)| *x < SEITENBREITE / 2.0)
+                .map(|(_, y)| (SEITENHOEHE - y) / MM)
+                .filter(|y| *y < 75.0)
+                .collect();
+            ys.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            ys.dedup_by(|a, b| (*a - *b).abs() < 0.5);
+            ys
+        };
+
+        let kurz = test_kontext();
+        let mut lang = test_kontext();
+        lang.firma.name = "Markus Müller - Softwarelösungen und Beratung für Mittelstand".into();
+        lang.firma.strasse = "Paul-Göbel-Straße 1".into();
+
+        assert_eq!(
+            hoehen(&lang).len(),
+            hoehen(&kurz).len(),
+            "die lange Absenderzeile hat eine zusätzliche Zeile erzeugt: {:?} gegenüber {:?}",
+            hoehen(&lang),
+            hoehen(&kurz),
+        );
+    }
+
     /// Vor dem Umbau stand die eigene Anschrift zweimal auf dem Beleg (oben
     /// neben dem Logo und unten im Fuß). Der ganze Witz des Umbaus ist, dass
     /// sie jetzt nur noch einmal steht.

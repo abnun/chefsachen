@@ -158,6 +158,7 @@ fn mit_befehlen<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri::Builder
             commands::belege::beleg_get,
             commands::belege::beleg_create,
             commands::belege::beleg_update,
+            commands::belege::beleg_positionspreise_aktualisieren,
             commands::belege::beleg_delete,
             commands::belege::beleg_duplizieren,
             commands::belege::belegposition_save,
