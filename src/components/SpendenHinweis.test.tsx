@@ -7,7 +7,7 @@ vi.mock("../api", () => ({
 }));
 
 import { api } from "../api";
-import { PAYPAL_LINK, SpendenHinweis } from "./SpendenHinweis";
+import { BUY_ME_A_COFFEE_LINK, PAYPAL_LINK, SpendenHinweis } from "./SpendenHinweis";
 
 beforeEach(() => {
   vi.mocked(api.einstellungen.get).mockReset();
@@ -30,6 +30,10 @@ describe("SpendenHinweis", () => {
     expect(screen.getByRole("link", { name: /PayPal unterstützen/ })).toHaveAttribute(
       "href",
       PAYPAL_LINK,
+    );
+    expect(screen.getByRole("link", { name: /Buy Me a Coffee unterstützen/ })).toHaveAttribute(
+      "href",
+      BUY_ME_A_COFFEE_LINK,
     );
   });
 

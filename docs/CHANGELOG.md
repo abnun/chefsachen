@@ -15,6 +15,11 @@ Deshalb hier in der Sprache der Anwender, nicht in der der Commits.
   mehr in eine hohe Spalte neben dem Titel um. Sie steht als eigene Zeile unter dem
   Titel, die Leiste ist bei 900 Pixel Breite rund ein Viertel niedriger.
 
+**Unterstützen**
+
+- Neben PayPal gibt es jetzt auch Buy Me a Coffee, in der Erinnerung und unter
+  Einstellungen, Programm. Beides erscheint nur in der Fassung von GitHub.
+
 ## 2.0.0
 
 **Neues Erscheinungsbild**

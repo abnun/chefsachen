@@ -570,6 +570,7 @@ describe("Einstellungen", () => {
     );
     expect(await screen.findByRole("button", { name: "Nach Aktualisierung suchen" })).toBeTruthy();
     expect(screen.getByRole("link", { name: /PayPal unterstützen/ })).toBeTruthy();
+    expect(screen.getByRole("link", { name: /Buy Me a Coffee unterstützen/ })).toBeTruthy();
   });
 
   it("blendet in der Store-Fassung Aktualisierungssuche und Spendenabschnitt aus", async () => {
@@ -585,6 +586,7 @@ describe("Einstellungen", () => {
     expect(screen.queryByRole("button", { name: "Nach Aktualisierung suchen" })).toBeNull();
     expect(screen.queryByText(/beim Programmstart nach einer Aktualisierung/i)).toBeNull();
     expect(screen.queryByRole("link", { name: /PayPal/ })).toBeNull();
+    expect(screen.queryByRole("link", { name: /Buy Me a Coffee/ })).toBeNull();
     // Versionsanzeige und Protokoll bleiben: Sie braucht jede Fehlersuche.
     expect(screen.getByText("Installiert: Version 0.1.0")).toBeTruthy();
     expect(screen.getByText("/p/protokoll.log")).toBeTruthy();

@@ -9,6 +9,7 @@ const SCHLUESSEL_NAECHSTE_ERINNERUNG = "spende.naechste_erinnerung";
 // "/5" ist nur ein Vorschlag: paypal.me füllt den Betrag damit vor, der
 // Zahlende kann ihn vor dem Absenden trotzdem ändern.
 export const PAYPAL_LINK = "https://paypal.me/markusmueller1981/5";
+export const BUY_ME_A_COFFEE_LINK = "https://buymeacoffee.com/abnun";
 
 /** Vier bis sechs Wochen ab jetzt, als ISO-Datum. */
 function neuerTermin(): string {
@@ -83,10 +84,19 @@ export function SpendenHinweis() {
             href={PAYPAL_LINK}
             target="_blank"
             rel="noopener noreferrer"
-            className="btn btn-primaer"
+            className="btn"
             onClick={schliessen}
           >
             Über PayPal unterstützen
+          </a>
+          <a
+            href={BUY_ME_A_COFFEE_LINK}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="btn btn-primaer"
+            onClick={schliessen}
+          >
+            Über Buy Me a Coffee unterstützen
           </a>
         </>
       }

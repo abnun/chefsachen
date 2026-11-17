@@ -27,7 +27,7 @@ import { useBestaetigung } from "../hooks/useBestaetigung";
 import { useUngespeichert } from "../hooks/useUngespeichert";
 import { Aktualisierung } from "../components/Aktualisierung";
 import { Belegvorlage } from "../components/Belegvorlage";
-import { PAYPAL_LINK } from "../components/SpendenHinweis";
+import { BUY_ME_A_COFFEE_LINK, PAYPAL_LINK } from "../components/SpendenHinweis";
 import { zeitpunktDeutsch } from "../datum";
 import { type FuehrungsSchritt } from "../components/Fuehrung";
 import { Werkzeugleiste } from "../components/Werkzeugleiste";
@@ -205,7 +205,7 @@ export function Einstellungen() {
     },
     {
       id: "unterstuetzen", gruppe: "Programm", titel: "Unterstützen",
-      stichwoerter: "spende paypal unterstuetzen",
+      stichwoerter: "spende paypal buy me a coffee kaffee unterstuetzen",
       inhalt: <SpendenAbschnitt />,
     },
   ];
@@ -415,9 +415,14 @@ function SpendenAbschnitt() {
           Eine freiwillige Zuwendung ohne Gegenleistung — keine Spende im steuerlichen Sinn, nicht
           absetzbar, und ohne Einfluss auf den Funktionsumfang.
         </p>
-        <a href={PAYPAL_LINK} target="_blank" rel="noopener noreferrer" className="btn">
-          Über PayPal unterstützen
-        </a>
+        <div className="aktionen">
+          <a href={BUY_ME_A_COFFEE_LINK} target="_blank" rel="noopener noreferrer" className="btn">
+            Über Buy Me a Coffee unterstützen
+          </a>
+          <a href={PAYPAL_LINK} target="_blank" rel="noopener noreferrer" className="btn">
+            Über PayPal unterstützen
+          </a>
+        </div>
       </div>
     </section>
   );
