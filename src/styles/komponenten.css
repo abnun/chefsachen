@@ -360,8 +360,12 @@ label.feld textarea {
   top: 0;
   z-index: 10;
   display: flex;
+  /* Passen die Aktionen nicht neben den Titel, rutschen sie als eine Zeile
+     darunter, statt sich in einer schmalen Spalte rechts zu stapeln. Bei 900 px
+     war die Leiste mit vier Knöpfen sonst 153 px hoch. */
+  flex-wrap: wrap;
   align-items: center;
-  gap: var(--abstand-s);
+  gap: var(--abstand-xs) var(--abstand-s);
   min-height: var(--leiste-hoehe);
   margin: 0 calc(-1 * var(--abstand-xl)) var(--abstand-m);
   padding: var(--abstand-s) var(--abstand-xl);
@@ -388,7 +392,10 @@ label.feld textarea {
   align-items: center;
   justify-content: flex-end;
   gap: var(--abstand-s);
-  flex: 1;
+  /* Basis auto statt 0: Der Block meldet seine volle Breite an, und die Leiste
+     bricht ihn erst dann in eine eigene Zeile um, wenn er nicht mehr neben den
+     Titel passt. */
+  flex: 1 1 auto;
   min-width: 0;
 }
 

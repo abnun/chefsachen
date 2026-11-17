@@ -7,6 +7,14 @@ auf GitHub ändert daran nichts mehr.
 
 Deshalb hier in der Sprache der Anwender, nicht in der der Commits.
 
+## 2.0.1
+
+**Belege**
+
+- In schmalen Fenstern bricht die Knopfreihe über einer gestellten Rechnung nicht
+  mehr in eine hohe Spalte neben dem Titel um. Sie steht als eigene Zeile unter dem
+  Titel, die Leiste ist bei 900 Pixel Breite rund ein Viertel niedriger.
+
 ## 2.0.0
 
 **Neues Erscheinungsbild**
