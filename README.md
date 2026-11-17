@@ -1,6 +1,6 @@
 # Chefsachen
 
-[Website](https://abnun.github.io/chefsachen/)
+[Website](https://www.chef-sachen.de/)
 
 Eine Desktop-Anwendung für die Rechnungsstellung von Kleinunternehmern nach
 § 19 UStG ebenso wie von regelbesteuerten Selbstständigen und kleinen

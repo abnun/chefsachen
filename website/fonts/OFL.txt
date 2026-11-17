@@ -1,7 +1,9 @@
 Diese Seite verwendet zwei Schriften. Beide stehen unter der unten
 wiedergegebenen SIL Open Font License, Version 1.1:
 
-Copyright (c) 2016 The Inter Project Authors (https://github.com/rsms/inter)
+Copyright 2010-2024 Adobe (http://www.adobe.com/), with Reserved Font Name
+'Source'. Source Sans is a trademark of Adobe in the United States and/or
+other countries.
 
 Copyright 2014-2023 Adobe (http://www.adobe.com/), with Reserved Font Name
 'Source'. Source Serif is a trademark of Adobe in the United States and/or

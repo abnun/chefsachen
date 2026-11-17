@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://abnun.github.io/chefsachen/sitemap.xml
+Sitemap: https://www.chef-sachen.de/sitemap.xml

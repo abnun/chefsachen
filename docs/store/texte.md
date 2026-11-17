@@ -77,9 +77,9 @@ Hell- und Dunkelmodus. Wer Chefsachen schon nutzt, holt seine Daten über
 
 ## Adressen
 
-- Support: https://abnun.github.io/chefsachen/
-- Datenschutzrichtlinie: https://abnun.github.io/chefsachen/datenschutz.html
-- Marketing: https://abnun.github.io/chefsachen/
+- Support: https://www.chef-sachen.de/
+- Datenschutzrichtlinie: https://www.chef-sachen.de/datenschutz.html
+- Marketing: https://www.chef-sachen.de/
 
 ## Kategorie
 

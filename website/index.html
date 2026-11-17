@@ -2,47 +2,69 @@
 <html lang="de">
 <head>
   <meta charset="UTF-8" />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-HJnx5rmodHXWCKEnnCZmxjv5RzBbqoWAeSxpQu/tgL0='; style-src 'self'; font-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none'" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-B2dfZ2Hba+abbqlpPhCgThZE7HVUPp49Ym4lRQluUTU='; style-src 'self'; font-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none'" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Chefsachen: Rechnungen für Kleinunternehmer und Regelbesteuerte</title>
-  <meta name="description" content="Chefsachen erstellt Rechnungen und Angebote für Kleinunternehmer nach § 19 UStG ebenso wie für regelbesteuerte Selbstständige und kleine Unternehmen, mit allen Pflichtangaben nach § 14 UStG, als XRechnung und ZUGFeRD, lokal, ohne Cloud, kostenlos." />
+  <title>Chefsachen: Kostenloses Rechnungsprogramm mit XRechnung</title>
+  <meta name="description" content="Rechnungen und Angebote mit allen Pflichtangaben, für Kleinunternehmer und Regelbesteuerte. XRechnung, ZUGFeRD, lokal, ohne Cloud, kostenlos." />
   <meta name="theme-color" content="#fbfaf8" media="(prefers-color-scheme: light)" />
   <meta name="theme-color" content="#121316" media="(prefers-color-scheme: dark)" />
-  <link rel="canonical" href="https://abnun.github.io/chefsachen/" />
+  <meta name="robots" content="index, follow, max-image-preview:large" />
+  <link rel="canonical" href="https://www.chef-sachen.de/" />
 
   <!-- Vorschau beim Teilen in Messengern, sozialen Netzen und Chats. Ohne
        diese Angaben erscheint dort nur die nackte Adresse. -->
   <meta property="og:type" content="website" />
   <meta property="og:locale" content="de_DE" />
   <meta property="og:site_name" content="Chefsachen" />
-  <meta property="og:url" content="https://abnun.github.io/chefsachen/" />
-  <meta property="og:title" content="Chefsachen: Rechnungen für Kleinunternehmer und Regelbesteuerte" />
+  <meta property="og:url" content="https://www.chef-sachen.de/" />
+  <meta property="og:title" content="Chefsachen: Kostenloses Rechnungsprogramm mit XRechnung" />
   <meta property="og:description" content="Rechnungen und Angebote für Kleinunternehmer nach § 19 UStG ebenso wie für regelbesteuerte Selbstständige und kleine Unternehmen. Alle Pflichtangaben, XRechnung und ZUGFeRD, deine Daten bleiben auf deinem Rechner. Kostenlos und Open Source." />
-  <meta property="og:image" content="https://abnun.github.io/chefsachen/og-bild.png" />
+  <meta property="og:image" content="https://www.chef-sachen.de/og-bild.png" />
+  <meta property="og:image:type" content="image/png" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
-  <meta property="og:image:alt" content="Chefsachen — Rechnungen für Kleinunternehmer und Regelbesteuerte" />
+  <meta property="og:image:alt" content="Chefsachen: Rechnung mit Zustand Gestellt und den Export-Knöpfen PDF, XRechnung und ZUGFeRD" />
   <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:image" content="https://www.chef-sachen.de/og-bild.png" />
 
-  <link rel="icon" type="image/png" href="app-icon.png" />
+  <link rel="icon" type="image/png" sizes="128x128" href="app-icon.png" />
+  <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png" />
+  <link rel="apple-touch-icon" href="apple-touch-icon.png" />
   <link rel="stylesheet" href="styles.css" />
 
   <!-- Strukturierte Daten: sagt Suchmaschinen, dass hier Software steht, für
        welches System und zu welchem Preis. Weil die Inhaltsrichtlinie oben
        keine eingebetteten Skripte erlaubt, trägt sie den Hash genau dieses
        Blocks. Ändert sich hier ein Zeichen, muss der Hash neu berechnet
-       werden — sonst verwirft der Browser den Block stillschweigend. -->
+       werden, sonst verwirft der Browser den Block stillschweigend. -->
   <script type="application/ld+json">
 {
   "@context": "https://schema.org",
   "@type": "SoftwareApplication",
   "name": "Chefsachen",
+  "alternateName": "Chefsachen Rechnungsprogramm",
   "applicationCategory": "BusinessApplication",
   "applicationSubCategory": "Rechnungsprogramm",
   "operatingSystem": "macOS, Windows",
   "inLanguage": "de",
   "description": "Rechnungen und Angebote für Kleinunternehmer nach § 19 UStG ebenso wie für regelbesteuerte Selbstständige und kleine Unternehmen. Alle Pflichtangaben nach § 14 UStG, XRechnung und ZUGFeRD, lokal ohne Cloud.",
-  "url": "https://abnun.github.io/chefsachen/",
+  "url": "https://www.chef-sachen.de/",
+  "image": "https://www.chef-sachen.de/icon-512.png",
+  "screenshot": [
+    "https://www.chef-sachen.de/bilder/rechnung-hell.jpg",
+    "https://www.chef-sachen.de/bilder/uebersicht-hell.jpg"
+  ],
+  "downloadUrl": "https://github.com/abnun/chefsachen/releases/latest",
+  "installUrl": "https://github.com/abnun/chefsachen/releases/latest",
+  "softwareHelp": "https://github.com/abnun/chefsachen/blob/main/docs/installation.md",
+  "featureList": [
+    "Rechnungen und Angebote mit allen Pflichtangaben nach § 14 UStG",
+    "XRechnung und ZUGFeRD als E-Rechnung",
+    "Kleinunternehmer nach § 19 UStG und Regelbesteuerung",
+    "Umsatzgrenzen im Blick",
+    "Girocode zum Bezahlen per Smartphone auf der Rechnung",
+    "Alle Daten lokal, ohne Cloud"
+  ],
   "license": "https://opensource.org/licenses/MIT",
   "isAccessibleForFree": true,
   "offers": {
@@ -55,8 +77,8 @@
 </head>
 <body>
   <header class="container">
-    <h1>Chefsachen</h1>
-    <p>Rechnungen und Angebote für Kleinunternehmer nach § 19 UStG ebenso wie für regelbesteuerte Selbstständige und kleine Unternehmen. Alle Pflichtangaben, deine Daten bleiben auf deinem Rechner. Kostenlos und Open Source.</p>
+    <h1>Chefsachen<span class="h1-zusatz">Kostenloses Rechnungsprogramm</span></h1>
+    <p>Rechnungen und Angebote mit allen Pflichtangaben, für Kleinunternehmer und Regelbesteuerte. Deine Daten bleiben auf deinem Rechner. Kostenlos und Open Source.</p>
 
     <p>
       <a id="download-primaer" class="download-primaer" href="https://github.com/abnun/chefsachen/releases/latest">Für macOS herunterladen</a>
@@ -64,24 +86,14 @@
     <p>
       <a id="download-sekundaer" class="download-nebenrangig" href="https://github.com/abnun/chefsachen/releases/latest">Windows-Version herunterladen</a>
     </p>
-    <p class="einstieg-hinweis">
-      <span class="einstieg-hinweis-icon" aria-hidden="true">
-        <svg viewBox="0 0 20 20" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.4">
-          <circle cx="10" cy="10" r="7.5" />
-          <path d="M10 9v4.5" stroke-linecap="round" />
-          <circle cx="10" cy="6.5" r="0.4" fill="currentColor" stroke="none" />
-        </svg>
-      </span>
-      <span>
-        <strong>Neu hier?</strong> Lies zuerst die
-        <a href="https://github.com/abnun/chefsachen/blob/main/docs/installation.md" target="_blank" rel="noopener noreferrer">Installationsanleitung</a>
-        — dein Betriebssystem zeigt beim ersten Start eine Warnung, das ist normal.
-        Antworten auf weitere Fragen gibt's bei den <a href="#faq">Häufigen Fragen</a>.
-      </span>
+    <p class="download-hinweis">
+      Führt zur Download-Seite auf GitHub. Beim ersten Start zeigt dein
+      Betriebssystem eine Warnung, das ist normal: Die
+      <a href="https://github.com/abnun/chefsachen/blob/main/docs/installation.md" target="_blank" rel="noopener noreferrer">Installationsanleitung</a>
+      erklärt es in zwei Minuten.
     </p>
     <p class="download-eigengefahr">Kostenlos und ohne Gewährleistung. Nutzung auf eigene Gefahr.</p>
     <p class="spenden-hero">
-      Die App bleibt kostenlos.
       <a class="spenden-link" href="https://paypal.me/markusmueller1981/5">
         <svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
           <path d="M10 16.5s-6-3.8-6-8.2a3.3 3.3 0 0 1 6-1.9 3.3 3.3 0 0 1 6 1.9c0 4.4-6 8.2-6 8.2z" stroke-linejoin="round" />
@@ -89,15 +101,19 @@
         Freiwillig unterstützen
       </a>
     </p>
-    <p><small>Version <span id="release-version">siehe Releases</span> · <a href="https://github.com/abnun/chefsachen/releases">Alle Versionen</a> · <a href="https://github.com/abnun/chefsachen/releases/latest">Prüfsummen (SHA-256)</a></small></p>
-  </header>
+    <p><small>Geplant: auch im Mac App Store und im Microsoft Store · <a href="https://github.com/abnun/chefsachen/releases">Alle Versionen</a> · <a href="https://github.com/abnun/chefsachen/releases/latest">Prüfsummen (SHA-256)</a></small></p>
 
-  <a class="weiter-hinweis" id="weiter-hinweis" href="#funktionen">
-    <span class="visuell-versteckt">Weiter zu den Funktionen</span>
-    <svg viewBox="0 0 20 20" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
-      <path d="M5 8l5 5 5-5" stroke-linecap="round" stroke-linejoin="round" />
-    </svg>
-  </a>
+    <!-- Die Anwendung selbst, bevor ein Wort über sie gesagt ist: Wer eine
+         Rechnungs-App installieren soll, will sie vorher gesehen haben. Hell
+         und dunkel folgen der Systemeinstellung wie die Seite. -->
+    <figure class="fenster">
+      <span class="fenster-ampel" aria-hidden="true"><i></i><i></i><i></i></span>
+      <picture>
+        <source srcset="bilder/rechnung-dunkel.jpg" media="(prefers-color-scheme: dark)" />
+        <img src="bilder/rechnung-hell.jpg" width="1800" height="1125" alt="Eine gestellte Rechnung in Chefsachen: Stammdaten, Positionen mit Summe, eine Teilzahlung und oben die Knöpfe für PDF, XRechnung und ZUGFeRD." />
+      </picture>
+    </figure>
+  </header>
 
   <main class="container">
     <section aria-label="Kernfunktionen" id="funktionen">
@@ -170,6 +186,18 @@
           <p>Der komplette Quellcode ist einsehbar auf GitHub. Es gibt keine Bezahlversion und keine kostenpflichtigen Zusatzfunktionen; die veröffentlichten Versionen stehen dauerhaft unter der MIT-Lizenz zur Verfügung.</p>
         </article>
       </div>
+    </section>
+
+    <section aria-label="Die Übersicht">
+      <h2>Behalte die Grenzen im Blick</h2>
+      <p>Die Übersicht zeigt, was du vereinnahmt hast, wie weit du von den Grenzen der Kleinunternehmerregelung entfernt bist und welche Rechnungen noch offen sind.</p>
+      <figure class="fenster">
+        <span class="fenster-ampel" aria-hidden="true"><i></i><i></i><i></i></span>
+        <picture>
+          <source srcset="bilder/uebersicht-dunkel.jpg" media="(prefers-color-scheme: dark)" />
+          <img src="bilder/uebersicht-hell.jpg" width="1800" height="1125" loading="lazy" alt="Die Übersicht in Chefsachen: Vereinnahmung des Jahres, Fortschrittsbalken zu den Grenzen der Kleinunternehmerregelung und eine Tabelle offener Rechnungen." />
+        </picture>
+      </figure>
     </section>
 
     <section aria-label="Rechtlicher Hinweis" class="hinweis-box">
@@ -289,13 +317,19 @@
             <a href="https://github.com/abnun/chefsachen/issues">Funktionswunsch auf GitHub</a>.
           </p>
           <p class="faq-warnung">
-            <strong>Prüfe erzeugte Belege vor dem Versand</strong> — so wie bei jeder
+            <strong>Prüfe erzeugte Belege vor dem Versand</strong>, so wie bei jeder
             anderen Software auch.
           </p>
         </dd>
 
+        <dt>Läuft Chefsachen auf Mac und Windows?</dt>
+        <dd>Ja, es gibt je eine Version für macOS und für Windows. Beide stehen auf der <a href="https://github.com/abnun/chefsachen/releases/latest">Download-Seite auf GitHub</a>.</dd>
+
+        <dt>Kann ich damit E-Rechnungen als XRechnung oder ZUGFeRD erstellen?</dt>
+        <dd>Ja. Jede gestellte Rechnung lässt sich als PDF, als XRechnung (XML) und als ZUGFeRD-PDF exportieren. Ob und ab wann du E-Rechnungen ausstellen musst, hängt von deiner Situation ab. Kleinunternehmer nach § 19 UStG sind von der Ausstellungspflicht ausgenommen, müssen E-Rechnungen aber empfangen können. Das ist keine Steuerberatung, im Zweifel klärst du es mit deiner Steuerberatung.</dd>
+
         <dt>Für wen ist die App gedacht?</dt>
-        <dd>Für Kleinunternehmer nach § 19 UStG ebenso wie für regelbesteuerte Selbstständige und kleine Unternehmen, die Rechnungen und Angebote mit den vorgeschriebenen Pflichtangaben erstellen wollen — ohne Abo und ohne Cloud-Zwang.</dd>
+        <dd>Für Kleinunternehmer nach § 19 UStG ebenso wie für regelbesteuerte Selbstständige und kleine Unternehmen, die Rechnungen und Angebote mit den vorgeschriebenen Pflichtangaben erstellen wollen, ohne Abo und ohne Cloud-Zwang.</dd>
       </dl>
     </section>
   </main>

@@ -1,11 +1,15 @@
-/* Beide Schriften sind auf die Zeichen dieser drei Seiten zusammengestrichen
-   und als WOFF2 gepackt: zusammen 121 KB statt 2 MB als volle TTF. Fehlte
-   ausnahmsweise ein Zeichen, setzt der Browser es aus der nächsten Schrift
-   der Liste — es fehlt also nie, es sieht nur anders aus. */
+/* Beide Schriften sind auf lateinische Zeichen zusammengestrichen und als
+   WOFF2 gepackt, zusammen gut 100 KB. Fehlte ausnahmsweise ein Zeichen,
+   setzt der Browser es aus der nächsten Schrift der Liste: Es fehlt also nie,
+   es sieht nur anders aus.
+
+   Source Sans 3 im Fließtext, Source Serif 4 in den Überschriften: dieselbe
+   Schriftfamilie von Adobe, eine Antiqua und ihre Grotesk, aufeinander
+   abgestimmt. Die Sans ist schmaler und wärmer als die übliche Web-Grotesk. */
 @font-face {
-  font-family: "Inter";
-  src: url("fonts/Inter.woff2") format("woff2");
-  font-weight: 100 900;
+  font-family: "Source Sans 3";
+  src: url("fonts/SourceSans3.woff2") format("woff2");
+  font-weight: 200 900;
   font-display: swap;
 }
 
@@ -21,26 +25,22 @@
 
 /* ---------------------------------------------------------------
    Gestaltungs-Token
-   Helles, warmes Papier, tiefschwarze Tinte, ein einziger frischer
-   Akzent (Petrolgrün) für Links, Marken- und Fokus-Details.
+   Helles, warmes Papier, dunkle Tinte, ein einziger Akzent (Petrol, derselbe
+   wie in der App) für Links, Marken- und Fokus-Details. Alle Farben in OKLCH.
    --------------------------------------------------------------- */
 
 :root {
   color-scheme: light dark;
 
-  --papier: #fbfaf8;
-  --papier-tief: #f3f1ec;
-  --tinte: #16181c;
-  --tinte-weich: #55585f;
-  --linie: #e4dfd6;
-  --akzent: #0e6b52;
-  --akzent-hell: #0a5540;
-  --auf-akzent: #ffffff;
+  --papier: oklch(0.985 0.005 85);
+  --papier-tief: oklch(0.955 0.008 85);
+  --tinte: oklch(0.21 0.012 250);
+  --tinte-weich: oklch(0.46 0.012 250);
+  --linie: oklch(0.9 0.012 85);
+  --akzent: oklch(0.49 0.09 220);
+  --akzent-hell: oklch(0.43 0.09 220);
+  --auf-akzent: oklch(0.99 0.004 220);
   --schatten-farbe: 22 24 28;
-  --warnung: #a8412c;
-  --warnung-flaeche: #faece7;
-  --warnung-linie: #e3b8ab;
-  --warnung-text: #6f4239;
 
   --masz-1: 0.5rem;
   --masz-2: 0.75rem;
@@ -55,19 +55,15 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --papier: #121316;
-    --papier-tief: #191b1f;
-    --tinte: #f1f0ed;
-    --tinte-weich: #a4a8b0;
-    --linie: #2b2e34;
-    --akzent: #52c9a1;
-    --akzent-hell: #7bdcbb;
-    --auf-akzent: #0d1512;
+    --papier: oklch(0.17 0.008 250);
+    --papier-tief: oklch(0.205 0.009 250);
+    --tinte: oklch(0.95 0.005 85);
+    --tinte-weich: oklch(0.74 0.01 250);
+    --linie: oklch(0.3 0.01 250);
+    --akzent: oklch(0.78 0.1 220);
+    --akzent-hell: oklch(0.85 0.09 220);
+    --auf-akzent: oklch(0.2 0.02 220);
     --schatten-farbe: 0 0 0;
-    --warnung: #e2896f;
-    --warnung-flaeche: #241a18;
-    --warnung-linie: #4a2c26;
-    --warnung-text: #cbaba2;
   }
 }
 
@@ -82,8 +78,8 @@ html {
 }
 
 body {
-  font-family: "Inter", system-ui, sans-serif;
-  font-size: 1.0625rem;
+  font-family: "Source Sans 3", system-ui, sans-serif;
+  font-size: 1.1875rem;
   line-height: 1.65;
   margin: 0;
   color: var(--tinte);
@@ -160,7 +156,7 @@ small {
 
 /* Spezifität muss `.container` schlagen, daher Element + Klasse. */
 header.container {
-  padding-block: clamp(3rem, 9vw, 6rem) clamp(3rem, 8vw, 5rem);
+  padding-block: clamp(2.5rem, 7vw, 4.5rem) clamp(3rem, 8vw, 5rem);
 }
 
 main.container {
@@ -180,6 +176,19 @@ header h1 {
   margin-bottom: var(--masz-4);
 }
 
+/* Zweiter Teil der Hauptüberschrift: nennt, was die App ist, damit die
+   Seite auch für Suchbegriffe wie "Rechnungsprogramm" lesbar ist. */
+.h1-zusatz {
+  display: block;
+  margin-top: var(--masz-2);
+  font-family: "Source Sans 3", system-ui, sans-serif;
+  font-size: clamp(1.25rem, 3vw, 1.75rem);
+  font-weight: 500;
+  letter-spacing: 0;
+  line-height: 1.2;
+  color: var(--tinte-weich);
+}
+
 header h1::before {
   content: "";
   display: block;
@@ -196,9 +205,9 @@ header > p:first-of-type {
   font-size: clamp(1.125rem, 2.2vw, 1.4rem);
   line-height: 1.45;
   color: var(--tinte-weich);
-  max-width: 34ch;
+  max-width: 40ch;
   text-wrap: balance;
-  margin-bottom: clamp(2rem, 4vw, 2.75rem);
+  margin-bottom: clamp(1.5rem, 3vw, 2rem);
 }
 
 /* Die beiden Download-Absätze bilden optisch eine Knopfreihe. */
@@ -211,39 +220,19 @@ header p:has(> .download-nebenrangig) {
 /* Steht direkt unter den Download-Knöpfen: der Hinweis soll im Moment der
    Entscheidung sichtbar sein, ohne den Weg dorthin zu verstellen. */
 .download-eigengefahr {
-  margin: var(--masz-3) 0 0;
+  margin: var(--masz-2) 0 0;
   font-size: 0.9375rem;
   color: var(--tinte-weich);
 }
 
-/* Installationsanleitung und FAQ standen bisher nur weit unten auf der
-   Seite bzw. in einer einzelnen FAQ-Antwort verlinkt — kaum jemand liest so
-   weit, bevor er installiert, und bleibt dann bei der Sicherheitswarnung
-   hängen. Bewusst neutral statt in den Warnfarben von `.hinweis-box`
-   gehalten: Das hier ist ein Lesetipp, keine Warnung. */
-.einstieg-hinweis {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--masz-2);
-  margin: var(--masz-4) 0 0;
-  padding: var(--masz-3) var(--masz-3);
-  border: 1px solid var(--linie);
-  border-radius: var(--radius);
-  background: var(--papier-tief);
+/* Eine Zeile Klartext unter den Knöpfen statt einer eigenen Box: Sie sagt,
+   wohin der Knopf führt und warum beim ersten Start eine Warnung kommt. */
+.download-hinweis {
+  max-width: 52ch;
+  margin: var(--masz-3) 0 0;
   font-size: 0.9375rem;
   line-height: 1.55;
   color: var(--tinte-weich);
-}
-
-.einstieg-hinweis-icon {
-  flex: none;
-  display: inline-flex;
-  margin-top: 0.1em;
-  color: var(--akzent);
-}
-
-.einstieg-hinweis strong {
-  color: var(--tinte);
 }
 
 .download-primaer,
@@ -309,11 +298,6 @@ header > p:last-of-type a:hover {
   color: var(--akzent);
 }
 
-#release-version {
-  font-weight: 600;
-  color: var(--tinte);
-}
-
 /* --- Freiwillig unterstützen ----------------------------------- */
 
 /* Im Kopfbereich bewusst als Textlink und nicht als dritter Knopf: die
@@ -372,53 +356,6 @@ header > p:last-of-type a:hover {
   transform: translateY(0);
 }
 
-/* --- Weiter-unten-Hinweis -------------------------------------- */
-
-/* Sitzt am unteren Rand des ersten Bildschirms und verschwindet, sobald
-   gescrollt wird — ein Hinweis, der nach dem ersten Handgriff stehen bliebe,
-   wäre nur noch Störung. Ein echter Link, kein Ornament: mit der Tastatur
-   erreichbar und er führt tatsächlich zum ersten Abschnitt. */
-.weiter-hinweis {
-  position: fixed;
-  bottom: clamp(1rem, 3vw, 1.75rem);
-  left: 50%;
-  z-index: 10;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 2.75rem;
-  height: 2.75rem;
-  margin-left: -1.375rem;
-  border: 1px solid var(--linie);
-  border-radius: 50%;
-  background: var(--papier);
-  color: var(--tinte-weich);
-  box-shadow: 0 1px 2px rgb(var(--schatten-farbe) / 0.1),
-    0 8px 20px -10px rgb(var(--schatten-farbe) / 0.3);
-  transition: opacity 0.4s ease, visibility 0.4s ease, color 0.2s ease,
-    border-color 0.2s ease;
-}
-
-.weiter-hinweis:hover {
-  color: var(--tinte);
-  border-color: var(--tinte-weich);
-}
-
-/* `visibility` zusätzlich zu `opacity`: ein nur durchsichtiger Link bliebe
-   anklickbar und im Tabulator-Lauf. */
-.weiter-hinweis.versteckt {
-  opacity: 0;
-  visibility: hidden;
-}
-
-/* Auf sehr flachen Fenstern (Notebook im Querformat, aufgeklappte Tastatur)
-   nimmt der Kreis mehr weg, als der Hinweis wert ist. */
-@media (max-height: 34rem) {
-  .weiter-hinweis {
-    display: none;
-  }
-}
-
 .visuell-versteckt {
   position: absolute;
   width: 1px;
@@ -429,6 +366,50 @@ header > p:last-of-type a:hover {
   clip-path: inset(50%);
   white-space: nowrap;
   border: 0;
+}
+
+/* --- App-Fenster ------------------------------------------------ */
+
+/* Ein Screenshot als Fenster: Rand, Radius, Schatten. Die drei Punkte sitzen
+   dort, wo die Anwendung unter macOS Platz für die Fensterknöpfe lässt, und
+   sind reine Zierde. Das Seitenverhältnis steht im HTML (`width`/`height`),
+   damit beim Laden nichts springt. */
+.fenster {
+  position: relative;
+  margin: clamp(2.5rem, 6vw, 4rem) 0 0;
+  overflow: hidden;
+  border: 1px solid var(--linie);
+  border-radius: var(--radius);
+  background: var(--papier-tief);
+  box-shadow: 0 1px 2px rgb(var(--schatten-farbe) / 0.1),
+    0 24px 48px -24px rgb(var(--schatten-farbe) / 0.35);
+}
+
+.fenster img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.fenster-ampel {
+  position: absolute;
+  top: 1.7%;
+  left: 1.3%;
+  display: flex;
+  gap: 0.55%;
+}
+
+.fenster-ampel i {
+  display: block;
+  width: clamp(6px, 1.05vw, 13px);
+  height: clamp(6px, 1.05vw, 13px);
+  margin-right: clamp(3px, 0.6vw, 8px);
+  border-radius: 50%;
+  background: var(--linie);
+}
+
+section > .fenster {
+  margin-top: var(--masz-5);
 }
 
 /* --- Abschnitte ------------------------------------------------ */
@@ -452,6 +433,7 @@ section > h2 {
 
 section > p {
   max-width: 66ch;
+  text-wrap: pretty;
 }
 
 /* --- Funktionsliste (keine Kacheln, sondern gesetzte Spalten) --- */
@@ -499,14 +481,15 @@ section > p {
 }
 
 .kachel-liste h2 {
-  font-size: 1.0625rem;
+  font-size: 1.5rem;
+  line-height: 1.25;
   letter-spacing: 0;
   margin-bottom: var(--masz-1);
 }
 
 .kachel-liste p {
   margin: 0;
-  font-size: 0.9688rem;
+  font-size: 1rem;
   line-height: 1.6;
   color: var(--tinte-weich);
 }
@@ -521,9 +504,9 @@ section > p {
    90 Zeichen trotzdem zu breit zum Lesen. */
 .hinweis-box {
   padding: clamp(1.25rem, 3vw, 1.75rem);
-  border: 1px solid var(--warnung-linie);
+  border: 1px solid var(--linie);
   border-radius: var(--radius);
-  background: var(--warnung-flaeche);
+  background: var(--papier-tief);
   /* Dasselbe Raster wie die Kachelliste darüber, eine Spalte je Thema. Vorher
      standen hier Zeitungsspalten: Weil jeder Absatz zusammenbleiben muss,
      konnte der Browser die Spaltenhöhen nicht ausgleichen, und unter der
@@ -556,7 +539,7 @@ section > p {
 .hinweis-box article {
   position: relative;
   padding-top: var(--masz-3);
-  border-top: 1px solid var(--warnung-linie);
+  border-top: 1px solid var(--linie);
 }
 
 .hinweis-box article::before {
@@ -566,7 +549,7 @@ section > p {
   left: 0;
   width: 2rem;
   height: 2px;
-  background: var(--warnung);
+  background: var(--tinte-weich);
 }
 
 .hinweis-icon {
@@ -576,7 +559,7 @@ section > p {
   width: 2rem;
   height: 2rem;
   margin-bottom: var(--masz-2);
-  color: var(--warnung);
+  color: var(--tinte-weich);
 }
 
 .hinweis-icon svg {
@@ -587,9 +570,9 @@ section > p {
 .hinweis-box h3 {
   margin: 0 0 var(--masz-1);
   font-family: "Source Serif 4", Georgia, "Times New Roman", serif;
-  font-size: 1.0625rem;
+  font-size: 1.5rem;
   font-weight: 600;
-  line-height: 1.25;
+  line-height: 1.3;
   color: var(--tinte);
 }
 
@@ -597,9 +580,9 @@ section > p {
   /* Kein eigener Abstand: Die Kacheln stehen ohnehin nebeneinander, den
      Zwischenraum regelt `gap`. */
   margin: 0;
-  font-size: 0.9688rem;
+  font-size: 1rem;
   line-height: 1.6;
-  color: var(--warnung-text);
+  color: var(--tinte-weich);
 }
 
 .hinweis-box strong {
@@ -646,19 +629,19 @@ dd p:last-child {
 
 /* Der eine Satz in den häufigen Fragen, der eine Handlung verlangt statt nur
    zu informieren. Getönt wie der rechtliche Hinweis weiter oben, damit die
-   Seite für „wichtig" durchgehend dieselbe Sprache spricht — nur kleiner,
+   Seite für „wichtig" durchgehend dieselbe Sprache spricht, nur kleiner,
    denn hier steht ein Satz und kein Abschnitt. */
 .faq-warnung {
   margin-top: var(--masz-3);
   padding: var(--masz-2) var(--masz-3);
-  border: 1px solid var(--warnung-linie);
+  border: 1px solid var(--linie);
   border-radius: var(--radius);
-  background: var(--warnung-flaeche);
-  color: var(--warnung-text);
+  background: var(--papier-tief);
+  color: var(--tinte-weich);
 }
 
 .faq-warnung strong {
-  color: var(--warnung);
+  color: var(--tinte);
 }
 
 /* --- Fußzeile -------------------------------------------------- */
@@ -760,26 +743,8 @@ main.container > p {
     animation-delay: 0.3s;
   }
 
-  /* Der Pfeil kommt nach dem Kopfbereich und wippt dann weiter. Zwei
-     Animationen auf einem Element: die erste läuft einmal, die zweite
-     beginnt danach (Verzögerung = Dauer der ersten) und wiederholt sich. */
-  .weiter-hinweis {
-    animation: eintreffen 0.6s var(--schwung) 0.5s backwards,
-      wippen 2.4s ease-in-out 1.1s infinite;
-  }
-
   html {
     scroll-behavior: smooth;
-  }
-}
-
-@keyframes wippen {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(6px);
   }
 }
 
